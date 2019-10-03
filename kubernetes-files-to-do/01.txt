@@ -1,0 +1,7 @@
+﻿  \_ containerd-shim -namespace moby -workdir /var/lib/containerd/io.containerd.runtime.v1.linux/moby/fc9f78112ce434e06c9ef829fdc5039776a95f07f89f06cbeaaa28f79a40d993 -address /run/containerd/containerd.sock -containerd-binary /usr/bin/containerd -runtime-root /var/run/docker/runtime-runc
+
+
+
+
+docker-containerd-shim <container_id> /var/run/docker/libcontainerd/<container_id> docker-runc
+

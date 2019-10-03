@@ -1,0 +1,3837 @@
+﻿21/09/2019
+прежде всего как установить кубернетес
+
+статья здесь просто отличная - https://www.linode.com/docs/applications/containers/kubernetes/how-to-deploy-nginx-on-a-kubernetes-cluster/
+
+привожу тут команды которые вводятся
+
+# apt install ebtables ethtool
+
+# apt remove docker docker-engine docker.io
+
+# apt install apt-transport-https ca-certificates curl software-properties-common
+
+# curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+
+
+# add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+
+# sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable edge test"
+
+
+# sudo apt update
+# sudo apt install docker-ce
+
+# docker run hello-world
+
+
+curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
+echo 'deb http://apt.kubernetes.io/ kubernetes-xenial main' | sudo tee /etc/apt/sources.list.d/kubernetes.list
+sudo apt update
+sudo apt install -y kubelet kubeadm kubectl
+
+
+
+вот эти команды что выше. они делаются на всех нода и что будет мастером и что будут дата нодами.
+
+замечу ! что на каждой ноде нужен kubeadm а в доках о нем что ниже вообще ни слова нет!
+
+
+возвращается на мастер ноду
+
+
+я бы рекомендовал не в hosts нод происывать всех соседей. 
+а на центральном dns сервере. 
+ибо при добавлении +1 ноды через hosts придется делать изменения по всем нода кластера что пиздец. а если через внешний dns то 
+надо просто на dns добавить +1 запись
+
+итак собираемся инициализировать кластер
+
+root@test-kub-01:~# kubeadm init  --pod-network-cidr=10.252.0.0/16 --apiserver-advertise-address=172.16.102.31
+
+тут надо сразу сказать что --pod-network-cidr=10.252.0.0/16  это сеть никак несвязанная с реальными сетями и ip 
+адресами которые имеет наша нода. это сеть чисто внутренняя внутри нод кубернетеса которая будет 
+использоваться для выдачи внутренних ip адресов для подов.
+а вот --apiserver-advertise-address=172.16.102.31 это уже реальный ip адрес нашей ноды. по которому к ней
+можно убдет с других нод достучаться до api сервера.
+
+[init] Using Kubernetes version: v1.16.0
+[preflight] Running pre-flight checks
+        [WARNING IsDockerSystemdCheck]: detected "cgroupfs" as the Docker cgroup driver. The recommended driver is "systemd". Please follow the guide at https://kubernetes.io/docs/setup/cri/
+        [WARNING SystemVerification]: this Docker version is not on the list of validated versions: 19.03.2. Latest validated version: 18.09
+[preflight] Pulling images required for setting up a Kubernetes cluster
+[preflight] This might take a minute or two, depending on the speed of your internet connection
+[preflight] You can also perform this action in beforehand using 'kubeadm config images pull'
+[kubelet-start] Writing kubelet environment file with flags to file "/var/lib/kubelet/kubeadm-flags.env"
+[kubelet-start] Writing kubelet configuration to file "/var/lib/kubelet/config.yaml"
+[kubelet-start] Activating the kubelet service
+[certs] Using certificateDir folder "/etc/kubernetes/pki"
+[certs] Generating "ca" certificate and key
+[certs] Generating "apiserver" certificate and key
+[certs] apiserver serving cert is signed for DNS names [test-kub-01 kubernetes kubernetes.default kubernetes.default.svc kubernetes.default.svc.cluster.local] and IPs [10.96.0.1 172.16.102.31]
+[certs] Generating "apiserver-kubelet-client" certificate and key
+[certs] Generating "front-proxy-ca" certificate and key
+[certs] Generating "front-proxy-client" certificate and key
+[certs] Generating "etcd/ca" certificate and key
+[certs] Generating "etcd/server" certificate and key
+[certs] etcd/server serving cert is signed for DNS names [test-kub-01 localhost] and IPs [172.16.102.31 127.0.0.1 ::1]
+[certs] Generating "etcd/peer" certificate and key
+[certs] etcd/peer serving cert is signed for DNS names [test-kub-01 localhost] and IPs [172.16.102.31 127.0.0.1 ::1]
+[certs] Generating "etcd/healthcheck-client" certificate and key
+[certs] Generating "apiserver-etcd-client" certificate and key
+[certs] Generating "sa" key and public key
+[kubeconfig] Using kubeconfig folder "/etc/kubernetes"
+[kubeconfig] Writing "admin.conf" kubeconfig file
+[kubeconfig] Writing "kubelet.conf" kubeconfig file
+[kubeconfig] Writing "controller-manager.conf" kubeconfig file
+[kubeconfig] Writing "scheduler.conf" kubeconfig file
+[control-plane] Using manifest folder "/etc/kubernetes/manifests"
+[control-plane] Creating static Pod manifest for "kube-apiserver"
+[control-plane] Creating static Pod manifest for "kube-controller-manager"
+[control-plane] Creating static Pod manifest for "kube-scheduler"
+[etcd] Creating static Pod manifest for local etcd in "/etc/kubernetes/manifests"
+[wait-control-plane] Waiting for the kubelet to boot up the control plane as static Pods from directory "/etc/kubernetes/manifests". This can take up to 4m0s
+[kubelet-check] Initial timeout of 40s passed.
+[apiclient] All control plane components are healthy after 41.501947 seconds
+[upload-config] Storing the configuration used in ConfigMap "kubeadm-config" in the "kube-system" Namespace
+[kubelet] Creating a ConfigMap "kubelet-config-1.16" in namespace kube-system with the configuration for the kubelets in the cluster
+[upload-certs] Skipping phase. Please see --upload-certs
+[mark-control-plane] Marking the node test-kub-01 as control-plane by adding the label "node-role.kubernetes.io/master=''"
+[mark-control-plane] Marking the node test-kub-01 as control-plane by adding the taints [node-role.kubernetes.io/master:NoSchedule]
+[bootstrap-token] Using token: ho9qay.07wqqjjeuypa5i0p
+[bootstrap-token] Configuring bootstrap tokens, cluster-info ConfigMap, RBAC Roles
+[bootstrap-token] configured RBAC rules to allow Node Bootstrap tokens to post CSRs in order for nodes to get long term certificate credentials
+[bootstrap-token] configured RBAC rules to allow the csrapprover controller automatically approve CSRs from a Node Bootstrap Token
+[bootstrap-token] configured RBAC rules to allow certificate rotation for all node client certificates in the cluster
+[bootstrap-token] Creating the "cluster-info" ConfigMap in the "kube-public" namespace
+[addons] Applied essential addon: CoreDNS
+[addons] Applied essential addon: kube-proxy
+
+Your Kubernetes control-plane has initialized successfully!
+
+To start using your cluster, you need to run the following as a regular user:
+
+  mkdir -p $HOME/.kube
+  sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+  sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+You should now deploy a pod network to the cluster.
+Run "kubectl apply -f [podnetwork].yaml" with one of the options listed at:
+  https://kubernetes.io/docs/concepts/cluster-administration/addons/
+
+Then you can join any number of worker nodes by running the following on each as root:
+
+kubeadm join 172.16.102.31:6443 --token ho9qay.07wqqjjeuypa5i0p \
+    --discovery-token-ca-cert-hash sha256:95e4e1db5e638587e3cee2d662e1d55ab48a04d9d2564e8e1bad6db6d6c85500
+
+
+
+
+
+выполняем вот эти три команды
+
+root@test-kub-01:~#  mkdir -p $HOME/.kube
+root@test-kub-01:~# sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+root@test-kub-01:~# sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+
+и надо отдельно про них сказать. в этом файле config находится ключ от кластера. 
+если мы удалим кластер командой  kubeadm reset и создадим кластер заново 
+то нужно будет стереть в $HOME файл config и скопировать его заново. потому что 
+ключ от кластера изменится. и если мы config в $HOME оставим старый то при попытке 
+начать работат с кластером нам вылетит ошибка
+
+unable to recognize  x509: certificate signed by unknown authority 
+(possibly because of "crypto/rsa: verification error" while trying to verify candidate authority certificate "kubernetes"
+
+
+вот она еще раз скажу значит то что у нас config файл от старого кластера со старым уже невалидным ключом 
+или сертификатом пофик смысл один.
+
+
+root@test-kub-01:~# kubectl get nodes
+NAME          STATUS     ROLES    AGE   VERSION
+test-kub-01   NotReady   master   87s   v1.16.0
+
+
+видно что статус мастер ноды notready.
+это потому что нам нужно поставить компонент который будет рулить внутренней сетью к8.
+опять же ставить его до команды kubadmin init неполучится. пошлет система нахер.
+ставим этот сетевой компонент уже после kubeadmin init.
+
+обычно советуют ставить calico
+
+
+в статье что выше указана версия calico которая не встает на данный кубернетес. поэтому юзаем 
+другую команду из доков самого кубернетеса отсюда - https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/create-cluster-kubeadm/#pod-network
+
+# kubectl apply -f https://docs.projectcalico.org/v3.8/manifests/calico.yaml
+
+но!!!  calico достаточно глючный продукт . он успешно не стартует когда мы ставим уже третью дата ноду. так что нахуй calico
+
+так что в реале ставим flannel. этот продукт вообще работает без проблем
+
+# kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+
+
+
+configmap/calico-config created
+customresourcedefinition.apiextensions.k8s.io/felixconfigurations.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/ipamblocks.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/blockaffinities.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/ipamhandles.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/ipamconfigs.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/bgppeers.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/bgpconfigurations.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/ippools.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/hostendpoints.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/clusterinformations.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/globalnetworkpolicies.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/globalnetworksets.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/networkpolicies.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/networksets.crd.projectcalico.org created
+clusterrole.rbac.authorization.k8s.io/calico-kube-controllers created
+clusterrolebinding.rbac.authorization.k8s.io/calico-kube-controllers created
+clusterrole.rbac.authorization.k8s.io/calico-node created
+clusterrolebinding.rbac.authorization.k8s.io/calico-node created
+daemonset.apps/calico-node created
+serviceaccount/calico-node created
+deployment.apps/calico-kube-controllers created
+serviceaccount/calico-kube-controllers created
+
+проверяем что теперь все системные поды которые к контрольной панели относятся они все встали .
+.
+root@test-kub-01:~# kubectl get pods --all-namespaces
+NAMESPACE     NAME                                       READY   STATUS    RESTARTS   AGE
+kube-system   calico-kube-controllers-564b6667d7-j5vmn   1/1     Running   0          8m28s
+kube-system   calico-node-szpgd                          1/1     Running   0          8m28s
+kube-system   coredns-5644d7b6d9-b96jg                   1/1     Running   0          15m
+kube-system   coredns-5644d7b6d9-g5mwh                   1/1     Running   0          15m
+kube-system   etcd-test-kub-01                           1/1     Running   0          14m
+kube-system   kube-apiserver-test-kub-01                 1/1     Running   0          14m
+kube-system   kube-controller-manager-test-kub-01        1/1     Running   0          15m
+kube-system   kube-proxy-cfnx6                           1/1     Running   0          15m
+kube-system   kube-scheduler-test-kub-01                 1/1     Running   0          14m
+
+
+
+все окей.
+
+
+далее еще проверка
+
+root@test-kub-01:~# kubectl get nodes
+NAME          STATUS   ROLES    AGE   VERSION
+test-kub-01   Ready    master   23m   v1.16.0
+root@test-kub-01:~#
+
+
+мастер нода должны быть в статусе=ready
+
+все - кубернетес на мастер ноду установлен успешно.
+
+
+
+далее.
+запустили под а у него статус pending
+
+~# kubectl get pods
+NAME    READY   STATUS    RESTARTS   AGE
+vasya   0/1     Pending   0          7s
+
+нам надо понять почему
+
+root@test-kub-01:~# kubectl describe pods vasya
+Name:         vasya
+
+...
+
+Events:
+  Type     Reason            Age        From               Message
+  ----     ------            ----       ----               -------
+  Warning  FailedScheduling  <unknown>  default-scheduler  0/1 nodes are available: 1 node(s) had taints that the pod didn't tolerate.
+  Warning  FailedScheduling  <unknown>  default-scheduler  0/1 nodes are available: 1 node(s) had taints that the pod didn't tolerate.
+root@test-kub-01:~#
+
+вот и причина 
+нет дата нод на которых можно развернуть этот под.
+
+
+теперь добавляем дата ноды в к8
+
+
+на дата нодах вводим 
+
+# kubeadm join 172.16.102.31:6443 --token ho9qay.07wqqjjeuypa5i0p  --discovery-token-ca-cert-hash sha256:95e4e1db5e638587e3cee2d662e1d55ab48a04d9d2564e8e1bad6db6d6c85500
+
+
+эту строчку берем из вывода после установки кубернетеса на мастер ноде.
+если мы ее прохлопали то ее можно сгенерировать заново
+
+kubeadm token generate
+kubeadm token create <generated-token> --print-join-command --ttl=0
+
+
+
+если все окей то дата нода напишет
+
+[kubelet-start] Waiting for the kubelet to perform the TLS Bootstrap...
+
+This node has joined the cluster:
+* Certificate signing request was sent to apiserver and a response was received.
+* The Kubelet was informed of the new secure connection details.
+
+Run 'kubectl get nodes' on the control-plane to see this node join the cluster.
+
+
+проверяем статус этой ноды в кластере
+
+#
+root@test-kub-01:~# kubectl get nodes
+NAME          STATUS   ROLES    AGE     VERSION
+test-kub-01   Ready    master   88m     v1.16.0
+test-kub-02   Ready    <none>   3m35s   v1.16.0
+
+видно что статус kub-02 = ready.
+замечу еще раз что kubectl команда будет рабоать только если в $HOME на компе на котором 
+мы хотим эту комаду запустить лежит config от кластера. иначе будет выдавать ошибку.
+
+итого одна мастер нода и два дата ноды
+
+root@test-kub-01:~# kubectl get nodes
+NAME          STATUS   ROLES    AGE     VERSION
+test-kub-01   Ready    master   92m     v1.16.0
+test-kub-02   Ready    <none>   6m56s   v1.16.0
+test-kub-03   Ready    <none>   58s     v1.16.0
+
+еще раз замечу что по умолчанию к8 публиукует поды только на дата нодах и не публикует на мастер ноде
+
+далее.
+
+полезная команда
+
+root@test-kub-01:~# kubeadm config view
+apiServer:
+  extraArgs:
+    authorization-mode: Node,RBAC
+  timeoutForControlPlane: 4m0s
+apiVersion: kubeadm.k8s.io/v1beta2
+certificatesDir: /etc/kubernetes/pki
+clusterName: kubernetes
+controllerManager: {}
+dns:
+  type: CoreDNS
+etcd:
+  local:
+    dataDir: /var/lib/etcd
+imageRepository: k8s.gcr.io
+kind: ClusterConfiguration
+kubernetesVersion: v1.16.0
+networking:
+  dnsDomain: cluster.local
+  podSubnet: 10.252.0.0/16
+  serviceSubnet: 10.96.0.0/12
+scheduler: {}
+
+
+пробуем в кластере опубликовать под. и сервис 
+
+# kubectl create deployment nginx --image=nginx
+
+# kubectl create service nodeport nginx --tcp=80:80
+
+# root@test-kub-01:~# kubectl get svc
+NAME         TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)        AGE
+kubernetes   ClusterIP   10.96.0.1       <none>        443/TCP        107m
+nginx        NodePort    10.96.231.223   <none>        80:31546/TCP   13m
+
+
+проверяем что nginx заработал
+
+root@test-kub-01:~# curl 10.96.231.223:80
+<!DOCTYPE html>
+<html>
+<head>
+<title>Welcome to nginx!</title>
+<style>
+    body {
+        width: 35em;
+        margin: 0 auto;
+        font-family: Tahoma, Verdana, Arial, sans-serif;
+    }
+</style>
+</head>
+<body>
+<h1>Welcome to nginx!</h1>
+<p>If you see this page, the nginx web server is successfully installed and
+working. Further configuration is required.</p>
+
+<p>For online documentation and support please refer to
+<a href="http://nginx.org/">nginx.org</a>.<br/>
+Commercial support is available at
+<a href="http://nginx.com/">nginx.com</a>.</p>
+
+<p><em>Thank you for using nginx.</em></p>
+</body>
+</html>
+
+
+замечу что сервис nginx доступен по сокету 10.96.231.223:80 только внутри нод к8.
+это его внутрикорпоративный адрес. снаружи вне нод к8 он доступен 
+как я понимаю по другому адресу будет.
+
+
+далее про сети.
+
+как видно из команды kubeadm init мы задали сеть под поды
+
+--pod-network-cidr=10.252.0.0/16
+
+как видно из команды kubeadm config view
+
+
+podSubnet: 10.252.0.0/16       -- это вот наша заданная сеть под поды
+serviceSubnet: 10.96.0.0/12   - это некая сервисная сеть которая отображается в kubectl get svc под
+которой по факту сервис опубликованный и доступен
+
+
+а если мы посмотрим на мастер  ноде какие она ip имеет мы увидим вообще третью картину
+
+root@test-kub-01:~# ip a | grep inet
+    inet 172.16.102.31/24 brd 172.16.102.255 scope global ens160
+    inet 172.17.0.1/16 brd 172.17.255.255 scope global docker0
+    inet 192.168.31.64/32 brd 192.168.31.64 scope global tunl0
+
+из них только верхний ip я сам задал в сетевых настройках.
+
+root@test-kub-01:~# cat /etc/network/interfaces
+
+...
+
+        address 172.16.102.31
+        netmask 255.255.255.0
+        gateway 172.16.102.1
+
+
+
+
+====================================
+=====================================
+=====================================
+=====================================
+-------------------------------------
+
+
+
+
+
+
+18/09/2019
+
+//// Concepts
+
+кубернетес это тимпа сложная система.
+мы с ней общаемся через api. можно напрямую в api а можно через утилиту 
+которая преобразует команды в api. 
+
+кубернетес api также как sql язык он не говорит как сделать чтото
+он говорит саму цель что мы хотим. а система уже сама делает 
+что мы хотим.
+
+вот мы сказали через api что мы хотим добиться компонент kubernetes control plane начинает делать работу.
+то есть кубернетес это как завод какойто. мы задаем задачу а потом начинается 
+ее какая сложная последовательная реализация.
+
+
+походу kuebernetes control plane это как у циско control plane. 
+это как ilo в hp. то есть эта хрень которая управляет системой которая уплавяет циской заводом
+и кубернетесом. типа кубернетес это детский сад. а control plane это воспитательский ресурс
+детского сада.
+
+
+control plane это как  в дестком саду комплекс сервисов разбросанных по нодам кластера.
+состоит из: 
+
+* kubernetes master (состоит из трех процесов работающих на одной ноде которая зовется master node,
+	имена процессов	kube-apiserver, kube-controller-manager, kube-scheduler )
+* kubelet
+* kube-proxy
+
+
+
+kubelet и kube-proxy работают на каждой немастер ноде.
+kubelet ( непутать с kubectl) он поддерживает связь с kubernetes master.
+kube-proxy реализовывает сетевые фишки k8s на конкретной ноде
+
+
+19/09/2019
+базовые обьекты кубернетеса
+
+pods
+volumes
+service
+namespace
+
+далее. есть более высокоуровненвые обьекты - controllers они создают и контролируют базовые объекты
+выды контроллеров
+
+replicaset
+deployment
+stateful set
+job
+daemon set
+
+
+
+master node может быть реплицирована для реданданси
+
+
+//// Overview 
+//// What is Kubernetes
+
+
+
+че типа умеет кубернетес
+1. он может презентовать контейнер через dns или IP
+load balancing - здесь пока смутно
+
+2. кубернетес позволяет монтировать разные стораджи
+
+дальше там полная фигня на тему что умеет k8s ничо такого
+
+
+//// Overview 
+//// Kubernetes Components
+
+поговорим более подробно о k8s master. это не три процесса как написано во введении а 4-5.
+
+* kube-apiserver = это фронтенд мастера. он предоставляет api. его можно горизонтально масштабировать
+* etcd - почему то во введении ничего не скзаано про этот компонент мастера. однако далее уже
+	его причисляют к компоненту мастера. это key-value база данных в которой хранится
+	вся информация кластера. то ест не в конфиг файле а в etcd
+	далее они пишут что если юзаете etcd то типа помните что его надо бэкапить
+* kube-scheduler - принимает решение на какую ноду помешать только что созданный под
+* kube-controller-manager - походу это и есть то самое ядро тот самый мозг k8s.
+* cloud-controller-manager - походу он отвечает за связь с облаками и виртуалками там.
+
+
+насколько я понимаю kube-apiserver в итоге передает инфо на kube-controller-manager. он в итоге все 
+и решает. мозг k8. 
+
+далее недва как указано в предисловии а три  компонента которые работают нена мастер ноде а на каждой немастер ноде.
+получается они не относятся к k8 master но они относятся к control plane. к которому также относится мастер.
+
+итак на каждой немастер ноде работают следующие control plane процессы
+
+* kubelet - это типа агент k8s через который мастер получает инфо как там дела у ноды.
+
+* kube-proxy походу это вот какая штука. для обращения к поду мы обращаемся к ip этого kube-proxy
+	а он уже делает проброс на под ( типа как работает haproxy ). то есть скажем под имеет ip = 2.2.2.2
+	а kube-proxy имеет ip = 1.1.1.1 так вот доступ к поду идет через обращение на 1.1.1.1 а куб прокси
+	уже делает проброс на 2.2.2.2
+
+
+* container runtime. - хрень которая позволяет запускать контейнеры на ноде. ( docker , cri-o) то есть k8 когда понял 
+что хочет запустить контейнер такойто на ноде то емучтобы его запустить нужно на этой ноде обратиться к 
+container runtime компоненту который крутится на этой ноде.
+
+
+
+далее. есть аддоны к k8. 
+наверное они тоже формально относятся к control plane. непонятно куда они ставятся на мастер  ноду
+или на ноды. или похер.
+
+аддоны:
+
+* dns
+* вэб морда
+* контейнер ресурс монитор (непонятно неужели он невходит в вэб морду)
+* кластер логгинг - тоже непонятно неужели к8 не умеет логировать
+
+
+
+
+//// Overview 
+//// The Kubernetes API
+
+
+мы общаемся с к8 и говорим что хотим от него через API
+
+сами компоненты control plane как я понял тоже друг с другом общаются через api язык
+
+
+//// Overview 
+//// Working with Kubernetes Objects
+//// Understanding Kubernetes Objects
+
+когда мы добавляем  в k8 обьект то это обьект-намерение. к8 будет стараться чтобы этот обьект
+был создан и жил.
+
+обект в базе к8 имеет spec - параметры. и status - это то что там щас с ним и как
+
+
+применить yaml файл
+
+# kubectl apply -f ./vasya.yaml
+
+yaml в себя должен включать поля
+
+
+
+apiVersion:  - версия api их можно подключить в к8 несколько
+kind:        - тип обьекта Deployment, Pod
+metadata:    - имя создаваемого обьекта
+spec:	     - параметры создаваемого обьекта
+
+
+
+отступ немного в сторону в yaml язык.
+
+верхушка файоа нужно три ---
+
+в yaml есть два типа чегото там maps и lists.
+запись
+
+apiVersion: v1
+
+это и есть map. мап это когда мы присваиваем переменные.
+мапы могут быть вложенными
+
+
+metadata:
+  name: vasya
+  labels:
+    app: web
+
+
+здесь вложенный map. metadata имеет две переменные name и labels, а lables в свою очередь имеет app.
+что интерпретатор понимал разницу между
+
+name: vasya
+labels: petya
+
+и
+
+name: vasya
+  labels: petya
+
+надо использовать пробелы.минимум один. а так пофиг. 
+тогда интерпретоатор понимает что в первом случае мы имеем две переменные name и lables
+а во втором случае мы имеем одну переменную name у которой есть подпеременные.
+
+типа никогда не юзай TAB в yaml.
+
+мап это присвоение переменной значения.
+
+name: vasya
+age: 34
+
+еще есть Lists. это список равнозначных элементов. 
+
+name:
+ - vasya
+ - petya
+ - kolya
+
+20/09/2019
+сем применение мапов отличатется от листов. когда что выбирать. например
+
+name: vasya
+age: 34
+
+city:
+ - moscow
+ - dublin
+ - leningrad
+
+так вот видно что мапы это типа набор неравнозначных параметров.  vasya и 34 это элементы про разное. а moscow, dublin
+leningrad это элементы про одно и тоже.
+
+файл в yaml можно однозначно перевести в json и наоборот.
+инетрпретоартор берет наш yamk перводит его в json и отправляет в кластер.
+
+
+вот примеры перевода
+
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: rss-site
+  labels:
+    app: web
+
+
+
+{
+  "apiVersion": "v1",
+  "kind": "Pod",
+  "metadata": {
+               "name": "rss-site",
+               "labels": {
+                          "app": "web"
+                         }
+              }
+}
+
+
+
+# kubectl apply -f vasya.yaml
+
+# kubectl get pods
+
+
+
+
+пример пода для nginx
+
+
+ cat vasya.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx3
+  labels:
+    env: test
+spec:
+ containers:
+ - name: nginx
+   image: nginx
+
+
+опять же видно минимальный набор параметров
+apiVersion
+kind
+metadata
+spec
+
+
+
+yaml nginx pod
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx
+  labels:
+    env: test
+spec:
+  containers:
+  - name: nginx
+    image: nginx
+    imagePullPolicy: IfNotPresent
+  nodeSelector:
+    disktype: ssd
+
+
+а вот так обычно выглядит типичный код для раздела spec:
+
+spec:
+   containers:
+     - name: front-end
+       image: nginx
+       ports:
+         - containerPort: 80
+
+
+а именно
+name:
+image:
+ports:
+
+
+можно делать
+
+# kubectl apply -f vasya.yaml
+
+а можно
+
+# kubectl create -f vasya.yaml
+
+поканеясно. но разница судя по интерннету в том что два похода  разных тутю. в одном императивный в 
+другом декларативный
+
+
+
+что важно в yaml на что напоролся
+
+name: vasya - правильно
+
+name:vasya - выдаст ошибку. то есть после : надо пробел
+
+apiversion: v1 - неправильно. оно разлизает заглавные и строчные буквы
+
+apiVersion: v1 - правильно.
+
+
+пример ошибки
+$ kubectl create -f vasya.yaml
+error: error validating "vasya.yaml": error validating data: ValidationError(Deployment.metadata): invalid type for io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta: got "string", expected "map"; if you choose to ignore these errors, turn validation off with --validate=false
+
+
+
+подсказка в кусочке  ValidationError(Deployment.metadata) значит в строке метадата под деплойментом ошибка.
+
+у меня там было
+
+kind: Deployment
+metadata:
+  name:rss
+
+а надо
+
+kind: Deployment
+metadata:
+  name: rss
+
+заценил разницу ?
+
+//// Working with Kubernetes Objects
+//// Understanding Kubernetes Objects
+///  Kubernetes Object Management
+
+три вида управления  кубернетес кластером
+
+1. можно сделать команду из командной строки на живой обьект работающий.
+это называется imperative command ( примечание команда не использует имя файла. а чисто ссылается
+только либо на уже работающий обьект итд но главное что имя файла никакого не должно 
+быть использовано).
+
+
+2.Imperative object configuration. это когда командная строка и в ней испольузуется как минимум 
+одно имя файла.
+
+
+тут встречается warning - Warning: The imperative replace command replaces the existing spec with the newly provided one, dropping all changes to the object missing from the configuration file. This approach should not be used with resource types whose specs are updated independently of the configuration file. Services of type LoadBalancer, for example, have their externalIPs field updated independently from the configuration by the cluster.
+
+не очень понятно.
+
+вот ранее мной вводимая команда
+
+# kubectl apply -f vasya.yaml  = это и есть пример imperative object configuration
+
+
+3. declarative obect configuraion
+непонял что это. только вроде понял то что kubectl натравливается на папку с файлами.
+
+
+
+//// Working with Kubernetes Objects
+//// Understanding Kubernetes Objects
+///  Names
+
+каждый уникальный обьект в к8 имеет имя и uid по которым его точно можно дентифицировать.
+а  неуникальные идентификаторы в к8 называются label и annotation
+
+имена имеют в yaml признак такой
+
+name:
+
+
+ а uid генерирует сам кластер автоматом.
+
+
+//// Working with Kubernetes Objects
+//// Understanding Kubernetes Objects
+///  Namespaces
+
+
+физ кластер к8 поддерживает несколько внутри себя логических кластеров.
+их называют namespaces
+
+неймспейесф использую недля того чтобы разделить слегка различающиеся ресурсы типа DEV от UAT
+а если у нас олчень большой кластер и дохера народа. и надо ращзделить доступ 
+одной кучи народа от другой кучи народа.
+
+а для разделение dev от test надо юзать labels
+
+посмортреть спимсок нейсмпейсов
+
+kubectl get namespaces
+NAME              STATUS   AGE
+default           Active   9s  - это нейспейс дефолтовый для новых обьектов
+kube-node-lease   Active   12s
+kube-public       Active   12s  - это для сервисов которые доложны быть доступны только для чтения
+kube-system       Active   12s  - это нейспейс для внутренних систем к8
+
+посмотреть какие поды в каком нейспейсе работают
+
+kubectl get pods --namespace=default
+NAME    READY   STATUS    RESTARTS   AGE
+vasya   1/1     Running   0          34s
+$
+$
+$
+$ kubectl get pods --namespace=kube-system
+NAME                                    READY   STATUS    RESTARTS   AGE
+coredns-5c98db65d4-kjpn2                1/1     Running   0          9m40s
+coredns-5c98db65d4-nxks5                1/1     Running   0          9m40s
+etcd-minikube                           1/1     Running   0          8m32s
+kube-addon-manager-minikube             1/1     Running   0          8m48s
+kube-apiserver-minikube                 1/1     Running   0          8m38s
+kube-controller-manager-minikube        1/1     Running   0          8m42s
+kube-proxy-5klj5                        1/1     Running   0          9m40s
+kube-scheduler-minikube                 1/1     Running   0          8m54s
+kubernetes-dashboard-7b8ddcb5d6-n2jzw   1/1     Running   0          9m39s
+storage-provisioner           
+
+
+kubectl get pods --namespace=kube-public
+No resources found.
+$ kubectl get pods --namespace=kube-node-lease
+No resources found.
+
+не все ресурсы кластера находятся в нейспесе.
+
+вот как посмотреть ресурсы вне неймспейсов
+
+kubectl api-resources --namespaced=false
+
+
+
+21/09/2019
+
+//// Working with Kubernetes Objects
+//// Understanding Kubernetes Objects
+/// Labels and Selectors
+
+обьектам могут быть назначены labels
+
+это некий способ группировать обьекты в логические группы - dev test qa итп
+
+label это key-value or map или переменная и вот как выглядит назначение labels
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: label-demo
+  labels:
+    environment: production
+    app: nginx
+spec:
+  containers:
+
+
+
+поиск по лейбелам 
+
+environment in (production, qa)   - ищет компоненты у которых есть label=environment который = production или qa
+tier notin (frontend, backend)   - тоже самое только мы ищем tier!=frontend or tier!=backend 
+partition                         - ищет компоенты у которых есть label=partition
+!partition                         - ищет компоненты у которых label=partition отсутствует
+
+еще есть такая форма поиска
+
+environment = production
+tier != frontend
+
+думаю смысл понятен
+
+
+labels испольщуются чтобы потом быть использованным в селекторах.
+
+важно: label может включать в себя доменное имя
+
+label:
+  abc.ru/name: vasya
+
+если у нас лейбел имеет доменное имя то тогда поиск по этому лейбелу как я понял доступен для всех 
+юзеров к8. если же доменного префикса нет то поиск по лейбелу доступен только этому юзеру. при этом 
+что значит доступен тому или этому юзеру непонятно. разные юзеры которые что ? разные которые залогинились
+на хост с к8 и юзают kubectl для создани обьекта или что. 
+
+
+
+поиск по label-ам
+
+
+kubectl get pods -l environment=production,tier=frontend
+
+
+вот делаем под с лейбелом у которого есть доменный префикс kri.io.name
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: n00
+  labels:
+    kri.io.name: nginx-dnsname
+spec:
+  containers:
+   - name: frontend
+     image: nginx
+
+# kubectl -f vasya.yaml
+
+ищем по лейблу
+
+# kubectl get pods -l kri.io.name
+NAME   READY   STATUS    RESTARTS   AGE
+n00    1/1     Running   0          2m19s
+
+все таки непонятно на счет видимости и невидимости лейбелов для разных юзеров.
+
+
+я для эксперимента создал другого линукс юзера vasya и попытался из под него опубликовать новый под
+
+и получил ошибку
+
+vasya@minikube:~$ kubectl apply -f vasya.yaml
+error: unable to recognize "vasya.yaml": Get http://localhost:8080/api?timeout=32s: dial tcp [::1]:8080: connect: connection refused
+
+оказалось что нехватает конфиг файла в верной папке
+
+поправилось эта штука вот так 
+
+из домашней папки vasya
+
+mkdir -p $HOME/.kube
+sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+после этого контейнер создался. но как и следовало ожидать 
+
+kubectl get pods
+
+показал все поды. и которые вася сосздал и которые рут создал.
+
+поэтому пока что смысла в лейбелах с доменным префиксом я вапще невижу. чтобы оно давало такого чего нет без них.
+
+
+
+
+//// Working with Kubernetes Objects
+//// Understanding Kubernetes Objects
+///  Annotations
+
+аннотации делаются не для селекторов. а чтобы оставлять коменты информации об обьектах.
+
+
+аннтоации как и лейбелы это map key-value переменная. называй как хочешь
+
+"metadata": {
+  "annotations": {
+    "key1" : "value1",
+    "key2" : "value2"
+  }
+}
+
+
+
+
+//// Working with Kubernetes Objects
+//// Understanding Kubernetes Objects
+///  Field Selectors
+
+
+эта штука используется для того чтобы делать выборку обьектов по признакам
+
+по дефолту этот параметр просто пустой.
+
+типа эти два выражения одинаковые
+
+kubectl get pods
+kubectl get pods --field-selector ""
+
+
+пример
+
+cat vasya.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: n00
+  labels:
+    kri.io.name: nginx-dnsname
+spec:
+  containers:
+   - name: frontend
+     image: nginx
+
+$
+$
+$
+$ kubectl get pods --field-selector metadata.name=n00
+NAME   READY   STATUS    RESTARTS   AGE
+n00    1/1     Running   0          3m53s
+
+
+
+
+//// Working with Kubernetes Objects
+//// Understanding Kubernetes Objects
+///  Recommended Labels
+
+
+есть рекомендованные лейбелы от создателей к8.
+
+app.kubernetes.io/name	
+app.kubernetes.io/instance		
+app.kubernetes.io/version	
+app.kubernetes.io/component	
+app.kubernetes.io/part-of	
+app.kubernetes.io/managed-by
+
+
+
+
+я так и непонял. есть ли от них какая то особая фишка чем если использовать
+другие лейбелы свои с доменным префиксом.
+или это просто чисто предложение на бумаге.
+
+
+//// Kubernetes Architecture
+//// Nodes
+///  
+
+
+
+kubectl get nodes
+
+kubectl describe nodes
+
+
+в выводе мы увидим такую штуку как conditions этой ноды
+
+22/02/2019
+
+Conditions:
+  Type             Status  LastHeartbeatTime                 LastTransitionTime                Reason
+  Message
+  ----             ------  -----------------                 ------------------                ------
+  -------
+  MemoryPressure   False   Sat, 21 Sep 2019 14:38:59 +0000   Sat, 21 Sep 2019 14:38:54 +0000   KubeletHasSufficientMemory
+  DiskPressure     False   Sat, 21 Sep 2019 14:38:59 +0000   Sat, 21 Sep 2019 14:38:54 +0000   KubeletHasNoDiskPressure
+  PIDPressure      False   Sat, 21 Sep 2019 14:38:59 +0000   Sat, 21 Sep 2019 14:38:54 +0000   KubeletHasSufficientPID
+  Ready            True    Sat, 21 Sep 2019 14:38:59 +0000   Sat, 21 Sep 2019 14:38:54 +0000   KubeletReady
+  Addresses:
+
+
+здесь важное условие "Ready" .
+это типа суммарный уровень самочуствия ноды.
+
+между прочим что такое kubeadm непонятно.
+
+
+типа ссылка на архитектуру к8 - https://github.com/kubernetes/community/blob/master/contributors/design-proposals/architecture/architecture.md#the-kubernetes-node
+
+
+ я смотрю свойства ноды
+
+# kubectl describe nodes test-kub-02
+
+...
+
+
+PodCIDR:                     10.252.1.0/24
+PodCIDRs:                    10.252.1.0/24
+
+
+и если посмтреть на самый верх когда я инициализировал кластер. то увидим что такой же переметр я и задавал для подовской сети
+
+kubeadm init  --pod-network-cidr=10.252.0.0/16 --apiserver-advertise-address=172.16.102.31
+
+
+
+
+прикольно также что через kubectl describe nodes test-kub-2 можно увидеть инфо какие же поды крутятся на этой ноде
+
+Non-terminated Pods:         (3 in total)
+  Namespace                  Name                 CPU Requests  CPU Limits  Memory Requests  Memory Limits  AGE
+  ---------                  ----                 ------------  ----------  ---------------  -------------  ---
+  default                    vasya                0 (0%)        0 (0%)      0 (0%)           0 (0%)         22h
+  kube-system                calico-node-mcwxr    250m (12%)    0 (0%)      0 (0%)           0 (0%)         21h
+  kube-system                kube-proxy-l85kn     0 (0%)        0 (0%)      0 (0%)           0 (0%)         21h
+Allocated resources:
+
+
+пррикольно что здесь мы видим несколько неймспейсов. то есть несколько виртуальных кластеров.
+и то что к8 запускает свои системные ( контрол плейн) поды в отдельном kube-system кластере неймспейсе.
+
+
+дальлше по книжке. есть раздел addresses
+
+Addresses:
+  InternalIP:  172.16.102.32
+  Hostname:    test-kub-02
+
+
+ну тут понятно. Ip адрес через который мы подключали ноду к кластеру. и его hostname согласно /etc/hostname
+книжка утверждает что internalip он роутабл только внутри кластера. что значит снаружи кластера непонятно.
+так как по этому ip я могу пинговать этот хост отовсюду в моей локалке.
+
+следущий раздел conditions
+
+Conditions:
+  Type                 Status  LastHeartbeatTime                 LastTransitionTime                Reason                       Message
+  ----                 ------  -----------------                 ------------------                ------                       -------
+  NetworkUnavailable   False   Sat, 21 Sep 2019 21:39:51 +0300   Sat, 21 Sep 2019 21:39:51 +0300   CalicoIsUp                   Calico is running on this node
+  MemoryPressure       False   Sun, 22 Sep 2019 19:11:04 +0300   Sat, 21 Sep 2019 21:38:21 +0300   KubeletHasSufficientMemory   kubelet has sufficient memory available
+  DiskPressure         False   Sun, 22 Sep 2019 19:11:04 +0300   Sat, 21 Sep 2019 21:38:21 +0300   KubeletHasNoDiskPressure     kubelet has no disk pressure
+  PIDPressure          False   Sun, 22 Sep 2019 19:11:04 +0300   Sat, 21 Sep 2019 21:38:21 +0300   KubeletHasSufficientPID      kubelet has sufficient PID available
+  Ready                True    Sun, 22 Sep 2019 19:11:04 +0300   Sat, 21 Sep 2019 21:39:33 +0300   KubeletReady                 kubelet is posting ready status. AppArmor enabled
+
+
+тут все понятно. 
+про последний параметр " Ready". если он = uknown это значит 
+что мастер к8 неполучал отлик от ноды уже течение Unknown  node-monitor-grace-period (default is 40 seconds)
+
+diskpressure это про то что если мало места на диске
+
+
+если к8 мастер видит что нода имеет статус false ( типа чтото там невпорядке но связь  с нодо есть) или unknown больше чем указано в pod-eviction-timeout (5min)
+то к8 мастер направляет шедулеру задание поудалять поды с той ноды. ха! только вопрос как он это будет делать
+если с нодй например сввязь потеряна. 
+
+
+прикол в том что поды должны быть удалены как с самой рабочей ноды так и должны быть удалены записи об этих подах которые как я понял 
+хранятся на apiserver.
+значит до к8 1.5  записи о подах с недоступной ноды все равно удалялись с аписервера. а с к8 1.5 они с аписервера записи о подах
+неудаляются а переходят в состояние unknown и terminating
+
+кстати походу когда мы вот эту команду даем
+
+root@test-kub-01:~# kubectl get pods
+NAME                     READY   STATUS    RESTARTS   AGE
+nginx-86c57db685-p4wkx   1/1     Running   0          22h
+vasya                    1/1     Running   0          23h
+
+
+то записи об этом ищутся конкретно на аписервер.
+
+так значит я оторубил сетевую карту на дата ноде. и где то через минуту ее статус стал not ready
+
+root@test-kub-01:~# kubectl get nodes
+NAME          STATUS     ROLES    AGE   VERSION
+test-kub-01   Ready      master   23h   v1.16.0
+test-kub-02   NotReady   <none>   22h   v1.16.0
+test-kub-03   Ready      <none>   22h   v1.16.0
+
+
+далее дейтсительно только через минут 5 статус пода который работал на ноде 2 перещел в статус terminating
+
+root@test-kub-01:~# kubectl get pods
+NAME                     READY   STATUS        RESTARTS   AGE
+nginx-86c57db685-p4wkx   1/1     Running       0          22h
+vasya                    1/1     Terminating   0          23h
+
+
+если нода отвалилась навсегда то нужно руками удалить запись о ней из к8.
+сам к8 небудет ее удалять так как он бесконечно проверяет может нода выздоровела.
+
+в к8 мастере есть компонент node controller. он как понимаю по факту входит внутрь kube-controller-manager
+
+кстати вспомним команду которой можно посмотреть все процесыы которые входят в контрол панель точнее даже в куб мастер плюс плагины
+
+~# kubectl get pods --namespace=kube-system
+NAME                                       READY   STATUS    RESTARTS   AGE
+calico-kube-controllers-564b6667d7-j5vmn   1/1     Running   0          24h
+calico-node-8mjqd                          1/1     Running   0          22h
+calico-node-mcwxr                          1/1     Running   0          22h
+calico-node-szpgd                          1/1     Running   0          24h
+coredns-5644d7b6d9-b96jg                   1/1     Running   0          24h
+coredns-5644d7b6d9-g5mwh                   1/1     Running   0          24h
+etcd-test-kub-01                           1/1     Running   0          24h
+kube-apiserver-test-kub-01                 1/1     Running   0          24h
+kube-controller-manager-test-kub-01        1/1     Running   1          24h
+kube-proxy-cfnx6                           1/1     Running   0          24h
+kube-proxy-l85kn                           1/1     Running   0          22h
+kube-proxy-n9rtp                           1/1     Running   0          22h
+kube-scheduler-test-kub-01                 1/1     Running   0          24h
+
+
+
+так вот. невижу смысла далее специфически указывать что это или то делает конкретно node controller так как
+как я понимаю пока что конкретно к нему даже обратьиться нельзя. так что будет говорить что это все делает kube-controller-manager или просто к8 мастер или 
+даже контрол плейн
+
+к8 мастер проверяет состяние ноды каждые --node-monitor-period . сколько это непонятно. и как ее посмотреть оперативно непонятно
+
+еще раз вспомнм какие неймспейсы есть в к8 по дефолту
+
+root@test-kub-01:~# kubectl get namespaces
+NAME              STATUS   AGE
+default           Active   24h
+kube-node-lease   Active   24h
+kube-public       Active   24h
+kube-system       Active   24h
+
+
+kube-system - это где поды контрол плейна крутятся.
+default это куда по дефолты новые поды помещаются
+
+kube-public непомню.
+
+далее тут упоминается о штуке taints. это атрибут который применяется к ноде. и если под удовлетворяет этому тейнту
+то он может быть на этой ноде запушен развернут.  если тейнты назначаются нодам то tolerants назначаются подам.
+таким образом tolerants должен быть равен taints чтобы под имел право развернутся на такой то ноде.
+
+что я получил из эксперимента. я отключил дата ноду. потом через 10 минут включил обратно.
+и под который там крутился был удален. и автоматом невосстановлен.
+
+далее. в сравнении с esxi + vcenter мы иммеем очень даже проблему. вот какую.
+при потере связи с esxi нодой виртуалки котоыре на ней работают продолжают работать.
+а вот если к8 мастер теряет связь с нодой  то конечно он с ней ничего неможет сделать.
+но как я понимаю он как только связщь восстановится поудаляет оттуда все поды.
+ну и пока что на практике пока несвязи с нодой он неразворачивает эти поды 
+на другой ноде но думаб это он тоже может делать. и так получится что 
+будет несоклько версий одних и тех же подов. 
+ну и из этого вытекает что связь между нодами с мастером ставноится супе мега важной
+частью стабильности работы подов в кластере.
+
+в общем щас получается как - если связь от ноды с вцентр теряется это никак невлияет на работу приложений
+на ноде. в сумме система для пользвователя работает стабильно.
+
+а вот с к8 другой коленкор. их того что вижу прямо щас из опыта. 
+если связь с нодой от мастера пропала то новые не деплоятся на новой ноде и это наверное хорошо но! по возвращении связи с нодой все поды будут удалены.
+и поручается приложение будет уничтожено.
+наверное можно настроить чтобы если пропала связт с нодой то  по возврашении связи поды чтобы не уничтожались. однако получается
+связь между мастером и дата нодой имеет очень большое значение.
+
+теперь щас поговорим что делает мастер при потере связи с нодой. как я понял.
+он начинает в apiserver помечать запииси отвечающие за поды как unknown или terminating но не все сразу . а со скоростью 1 под в 10 секунд.
+за скорост отвечает --node-eviction-rate . как его посмотреть незнаю.
+
+прикол в том что я только недавно понял что к8 это опен сорс замена esxi. это в целом очень красивая цель.
+
+что я из практики увидел. я вырубил ноду с подами связь у нее. и через 6 минут  ( ане через 5) ВСЕ сразу поды мгновенно были переведны в
+состоние terminating. а не последовательно каждый с шагом  1 в 10 секунд. вот так пишут а одно а на практике другое.
+
+
+начиная с версии 1.4 они поняли что чтото надо делать с потерей связи удалением обьектов подов при этом.
+как я понял что в к8 можно назначать ноды по availability zone. как в амазоне.
+
+так вот при приняти решения об удалении записей о подах с какой то ноды мастер смотрит а как себя чуствуют другие ноды. 
+типа возможно например тупо сам мастер имеет проблему со связь с внещним миром.
+так вот.  если нода недоступна в авалибилит зоне то мастер смотрит а сколько вообще нод недоступных есть в этой зоне.
+если недоступных нод 55% (--unhealthy-zone-threshold) и более то  скорость перевода записей о подах в terminating уменьшается до 
+--secondary-node-eviction-rate ( 1 в 100 секунд). 
+логика наверно такая что типа там все работает просто у самого мастера есть проблема связи с той зоной. в общем фигная какаая то.
+
+далее как я понимаю опять же при проблемах в зоне если при этом число нод в целом меньше чем --large-cluster-size-threshold ( по дефолту 50)
+то пометка записей о подах на удаление вообще останавливается. логика опять же непонятна. 
+
+
+далее они пишут если зона вся легла целиком то скорость пометки подов на удаление становисят обычной. 
+где логика? типа если их 55% и более то скорость пометки уменьшается , если при этом всего нод вообще по кластеру <50 то стопится. 
+а если все в зоне легкли то скорость пометки на удаление ставновистя равна дефолтовой ( 1 в 10 сек). какойто цирки и бред.
+
+если все зоны недостуаны то мастер считает что у него самого просто сетевая карточка отвалиалсь и прекрашается полностью 
+пометки на удаление до воссстановления связи.
+
+
+далее.
+походу кубелет тот что агент на ноде. если его запустить с ключом -register-node то он самостоятельно лезет добавлять эту ноду 
+в кластер.
+
+для того чтобы запретить публоикацию новых подов на ноде комангда
+
+kubectl cordon $NODENAME
+
+но при этом те поды что там уже крутятся они будут продолжать работать
+
+далее они типа пишут что мастер к8 следит что бы цпу и памяти хватило под поды на ноде. но ему похер на остальные процессы
+на ноде. хотя тоже неясно. с чем он сравнивает с пустым сервером или с его текущей загрузкой по цпу и памяти.
+тем неменее дока пишет что для системных процессов на ноде надо руками резервивроать от греха подальше ресурсы.
+
+
+//// Kubernetes Architecture
+//// Master-Node Communication
+////
+
+
+список подов на мастер ноде
+
+  Namespace                  Name                                        CPU Requests  CPU Limits  Memory Requests  Memory Limits  AGE
+  ---------                  ----                                        ------------  ----------  ---------------  -------------  ---
+  kube-system                calico-kube-controllers-564b6667d7-j5vmn    
+  kube-system                calico-node-szpgd                           
+  kube-system                coredns-5644d7b6d9-b96jg                    
+  kube-system                coredns-5644d7b6d9-g5mwh                    
+  kube-system                etcd-test-kub-01                            
+  kube-system                kube-apiserver-test-kub-01                  
+  kube-system                kube-controller-manager-test-kub-01         
+  kube-system                kube-proxy-cfnx6                           
+  kube-system                kube-scheduler-test-kub-01                 
+
+
+
+как мы видим здесь есть поды мастера
+
+		etcd-test-kub-01                            
+                kube-apiserver-test-kub-01                  
+                kube-controller-manager-test-kub-01         
+                kube-proxy-cfnx6                           
+                kube-scheduler-test-kub-01 
+
+как я понимаю еще раз
+
+etcd - расрпделенное инфо хранилище данных кластера. типа его настроек
+apiserver - это фронтенд мастера к8. именно к нему обращаются другие ноды кластера.
+controller-manager - это самый мозг к8
+proxy - сеть к8
+scheduler - отвечает за то на какую ноду положить новый под
+
+вобщем важно отметить то что ни шедулер ни мозг к8 сами в сеть нелазают и  к ним напрямую запросы неидут. а вся связь 
+с внешним миром и туда и обратно идет через аписервер.
+
+в общем что я понял. от нод к мастеру обшение идет через аписервер по https.
+все окей только нужно проконтролировать  ( как я понял) чтобы 
+а) клиенты только по сертификатам могли могли стучаться к аписерверу. и еще надо чтобы сертификаты 
+типа были подписаны доверенным центром. чтобы можно проерять их достоверность.
+
+от мастера ( от аписервера) обращение к кубелету идет по https но 
+по дефолту нет проверки достоверности сертификата. так что это тоже нужно допиливать.
+для этого нужно юзать вот такой флаг --kubelet-certificate-authority непонятно где. тем не менее. это решит проблему.
+
+коннекты от аписервера к подам сервисам  идет по http но можно сделат чтобы по https но нет проверки 
+сертфиката подлинности. также почемуто там указано что обращение от аписервера к нодам идет по http.
+непонятно что они имеют ввиду под коннектом от аписервера к нодам . так как я думал что связь от аписервера к нодам
+идет через кубелет. а он как указано выше связывается по https.
+
+
+
+
+
+
+//// Kubernetes Architecture
+////  Concepts Underlying the Cloud Controller Manager
+////
+
+
+эту главу  я пропустил
+
+
+//// Containers
+////  Images
+////
+
+
+вот типа чтото важное
+
+ Kubernetes as of now only supports the auths and HttpHeaders section of docker config. This means credential helpers (credHelpers or credsStore) are not supported
+
+
+
+значит тут тема о том как кубернетес увязывать с registry от докера.  главная тема дня - где и как хранить
+логины пароли от доступа к  регистри.
+
+
+значит берем для тренировки регистри который предлагает dockerhub.
+
+значит я даю напоминание про регистри  докера что там и как.
+
+мы вытягиваем из регистри образ через команду
+
+# docker pull akrivosheevmsk/mk-dockerhub-repo:nginx-1
+
+akrivosheevmsk - логин на dockerhub
+mk-dockerhub-repo - имя репозитория. папка в которой хранятся имаджи
+nginx-1 - название имаджа. в терминах докера они имя зовут как tag
+
+для того чтобы доступ на докерхаб работал надо чтобы на дата нодах ( на мастере ненужно) был файл с кредами от докерхаб
+
+/root/.docker/config
+
+его нужно скопировать на все дата ноды.
+
+как его получить.
+
+# docker login
+
+и он попросит ввести логин и пароль от докерхаба и сохранит его в $HOME/.docker/config
+
+вот берем этот файл и копируем на все дата ноды.
+
+копируем в папку root так как кубернетес сервисы контрол панели работают от root. поэтому 
+именно в папке рута ищеутся креды от докерхаба.
+
+
+ну параллельно скажу что пушить в приватный регистри надо командой
+
+# docker push akrivosheevmsk/mk-dockerhub-repo:nginx-1
+
+возникает вопрос а как выглядит имя имаджа когда мы его закачали на локальный комп. ответ также как
+и на удаленном.
+
+так как имя имадж это tag. и он что там удаленно что локально один и тотже. а все остальное 
+это уже его свойства а не имя.
+
+поэтому на локальном сторадже скачанный имадж будет выглядеть как nginx-1
+
+root@test-kub-03:~# docker images
+REPOSITORY                         TAG                 IMAGE ID            CREATED             SIZE
+akrivosheevmsk/mk-dockerhub-repo   nginx-1             ab56bba91343        11 days ago         126MB
+
+
+замечу что вывод команды докер пишет НЕКОРРЕКТНО. он пишет что akrivosheevmsk/mk-dockerhub-repo это = REPOSITORY
+хотя это логин + репозиторий. или тогда бы написали параметры репозитория что ли.
+
+также локально можно обращаться к имаджу по его IMAGE ID 
+
+а что если мы создали локально имадж типа такого
+
+root@test-kub-03:~# docker images
+REPOSITORY                         TAG                 IMAGE ID            CREATED             SIZE
+vasya                              12                  ab56bba91343        11 days ago         126MB
+
+
+имя имаджа = 12. 
+логин + репозиторий =  vasya 
+и неппонятно где тут логин а где имя репозитория.
+
+
+вообще на докерхаб есть особые системные репозитории которые непринадлежать юзерам а принадлежат саомй компании.
+и в если мы скачаем оттуда имадж то он будет выглядет так
+
+REPOSITORY                         TAG                 IMAGE ID            CREATED             SIZE
+alpine                             latest              961769676411        4 weeks ago         5.58MB
+
+
+и как я понимаю alpine это имя репозитория. имя папки где лежать все альпайны. 
+а логин это некая дефолтная невидимая херня.
+
+ну а для нас важно что  образ из обычного частного репозитория на докер хаб такой вид параметра REPOSITORY 
+без логина в виде одного слова иметь не может. образ из частного обычного репозитория обязательно должен
+иметь вид
+
+REPOSITORY                         TAG                 IMAGE ID            CREATED             SIZE
+login/name
+
+
+так с этим разобрались.
+
+значит важно понять что докера на локальном компе имадж идентифицируется не по его tag 
+ а по его Image id 
+
+и можно дать одному и тому же имаджу кучу tag и кучу REPOSITORY
+
+пример
+
+
+REPOSITORY                         TAG                 IMAGE ID            CREATED             SIZE
+akrivosheevmsk/mk-dockerhub-repo   nginx-1             ab56bba91343        11 days ago         126MB
+nginx                              latest              ab56bba91343        11 days ago         126MB
+vasya                              12                  ab56bba91343        11 days ago         126MB
+
+вот видно что у имаджа один и тот же image id но tag+repository несколько штук.
+
+зачем нам это надо знать. а затем что обратно в частный репозиторий можно засунуть только один из них
+вот этот 
+
+REPOSITORY                         TAG                 IMAGE ID            CREATED             SIZE
+akrivosheevmsk/mk-dockerhub-repo   nginx-1             ab56bba91343        11 days ago         126MB
+
+только с ним сработает команда
+
+# docker push akrivosheevmsk/mk-dockerhub-repo:nginx-1
+
+
+то есть для тго чтобы запушить некий имадж обратно в удаленный репозиторий - его REPOSITORY
+должен быть обязательно такойже как он был при скачке то есть иметь вид логин+имя репозитория.
+
+чтобы создавать алиасы в докере есть команда tag
+
+# docker tag kuku123 akrivosheevmsk/mk-dockerhub-repo:nginx-1
+
+она создаст для имаджа еще один алиас.
+
+замечу что tag может быть какой угодно. типа это же имя имаджа. нам главное чтобы REPOSITORY был такойже как при скачке.
+
+то есть можно скачать имадж nginx
+
+переменовать его в nginx-2 и обрратно закачать в свой репозиторий. все тоже самое как с файлами а REPOSITORY 
+это как бы корректный сетевой путь на шару.
+
+
+ну и возвращаюсь обратно к статье в доке.
+
+чтобы мы могли вытягивать имаджи из удаленного частного репозитоиия нужно на всех 
+дата нодах иметь конфиг с кредами от этого репозитоия
+
+/root/.docker/config
+
+и они там пишут что если мы виртуалки держим в облаках типа амазона то там этот файл
+уже будет предустванолвен и заточен на их местный репозитори хранилище. поэтому туда свой встваить будет невозможно
+он его будет перетирать. поэтому держите виртуалки не в облаках
+
+еще один вопрос а что если мы хотим использвать несоклько частных репозиториев. ответ пока не знаю 
+и парится не будуь. неактуально.
+
+
+
+
+//// Containers
+////  Container Environment Variables
+////
+
+
+тут ничего не почерпнул
+
+
+перед тем как начать следущую главу я покажу вот что
+вот у нас есть pod = nginx-86c57db685-p4wkx
+
+
+
+root@test-kub-01:~# kubectl get pods
+NAME                     READY   STATUS    RESTARTS   AGE
+nginx-86c57db685-p4wkx   1/1     Running   0          2d21h
+vasya3                   1/1     Running   0          46h
+vasya6                   1/1     Running   0          24h
+
+
+и он опубликован через service nginx
+
+
+root@test-kub-01:~# kubectl get svc
+NAME         TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)        AGE
+kubernetes   ClusterIP   10.96.0.1       <none>        443/TCP        2d23h
+nginx        NodePort    10.96.231.223   <none>        80:31546/TCP   2d21h
+
+
+выясним какой ip имеет этот под.
+
+root@test-kub-01:~# kubectl describe pod nginx | grep -i ip
+Annotations:  cni.projectcalico.org/podIP: 192.168.247.65/32
+IP:           192.168.247.65
+IPs:
+  IP:           192.168.247.65
+
+
+
+итак что интересно под сидит в одной сети
+
+Ip = 192.168.247.65
+
+а сервис под которым он опубликова он сидит в другой сети
+
+ip = 10.96.231.223
+
+и что интересно 
+
+1. нжинкс доступен по порту 80 через ip пода = 192.168.247.65:80
+2. этот же нжинкс доступен по порту 31546 по ip сервиса = 10.96.231.223
+3. ip пода пингуется а ip сервиса непингуется
+
+далее что интересно. 
+в конфиге кубернетеса нет никакой 192.168.247 сети. а есть только сеть под которой сервис работает.
+
+root@test-kub-01:~# kubeadm config view
+...
+  podSubnet: 10.252.0.0/16
+  serviceSubnet: 10.96.0.0/12
+scheduler: {}
+
+
+как ни странно в конфиге так и указано что 10.96.0.0/12 это подсеть для сервисов.
+
+ с другой стороны есть мы наберем ip a на мастере или дата ноде то там не будет никаких 10.232 или 10.96 сетей.
+зато есть сеть 192.168
+
+root@test-kub-01:~# ip a | grep inet
+    inet 127.0.0.1/8 scope host lo
+    inet6 ::1/128 scope host
+    inet 172.16.102.31/24 brd 172.16.102.255 scope global ens160
+    inet6 fe80::250:56ff:fea3:775e/64 scope link
+    inet 172.17.0.1/16 brd 172.17.255.255 scope global docker0
+    inet6 fe80::ecee:eeff:feee:eeee/64 scope link
+    inet 192.168.31.64/32 brd 192.168.31.64 scope global tunl0
+    inet6 fe80::ecee:eeff:feee:eeee/64 scope link
+    inet6 fe80::ecee:eeff:feee:eeee/64 scope link
+
+
+
+
+вот такая схематеихника с сетями в к8. это есть тут а то есть там а этого нет тут  а то непингуется.
+каша.
+
+
+
+
+//// Containers
+////  Runtime Class
+////
+
+
+kubernetes  CRI = (Container Runtime Interface)
+
+
+
+ у нас на хосте крутится софт который заниматся обеспечением создания и работы самих контейнров.
+
+такой софт называется как класс -  cre = container runtime environment. 
+самый известный из них это докер. но уже есть и другие.
+
+так вот в к8 решили отвязать себя от докера чтобы можно было и другим cre пользоваться. 
+
+и теперь к8 общается с cre через CRI . CRI Это толи плагин то ли слой. через который к к8 можно пождключить любой cre.
+
+
+итак раньше была схема
+
+kubelet -> docker -> pod
+
+сейчас стала схема
+
+kubelet -> CRI -> docker/rkt (или другой контейнеризатор) -> pod
+
+в качестве CRI плагина  щас доступны
+
+docker-shim
+cri-o
+containerd
+
+то есть как я понял в к8 определили стандарт под CRI но конкретную реализацию ( как плагин) оставили для сторонних разработчиков.
+и вот другие наклепали реализации CRI.
+
+
+но это еще невсе. это движухи связанные с к8.
+параллельно на западе решили проработать контейнерную доктрину. 
+и они что сделали . они  придумали OCI ( open container initiative). 
+они решили разделить функционал контейнераизации на высокоуровневый кусок и низкоуровневый. низкоуровненвый как драйвер от железки 
+привязан к конкреттике ОС железа и тп. а высоуровненвый кусок отвечает за высокие абстркции. 
+это например дает то что теперь якобы можно обновить докер и при этом после этого ненужно перезапускать все запущенные контейнеры.
+типа потому что низкоуровенвая часть без измненеий. а обновилась только высокооурненвая.
+
+
+то есть раньше было так
+
+docker -> OC железо итп -> pod
+
+если раньеш докер работал с syscall операционки. то тперь с этим завязана низкоуровневая херня от докера. 
+а докер работает с высокоурвненвыми штуками.
+
+
+низкоуровненвая реализация этой хрени называется runc ( возможно есть и другие альтернативные продукты). так что тперь это выгнляди так
+
+docker -> runc -> oc железо -> pod
+
+причем общение между docker и runc идет через OCI язык стандарт протокол.
+
+
+docker -> (OCI) -> runc -> oc железо -> pod
+
+
+
+итого теперь  полная схема  для  k8 --> .,,, --> pod
+
+
+kubelet -> (CRI плагин) -> docker/rkt (или другой контейнеризатор) ->  (OCI язык) -> runc -> oc железо -> pod
+
+
+вот охуенная ссылка с картинками без воды - https://events.linuxfoundation.org/wp-content/uploads/2017/11/How-Container-Runtime-Matters-in-Kubernetes_-OSS-Kunal-Kushwaha.pdf
+
+из этого документа я узнаю что runc это OCI runtime.
+
+альтернативы ему это : runv, gvisor
+
+ага ! в итоге я понял что ест CRI плагины а есть OCI плагины и диаграмма такая
+
+
+kubelet -> (CRI плагин) -> docker/rkt (или другой контейнеризатор) ->  (OCI плагин runc) -> oc железо -> pod
+
+
+CRI плагин обычно неуниверсальынй а завязан на конкретный cre. то есть он умеет работать только  с одним рантаймом. 
+то есть для docker есть свой CRI плагин через который к8 работает с докером итп.
+
+итак
+
+значит для докера
+kubelet -> ( CRI плагин dockershim) 	---------> docker 		-> runc 			-> oc железо -> pods
+
+для containerd
+kubelet -> ( CRI плагин cri-containerd ) --------> containerd	-	-> runc либо kata konatainers 	-> oc железо -> pods
+
+
+отступление значит я вижу что когда в тексте пишут kubernetes CRI то можется иметься ввиду два очень важные вещи
+либо плагин через который kubelet общается с high-level cre, либо сам cre который cri compatible. к сожалению
+такая неразбериха. а изначально CRI это стандарт котомрому должен удволяетововрять и плагин и cre.
+
+когда говорят OCI runtime - то имеют ввиду low level OCI compatible runtime.
+
+когда говорят contaner runtime то тут нужно уточнять потому что могут иметь ввиду hight level runtimne как docker containerd итп
+а могут иметь ввиду Low level OCI compatible runtime такой как runc. еще раз это очень важно что когда пишут в тексте OCI compatible runtime
+то имеют ввиду именно low-level container runtime а не high level
+
+значит для cri-o 
+
+kubelet	->	(CRI плагин ?)			-> cri-o		-> runc/Kata containers		-> oc железо	-> pods 
+
+
+
+немного оступаю. на сайте cri-o нащел хорошее определение что такое pod - Pods are a kubernetes concept consisting
+ of one or more containers sharing the same IPC, NET and PID namespaces and living in the same cgroup.
+
+( чуть отойду в сторону средство визуализации работы к8 это утилита lazydoctor. работает в терминале )
+
+плагины CRI бывают встроены в kubelet , бывают выполнены в форме отдельных линукс служб, бывают всстроены внутрь high-level runtime.
+
+опять отхожу в сторону и привожу то что прочем на сайте докера. то что в ядре линукс там нетакого понятия как контейнеры.
+контейнеры это с точки зрения ядра это некий набор отдельных фишек. которые суммарно вместе собраны чтобы нам типа
+предоставить функционал контейнеров.
+
+
+еще один high level runtime - frakti  сним както непонятно какие low-level runtimes он поддерживает.
+
+также непонятно 
+
+
+полезная полезняшка - как узнать а какие runtime крутятся в нашем кластере
+
+# kubectl describe nodes | grep "Container Runtime Version:"
+ Container Runtime Version:  docker://19.3.2
+ Container Runtime Version:  docker://19.3.2
+ Container Runtime Version:  docker://19.3.2
+
+далее. важное замечание.
+как я понимаю docker 
+
+
+тут я отмечаю очень важный момент. с какогото релиза докер разделил свой монолитный бинарник на несколько 
+кусков.на несколько частей. теперь это dockerd + containerd.
+далее как я понял этот проект containerd разивался уже даже более менее развивался сам и оброс доп фичами.
+такими фичами что теперь containerd типа как я понял сам может контейнерами рулить. вместо докера.
+что при этом интересно что докер до сих пор имеет в своем составке containerd и использует его.
+
+то есть когда мы поставили докер то связка к8 - ... - pod выглядит так
+
+kubelet - ( cri плагин dockershim )  - ( docker - containerd ) - runc - pods
+
+втоже время можно постававить containerd как отдельный пакет и он будет рабоать в связке с к8 как тот же самый докер 
+то есть как high-level runtime.
+
+при этом неполучится так что ты поставил докер в составке которого уж есть containerd и настроить к8 чтобы он использвал
+этот containerd  без докера. надо именно ставить containerd как отдельный пакет. возможно даже что containerd из 
+отдельного пакета имеет более широкий функционал чем containerd входящий в состав докера.
+
+
+если установить докер и посмотреть через ps aux то четко видно что  в процессах  есть бинарник dockerd и есть заапущенный 
+бинаркник containerd.
+
+
+также непонятно что если conatinerd уже умеет все что  нужно про контейнеры то что тогда делает бинарник dockerd.
+
+или в случае отдельного использования conatinerd недостающий функционал который тянул dockerd тянет cri плагин cri-contanerd.
+
+пока это все непонятно.
+
+если застопить сервис dockerd  а потом его запустить из командной строки  параметры при этом никакие ненужны
+то он четко выведет в консоль кучу своей служебной информации где в приницпе должно быть написано что он запускает 
+containerd но у меня почему то он об этом факте непишет.
+
+замечание. дейтсивтельно важный момент что к8 он сам контейнеры не умеет запускать формировать. к8 это только средство
+управления группой контейнеров. типа как говорят по умному средство оркестрации контейнеров. вроде очевидно но нужно
+это явно указать
+
+опять же хочу сказать что неисключено что comntainerd входящий в состав докера имеет урезанный фуннкционал чем
+conatinerd идущий как отедьный пакет для роли high-level runtime
+
+
+далее.
+команда 
+docker export
+
+берет контейнер и экспортирует файловую систему которая внутри контейнера в сжатый tar файл
+
+вот например как можно посмотреть что там внутри контейнера на основке имаджа ubuntu
+
+docker export $(docker create ubuntu) | tar -C rootfs -xvf -
+
+
+а вот интересная картина про то как выглядят родители и дети для докера и его компонентов
+
+
+10897 ?        Ssl    8:56 /usr/bin/containerd
+13072 ?        Sl     0:07  \_ containerd-shim -namespace moby -workdir /var/lib/containerd/io.containerd.runtime.v1.linux/moby/fc9f78112ce434e06c9ef829fdc5039776a95f07
+13138 ?        Ss     0:00  |   \_ /pause
+13073 ?        Sl     0:07  \_ containerd-shim -namespace moby -workdir /var/lib/containerd/io.containerd.runtime.v1.linux/moby/c0a2c4a93de6f202bc8a80db04a43bc81245e609
+13125 ?        Ss     0:00  |   \_ /pause
+13262 ?        Sl     0:07  \_ containerd-shim -namespace moby -workdir /var/lib/containerd/io.containerd.runtime.v1.linux/moby/2f779aad7fe7c92186e42e9d0ec3cff7f296074c
+13287 ?        Ssl    2:27  |   \_ /usr/local/bin/kube-proxy --config=/var/lib/kube-proxy/config.conf --hostname-override=test-kub-02
+16852 ?        Sl    17:31  \_ containerd-shim -namespace moby -workdir /var/lib/containerd/io.containerd.runtime.v1.linux/moby/07edab7da304dbc63c6c7ade867cfc4945289297
+16870 ?        Ss     0:02  |   \_ /usr/bin/runsvdir -P /etc/service/enabled
+16972 ?        Ss     0:00  |       \_ runsv confd
+16977 ?        Sl     0:29  |       |   \_ calico-node -confd
+16973 ?        Ss     0:00  |       \_ runsv bird6
+17200 ?        S      0:29  |       |   \_ bird6 -R -s /var/run/calico/bird6.ctl -d -c /etc/calico/confd/config/bird6.cfg
+16974 ?        Ss     0:00  |       \_ runsv felix
+16978 ?        Sl    30:27  |       |   \_ calico-node -felix
+16975 ?        Ss     0:00  |       \_ runsv bird
+17199 ?        S      0:31  |           \_ bird -R -s /var/run/calico/bird.ctl -d -c /etc/calico/confd/config/bird.cfg
+18494 ?        Sl     0:03  \_ containerd-shim -namespace moby -workdir /var/lib/containerd/io.containerd.runtime.v1.linux/moby/40c888985892c64fede2bd01f9893a9000eed4e1
+18516 ?        Ss     0:00  |   \_ /pause
+18630 ?        Sl     0:03  \_ containerd-shim -namespace moby -workdir /var/lib/containerd/io.containerd.runtime.v1.linux/moby/50ad07de56997b9e78f5ee7fa6274bf3c7d83cd7
+18661 ?        Ss     0:00  |   \_ nginx: master process nginx -g daemon off;
+18693 ?        S      0:00  |       \_ nginx: worker process
+17878 ?        Sl     0:00  \_ containerd-shim -namespace moby -workdir /var/lib/containerd/io.containerd.runtime.v1.linux/moby/879e5ccd9427659a86389276a918f44a7027271a
+17896 ?        Ss     0:00  |   \_ nginx: master process nginx -g daemon off;
+17932 ?        S      0:00  |       \_ nginx: worker process
+21124 ?        Sl     0:00  \_ containerd-shim -namespace moby -workdir /var/lib/containerd/io.containerd.runtime.v1.linux/moby/9b97ab0210cdb9148969cdfcd3f38eb2e026288d
+21186 ?        Ssl    0:00      \_ mysqld
+11008 ?        Ssl   41:17 /usr/bin/dockerd -H fd:// --containerd=/run/containerd/containerd.sock
+
+
+видно что сервис dockerd он как то сам по себе.
+
+далее
+
+containerd - 
+
+еще раз отступлю в стороне и сравню цеопчку к8 ... pods для docker и для containerd (когда тот high level runtime)
+
+docker
+kubelet - cri plugin dockershim - docker - containerd - runc - pods
+
+containerd 
+kubelet - cru plugin cri-containerd - containerd - runc - pods
+
+как видно в случае containerd хопов меньше.
+
+
+
+
+// отступление
+
+
+root@test-kub-01:~# kubectl cluster-info
+Kubernetes master is running at https://172.16.102.31:6443
+KubeDNS is running at https://172.16.102.31:6443/api/v1/namespaces/kube-system/services/kube-dns:dns/proxy
+
+To further debug and diagnose cluster problems, use 'kubectl cluster-info dump'.
+
+// конец оступления
+
+
+// отступление
+
+наконец узнал как посмотреть какие поды на каких нода лежат
+
+root@test-kub-01:~# kubectl get pods -o wide
+NAME                     READY   STATUS    RESTARTS   AGE    IP                NODE          NOMINATED NODE   READINESS GATES
+nginx                    1/1     Running   0          36m    192.168.29.193    test-kub-04   <none>           <none>
+nginx-86c57db685-p4wkx   1/1     Running   1          4d6h   192.168.247.68    test-kub-03   <none>           <none>
+vasya3                   1/1     Running   1          3d7h   192.168.247.67    test-kub-03   <none>           <none>
+vasya6                   1/1     Running   0          2d9h   192.168.246.197   test-kub-02   <none>           <none>
+
+// конец отступления
+
+прикольно то что контейнеры это не так как например виртуализация. поэтому там нет вот этого слоя гипервизора.
+поэтмоу нет проблемы как снять мощность с процессора.
+
+контейнеры это типа просто как обычный сервис в линуксе. и это очень хорошо с точки зрения перфоманса.
+
+получается что Low-level runtime он просто запускает обычные линукс процессы только с доп опциями. поэтому работы рантайм
+это по большей части создать процесс убить процесс. и больше там нет никакой внутренней магии которая есть при работе 
+гипервизора. с контейнерами нет вот этого вот оверхеда. 
+
+насколько я понимаю миграция контейнеров с ноды на ноду в к8 это не то что в esxi.  они банально тушатся на одной ноде и пересоздаются 
+на другой ноде. максиумум что они наверное могут делать это убивать по одной реплике на старой ноде и добавлять по +1 реплике
+на новой ноде.
+в связи с этим всем как я понимаю совсем нет проблемы если на одной ноде один рантайм а на другой ноде другой рантайм.
+
+
+********************************************************************************************************************************************
+
+как ставить кубернетес на дата ноду.
+
+
+
+ставим на дата ноду c docker-ом
+
+
+1. надо удалить все следы старой установки предыдущего кубернетеса.
+
+a) # kubeadm reset
+
+b) но этого недостаточно.
+надо проверить /etc/default/kubelet и удалить либо изменить там на коректный high-level runtime который будет кубелет использовать
+
+c) /etc/systemd/system/kubelet.service.d 
+проверить нет ли там лишнего и сам конфиг
+
+
+д) проверить какие стоят на ноде рантаймы
+
+# dpkg -l | grep -E "docker|container|singularity"
+# ps aux | grep -E "docker|container|sycri" 
+какие ненужны удалить 
+какие нужно доставить
+
+тут же скажу как узнать к какому  systemd unit относится бинарник который мы обнаружили через ps aux. берем pid бинарника и
+
+# systemctl status  27952
+
+все ноду зачистили от старого. рантайм если нужно доставили
+
+
+
+1.5 на этом шаге ставим нужный нам high-level runtime
+для docker это
+
+# apt install ebtables ethtool
+# apt remove docker docker-engine docker.io
+# apt install apt-transport-https ca-certificates curl software-properties-common
+# curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+# add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+# sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable edge test"
+
+
+
+
+2. ставим кубелет kubedam и kubectl 
+
+curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
+echo 'deb http://apt.kubernetes.io/ kubernetes-xenial main' | sudo tee /etc/apt/sources.list.d/kubernetes.list
+sudo apt update
+sudo apt install -y kubelet kubeadm kubectl
+
+
+
+
+3. идем на мастер ноду.  и генерируем kubeadm join
+
+# kubeadm token generate
+# kubeadm token create <generated-token> --print-join-command --ttl=0
+
+поидее все. дата нода присоединена к кластеру и готова для приема контейнеров.
+
+
+
+
+4. проверяем что дата нода test-kub-02 новая успешно присоединена
+
+# kubectl get nodes -o wide
+NAME          STATUS   ROLES    AGE     VERSION   INTERNAL-IP     EXTERNAL-IP   OS-IMAGE             KERNEL-VERSION     CONTAINER-RUNTIME
+test-kub-01   Ready    master   6d22h   v1.16.0   172.16.102.31   <none>        Ubuntu 16.04.2 LTS   4.4.0-62-generic   docker://19.3.2
+test-kub-02   Ready    <none>   18s     v1.16.0   172.16.102.32   <none>        Ubuntu 16.04.2 LTS   4.4.0-62-generic   docker://19.3.2
+
+заодно виден рантайм данной дата ноды.
+
+
+
+**********************************************************************************************************************************************
+
+далее.
+еще раз как удалить ноду из кластера
+
+# kubectl drain test-kub-03 --ignore-daemonsets
+# kubectl delete nodes  test-kub-03
+
+
+далее.
+замечу. если мы ставим docker то щас сам собой ставим и containerd в форме отдельного пакета
+
+# dpkg -l | grep -E "docker|container|singularity"
+ii  containerd.io                      1.2.6-3                             amd64        An open and reliable container runtime
+ii  docker-ce                          5:19.03.3~1.2.beta2-0~ubuntu-xenial amd64        Docker: the open-source application container engine
+ii  docker-ce-cli                      5:19.03.2~3-0~ubuntu-xenial         amd64        Docker CLI: the open-source application container engine
+#
+
+
+*****************************  ставим cri-o на дата ноду
+
+
+
+
+# add-apt-repository -y ppa:projectatomic/ppa
+# apt-get update
+# apt-get install -y cri-o-1.15
+# systemctl enable crio
+# systemctl start crio
+
+# crictl info -  проверяем что cri работает нормально
+
+
+# modprobe br_netfilter
+
+правим /etc/sysctl.conf
+net.ipv4.ip_forward = 1
+net.bridge.bridge-nf-call-iptables = 1
+
+#  sysctl -p /etc/sysctl.conf
+
+и еще чтобы этот модуль br_netfilter грузился при перезагрузке
+
+в /etc/modules прописываем
+
+br_netfilter
+
+
+для проверки что модуль br_netfilter грузится при перезагрузке , перезагружаем ноду. и проверяем
+
+# lsmod | grep br_netfilter
+
+и еще 
+
+#  sysctl -p /etc/sysctl.conf
+если ошибки невыдает то все окей.
+
+
+один из пиздецов установки.
+после установки cri-o она неможет скачивать имаджи если в явном виде неуказать docker.io 
+
+то есть команда
+
+# crictl pull busybox 
+
+выдаст ошибку
+
+ImageStatus "calico/cni:v3.8.2" from image service failed: rpc error: code = Unknown desc = no registries configured while trying to pull an unqualified image, add at least one in either /etc/crio/crio.conf or /etc/containers/registries.conf
+
+а если дать команду
+
+# crictl pull docker.io/busybox
+
+если залезем в конфиг /etc/crio/crio.conf то там написано что типа что по дефолту крио знает про docker.io но по факту она незнает.
+# List of registries to be used when pulling an unqualified image (e.g.,
+# "alpine:latest"). By default, registries is set to "docker.io" for
+# compatibility reasons. Depending on your workload and usecase you may add more
+# registries (e.g., "quay.io", "registry.fedoraproject.org",
+# "registry.opensuse.org", etc.).
+#registries = [
+#       "quay.io",
+#       "docker.io",
+#]
+
+поэтому надо в явном виде в конфиге указать что регистри с которого качать имаджи это docker.io
+
+# List of registries to be used when pulling an unqualified image (e.g.,
+# "alpine:latest"). By default, registries is set to "docker.io" for
+# compatibility reasons. Depending on your workload and usecase you may add more
+# registries (e.g., "quay.io", "registry.fedoraproject.org",
+# "registry.opensuse.org", etc.).
+#registries = [
+#       "quay.io",
+#       "docker.io",
+#]
+
+
+registries = [
+        "docker.io",
+]
+
+
+замечу что это все можно проверить до установки kubelet на хост.  
+и это НАДО исправить до установки kubelet иначе он нормально не встанет на хосте.
+и эта нода в кластере будет в состоянии NotReady.
+
+это был первый пиздец установки cri-o
+
+
+
+
+далее проверяем что контейнеры можно успешно создать через cri-o
+
+для этого используем универсальный cli от кубернетеса для cri совместимых high-level runtimes. = crictl  ( которая входит в cri-tools)
+
+правда для этого помимо имаджей которые мы качаем из регистри нужно еще иметь под рукой json файл.
+пример 
+
+
+# cat pod-config.json
+{
+    "metadata": {
+        "name": "nginx-sandbox",
+        "namespace": "default",
+        "attempt": 1,
+        "uid": "hdishd83djaidwnduwk28bcsber2"
+    },
+    "log_directory": "/tmp",
+    "linux": {
+    }
+}
+
+
+
+
+ 
+# crictl runp pod-config.json
+
+проверяем что pod создался 
+
+#  crictl pods
+
+# crictl inspectp ee002afffc6b6
+{
+  "status": {
+    "id": "4fab35b5cdc2019aba49e634d4087fe52497075de218f59cb620c1b9cd1c390e",
+    "metadata": {
+      "attempt": 1,
+      "name": "nginx-sandbox",
+      "namespace": "default",
+      "uid": "hdishd83djaidwnduwk28bcsber2"
+    },
+    "state": "SANDBOX_READY",
+    "createdAt": "2019-09-28T21:49:31.679226027+03:00",
+    "network": {
+      "ip": "10.88.0.5"
+    },
+    "linux": {
+      "namespaces": {
+        "options": {
+          "ipc": "POD",
+          "network": "POD",
+          "pid": "POD"
+        }
+      }
+    },
+    "labels": {},
+    "annotations": {}
+  }
+}
+
+
+замечу что pod это только оболочка конверт для контейнеров внутри. который мы еще внутрь невпихнули.
+
+
+
+
+
+crictl это cli к high-level runtim который отвечает k8 cri стандарту. это возможность проверить high-level runtime без установленного kubelet.
+это как cli к докеру. только cli к докеру оно работает только  с докером. а crictl со всеми k8 cri слвместимыми high level runtimes.
+
+поскольку мы обращаемя к high-level runtime то можно указать какой low-level runtime мы хотим использовать. по дефолту это runc
+
+# crictl runp --runtime=runc pod-config.json
+
+
+еще замечу. как я понимаю контейнеры которые созданы через runv они имеют прямой доступ к кернелу. 
+и гугл считает что это небезопасно. что контейнеры имеют прямой доступ к кернелу.и гугл придумали gVisor  который тоже low -level runtime
+но он как то так создает контейнеры  которые не имеют прямой доступ к кернелу. а имеют доступ к gvisor который уже имеет доступ к кернел.
+
+
+так вот crictl runp создает только пустой pod внутри которого нет никаких контейнеров.
+
+на следующем шаге можно создать контейнер и всунуть его в под.
+
+
+# crictl create 4fab35b5cdc20 container-config.json pod-config.json
+
+где 4fab35b5cdc20 - id уже ранее созданного пода. и еще надо создать pod-config.json. в любом случае эта команда почему то неработает. и 
+хватит на этом.
+
+будем считать что мы проверили что cri-o работает.
+
+
+далее продолжает установку этой дата ноды в кластер схеме описанной выше начиная с пункта 2. 
+
+
+
+важно!! теперь прописываем настройки для kubelet
+в /etc/default/kubelet  
+
+Environment="KUBELET_EXTRA_ARGS=--container-runtime=remote --runtime-request-timeout=15m --container-runtime-endpoint=unix:///run/crio/crio.sock
+
+
+вот еще полезная команда
+
+# systemctl show kubelet
+чтоб посмотреть файлы и настройки которые жрет сервис kubelet при запуске
+
+
+очень полезная команда для траблшутинга
+
+root@test-kub-04:/etc/crio# curl -v --unix-socket /var/run/crio/crio.sock http://localhost/info
+*   Trying /var/run/crio/crio.sock...
+* Connected to localhost (/var/run/crio/crio.sock) port 80 (#0)
+> GET /info HTTP/1.1
+> Host: localhost
+> User-Agent: curl/7.47.0
+> Accept: */*
+>
+< HTTP/1.1 200 OK
+< Content-Type: application/json
+< Date: Sat, 28 Sep 2019 20:42:18 GMT
+< Content-Length: 239
+<
+* Connection #0 to host localhost left intact
+{"storage_driver":"overlay","storage_root":"/var/lib/containers/storage","cgroup_driver":"systemd","default_id_mappings":{"uids":[{"container_id":0,"host_id":0,"size":4294967295}],"gids":[{"container_id":0,"host_id":0,"size":4294967295}]}}root@test-kub-04:/etc/crio#
+
+
+
+
+************ конец установки cri-o 
+
+очень полезная команда
+как удалять системные поды.
+ибо простой командй ты ее нифига неудалишь
+
+kubectl delete pods --namespace=kube-system calico-node-4sq8z
+
+
+
+
+
+
+
+
+
+
+
+
+
+перед тем как пробовать ставить kubeadm join  на хост который мы полчили путем клонирования из другой дата ноды
+надо сделать
+
+# kubeadm reset   <--- !!!!!!!!!!!!!
+
+
+
+
+установка containerd
+помни об особом файле /etc/systemd/system/kubelet.service.d/0-containerd.conf
+
+
+
+
+установка cri-o
+
+
+///отступ
+как удалить ноду из кластера
+
+# kubectl drain test-kub-05 --ignore-daemonsets --delete-local-data
+#  kubectl delete nodes test-kub-05
+
+как очистить ноду после того как ее вывели из кластера от конфигов старого кластера
+
+# kubeadm reset
+но замечу что настройки kubelet сервиса ( часть) например cgroup driver останется тоже.
+и настройки high-level runtime останется тоже.
+и хотя это часть состава кубернетеса. но  поскольку  kubelet и high-level runtime ставится ДО подключения к кластеру то 
+kubeadm reset никак не затрагивает эти настройки
+
+\\\
+
+
+было предположение что kubelet не поднимается изза того что cri-O + kubelet имея cgroup driver = systemd
+менял и у cri-o и у kubelet   cgroup driver на  = cgroupfs
+
+делается это так
+
+для cri-o это 
+
+/etc/crio/crio.conf
+
+~# cat /etc/crio/crio.conf | grep cgroup
+cgroup_manager = "cgroupfs"
+
+для кубелет это 
+
+Environment="KUBELET_CGROUP_ARGS=--cgroup-driver=cgroupfs"
+ExecStart=/usr/bin/kubelet $KUBELET_KUBECONFIG_ARGS $KUBELET_CONFIG_ARGS $KUBELET_KUBEADM_ARGS $KUBELET_EXTRA_ARGS $KUBELET_CGROUP_ARGS
+
+но оказалось что это не было причиной незапуска kubelet. но в целом получается попутнонаучился 
+менять cgroup driver для этих двух компонентов. но как сказал это было ненужно. причина незапуска kubelet была не в этом.
+
+
+про cgroup. это штука которая позволяет нарезать лимиты ресурсов ( цпу память итп) для процессов линукса
+а cgroup driver это штука которая дает доступ функционалу cgroup. что такое это более точно пока неясно.
+
+паралельно скажу что такое namespace. это такая штука которая позволяет друг от друга изолировать процессы 
+итп. эта штука для изоляций чего то от чего то в линуксе. например мы можем гарантировать что процесс
+не сможет увидеть другие процессы. или процесс будет невидеть какието папки на фс.
+
+итак namespace это инстурмент для изоляций. а cgroup это инсттрумент для лимитов.
+
+далее.
+
+очень интеересно можно посмотреть свойства сервиса с каким параметрами он был запущен и в каких файлах он также ищет свой конфиг
+
+#  systemctl show  kubelet
+
+
+
+ExecStart={ path=/usr/bin/kubelet ; argv[]=/usr/bin/kubelet $KUBELET_KUBECONFIG_ARGS $KUBELET_CONFIG_ARGS $KUBELET_KUBEADM_ARGS $KUBELET_EXTRA_ARGS $KUBELET_CGROUP_ARGS
+
+Environment=KUBELET_EXTRA_ARGS=--container-runtime=remote\x20--container-runtime-endpoint=unix:///var/run/crio/crio.sock KUBELET_KUBECONFIG_ARGS=--bootstrap-
+EnvironmentFile=/var/lib/kubelet/kubeadm-flags.env (ignore_errors=yes)
+EnvironmentFile=/etc/default/kubelet (ignore_errors=yes)
+
+FragmentPath=/lib/systemd/system/kubelet.service
+DropInPaths=/etc/systemd/system/kubelet.service.d/0-crio.conf /etc/systemd/system/kubelet.service.d/10-kubeadm.conf
+
+
+
+
+
+==============================================================================================
+
+
+перед установкой kubelet  нужно на машину поставить runtime. ( docker, conatimerd, cri-o)
+проверить что оно может успешно создать контейнер само.
+
+после этого поставить кубелет.
+
+после этого надо прописать в настройках кубелета какой рантайм ему юзать.
+
+  и вот обратная задача . у нас есть дата нода. надо понять какой рантайм юзает кубелет.
+
+( есть и еще одна задача понять через какой cgroup driver работает кубелет но это отдельная задача)
+
+посмотрим через ps aux
+
+
+root@test-kub-02:~# ps aux | grep kubelet
+
+
+kubelet на мастере
+
+/usr/bin/kubelet 
+--bootstrap-kubeconfig=/etc/kubernetes/bootstrap-kubelet.conf 
+--kubeconfig=/etc/kubernetes/kubelet.conf 
+--config=/var/lib/kubelet/config.yaml 
+--cgroup-driver=cgroupfs 
+--network-plugin=cni 
+--pod-infra-container-image=k8s.gcr.io/pause:3.1
+
+
+
+kubelet на дата ноде на runtime docker
+
+
+
+/usr/bin/kubelet 
+--bootstrap-kubeconfig=/etc/kubernetes/bootstrap-kubelet.conf 
+--kubeconfig=/etc/kubernetes/kubelet.conf 
+--config=/var/lib/kubelet/config.yaml 
+--cgroup-driver=cgroupfs 
+--network-plugin=cni 
+--pod-infra-container-image=k8s.gcr.io/pause:3.1
+
+
+kubelet на дата ноде на runtime containerd
+
+ /usr/bin/kubelet 
+--bootstrap-kubeconfig=/etc/kubernetes/bootstrap-kubelet.conf 
+--kubeconfig=/etc/kubernetes/kubelet.conf 
+--config=/var/lib/kubelet/config.yaml 
+--container-runtime=remote 
+--runtime-request-timeout=15m 
+--container-runtime-endpoint=unix:///run/containerd/containerd.sock
+
+
+как видно только  в ряде случаев можно увидеть какой рантайм прописан в кубелете.
+
+наша исходная задача понять к какому рантайму обращется кубелет. дело в том что кубелет может не мочь успешно запуститься.
+поэтмоу способ что выше в целом бесполезен. так как сервис просто может не иметь возможност стартануть изза ошибок. например недоступности
+рантайма. поэтому надо искать в  настройках systemctl для этого сервиса kubelet
+
+(если же кубелет стартанут и нода успешно присоеденилась к кластеру то узнать рантайм для ноды нет проблем kubectl describe noda_name )
+
+главный смысл такой - видно что при старте кубелета ему можно указать сокет через который работает runtime.
+
+# kubectl ... --container-runtime-endpoint=unix:///run/containerd/containerd.sock
+
+экспреимантальным путем было установлено что прописать этот параметр можно в нескольких местах.
+эти места обусловлены в основном свойствами самой системы systemd
+
+1) # cat /etc/systemd/system/kubelet.service.d/10-kubeadm.conf
+# Note: This dropin only works with kubeadm and kubelet v1.11+
+[Service]
+Environment="KUBELET_KUBECONFIG_ARGS=--bootstrap-kubeconfig=/etc/kubernetes/bootstrap-kubelet.conf --kubeconfig=/etc/kubernetes/kubelet.conf"
+Environment="KUBELET_CONFIG_ARGS=--config=/var/lib/kubelet/config.yaml"
+# This is a file that "kubeadm init" and "kubeadm join" generates at runtime, populating the KUBELET_KUBEADM_ARGS variable dynamically
+EnvironmentFile=-/var/lib/kubelet/kubeadm-flags.env
+# This is a file that the user can use for overrides of the kubelet args as a last resort. Preferably, the user should use
+# the .NodeRegistration.KubeletExtraArgs object in the configuration files instead. KUBELET_EXTRA_ARGS should be sourced from this file.
+EnvironmentFile=-/etc/default/kubelet
+ExecStart=
+ExecStart=/usr/bin/kubelet $KUBELET_KUBECONFIG_ARGS $KUBELET_CONFIG_ARGS $KUBELET_KUBEADM_ARGS $KUBELET_EXTRA_ARGS
+
+
+сюда можно вставить как строковый параметр.
+но  это плохо так как  как только мы удалим пакет kubelet тот этот файл будет удален и если  мы поставим kubelet заново
+то нужно будет настройку прописывать заново.
+
+2) вставить настройку в файл var/lib/kubelet/kubeadm-flags.env
+
+но тут тоже самое как пункт 1. как тока удалим поставим пакет то настройка будет перетерта.
+
+3) /etc/default/kubelet
+
+сюда можно вставить настройку и она не будет перетерта при удалении и установке пакета заново.
+
+
+вот как это будет выглядеть для рантайма containerd
+
+KUBELET_EXTRA_ARGS= --container-runtime=remote --runtime-request-timeout=15m --container-runtime-endpoint=unix:///run/containerd/containerd.sock
+
+
+для cri-o это будет  выглядеть как 
+
+KUBELET_EXTRA_ARGS= --container-runtime=remote --runtime-request-timeout=15m --container-runtime-endpoint=unix:///run/crio/crio.sock
+
+
+4) также  можно вместо пункта 3 создать файл /etc/systemd/system/kubelet.service.d/0-containerd.conf
+
+# cat 0-containerd.conf
+
+[Service]
+Environment="KUBELET_EXTRA_ARGS=--container-runtime=remote --runtime-request-timeout=15m --container-runtime-endpoint=unix:///run/containerd/containerd.sock"
+
+видно что настройка такая же самая что и в /etc/default/kubelet 
+только добавили секцию [Service]
+
+это потому что  настройка через 0-containerd.conf обусловлена свойствами архитектуры самой systemd
+
+а настройка через пункт 3 обусловлена тем что этот файл указан в конфиге /etc/systemd/system/kubelet.service.d/10-kubeadm.conf
+
+
+итак если мы собираемся использовать недефолтный docker как рантайм то у нас есть два места где мы обязаны хотя бы в одном из них 
+прописать сокет нашего рантайма.
+
+
+таким образом теперь мы знаем где прписывать наш рантайм в кубелете после того как мы поставили кубелет из пакета. но перед присоедининением
+ноды к кластеру через kubeadm join
+
+
+
+далее.
+посмотреть какие конфиг файлы испольщует кубелет сервис можно через 
+
+# systemct show kubelet
+
+там откроется простынь . я из нее выбрал самый смак
+
+[Service]
+Environment=
+
+"KUBELET_EXTRA_ARGS=--container-runtime=remote --runtime-request-timeout=15m --container-runtime-endpoint=unix:///run/containerd/containerd.sock"
+
+
+Environment=
+
+KUBELET_EXTRA_ARGS=--container-runtime=remote\x20--runtime-request-timeout=15m\x20--container-runtime-endpoint=unix:///run/containerd/containerd.sock 
+
+KUBELET_KUBECONFIG_ARGS=--bootstrap-kubeconfig=/etc/kubernetes/bootstrap-kubelet.conf\x20--kubeconfig=/etc/kubernetes/kubelet.conf 
+
+KUBELET_CONFIG_ARGS=--config=/var/lib/kubelet/config.yaml
+
+
+еще была тема что старая версия cri-o не работает коректно в связке с кубелетом когда онииспользуют дефолтовый драйвер systemd для cgroup.
+и надо было и кубелет и cri-o переключать на cgroupfs драйвер для cgroup. 
+
+это для кубелета делается через опцию  --cgroup-driver=cgroupfs
+
+а для обратно systemd это --cgroup-driver=systemd
+
+опцию задаем тоже через пункт 3 или пункт 4.
+
+это для кубелета.
+
+
+для cri-o задаем через конфиг
+
+/etc/crio/crio.conf
+
+но как оказалось  новая версия cri-o рабоатет нормально в дефолтовой поставке.
+
+более того создатели к8 пишут что сам линукс работает с cgroup через systemd поэтому нежелаььно использовать одновременно два драйвера и sytemd и cgroupfs
+это может вызывать конфликт в распределении ресурсов. 
+
+
+ставим cri singularity
+
+в общем есть старый singularity он как докер но у него нет k8 cri support. зато он есть в пакетах. но он нам неподходит.
+singularity with k8 cri support надо ставить только из исходников
+
+
+
+выводы осле ебалы с cri-o
+
+1. cri-o гавно. на нем нужно ставить правильные cgroup драйверы иначе неработает. и в целом его полноценно завести
+удалось только как то вначале а потом никак.
+
+2. сеть cni это вторая по геморою комппонент. calico у него там какие то заебы с BGP . в итоге нахуй этот компонент.
+а вот flannel гораздо менее капризен и более надежен. итак выбор CNI за flannel
+
+3. единственно нормально работающими рантаймами являются docker и containerd.
+
+4. хорошо прописано с подробностями установка того или иного рантайма в доке к8 , глава про CRI.
+
+5. проработать в обратном порядке все вкладки открытыве в хроме
+
+***************************************************************************************************
+
+
+возвращаемся к CRI runtime class
+
+это тема о том что подам при запуске можно указывать на каком hight lebel runtime запускаться
+
+типа эти поды на докере эти на containerd эти на говно cri-o
+
+чтоб эта херная работала надо чтобы runtimeclass фича была активирована на apiserver и кубелетах.
+по дефолту она актвивроана. как проверить непонятно ну ихер с ним.
+
+что стало дальше понятно. что эта фича cri runtime class она про выбор Low-level runtime а не high 
+level runetime. эти пидары об этом непишут.
+
+зачем это надо например. докер например это обычные контейнеры. софт конейнеры. они дают доступ  контейнерам напрямую к 
+ядру. а например gvisor low level runtime он недает контейнерам доступ я кернелу линукса . 
+это реально надо нпример тем кто раздает контейнеры как публичный сервис.  и нельзя чтобы прорвыв гнилого софта дал доступ
+к другим контейнерам.
+
+в общем немного смешно. вначале все жалововались что виртуализация это больллльшой и платный оверхед.
+потом перешли на более легкую контейнеризацию и бесплатную. а щас уже обратно начали накручивать фишки чтобы дать 
+доп изоляцию которую дают гипервизоры.
+
+
+
+RuntimeClass это формально  unit  в базе данных кубернетес
+
+
+пример как юзать runtuneclass
+
+https://asciinema.org/a/215564
+
+
+
+есть еще такая хрень как shim. с ней пока мало понятно. 
+там есть картинки что над каждым контейнером висит родителбьский процесс shim. на этом пока все.
+
+
+перед тем как начать понимать и юзать runtimeclass надо настроить несколько low-level runtimes 
+чтобы их можно было уже выбирать с помощью runtimceclass
+
+итак настроим containerd чтобы мон мог работать с   runc и с kata
+ 
+
+***** 30/09/2019 установка kata на containerd*****************************************
+
+ctr - containerd cli
+
+containerd умеет работать нетолько с runv но и kata.
+
+
+
+походу kata эта штука которая создает контейнер используя реально гипервизом quemu.  получсется kata это типа как JVM. 
+и мы там прописываем и сколько памяти отдаем контейнеру и сколько процессоров.
+
+они пишучт что классические конейнеры - software контейнеры мы должны использовать для доверенного софта.
+а для разного непонятно какого говнософта надо использовать sandbox контейнеризаторы такие как kata или gvisor 
+
+имеем containerd уже установленный.
+
+
+$ ARCH=$(arch)
+$ BRANCH="${BRANCH:-master}"
+$ sudo sh -c "echo 'deb http://download.opensuse.org/repositories/home:/katacontainers:/releases:/${ARCH}:/${BRANCH}/xUbuntu_$(lsb_release -rs)/ /' > /etc/apt/sources.list.d/kata-containers.list"
+$ curl -sL  http://download.opensuse.org/repositories/home:/katacontainers:/releases:/${ARCH}:/${BRANCH}/xUbuntu_$(lsb_release -rs)/Release.key | sudo apt-key add -
+$ sudo -E apt-get update
+$ sudo -E apt-get -y install kata-runtime kata-proxy kata-shim
+
+
+# mkdir -p /etc/kata-containers/
+# cp /usr/share/defaults/kata-containers/configuration.toml /etc/kata-containers
+
+
+прописываем kata в containerd, берем cat /etc/containerd/config.toml
+ищем место
+
+ [plugins.cri.containerd.default_runtime]
+        runtime_type = "io.containerd.runtime.v1.linux"
+        runtime_engine = ""
+        runtime_root = ""
+      [plugins.cri.containerd.untrusted_workload_runtime]
+        runtime_type = ""
+        runtime_engine = ""
+        runtime_root = ""
+
+
+и вставляем туда кусок для ката чтобы было так как у меня ниже.
+
+
+ [plugins.cri.containerd.default_runtime]
+        runtime_type = "io.containerd.runtime.v1.linux"
+        runtime_engine = ""
+        runtime_root = ""
+      [plugins.cri.containerd.runtimes.kata]
+         runtime_type = "io.containerd.kata.v2"
+     [plugins.cri.containerd.runtimes.kata.options]
+       ConfigPath = "/etc/kata-containers/config.toml"
+      [plugins.cri.containerd.untrusted_workload_runtime]
+        runtime_type = ""
+        runtime_engine = ""
+        runtime_root = ""
+
+
+по идее все. но если наша дата нода является виртуальной машиной esxi. то kata container незаработает. а точнее незарабоает qemu на котором базируется kata.
+а qemu незаработает так как ему для запуска нужны доступными спец опции процессора который отвечают за виртуализацию.
+поэтому надо активировать для виртуальной машины опцию "Expose hardware-assisted virtualization to the guest operating system". 
+для этого надо чтобы VM была версии 9 и выше. и опция "Expose hardware-assisted virtualization to the guest operating system" доступна для активации 
+только через вэб морду. 
+итак повысили VM ver до 9. открыли веб морду вцентра - правая кнопка на VM - edit settings - VM hardware - CPU - ищем глазами 
+опцию "Expose hardware-assisted virtualization to the guest operating system" и ставим рядом с ней галочку. 
+
+итак эта опция позволяет софту внутри виртуалки юзать опции виртуализации процессора. 
+теперь qemu может успешно стартовать. теперь kata может успешно создавать контейнеры.
+
+
+через ctr - это cli от containerd  тестируем - создаем контейнер с kata
+
+
+$ sudo ctr image pull docker.io/library/busybox:latest
+$ sudo ctr run --runtime io.containerd.run.kata.v2 -t --rm docker.io/library/busybox:latest hello sh
+
+если все верно. то контейнер создатся. и ошибок не будет.
+
+готово.
+
+можно еще запустить проверку что у ката все хорошо. 
+это
+
+# kata-runtime kata-check
+WARN[0000] modprobe insert module failed: modprobe: FATAL: Module vhost_vsock not found in directory /lib/modules/4.4.0-62-generic
+  arch=amd64 error="exit status 1" module=vhost_vsock name=kata-runtime pid=7280 source=runtime
+ERRO[0000] kernel property not found                     arch=amd64 description="Host Support for Linux VM Sockets" name=vhost_vsock pid=7280 source=runtime type=module
+System is capable of running Kata Containers
+System can currently create Kata Containers
+
+
+видно что ката хочет модуль vhost_vsock которого нет я данном кернеле. однако ката пишет что тем не менее оно может работать на 
+такой системе. что делает модуль vhost_vsock я не нашел.
+
+
+что еще хочу заметить 
+
+берем конфиг containerd
+cat /etc/containerd/config.toml
+
+его кусок
+
+[plugins.cri.containerd.default_runtime]
+        runtime_type = "io.containerd.runtime.v1.linux"
+        runtime_engine = ""
+        runtime_root = ""
+
+      [plugins.cri.containerd.runtimes.kata]
+         runtime_type = "io.containerd.kata.v2"
+         [plugins.cri.containerd.runtimes.kata.options]
+           ConfigPath = "/etc/kata-containers/config.toml"
+
+      [plugins.cri.containerd.untrusted_workload_runtime]
+        runtime_type = ""
+        runtime_engine = ""
+        runtime_root = ""
+
+
+в нем видно что в контейнерд прописывается  default low-level runtime
+таковым типа является io.containerd.runtime.v1.linux
+
+потом мы указали свой дополнительный рантайм кастомный io.containerd.kata.v2
+в нем мы указали что мол все подробности ищи в конфиге etc/kata-containers/config.toml
+
+а еще есть возможность указать рантайм для подов который помечены как untrusted - plugins.cri.containerd.untrusted_workload_runtime 
+в нашем случае он пустой.
+
+
+
+далее как конкретно теперь указывать для containerd какой low-level runtime использовать при запуске контейнера.
+
+для запуска дефолтного рантайма
+
+# ctr images pull docker.io/library/redis:latest
+# ctr container create  docker.io/library/redis:latest redis3 
+либо так
+# ctr container create --runtime io.containerd.runtime.v1.linux  docker.io/library/redis:latest redis4
+
+
+для запуска ката рантайма
+
+# ctr container create --runtime io.containerd.run.kata.v2  docker.io/library/redis:latest redis5
+
+
+смотрим какие рантаймы в итоге получились
+
+# ctr containers list
+
+CONTAINER      IMAGE                               RUNTIME
+redis3         docker.io/library/redis:latest      io.containerd.runtime.v1.linux
+redis4         docker.io/library/redis:latest      io.containerd.runtime.v1.linux
+redis5         docker.io/library/redis:latest      io.containerd.run.kata.v2
+
+
+как видно redis3 и redis4 имеют дефолтный рантайм.
+а redis5 имеет ката рантайм
+
+документация по установке kata - https://github.com/kata-containers/documentation/blob/master/how-to/containerd-kata.md
+на удивление там все очень точно описано а не хуй как как в к8 доках
+
+еще замечу что деволтный low-level runtime 
+это runc ( все время путаю с runv)
+
+***** 30/09/2019 установка kata на containerd - готово *****************************************
+
+ctr
+
+как создать контейнер с использованием default low-level runtime
+
+# ctr images pull docker.io/library/redis:latest
+# ctr container create docker.io/library/redis:latest redis
+# ctr containers list
+
+
+далее.
+
+
+возврвщаемся к runtimeclass. 
+итак мы имеем runc и kata.
+
+теперт будем учиться их выбирать при создании подов.
+
+
+теперь нужно активировать подддежку runtimeclass в к8.
+
+это нужно активировать в кубелет и в apiserver
+
+для кубелет нужно вставить параметр 
+
+# kubelet .... --feature-gates RuntimeClass=true
+
+
+чтобы переустановка кубелета непотерла наши кастомные настройки мы их пропишем в /etc/default/kubelet
+
+# cat /etc/default/kubelet
+KUBELET_EXTRA_ARGS="--container-runtime=remote --runtime-request-timeout=15m --container-runtime-endpoint=unix:///run/containerd/containerd.sock --feature-gates RuntimeClass=true"
+
+
+теперь надо активировать эту фичу на apiserver.
+
+для начала посмотрим какой конфиг имеет к8 кластер вообще
+
+root@test-kub-01:~# kubeadm config view
+apiServer:
+  extraArgs:
+    authorization-mode: Node,RBAC
+  timeoutForControlPlane: 4m0s
+apiVersion: kubeadm.k8s.io/v1beta2
+certificatesDir: /etc/kubernetes/pki
+clusterName: kubernetes
+controllerManager: {}
+dns:
+  type: CoreDNS
+etcd:
+  local:
+    dataDir: /var/lib/etcd
+imageRepository: k8s.gcr.io
+kind: ClusterConfiguration
+kubernetesVersion: v1.16.0
+networking:
+  dnsDomain: cluster.local
+  podSubnet: 10.252.0.0/16
+  serviceSubnet: 10.96.0.0/12
+scheduler: {}
+
+
+хотя дальше дают команду которая якобы дает более полный конфиг кластера
+
+
+root@test-kub-01:~# kubeadm config print init-defaults
+apiVersion: kubeadm.k8s.io/v1beta2
+bootstrapTokens:
+- groups:
+  - system:bootstrappers:kubeadm:default-node-token
+  token: abcdef.0123456789abcdef
+  ttl: 24h0m0s
+  usages:
+  - signing
+  - authentication
+kind: InitConfiguration
+localAPIEndpoint:
+  advertiseAddress: 1.2.3.4
+  bindPort: 6443
+nodeRegistration:
+  criSocket: /var/run/dockershim.sock
+  name: test-kub-01
+  taints:
+  - effect: NoSchedule
+    key: node-role.kubernetes.io/master
+---
+apiServer:
+  timeoutForControlPlane: 4m0s
+apiVersion: kubeadm.k8s.io/v1beta2
+certificatesDir: /etc/kubernetes/pki
+clusterName: kubernetes
+controllerManager: {}
+dns:
+  type: CoreDNS
+etcd:
+  local:
+    dataDir: /var/lib/etcd
+imageRepository: k8s.gcr.io
+kind: ClusterConfiguration
+kubernetesVersion: v1.16.0
+networking:
+  dnsDomain: cluster.local
+  serviceSubnet: 10.96.0.0/12
+scheduler: {}
+
+
+прикольно  что по дефолту кубелет на мастере запускается с 
+KUBELET_KUBEADM_ARGS="--cgroup-driver=cgroupfs ..."
+
+а не с systemd
+
+паарметры запуска apiserver прописаны в файле 
+
+/etc/kubernetes/manifests/kube-apiserver.yaml
+
+но это нам непоможет для активации runtimeclass
+
+так. совершенно непонятно как через api к8 поменять параметры настройки api сервера.
+но к счастью конкретно опцию RuntimeClass можно активировать через командную строку при запуске apiserver 
+ровно также как это мы делали для кубелет.
+
+вот страница на которрй прописано что можно активировать у apiserver при запуске
+
+https://v1-12.docs.kubernetes.io/docs/reference/command-line-tools-reference/kube-apiserver/
+
+но подьебка что так как указано в доке  а именно
+
+# kube-apiserver ... --feature-gates RuntimeClass=true
+
+так несработает
+
+
+а сработает только вот так
+
+# kube-apiserver ... --feature-gates=RuntimeClass=true
+
+
+
+чуть в сторону. что интересно
+на к8 мастере работают такие компоненты составляющие контроль панель как 
+
+*кубелет
+*controller-manager
+*scheduler
+*kube-apiserver
+
+что охиренно непонятно. вот  у нас в кластере есть только мастер нода.  то есть все хозяйство кластера крутится только на мастер ноде.
+
+так вот компоненты контроль панели с одной стороны заявлено что они развернуты как контейнеры
+
+root@test-kub-01:~/.kube# kubectl get pods --all-namespaces -o wide
+NAMESPACE     NAME                                  READY   STATUS    RESTARTS   AGE     IP              NODE          NOMINATED NODE   READINESS GATES
+kube-system   coredns-5644d7b6d9-s6w6d              0/1     Pending   0          7m33s   <none>          <none>        <none>           <none>
+kube-system   coredns-5644d7b6d9-x6bvz              0/1     Pending   0          7m33s   <none>          <none>        <none>           <none>
+kube-system   etcd-test-kub-01                      1/1     Running   0          6m46s   172.16.102.31   test-kub-01   <none>           <none>
+kube-system   kube-apiserver-test-kub-01            1/1     Running   0          6m52s   172.16.102.31   test-kub-01   <none>           <none>
+kube-system   kube-controller-manager-test-kub-01   1/1     Running   0          6m49s   172.16.102.31   test-kub-01   <none>           <none>
+kube-system   kube-proxy-mzr9b                      1/1     Running   0          7m33s   172.16.102.31   test-kub-01   <none>           <none>
+kube-system   kube-scheduler-test-kub-01            1/1     Running   0          6m35s   172.16.102.31   test-kub-01   <none>           <none>
+
+
+а с другой стороны они же запущены как простые линкс процессы вообще ниразу неконтейнерного типа а как класиические процесы линкс на мастере.
+
+вот только один пример.  о том что в классических процессах запщуен тоже apiserver
+
+root@test-kub-01:~/.kube# ps aux | grep api
+
+root      8947 16.1 19.7 551644 404368 ?       Ssl  01:00   1:37 kube-apiserver --advertise-address=172.16.102.31 --allow-privileged=true --authorization-mode=Node,RBAC --client-ca-file=/etc/kubernetes/pki/ca.crt --enable-admission-plugins=NodeRestriction --enable-bootstrap-token-auth=true --etcd-cafile=/etc/kubernetes/pki/etcd/ca.crt --etcd-certfile=/etc/kubernetes/pki/apiserver-etcd-client.crt --etcd-keyfile=/etc/kubernetes/pki/apiserver-etcd-client.key --etcd-servers=https://127.0.0.1:2379 --insecure-port=0 --kubelet-client-certificate=/etc/kubernetes/pki/apiserver-kubelet-client.crt --kubelet-client-key=/etc/kubernetes/pki/apiserver-kubelet-client.key --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname --proxy-client-cert-file=/etc/kubernetes/pki/front-proxy-client.crt --proxy-client-key-file=/etc/kubernetes/pki/front-proxy-client.key --requestheader-allowed-names=front-proxy-client --requestheader-client-ca-file=/etc/kubernetes/pki/front-proxy-ca.crt --requestheader-extra-headers-prefix=X-Remote-Extra- --requestheader-group-headers=X-Remote-Group --requestheader-username-headers=X-Remote-User --secure-port=6443 --service-account-key-file=/etc/kubernetes/pki/sa.pub --service-cluster-ip-range=10.96.0.0/12 --tls-cert-file=/etc/kubernetes/pki/apiserver.crt --tls-private-key-file=/etc/kubernetes/pki/apiserver.key
+
+что за хуйня ? так в итоге то контроль панель она что и как контейнер работает и как неконтейнер ???????
+
+когда я гашу кубелет на мастере то это никак не гасит ни kube-apiserver ни controller-manager процессы.
+
+ я выяснил как запускается apiserver
+
+# ps xf
+
+  1089 ?        Ssl    0:01 /usr/bin/containerd
+ 8612 ?        Sl     0:00  \_ containerd-shim -namespace moby -workdir /var/lib/containerd/io.containerd.runtime.v1.linux/moby/768733cac0fb79b0e84437c81d9523b97e6a4cc5
+ 8651 ?        Ss     0:00  |   \_ /pause
+ 8666 ?        Sl     0:00  \_ containerd-shim -namespace moby -workdir /var/lib/containerd/io.containerd.runtime.v1.linux/moby/36eca73d007455802b99077353cce667708660a5
+ 8704 ?        Ss     0:00  |   \_ /pause
+ 8729 ?        Sl     0:00  \_ containerd-shim -namespace moby -workdir /var/lib/containerd/io.containerd.runtime.v1.linux/moby/7996630f1e9b69d95676808f7ecc84edd4a6eb99
+ 8790 ?        Ss     0:00  |   \_ /pause
+ 8739 ?        Sl     0:00  \_ containerd-shim -namespace moby -workdir /var/lib/containerd/io.containerd.runtime.v1.linux/moby/00f769ba84cc575c5a336f127a588144072bd237
+ 8819 ?        Ss     0:00  |   \_ /pause
+ 8877 ?        Sl     0:01  \_ containerd-shim -namespace moby -workdir /var/lib/containerd/io.containerd.runtime.v1.linux/moby/bb5cf487eb63c9e542ebcd9ed2043302533cc979
+ 8947 ?        Ssl    2:54  |   \_ kube-apiserver --advertise-address=172.16.102.31 --allow-privileged=true --authorization-mode=Node,RBAC --client-ca-file=/etc/kuberne
+ 8898 ?        Sl     0:00  \_ containerd-shim -namespace moby -workdir /var/lib/containerd/io.containerd.runtime.v1.linux/moby/cf649a35a4c27416c353b3830b3e3222f5b5a0e0
+ 9005 ?        Ssl    0:06  |   \_ kube-controller-manager --allocate-node-cidrs=true --authentication-kubeconfig=/etc/kubernetes/controller-manager.conf --authorizatio
+ 8974 ?        Sl     0:00  \_ containerd-shim -namespace moby -workdir /var/lib/containerd/io.containerd.runtime.v1.linux/moby/b30b8bfb027c82690879ad797385e16d4355d071
+ 9040 ?        Ssl    0:03  |   \_ kube-scheduler --authentication-kubeconfig=/etc/kubernetes/scheduler.conf --authorization-kubeconfig=/etc/kubernetes/scheduler.conf -
+ 9026 ?        Sl     0:00  \_ containerd-shim -namespace moby -workdir /var/lib/containerd/io.containerd.runtime.v1.linux/moby/4450015229f3035cca7916e657bbe59d309c18c4
+ 9122 ?        Ssl    0:08  |   \_ etcd --advertise-client-urls=https://172.16.102.31:2379 --cert-file=/etc/kubernetes/pki/etcd/server.crt --client-cert-auth=true --dat
+ 9545 ?        Sl     0:00  \_ containerd-shim -namespace moby -workdir /var/lib/containerd/io.containerd.runtime.v1.linux/moby/8aca5b886539be2c1c69bb33e08f968e500ff9dc
+ 9576 ?        Ss     0:00  |   \_ /pause
+ 9604 ?        Sl     0:00  \_ containerd-shim -namespace moby -workdir /var/lib/containerd/io.containerd.runtime.v1.linux/moby/85560a90a15ca92d30693b835944a225a5257c1d
+ 9634 ?        Ssl    0:00      \_ /usr/local/bin/kube-proxy --config=/var/lib/kube-proxy/config.conf --hostname-override=test-kub-01
+
+
+containerd запускает conatinerd-shim а тот уже apiserver
+
+
+возникает вопрос - как перезапустить контейнер который относится к контрол панели. 
+ответ - надо перезапустить кубелет. а он уже перезапустит все контейнеры контрол панели
+
+
+вовзрашаюсь обратно.
+
+вносим изменения в конфиг kube-apiserver.yaml 
+а именно добавляем строку
+    - --feature-gates=RuntimeClass=true
+
+
+
+root@test-kub-01:/etc/kubernetes/manifests# cat kube-apiserver.yaml
+...
+...
+  containers:
+  - command:
+    - kube-apiserver
+   ...
+   ...
+    - --tls-private-key-file=/etc/kubernetes/pki/apiserver.key
+    - --feature-gates=RuntimeClass=true
+    
+
+перезапускаем кубелет
+
+проверяем что оно перезапустило apiserver и что фича runtimeclass активирована на apiserver
+
+
+s# ps aux | grep api
+root     20507 16.4 18.5 551024 380536 ?       Ssl  01:45   1:00 kube-apiserver --advertise-address=172.16.102.31 --allow-privileged=true --authorization-mode=Node,RBAC --client-ca-file=/etc/kubernetes/pki/ca.crt --enable-admission-plugins=NodeRestriction --enable-bootstrap-token-auth=true --etcd-cafile=/etc/kubernetes/pki/etcd/ca.crt --etcd-certfile=/etc/kubernetes/pki/apiserver-etcd-client.crt --etcd-keyfile=/etc/kubernetes/pki/apiserver-etcd-client.key --etcd-servers=https://127.0.0.1:2379 --insecure-port=0 --kubelet-client-certificate=/etc/kubernetes/pki/apiserver-kubelet-client.crt --kubelet-client-key=/etc/kubernetes/pki/apiserver-kubelet-client.key --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname --proxy-client-cert-file=/etc/kubernetes/pki/front-proxy-client.crt --proxy-client-key-file=/etc/kubernetes/pki/front-proxy-client.key --requestheader-allowed-names=front-proxy-client --requestheader-client-ca-file=/etc/kubernetes/pki/front-proxy-ca.crt --requestheader-extra-headers-prefix=X-Remote-Extra- --requestheader-group-headers=X-Remote-Group --requestheader-username-headers=X-Remote-User --secure-port=6443 --service-account-key-file=/etc/kubernetes/pki/sa.pub --service-cluster-ip-range=10.96.0.0/12 --tls-cert-file=/etc/kubernetes/pki/apiserver.crt --tls-private-key-file=/etc/kubernetes/pki/apiserver.key --feature-gates=RuntimeClass=true
+
+
+все окей.
+
+
+минус только такой реконфигурации в том что при переустанвоке к8 пакетов эта настройка будет перетерта.
+
+итак наконец то на дата ноде в службе кубелет активирован runtimeclass
+
+root@test-kub-05:~# ps aux | grep kubelet
+root     23359  0.6  4.8 683008 98636 ?        Ssl  01:55   0:04 /usr/bin/kubelet --bootstrap-kubeconfig=/etc/kubernetes/bootstrap-kubelet.conf --kubeconfig=/etc/kubernetes/kubelet.conf --config=/var/lib/kubelet/config.yaml --container-runtime=remote --container-runtime-endpoint=/run/containerd/containerd.sock --container-runtime=remote --runtime-request-timeout=15m --container-runtime-endpoint=unix:///run/containerd/containerd.sock --feature-gates RuntimeClass=true
+
+и на мастер ноде runtime class активиован для apiserver
+
+
+root@test-kub-01:/etc/kubernetes/manifests# ps aux | grep apiserver | grep -i runtime
+root     20507 13.7 19.4 551388 399344 ?       Ssl  01:45   2:45 kube-apiserver --advertise-address=172.16.102.31 --allow-privileged=true --authorization-mode=Node,RBAC --client-ca-file=/etc/kubernetes/pki/ca.crt --enable-admission-plugins=NodeRestriction --enable-bootstrap-token-auth=true --etcd-cafile=/etc/kubernetes/pki/etcd/ca.crt --etcd-certfile=/etc/kubernetes/pki/apiserver-etcd-client.crt --etcd-keyfile=/etc/kubernetes/pki/apiserver-etcd-client.key --etcd-servers=https://127.0.0.1:2379 --insecure-port=0 --kubelet-client-certificate=/etc/kubernetes/pki/apiserver-kubelet-client.crt --kubelet-client-key=/etc/kubernetes/pki/apiserver-kubelet-client.key --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname --proxy-client-cert-file=/etc/kubernetes/pki/front-proxy-client.crt --proxy-client-key-file=/etc/kubernetes/pki/front-proxy-client.key --requestheader-allowed-names=front-proxy-client --requestheader-client-ca-file=/etc/kubernetes/pki/front-proxy-ca.crt --requestheader-extra-headers-prefix=X-Remote-Extra- --requestheader-group-headers=X-Remote-Group --requestheader-username-headers=X-Remote-User --secure-port=6443 --service-account-key-file=/etc/kubernetes/pki/sa.pub --service-cluster-ip-range=10.96.0.0/12 --tls-cert-file=/etc/kubernetes/pki/apiserver.crt --tls-private-key-file=/etc/kubernetes/pki/apiserver.key --feature-gates=RuntimeClass=true
+ 
+можем двигать дальше. 
+и начинать создавать контейнеры для которых будем укаывать на какой low-level runtime им выполняться.
+
+
+чтото я непонял. 
+на хосте с containerd запущены контейнеры но почему то ни 
+# runc list
+# ctr containers list
+
+ нифига непоказывают. как бутто на хосте ниодного контейнера незапущено
+
+к8 дока пишет что dockershim ( cri плагин между к8 и high-level runtime dockerd ) не умеет работать с runtimeclass другими словами что dockerd не поддерживает 
+разнообразные low-level runrtime а только один. ну это мы и сами знаем.
+
+
+далее. конкретно про containerd сказано  что в его конфиге мы прописываем low-level runtumes через строку
+
+[plugins.cri.containerd.runtimes.${HANDLER_NAME}]
+
+мы выше как раз уже конфигурировали его секцией
+
+ [plugins.cri.containerd.runtimes.kata]
+         runtime_type = "io.containerd.kata.v2"
+         [plugins.cri.containerd.runtimes.kata.options]
+           ConfigPath = "/etc/kata-containers/config.toml"
+
+
+схема походу такая. в конфиге high-level runtime в данном случае containerd мы прописываем путь к бинарнику который является low-level runtime 
+и для этого пути мы указываем некое имя от фонаря которое и называется handler.  схема работает так - к8 через cri плугин обращается к containerd
+и говорит что создай контейнер в которого Low-level runtime = handler.  containerd принимает и вызывает бинарник который указан в секции handler в его конфиге.
+
+то есть к8 говорит создай контейнер с рантаймомо kata. containerd лезет в конфиг . ищет секцию где прописан ката. и вызывает бинарник 
+который указан для kata. само имя в конфиге continerd kata не имеет занчения. можно написать вася. например
+
+ 
+
+ [plugins.cri.containerd.runtimes.вася]
+         runtime_type = "io.containerd.kata.v2"
+         [plugins.cri.containerd.runtimes.вася.options]
+           ConfigPath = "/etc/kata-containers/config.toml"
+
+и надо будет тогда в конфиге пода указать вася как runtimclass
+главное это то что в конфиге containerd указан бинарник к low-level runtime .
+
+
+[plugins.cri.containerd.runtimes.kata]
+         runtime_type = "io.containerd.kata.v2"
+         [plugins.cri.containerd.runtimes.kata.options]
+           ConfigPath = "/etc/kata-containers/config.toml"
+
+
+
+вот в нашем случае указан не просто путь к бинарнику а путь к огромному конфигу /etc/kata-containers/config.toml в котоооором указан нетолько бинарник
+а и вообще все другое .в этом конфиге куча всего указана.
+
+
+кубелет передает containerd информацию о желаемом для Pod low-level runtime через поле runtimeclass:
+
+то есть кубелет передает к кcontainerd в поле runtimeclass имя функции (handler) которая отвечает за Low-level runtime.
+
+containerd получив runtimeclass= vasya ищем в своем конфигу путь к бинарнику который отвечает за обработку vasya
+
+
+
+вот как это выглядит в конфиге пода указание runtimeclass
+
+POD
+apiVersion: v1
+kind: Pod
+...
+spec:
+ ...
+ runtimeClassName: gvisor
+
+
+
+а вот как еще раз выглядит в containerd строчка отвечающая за путь к бинарнику для этого рантаймкласса
+CONTAINERD
+[plugins.cri.containerd.runtimes.gvisor]
+
+
+
+
+еще пример
+POD
+apiVersion: v1
+kind: Pod
+...
+spec:
+ ...
+ runtimeClassName: kata
+
+
+CONTAINERD
+[plugins.cri.containerd.runtimes.kata]
+
+
+runtimeclass это типа синоним слова Low-level runtime запускальщик
+
+
+итак мы прописываем runtime class в конфиге пода. также мы прописываем это в конфиге containerd.
+но чтобы это заработало нужно также прежде всего прописать саму эту сущность runtime class в базу данных кластера самого.
+
+ 
+
+создаем файл
+
+
+по шаблону из доки
+
+apiVersion: node.k8s.io/v1beta1 
+kind: RuntimeClass
+metadata:
+  name: myclass  # The name the RuntimeClass will be referenced by
+handler: myconfiguration  # The name of the correspond
+
+# cat ./runtime-kata.yaml
+
+apiVersion: node.k8s.io/v1beta1 
+kind: RuntimeClass
+metadata:
+  name: kata 
+handler: kata
+
+# kubectl apply -f ./runtime-kata.yaml
+
+
+и вот уже пример моего pod-a
+
+root@test-kub-01:~# cat vasya.yaml
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: vasya10
+  labels:
+     stage: prod
+spec:
+  containers:
+    - name: frontend
+      image: akrivosheevmsk/mk-dockerhub-repo:nginx-1
+  runtimeClassName: kata
+
+
+ксати можно заметить что юзается мой личный акаунт для имаджей на dockerhub
+
+что очень странно.  что через cli от containerd невидны все запущенные на хосте поды контейнеры. 
+а видны только те которые были запущены через этот ctr. 
+
+а вот через обобщенный cli - crictl видно все на хосте
+
+
+root@test-kub-05:~# crictl pods
+POD ID              CREATED             STATE               NAME                          NAMESPACE           ATTEMPT
+e72c292bbf7df       5 minutes ago       Ready               vasya10                       default             0
+b39582046be46       2 hours ago         Ready               nginx9                        default             0
+e971d00565ff0       23 hours ago        Ready               kube-flannel-ds-amd64-pvdl5   kube-system         0
+81920c62ddbc9       24 hours ago        Ready               kube-proxy-zn5fd              kube-system         0
+root@test-kub-05:~#
+root@test-kub-05:~#
+root@test-kub-05:~#
+root@test-kub-05:~#
+root@test-kub-05:~#
+root@test-kub-05:~# crictl ps
+CONTAINER ID        IMAGE               CREATED             STATE               NAME                ATTEMPT             POD ID
+b4486d6dc4d1c       ab56bba91343a       5 minutes ago       Running             frontend            0                   e72c292bbf7df
+a00bba6e42ba5       f949e7d76d63b       2 hours ago         Running             nginx               0                   b39582046be46
+ea8eadff39b48       8a9c4ced3ff92       23 hours ago        Running             kube-flannel        0                   e971d00565ff0
+cafff485ea2f5       c21b0c7400f98       24 hours ago        Running             kube-proxy          0                   81920c62ddbc9
+root@test-kub-05:~#
+root@test-kub-05:~#
+root@test-kub-05:~# ctr containers list
+CONTAINER    IMAGE                             RUNTIME
+redis3       docker.io/library/redis:latest    io.containerd.runtime.v1.linux
+root@test-kub-05:~#
+
+
+
+
+что я вмжу что почему то 
+
+# runc list
+
+нихера не показывает контейнеры которые работают на этом рантайме.
+
+а вот 
+
+# kata-runtime list
+
+показывает все запущенные под ней контейнеры исправно.
+
+
+непонятно как через kubectl узнать runtime того или иного пода.
+
+
+что еще сущенственно. что runtimeclass указывается для всего пода целиком. то ест для всех конейтнеров внутри пода.
+
+поэтому вот эту опцию runtimeclass удобно указывать наверху а не внизу вот так
+
+
+root@test-kub-01:~# cat vasya.yaml
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: vasya10
+  labels:
+     stage: prod
+spec:
+  runtimeClassName: kata
+  containers:
+    - name: frontend
+      image: akrivosheevmsk/mk-dockerhub-repo:nginx-1
+
+
+
+итак чтобы runtimeclass(выбор Low-level runtime на дата нодах) заработал надо его прописать в следущих местах
+
+
+
+1. добавить саму эту сущность в базу данных кластера
+
+2. сконифигирировать его на high-level runtime на дата нодах.
+
+3. собственно установить этот Low-level runtime на дата нодах.
+
+4. прописать в поде.
+
+
+
+
+супер толковое видео по практическому подлкючению runtimeclass https://asciinema.org/a/215564
+ 
+
+
+
+
+ффуууухххх.. это была очень длинная и муторно описанная глава в говно доке от к8
+
+****************************************************************************************************************************8
+
+//// Containers
+////  Container Lifecycle Hooks
+////
+
+
+перед тем как контейнер будет удален возможно выполнение определенных команд. это называется  у к8 PostStart
+
+также при старте контейнера тоже возможно выоплненеие определенных команд. единсвтенное что нет гарантии когда это будет выоплнено до entrypoint
+или после entrypoint и эту штука называется у к8 как PreStop
+
+
+можер запуситить каккой то бинарник. а можно запустить вызов по HTTP протоколу.
+
+
+контейнеру на остановку дается время terminationGracePeriodSeconds и если наш хоок работает дольше к8 все равно уничтожает контейнер.
+
+хуки запускаются один раз и если они немогут отработат к8 непарится чтобы их перезапустить. то есть к8 непарится
+о том чтобы хуки отработали или неотработали. запускает их а там как получится
+
+как я понял запуск хуков неотображается в kubectl descirbe pod
+
+но вот ошибки и проблемы неудачи при отрабатывании хуков уже фиксиурюися в kubectl describe pod
+
+
+Events:
+  FirstSeen  LastSeen  Count  From                                                   SubobjectPath          Type      Reason               Message
+  ---------  --------  -----  ----                                                   -------------          --------  ------               -------
+ ping: failed to "StartContainer" for "main" with RunContainerError: "PostStart handler: Error executing in Docker Container: 1"
+  1m         22s       2      {kubelet gke-test-cluster-default-pool-a07e5d30-siqd}  spec.containers{main}  Warning   FailedPostStartHook
+
+
+
+
+//// Workloads
+////  Pods
+////  Pod overview
+
+
+под это минимльная executable структура которая может быть задеплоена на к8. 
+задеплоена значит что эта сущность появится на дата нодах.
+
+можно прописвыать сущности в к8 но это недеплой.
+
+pod внутри себя заключает один или несколько контейнеров
+
+дока пишет что если в поде несколькьо контейнеров то типа надо чтобы это были конетйнеры разного назначения.
+а если мы хотим деплоить контейнеры одного и того же назначения то надо обязательно использовать несколько подов.а не  в один их 
+лепить. если контейнеров несколько то это наример веб + сторадж + база данных. а если нам надо несколько вебов  задеплоить
+то надо для каждого веба свой отеднлдедьный под. так они пищшут.
+
+если в поде несколкьо контейнеров то один из них может запускатся прежде других и использоваться как иницииализирующий 
+контейнер.
+
+контейнеры в поде делят общую сеть и общий сторадж
+
+если нам надо опублоиковать кучку однообразных подов. то есть получается как бы поды зареплицированы. то
+это делается обычно через такую структуру как Controller
+
+они говорят что контролллеры они заново создадут под если он где то упал.
+интересно а если просто одинокий под упал то к8 не следит за ним вообще?
+
+некоторые виды контроллеров
+
+DaemonSet
+StatefulSet
+Deployment
+
+
+могу сразу скзать что DaemonSet используется к8 для публикации служебных сервисов. это как службы 
+у виндовса
+
+
+пример пода
+
+~# cat pod.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: myapp
+spec:
+  containers:
+  - name: bb1
+    image: busybox
+    command: ['sh', '-c', 'echo hello im bb1 && sleep 3600']
+
+
+
+как посмотреть вот этот вывод пода
+
+~# kubectl logs  myapp
+hello im bb1
+
+
+
+//// Workloads
+////  Pods
+////  Pods
+
+
+
+
+
+----
+
+
+conrollers разные виды
+
+repicaset
+она главным образом предназначена чтобы гарантировать что какое то заданное число подов работает.
+
+реплика сет задается через шаблон в котором указано сколько реплик подов должно работать и шаблон по которому
+replicaset может пересоздать под вслучае если какойто экземпляр упал
+
+далее они пишут что в практике нам непридется пользлваться этим контроллером потому что 
+есть контролллер более высокого уровня Deployments котоырй умеет рулит replicaset
+
+как посмотреть список работающих replicaset
+
+# kubectl get rs
+
+более детально посмотореть инфо о конкретной реплике например реплике frontend
+
+
+# kubectl get rs/frontend
+
+
+также можно посмотреть список работающих подов
+
+# kubectl get pods
+
+и можно увидеть что поды принадлежать на самом деле репликесету.
+
+для этого 
+
+# ubectl get pods frontend-88bvr -o yaml
+
+и мы увидим искомую инфо в поле ownerReferences
+
+
+ownerReferences:
+  - apiVersion: apps/v1
+    blockOwnerDeletion: true
+    controller: true
+    kind: ReplicaSet
+    name: frontend
+
+
+далее. если мы создаем какието отдельные поды которые сами по себе. то нужно четко в их шаблоне неуказать label такой же как прописан 
+в репликесет. потому что реплика сет следит за всеми подами которые имеют такойже label как прописан в шаблоне репликасет.
+
+например. если мы укажем  в репликсет что label подов которые она создает и обслуживает = vasya
+потом запустим данную репликусет
+потом запустим какойто отдельный под с label=vasya
+то репликасет сразуже обратит внимание на данные под. и если число подов указанных в репликесет уже равно максимум то новосоздынный под
+будет уничтожен. хотя новый под не имеет никакого отношения  к подам которые создные через репликасет.
+
+если мы удалим репликусет то автоматом будут удалены и ее поды. 
+хотя можно указать флаг и будет удалена только репликсет  а поды останутся
+
+также есть такая супер штука Horizontal Pod Autoscaler
+она позволяет автоматом менять число развернутых подов в завтимиости от загруженности цпу на подах.
+скажем развернуто 3 пода. и их загрузка подскочисла до 70% их вирт процов. тогда к8 автомтом доразвернет еще несоклько подов.
+чтоб в целом снять нагрузку с подов.
+
+есть еще контроллер daemonset. его нужно использовать для тех подов которые завязаны на обслуживание самого сервера на котором крутятся
+поды. скажем поды по  мониторингу.
+
+repplicaset это эволюция от replicationcontroller. последний не поддерживает labels.
+
+далее речь идет об контролллеере replication controller
+
+
+apiVersion: v1
+kind: ReplicationController
+
+
+публикуем ли мы под или контроллер - это фигурирует в строке kind:
+
+получить список replicationcontrollers
+
+# kubectl describe replicationcontrollers/nginx
+
+посмотреь подробности про конкретный repicatoncontroller
+
+
+# kubectl describe replicationcontrollers/nginx
+
+поды могут быть отвязаны он relicaset или reolicationcontroller если им сменить label
+
+странно но они предлагат такой подход подов для репликейшн контроллера. - создаем новый контроллер с 1 подом.
+потом на старом контроллере делаем -1 реплик. потом на новом +1 реплика. на старом -1.
+и когда на старом останется 0 реплик то старый удаляем.
+
+репликйшнконтроллер отвествененн пишет книжка всего навсего за 
+1)  число работающих подов  равно заданному
+2) работающие поды отвечают некоторому селектору
+
+есть контроллеры типа Jobs их применяют когда под подразумевается что он сам в какое то время закончит работу.
+
+переходим к Deployments
+
+значит опубликовать под контролллер и прочее мы можем командной
+
+# kubectl apply -f vasya.yaml
+
+посмтртеть список опубликованных deployments
+
+# kubectl get deployments
+NAME               READY   UP-TO-DATE   AVAILABLE   AGE
+nginx-deployment   3/3     3            3           3m46s
+
+когда мы обновили деплоймент он делает обновление подов вот так : создает новую репликусет и в ней создает один под. а в старой репликесет
+он уменьшает на один число подов, потом в новой репликесет он добавляет +1 под, в старой репликесет уменьшает число подов еще на 1. и так 
+до тех пор пока в старой репдикесет число подов упадет до нуля а в новой до максимума.
+типа умное обновление.
+
+дальше книжка пишет вот о каком случае. скажем деплоймент в данный момент обновляет поды до версии 2 ( путем уменьшения числа подов
+на старой репликсет и увеличения числа подов на новой репликсет). и тут мы еще больше обновили деплоймент до версии 3.
+так вот к8  мгновенно останавливает поды версии 2 и убивает их. и репликусет убивает. и начинает процесс обновления подов до версии 3. то есть запу
+ск обновления во время идушего обновления мгновенно останавливает и убивает текущее обновление и запускает новое обновление.
+
+каждый раз когда мы меняем описание template в .yaml деплоймента то система сохраняет историю изменеия yaml деплоймента 
+и поэтому можно откатить деплоймент на версии обратно
+
+rollback - это откат изменений.
+rollout  - это наоборот "выкатка" новой версии
+
+
+kubectl rollout - выкатывает новую версию
+kubectl rollout undo - откатывается к прошлой версии
+
+как изменить число реплик для деплойментса с именем nginx-deployment
+
+# kubectl scale deployment.v1.apps/nginx-deployment --replicas=10
+
+где deployment.v1.apps/nginx-deployment это то как описывать имя деплоймента в командной строке
+
+а вот как делать автоматическое расширение числа подов 
+
+# kubectl autoscale deployment.v1.apps/nginx-deployment --min=10 --max=15 --cpu-percent=80
+
+active ReplicaSets - это репликасет в которой есть хотя бы один под.
+
+Proportional scaling - это вот что. запускаем процесс обновления деплоймента. он же как работает. он создает новый реплика сет.
+дальше он создает несколько новых подов в новой реплике. как только они стартанули. он гасит столько же подов в старой реплике.
+далее представим что мы в середине этого процесса. (есть две реплики сет .часть новых подов создана. и часть старых удалена.) и в этот 
+момент мы даем команду на увеличение числа реплик в деплойменте.  так вот  Proportional scaling значит то что поды будут добавлены и 
+в старой репликсет и в новой репликасет. без этого механизма ( Proportional scaling ) поды добавились бы либо только в старую реплику 
+либо только в новую.
+
+
+деплоймент можно запаузить 
+
+kubectl rollout pause deployment.v1.apps/nginx-deployment
+
+далее они чтото пишут про  особую выгоду для обновлений после паузы
+в чем фишка этого непонятно
+видно только одно. пока деплоймент запаузен новая репликасет несоздается.
+она создается только после того как деплоймент будет распаузен
+
+kubectl rollout resume deployment.v1.apps/nginx-deployment
+
+можно мониторить статус выкатки 
+
+kubectl rollout status deployment.v1.apps/nginx-deployment
+
+статус может быть - в прогрессе. окей или fail
+
+
+по дефолту к8 хранит 10 послених версих yaml для деплоймента. так что можно смело откатываться на 10 версий обратно лехко
+
+по дефолту при обновлении деплоймента это работает так - создается новая репликасет там создается +1 под. после этого
+на старой реплике удаляется -1 под.
+можно выставить в деполойменте опцию что будет работать по другому. вначале на старой реплике будет удаляться -1 под.
+а только потом на новой реплике будет создававться +1 под.
+
+следущий контроллер - statefullset
+описание как обычно мутное.
+но вроде так. скажем три реплики задано. втоарая нестартанет пока незаработала первая,
+третья нестартанет пока незаработала вторая.
+обновление вроде как проходит тоже оригинально.
+чтобы обновить первую реплику к8 уничтожает третью и вторую. а потом обновляет первую.
+вот такое хуевое описание.
+
+интернет пишет что деплоймент используется для stateless приложений, а statefullset испольуется
+для statefull приложений. также инет пишет что реплики деплоймента получают один общий
+volume а реплики statefullset каждая получает свой индивидульный volume
+
+инет пишет что деплоймент юзают там где реплики должны быть одинаковыми а stetefullset исполь
+зую там где реплики должны быть уникальными
+
+создатели к8 тоже пишут что деплойментс юзается для стэйтлесс прог  а statefullset юзается 
+для стейтфулл прог.
+
+еще что я нашел в инете. когда в деплойменте удаляют под то новый под вместо него
+имеет новый хвост.  скажем был под
+
+вася-kjekwfwe0
+
+станет
+
+вася-fkwejflwekj
+
+а под из statefullset если его удалить будет воссоздан и стаким же именем как и был.
+
+еще инет пишет что если удалить под из деплоймента то новый под будет создан 
+на другой ноде. если удалить под из stetefullset то под будет создан обратно 
+на тоже самой ноде. а если нода легла то под небудет создан нигде и его статус будет 
+помечен как unknown \terminated.  k8 считает что поды из стейтфуллсета должны сидеть
+ровно там где они были созданы ибо они требуют "устойчивой" сети и стораджа.
+
+
+следущий тип контроллера это daemonset.
+он гарантирует что п крайней мере на двух нодах крутятся реплики подов. 
+а в идеале на всех нодах.
+этот контролллер используется для того чтобы через него собирать инфо о нодах
+например логи или  ceph
+
+в yaml файлах вот за что отвечают ряд строк
+ 
+kind: DaemonSet - тип хрени что разворачивается
+
+metadata:
+  name: fluentd-elasticsearch  - имя этой хрени
+
+
+
+
+поды в демонсете либо сами отсылают инфо кудато либо они могут иметь сокет
+через который к ним можно обратиться
+
+
+
+контроллер деплойментс обеспечивает то что число реплик должно оставаться таким
+каким оно задано
+
+у обьектов в к8 есть нередко владельцы. например у подов которые были созданые репликойсет
+если создать репликусет и она создаст поды. и посмотреть потом инфо  подах
+
+
+# kubectl get pods --output=yaml
+
+то мы увидим что владелец пода это my-repset
+
+ownerReferences:
+  - apiVersion: apps/v1
+    controller: true
+    blockOwnerDeletion: true
+    kind: ReplicaSet
+    name: my-repset
+
+
+следущий вид контроллера это ttl controller.
+он работает только с контроллерами типа jobs.
+и служит для того чтобы автоматически зачищать джобы которые закончили свою работу или находятся
+в состоянии terminated. если в свойствах джоба строчку определенную прописать то ttl controller 
+смоожет делать свою работу. по этой строчке ttl controller ловит что ему надо бы
+поработать с таким то джобом.  эту строчку можно менять даже после того как джоб уже 
+создан
+
+# kubectl get pods --selector=job-name=pi
+позволяет показать список подов типа Jobs с именем pi
+
+а вот как посмотреть  логи пода
+$ kubectl logs $pods
+
+следущий тип контроллера это Jobs
+они бвыают трех типов.
+
+1)непаралельный Job - запускается один под. контроллер считает что все закончено когда
+под успешно закачивает свою работу
+
+2) параалельный Job with fixed completion count - хз что это по описанию. насколько я понял
+там запускается уже несколько подов. и там в джобе мы указываем сколько подов из числа
+запущеных должно успешно закончится и тогда джоб будет считать что он закончен .
+
+3) паралельный job with work queue - тоже хуйня в описании. там написано что поды вместе
+делают некую общую работу. ( скажем каждый под обсчитвает кусочек экрана).
+но дальше там хуйня какая то написана про то когда Джоб считается выполненым
+
+
+
+по крайней мере для джобов можно указать сколько раз можно пробовать рестартовать изза ошибок 
+под прежде чем этого больше неделать
+
+
+также можно указать дедлайн по времени сколько под может работаьт.
+
+по дефолту после того как джоб отработал ничего недулаяется.
+так как можно логи посмотреть итп
+
+когда под в джобе валится то джоб стирает старый и создает новый
+
+следущий тип контроллера это CronJob, он создает Jobs по расписанию
+
+далее рассматриваем таку сущность как Services.
+они пишут что под(группа контейнеров) получает свой IP.
+и при пересоздании пода его IP изменится и это проблема
+так как с этим подом может взаимодействовать другой под
+
+чтоб другие поды знали что другой под изменил свой IP используют Service
+
+
+при создании сервиса указывается IP порт и label от подов который он контролирует.
+
+тогда к этиим подам можно получать доступ через IP этого сервиса
+
+поды могут менять свои IP но IP сервиса не меняется.
+
+возникает вопрос а как же там деплоймент или репликасет. как они отличаются
+от сервиса. ответ - хуй знает. книжка это хуево затрагивает.
+
+при создании сервиса можно неуказать лэйбел подов которыми он заведует.
+тогда придется вручную это делать потом. в общем нахуй это щас изучать
+
+Every node in a Kubernetes cluster runs a kube-proxy.
+эта херня отвественна за работу с сетью внутри ноды и наружу с внешним
+миром.
+
+эта херня может работать в нескольких режимах
+
+вот как нашел в инете 
+kube-proxy has an option called --proxy-mode，and according to the help message, this option can be userspace or iptables.(See below)
+
+kube proxy отвечает за выдачу IP для services
+
+в к8 есть какой то ingress api ( хуй знает что это ), 
+также был добавлен iptables proxy
+
+этот proxy,  так понимаю что как ни крути образован ничем иным как kube-proxy
+
+так вот он может работать в user-space ( имеется ввиду ядро неядро).
+это получается медленнее чем в kernel space однако я продолжу.
+как только создаеьтся service то Iptables создает IP:port1 на этой ноде
+и также создается на этой ноде я так понимаю на лупбэк интерфейсе port2
+который прослушивает kube-proxy сервис. и цепочка работает так.
+
+клиент обращается на ip:port1
+iptables делает переобращение этого запроса на loopback:port1 который
+слушает сервис kube-proxy который перенаправляет его на под от сервиса.
+по умолчанию выбор пода идет по round-robin
+фишка такого мегасложности наверное в том что для клиента неизменный
+ip:port1 для доступа к сервису.
+на kube-proxy тоже порт для сервиса остается 
+постоянным. а сам куб-прокси сервис уже сам следит за подами у сервиса
+как они там создаются умирают. интерсно что за протокол какая связь
+между сервисом куб-прокси и подами.
+
+
+а вот описание user-space режиме kube-proxy из стэковерфлоу
+
+In the userspace mode, the iptables rule forwards to a local port where a go binary (kube-proxy) is listening for connections. The binary (running in userspace) terminates the connection, establishes a new connection to a backend for the service, and then forwards requests to the backend and responses back to the local process. An advantage of the userspace mode is that because the connections are created from an application, if the connection is refused, the application can retry to a different backend.
+
+еще раз тут запрос от клиента идет в бинарник kube-proxy 
+который работает в userspace ядра и из него уже в 
+бэкенд сервиса ( под). 
+
+
+следущий режим работы kube-proxy это режим iptables ( назвали 
+дебильно однозначно)
+
+в этом режиме kube-proxy поток через себя не пропускает
+а только конфигурирует соотвествуюдие правила
+iptables и после этого поток идет от клиента
+сразу в бэкенд ( в под).
+плюс этого подохода в том что несипользуется куб прокси
+живующий в юзер спейсе поэтому типа скорость и латенция круче. но есть и минусы. о них ниже.
+
+  а вот описание со стек оверфлоу про этот режим
+
+In iptables mode, the iptables rules are installed to directly forward packets that are destined for a service to a backend for the service. This is more efficient than moving the packets from the kernel to kube-proxy and then back to the kernel so it results in higher throughput and better tail latency. The main downside is that it is more difficult to debug, because instead of a local binary that writes a log to /var/log/kube-proxy you have to inspect logs from the kernel processing iptables rules.
+
+In both cases there will be a kube-proxy binary running on your machine. In userspace mode it inserts itself as the proxy; in iptables mode it will configure iptables rather than to proxy connections itself. The same binary works in both modes, and the behavior is switched via a flag or by setting an annotation in the apiserver for the node.
+
+
+как я понял из говнодоки кубернетеса и чтения инета.
+еще одна разница есть в этих режимах.
+
+если в режиме юзер спейс куб-прокси звонит на под и он 
+не отвечает то куб прокси это понимает и сам ( приложение
+клиент даже этого незнает) пробует  получить ответ
+уже от другого пода.
+
+а вот в режиме iptables так как в процессе передачи 
+инфо куб прокси неучаствует а участвует клиент
+и под напрямую то если под неотвечает 
+то это должно оббрабатывать самое приложение.
+для того чтобы заноов попорбовать retry получить ответ
+от сервиса. тогда куб прокси вроде как перепишет правило
+и запрос пойдет к другому поду. хуй знает это плохо описано. либо самое правило в iptables изначально
+так прописыватся что каждое новое соединение обращается 
+к рандомному поду. считай round robin технология. в любом
+случае в случае неответа от пода приложению 
+нужно самому делать retry к сервису чтобы получить 
+попробовать ответ.
+
+в этом минус режима iptabes
+
+следущий режим ipvs.
+тут нужно знать что такое ipvs изначально.
+в целом в этом режиме kube-proxy бинарник трафик
+через себя тоже не пропускает.
+а только делает конфигурационные действия на начальной
+стадии
+фишка этого режима в том что есть разные алгоритмы
+балансировки (как я понимаю) к подам на бэкенде.
+
+далее.
+есть возможность чтобы для сервиса заэкспоузить не один порт. а несколько.
+
+при создании сервиса можно указать какой IP у него будет.
+
+они пишут что dns round robin не надо использовать
+как что и зачем и почему вообще непонятно.
+
+далее.
+при создании сервиса можно (непонятно зачем) указать 
+опцию чтобы кластерный IP не создавался при создании 
+сервиса.  если при этом в сервисе указан селектор
+то в DNS все равно создается А запись  ( то есть по факту
+все равно ссылка на IP будет). и типа этот IP ведет напрямую на поды. что это за хрень и чем она отличается
+от случая когда кластерный IP для сервиса создается
+непонятно.
+
+если селектор не указан то в DNS создается CNAME запись.
+то есть ссылка не на конкретный IP а на литерную штуку
+
+далее.
+при создании сервиса создается clusterIP
+прикол втом что он доступен только внутри кластера
+. вместо clusterIP который снаружи недоступен ( непонятно почемучто и как) можно при создании сервиса создать NodePort. это значит что на каждой ноде будет забронирован порт. и тогда если обратиться на
+
+NodeIP:port 
+
+то будем попадать на сервис. и уже типа снаружи.
+
+есть еще вариант.
+при создании сервиса можно указать для доступа к нему 
+типа IP от внешнего клаудного балансировщика.
+типа при обращении к клаудному балансировшику будет
+идти перенаправление на поды сервиса ( что чего непонятно)
+
+необязательно но стронгли рекоменд - это иметь DNS сервис в к8.
+
+к8 при работе с aws балансиоровшиком имеет 
+несколько доп фишек
+можно использовать ssl терминацию на aws балансировшщике.
+
+чтоб от балансировщика в подам уже шел расшифрованный поток
+
+
+значит как уже было вверху сказано
+что вместо кластерного IP можно сервис опубликовать через
+CNAME в DNS
+
+также как уже было выше сказано
+еще можно опубликовать сервис через external IP (не путать с кластерным IP).
+при этом непонятно почему это будет идти связь
+при обрашении на external IP внутрь подов этого сервиса
+
+Iptables operations slow down dramatically in large scale cluster e.g 10,000 Services поэтому в этом случае вместо 
+режима iptables используют ipvs
+
+дальше книжка пишет что любой сервис в к8 получает запись 
+в DNS
+
+каждый сервис в DNS получает запись 
+
+my-svc.my-namespace.svc.cluster.local
+ 
+которая ведет в cluster IP
+
+а если сервис headless то он получает в DNS такую же запись но на ведет на множество IP адресов подов.
+
+всопмним что при публикации сервиса можно публиковать
+неодин порт а несколько.  и в этом случае их именуют.
+так вот для этих именованных портов создается srv запись.
+детали суть и смысл покрыты мраком.
+

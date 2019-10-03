@@ -1,0 +1,10 @@
+﻿узнать какие версии elasticsearch доступны
+
+
+# apt-cache madison elasticsearch
+
+
+установить версию определенную пакета
+
+# apt-get install elasticsearch=5.6.3
+

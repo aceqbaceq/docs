@@ -1,0 +1,128 @@
+root@test-kub-01:~# kubectl get node test-kub-02 -o yaml
+apiVersion: v1
+kind: Node
+metadata:
+  annotations:
+    kubeadm.alpha.kubernetes.io/cri-socket: /var/run/dockershim.sock
+    node.alpha.kubernetes.io/ttl: "0"
+    projectcalico.org/IPv4Address: 172.16.102.32/24
+    projectcalico.org/IPv4IPIPTunnelAddr: 192.168.246.192
+    volumes.kubernetes.io/controller-managed-attach-detach: "true"
+  creationTimestamp: "2019-09-21T18:38:21Z"
+  labels:
+    beta.kubernetes.io/arch: amd64
+    beta.kubernetes.io/os: linux
+    kubernetes.io/arch: amd64
+    kubernetes.io/hostname: test-kub-02
+    kubernetes.io/os: linux
+  name: test-kub-02
+  resourceVersion: "659216"
+  selfLink: /api/v1/nodes/test-kub-02
+  uid: aa91dec0-a0d6-4114-a8f6-2b4b2ac5a370
+spec:
+  podCIDR: 10.252.1.0/24
+  podCIDRs:
+  - 10.252.1.0/24
+status:
+  addresses:
+  - address: 172.16.102.32
+    type: InternalIP
+  - address: test-kub-02
+    type: Hostname
+  allocatable:
+    cpu: "2"
+    ephemeral-storage: "18901378222"
+    hugepages-2Mi: "0"
+    memory: 1945860Ki
+    pods: "110"
+  capacity:
+    cpu: "2"
+    ephemeral-storage: 20509308Ki
+    hugepages-2Mi: "0"
+    memory: 2048260Ki
+    pods: "110"
+  conditions:
+  - lastHeartbeatTime: "2019-09-21T18:39:51Z"
+    lastTransitionTime: "2019-09-21T18:39:51Z"
+    message: Calico is running on this node
+    reason: CalicoIsUp
+    status: "False"
+    type: NetworkUnavailable
+  - lastHeartbeatTime: "2019-09-26T21:50:00Z"
+    lastTransitionTime: "2019-09-22T18:38:28Z"
+    message: kubelet has sufficient memory available
+    reason: KubeletHasSufficientMemory
+    status: "False"
+    type: MemoryPressure
+  - lastHeartbeatTime: "2019-09-26T21:50:00Z"
+    lastTransitionTime: "2019-09-22T18:38:28Z"
+    message: kubelet has no disk pressure
+    reason: KubeletHasNoDiskPressure
+    status: "False"
+    type: DiskPressure
+  - lastHeartbeatTime: "2019-09-26T21:50:00Z"
+    lastTransitionTime: "2019-09-22T18:38:28Z"
+    message: kubelet has sufficient PID available
+    reason: KubeletHasSufficientPID
+    status: "False"
+    type: PIDPressure
+  - lastHeartbeatTime: "2019-09-26T21:50:00Z"
+    lastTransitionTime: "2019-09-22T18:38:28Z"
+    message: kubelet is posting ready status. AppArmor enabled
+    reason: KubeletReady
+    status: "True"
+    type: Ready
+  daemonEndpoints:
+    kubeletEndpoint:
+      Port: 10250
+  images:
+  - names:
+    - mariadb@sha256:a32daf0281803fd96e86daf6b0293b4d476cede1b5ce80b18452dfa1405360ff
+    - mariadb:latest
+    sizeBytes: 355603929
+  - names:
+    - calico/node@sha256:7316d804e54e884ffb0a850ee82ae28620c1b80479c045d8378d6848ee197503
+    - calico/node:v3.8.2
+    sizeBytes: 188867043
+  - names:
+    - calico/cni@sha256:4922215c127c18b00c8f5916997259589577c132260181a2c50a093a78564c90
+    - calico/cni:v3.8.2
+    sizeBytes: 157250943
+  - names:
+    - akrivosheevmsk/mk-dockerhub-repo@sha256:55e7a6f2bb43e38cc34285af03b4973d61f523d26cd8a57e9d00cf4154792d20
+    - nginx@sha256:9688d0dae8812dd2437947b756393eb0779487e361aa2ffbc3a529dca61f102c
+    - akrivosheevmsk/mk-dockerhub-repo:nginx-1
+    - nginx:latest
+    sizeBytes: 125976833
+  - names:
+    - k8s.gcr.io/kube-proxy@sha256:e7f0f8e320cfeeaafdc9c0cb8e23f51e542fa1d955ae39c8131a0531ba72c794
+    - k8s.gcr.io/kube-proxy:v1.16.0
+    sizeBytes: 86056924
+  - names:
+    - calico/pod2daemon-flexvol@sha256:1dd0845153717d4bfc142a3003c210c0b53f8550f303871d7bb71fbaf52497db
+    - calico/pod2daemon-flexvol:v3.8.2
+    sizeBytes: 9371181
+  - names:
+    - busybox@sha256:fe301db49df08c384001ed752dff6d52b4305a73a7f608f21528048e8a08b51e
+    - busybox:latest
+    sizeBytes: 1219782
+  - names:
+    - k8s.gcr.io/pause@sha256:f78411e19d84a252e53bff71a4407a5686c46983a2c2eeed83929b888179acea
+    - k8s.gcr.io/pause:3.1
+    sizeBytes: 742472
+  - names:
+    - hello-world@sha256:b8ba256769a0ac28dd126d584e0a2011cd2877f3f76e093a7ae560f2a5301c00
+    - hello-world:latest
+    sizeBytes: 1840
+  nodeInfo:
+    architecture: amd64
+    bootID: 85c88ede-b773-45a3-ac34-1e3be47f92d4
+    containerRuntimeVersion: docker://19.3.2
+    kernelVersion: 4.4.0-62-generic
+    kubeProxyVersion: v1.16.0
+    kubeletVersion: v1.16.0
+    machineID: 33a66976564723a3b01c16dc59d76e42
+    operatingSystem: linux
+    osImage: Ubuntu 16.04.2 LTS
+    systemUUID: 4223BD8A-69E7-DC97-2C22-AECE71BDD00D
+root@test-kub-01:~#

@@ -1,0 +1,7 @@
+﻿ kubeadm join 172.16.102.31:6443 \
+--token hfbsu0.6s24s8tx3ay90xut   \
+--discovery-token-ca-cert-hash sha256:95e4e1db5e638587e3cee2d662e1d55ab48a04d9d2564e8e1bad6db6d6c85500 \
+--cri-socket /var/run/containerd/containerd.sock --v=5  тут еще опциы про node-name
+
+
+
