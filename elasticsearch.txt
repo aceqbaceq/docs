@@ -8,3 +8,43 @@
 
 # apt-get install elasticsearch=5.6.3
 
+cтавим elasticsearch
+
+# apt-get install elasticsearch=5.6.3
+
+ставим x-pack.
+это плагин эластиксерч.
+плагины  в нем ставятся через спец утилиту эластика
+
+# /usr/share/elasticsearch/bin/elasticsearch-plugin install x-pac
+
+
+при этом получим ошибку
+
+[=================================================] 100%  
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@     WARNING: plugin requires additional permissions     @
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+* java.io.FilePermission \\.\pipe\* read,write
+* java.lang.RuntimePermission accessClassInPackage.com.sun.activation.registries
+* java.lang.RuntimePermission getClassLoader
+* java.lang.RuntimePermission setContextClassLoader
+* java.lang.RuntimePermission setFactory
+* java.security.SecurityPermission createPolicy.JavaPolicy
+* java.security.SecurityPermission getPolicy
+* java.security.SecurityPermission putProviderProperty.BC
+* java.security.SecurityPermission setPolicy
+* java.util.PropertyPermission * read,write
+* java.util.PropertyPermission sun.nio.ch.bugLevel write
+* javax.net.ssl.SSLPermission setHostnameVerifier
+See http://docs.oracle.com/javase/8/docs/technotes/guides/security/permissions.html
+for descriptions of what these permissions allow and the associated risks.
+
+
+я просмотрел кучу доков. и все кладут болт на эти настройки.
+итак просто игнорим.
+
+перезапускаем эластик
+
+# # service elasticsearch restart
+
