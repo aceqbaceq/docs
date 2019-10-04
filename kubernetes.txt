@@ -3522,7 +3522,7 @@ kubectl rollout resume deployment.v1.apps/nginx-deployment
 
 kubectl rollout status deployment.v1.apps/nginx-deployment
 
-статус может быть - в прогрессе. окей или fail
+статус может быть - в прогрессе. окей или fail.
 
 
 по дефолту к8 хранит 10 послених версих yaml для деплоймента. так что можно смело откатываться на 10 версий обратно лехко
