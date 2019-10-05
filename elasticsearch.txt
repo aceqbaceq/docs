@@ -48,3 +48,167 @@ for descriptions of what these permissions allow and the associated risks.
 
 # # service elasticsearch restart
 
+проверяем что x-pack установлен на хосте
+
+# /usr/share/elasticsearch/bin/elasticsearch-plugin list
+x-pack
+
+x-pack он платный. они дают 30 дней на зценить.
+потом у него часть функционала отваливается.
+
+остаестся только 
+мониторинг
+search profiler
+debugger
+
+якобы вот эти джаава пермишнс нужна для двух вещей. для алертинга по почте и чегото там про машинлернинг.
+
+
+после того как мы установили x-pack нам его даже ненужно активировать в конфиге эластике.
+плагин уже работатает.
+
+и как первое следствие теперь просто так доступ к кластеру неработает. спрашивает логин и пароль.
+поэтому отключаем аутентификацию при доступе к кластеру.
+
+# cat elasticsearch.yml
+...
+xpack.security.enabled: false
+
+
+перезапускаем эластик.  готово.
+
+далее.
+по умолчанию у нас 30 дневная триальная лицензия на эластик. проверяем статус лицензии
+
+~# curl http://test-es3:9200/_license/
+{
+  "license" : {
+    "status" : "active",
+    "uid" : "73473f97-9efe-489b-9ad0-71b77b09c1df",
+    "type" : "trial",
+    "issue_date" : "2019-10-04T21:02:27.361Z",
+    "issue_date_in_millis" : 1570222947361,
+    "expiry_date" : "2019-11-03T21:02:27.361Z",
+    "expiry_date_in_millis" : 1572814947361,
+    "max_nodes" : 1000,
+    "issued_to" : "elasticsearch",
+    "issuer" : "elasticsearch",
+    "start_date_in_millis" : -1
+  }
+}
+
+
+видно что лицензия триальная.
+
+заходим на сайт эластика регаемся и заказыаем basic беплатную лицензию. и на почту приходит ссылка на файл с лицензией.
+ее нужно впихнуть в эластик.
+
+через запрос
+
+POST /_license
+{
+  "licenses": [
+    {
+      "uid":"893361dc-9749-4997-93cb-802e3d7fa4xx",
+      "type":"basic",
+      "issue_date_in_millis":1411948800000,
+      "expiry_date_in_millis":1914278399999,
+      "max_nodes":1,
+      "issued_to":"issuedTo",
+      "issuer":"issuer",
+      "signature":"xx"
+    }
+    ]
+}
+
+
+при попытке впихнуть базовую лицензию в эластик он пишет
+
+
+{
+"acknowledged": false,
+"license_status": "valid",
+"acknowledge": {
+"message": "This license update requires acknowledgement. To acknowledge the license, please read the following messages and update the license again, this time with the "acknowledge=true" parameter:",
+"watcher": [
+"Watcher will be disabled"
+],
+"security": [
+"The following X-Pack security functionality will be disabled: authentication, authorization, ip filtering, and auditing. Please restart your node after applying the license."
+,
+"Field and document level access control will be disabled."
+,
+"Custom realms will be ignored."
+],
+"monitoring": [
+"Multi-cluster support is disabled for clusters with [BASIC] license. If you are running multiple clusters, users won't be able to access the clusters with [BASIC] licenses from within a single X-Pack Kibana instance. You will have to deploy a separate and dedicated X-pack Kibana instance for each [BASIC] cluster you wish to monitor."
+,
+"Automatic index cleanup is locked to 7 days for clusters with [BASIC] license."
+],
+"graph": [
+"Graph will be disabled"
+],
+"ml": [
+"Machine learning will be disabled"
+]
+}
+}
+
+
+то есть часть функционгала будет вырублена нахер. так происходит когда мы впихиываем лицензию которая более урезающая чем была. 
+у нас была полная но на 30 дней а мы пихаем базовую.
+
+чтобы впихнуть базовую надо  добавить параметр acknowlege=true
+
+POST /_license?acknowledge=true
+{
+  "licenses": [
+    {
+      "uid":"893361dc-9749-4997-93cb-802e3d7fa4xx",
+      "type":"basic",
+      "issue_date_in_millis":1411948800000,
+      "expiry_date_in_millis":1914278399999,
+      "max_nodes":1,
+      "issued_to":"issuedTo",
+      "issuer":"issuer",
+      "signature":"xx"
+    }
+    ]
+}
+
+
+успех. проверяем текущую лицензию
+
+# curl http://test-es3:9200/_license
+{
+  "license" : {
+    "status" : "active",
+    "uid" : "210f3f42-52e4-4edb-9429-f6758fb47061",
+    "type" : "basic",
+    "issue_date" : "2019-09-05T00:00:00.000Z",
+    "issue_date_in_millis" : 1567641600000,
+    "expiry_date" : "2020-09-05T23:59:59.999Z",
+    "expiry_date_in_millis" : 1599350399999,
+    "max_nodes" : 100,
+    "issued_to" : "Al",
+    "issuer" : "Web Form",
+    "start_date_in_millis" : 1567641600000
+  }
+}
+
+видно что лицкнзия активно неистекла и что она бейсик
+
+как видно из того что выше при бейсик лицензии security отключается. нет аутентификации нет юзеров итп.
+
+закончили мы на rbac активации при бейсик лицензии
+
+
+
+
+
+
+
+
+ 
+
+
