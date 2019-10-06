@@ -333,13 +333,77 @@ server.host: "test-es3"
 так вот более круто добавить hostname вместо IP . тогда поменяв ip на хосте впоследствии никак не сломает кибану.
 
 
+далее. поставил я все это. пытаюсь зайти на кибану через браузер
+
+host:5601
+
+а оно мне выводит окно для логина и пароля. и пишет что мол есть проблема с лицензией на эластике поэтому проверяйте на эластике.
+
+так нупонятно что раз на эластике мы отключили seciruty то есть юзеров то на кибане тоже нужно отключить.
+
+итак заносим в конфиг эластика фичу
 
 
+# cat /etc/kibana/kibana.yml  | grep -v '#'
+
+server.host: "test-es3"
+
+xpack.security.enabled: false
+
+перезапускаем кибану.
+
+и тут мы видим что она никак нехочет вставать.
+
+порт 5601 неначинает слушаться.
+
+лезем в  syslog и видим
 
 
+ Started Kibana.
+Oct  6 22:57:39 test-es3 kibana[9218]: {"type":"log","@timestamp":"2019-10-06T19:57:39Z","tags":["fatal"],"pid":9218,"level":"fatal","message":"EACCES: permission denied, open '/usr/share/kibana/optimize/bundles/graph.entry.js'","error":{"message":"EACCES: permission denied, open '/usr/share/kibana/optimize/bundles/graph.entry.js'","name":"Error","stack":"Error: EACCES: permission denied, open '/usr/share/kibana/optimize/bundles/graph.entry.js'\n    at Error (native)","code":"EACCES"}}
+Oct  6 22:57:39 test-es3 kibana[9218]: FATAL { Error: EACCES: permission denied, open '/usr/share/kibana/optimize/bundles/graph.entry.js'
+Oct  6 22:57:39 test-es3 kibana[9218]:     at Error (native)
+Oct  6 22:57:39 test-es3 kibana[9218]:   cause:
+Oct  6 22:57:39 test-es3 kibana[9218]:    { Error: EACCES: permission denied, open '/usr/share/kibana/optimize/bundles/graph.entry.js'
+Oct  6 22:57:39 test-es3 kibana[9218]:        at Error (native)
+Oct  6 22:57:39 test-es3 kibana[9218]:      errno: -13,
+Oct  6 22:57:39 test-es3 kibana[9218]:      code: 'EACCES',
+Oct  6 22:57:39 test-es3 kibana[9218]:      syscall: 'open',
+Oct  6 22:57:39 test-es3 kibana[9218]:      path: '/usr/share/kibana/optimize/bundles/graph.entry.js' },
+Oct  6 22:57:39 test-es3 kibana[9218]:   isOperational: true,
+Oct  6 22:57:39 test-es3 kibana[9218]:   errno: -13,
+Oct  6 22:57:39 test-es3 kibana[9218]:   code: 'EACCES',
+Oct  6 22:57:39 test-es3 kibana[9218]:   syscall: 'open',
+Oct  6 22:57:39 test-es3 kibana[9218]:   path: '/usr/share/kibana/optimize/bundles/graph.entry.js' }
 
 
+я залез в гугл и в форуме эластика я нашел что это типа известный баг. и есть воркэранд.
 
- 
+# chown -R kibana.kibana /usr/share/kibana/
+
+после этого еще раз перезапускаем кибану
+
+и видим в логах инфо
+
+ Started Kibana.
+Oct  6 23:00:06 test-es3 kibana[9642]: {"type":"log","@timestamp":"2019-10-06T20:00:06Z","tags":["info","optimize"],"pid":9642,"message":"Optimizing and caching bundles for graph, monitoring, ml, kibana, stateSessionStorageRedirect, timelion and status_page. This may take a few minutes"}
+
+
+итак ждем несколько минут и кибана встает. и мы успешно в  нее входим.  
+при этом видно в перфоманс мониторе что кибана она непралалелится. она однопроцессорная.
+
+
+итак вошли в кибану
+
+
+тут я наткнулся еще на один момент. кибана написала что неможет подключииться к http://localhost:9200
+
+ну это ясно. так как в эластике в конфиге стояло чтобы он слушал входящие на IP:9200
+заменил на  0.0.0.0:9200
+
+перезашел в кибану. все окей.
+
+
+ура.
 
 
