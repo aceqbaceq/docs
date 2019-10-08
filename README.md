@@ -5,7 +5,7 @@ for different docs
 для записи в репозиторий
 # git add .
 # git commit
-# git push git@github.com:aceqbaceq/docs.git maste
+# git push git@github.com:aceqbaceq/docs.git master
 
 если после этой команды мы получаем отлуп
 
