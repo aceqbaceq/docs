@@ -3411,9 +3411,238 @@ kubectl delete имеет опцию --grace-period=<seconds>  которая п
 
 
 
+~# kubectl get pods
+NAME      READY   STATUS    RESTARTS   AGE
+myapp     1/1     Running   150        6d6h
+nginx9    1/1     Running   0          8d
+vasya10   1/1     Running   0          8d
+
+
+рассмотрим строку STATUS
+
+в данном случае видим Running
+
+
+прикольная команда
+
+ kubectl get pods -o json | jq
+
+
+вот ее вывод про отдельный под
 
 
 
+   {
+      "apiVersion": "v1",
+      "kind": "Pod",
+      "metadata": {
+        "annotations": {
+          "kubectl.kubernetes.io/last-applied-configuration": "{\"apiVersion\":\"v1\",\"kind\":\"Pod\",\"metadata\":{\"annotations\":{},\"labels\":{\"env\":\"test\"},\"name\":\"nginx9\",\"namespace\":\"default\"},\"spec\":{\"containers\":[{\"image\":\"nginx\",\"imagePullPolicy\":\"IfNotPresent\",\"name\":\"nginx\"}]}}\n"
+        },
+        "creationTimestamp": "2019-10-01T20:23:05Z",
+        "labels": {
+          "env": "test"
+        },
+        "name": "nginx9",
+        "namespace": "default",
+        "resourceVersion": "104732",
+        "selfLink": "/api/v1/namespaces/default/pods/nginx9",
+        "uid": "04e21c7a-ab62-4cf6-b1c7-01b64c24c04c"
+      },
+      "spec": {
+        "containers": [
+          {
+            "image": "nginx",
+            "imagePullPolicy": "IfNotPresent",
+            "name": "nginx",
+            "resources": {},
+            "terminationMessagePath": "/dev/termination-log",
+            "terminationMessagePolicy": "File",
+            "volumeMounts": [
+              {
+                "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                "name": "default-token-79944",
+                "readOnly": true
+              }
+            ]
+          }
+        ],
+        "dnsPolicy": "ClusterFirst",
+        "enableServiceLinks": true,
+        "nodeName": "test-kub-05",
+        "priority": 0,
+        "restartPolicy": "Always",
+        "schedulerName": "default-scheduler",
+        "securityContext": {},
+        "serviceAccount": "default",
+        "serviceAccountName": "default",
+        "terminationGracePeriodSeconds": 30,
+        "tolerations": [
+          {
+            "effect": "NoExecute",
+            "key": "node.kubernetes.io/not-ready",
+            "operator": "Exists",
+            "tolerationSeconds": 300
+          },
+          {
+            "effect": "NoExecute",
+            "key": "node.kubernetes.io/unreachable",
+            "operator": "Exists",
+            "tolerationSeconds": 300
+          }
+        ],
+        "volumes": [
+          {
+            "name": "default-token-79944",
+            "secret": {
+              "defaultMode": 420,
+              "secretName": "default-token-79944"
+            }
+          }
+        ]
+      },
+      "status": {
+        "conditions": [
+          {
+            "lastProbeTime": null,
+            "lastTransitionTime": "2019-10-01T20:23:06Z",
+            "status": "True",
+            "type": "Initialized"
+          },
+          {
+            "lastProbeTime": null,
+            "lastTransitionTime": "2019-10-01T20:23:08Z",
+            "status": "True",
+            "type": "Ready"
+          },
+          {
+            "lastProbeTime": null,
+            "lastTransitionTime": "2019-10-01T20:23:08Z",
+            "status": "True",
+            "type": "ContainersReady"
+          },
+          {
+            "lastProbeTime": null,
+            "lastTransitionTime": "2019-10-01T20:23:06Z",
+            "status": "True",
+            "type": "PodScheduled"
+          }
+        ],
+        "containerStatuses": [
+          {
+            "containerID": "containerd://a00bba6e42ba52b4ea35db8c6f1ec3de374df93fe0d30ee81e7fb8b3a5a87017",
+            "image": "docker.io/library/nginx:latest",
+            "imageID": "docker.io/library/nginx@sha256:aeded0f2a861747f43a01cf1018cf9efe2bdd02afd57d2b11fcc7fcadc16ccd1",
+            "lastState": {},
+            "name": "nginx",
+            "ready": true,
+            "restartCount": 0,
+            "started": true,
+            "state": {
+              "running": {
+                "startedAt": "2019-10-01T20:23:07Z"
+              }
+            }
+          }
+        ],
+        "hostIP": "172.16.102.35",
+        "phase": "Running",
+        "podIP": "10.252.1.2",
+        "podIPs": [
+          {
+            "ip": "10.252.1.2"
+          }
+        ],
+        "qosClass": "BestEffort",
+        "startTime": "2019-10-01T20:23:06Z"
+      }
+    },
+
+
+
+
+то есть вот такой способ получить полную детальую информацию о поде
+
+
+а теперь другой вариант получить инфо о томже самом поде
+
+root@test-kub-01:~# kubectl describe pods nginx9
+Name:         nginx9
+Namespace:    default
+Priority:     0
+Node:         test-kub-05/172.16.102.35
+Start Time:   Tue, 01 Oct 2019 23:23:06 +0300
+Labels:       env=test
+Annotations:  kubectl.kubernetes.io/last-applied-configuration:
+                {"apiVersion":"v1","kind":"Pod","metadata":{"annotations":{},"labels":{"env":"test"},"name":"nginx9","namespace":"default"},"spec":{"conta...
+Status:       Running
+IP:           10.252.1.2
+IPs:
+  IP:  10.252.1.2
+Containers:
+  nginx:
+    Container ID:   containerd://a00bba6e42ba52b4ea35db8c6f1ec3de374df93fe0d30ee81e7fb8b3a5a87017
+    Image:          nginx
+    Image ID:       docker.io/library/nginx@sha256:aeded0f2a861747f43a01cf1018cf9efe2bdd02afd57d2b11fcc7fcadc16ccd1
+    Port:           <none>
+    Host Port:      <none>
+    State:          Running
+      Started:      Tue, 01 Oct 2019 23:23:07 +0300
+    Ready:          True
+    Restart Count:  0
+    Environment:    <none>
+    Mounts:
+      /var/run/secrets/kubernetes.io/serviceaccount from default-token-79944 (ro)
+Conditions:
+  Type              Status
+  Initialized       True
+  Ready             True
+  ContainersReady   True
+  PodScheduled      True
+Volumes:
+  default-token-79944:
+    Type:        Secret (a volume populated by a Secret)
+    SecretName:  default-token-79944
+    Optional:    false
+QoS Class:       BestEffort
+Node-Selectors:  <none>
+Tolerations:     node.kubernetes.io/not-ready:NoExecute for 300s
+                 node.kubernetes.io/unreachable:NoExecute for 300s
+Events:          <none>
+
+видно что этот способ выдает невсе из того что первый способ
+
+
+
+
+итак вопзрващаемся к статусу пода.
+
+он может быть
+
+pending
+running
+succeded
+failed
+unknown
+
+
+сттранно что скажем terminating у них неуказан
+
+
+
+penfing означает что для одного из контейнеров внутри пода нет имаджа в системе.
+далее система пытается его скачать
+
+running - все контейнеры в поде былти созданы и хотя бы один из них работает
+
+succedede - система дала команду контейнерам в поде остановится и они все за отведенное
+		время успешно остановились и код выхода 0.
+
+failed - по крайней мере один контейнер в поде закончил работу с ненулевым кодом выхода
+		или неуспел сам себя удалить и его уже удалила система
+
+unknonw - система неможет получить с хоста от кубелета статус этого пода. обычно изза проблем
+			со связью межлду мастер нодой и дата нодой
 
 
 
