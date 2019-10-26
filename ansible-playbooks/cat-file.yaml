@@ -1,0 +1,11 @@
+﻿---
+-
+  hosts: hosts
+  tasks:
+  - name: get contents of file
+    command: cat /etc/fstab
+    register: filename
+
+
+  - debug: msg={{ filename.stdout_lines }}
+...
