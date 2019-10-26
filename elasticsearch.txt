@@ -812,3 +812,30 @@ node.name: ${HOSTNAME}
 4)  очень важно чтобы эластик никоогда  из памяти небыл помещен в свап.
 для этого надо в /etc/fstab задизейблить swap
 
+это делается чтобы эластик лежащий в памяти не попал в свап
+иначе гарьаж коллектор охуенно затормозит свою работу.
+
+но создатели рекомендуют отключеием свапа неограничиваться.
+
+они говорят заюзай фичу
+
+
+elasticsearch.yml
+
+bootstrap.memory_lock: true
+
+я заюзал и после этого эластик не может стартунть.
+выдает ошибку
+
+memory locking requested for elasticsearch process but memory is not locked
+
+оказалось чтобы это вылечить нужно
+в 
+
+/etc/systemd/system/multi-user.target.wants/elasticsearch.service
+
+добавить
+
+[Service]
+LimitMEMLOCK=infinity
+--
