@@ -1155,3 +1155,10 @@ syslog (и ошибки если они будут)
 
 ---
 
+следущий шаг - 
+1. проработать - https://www.elastic.co/guide/en/elasticsearch/reference/master/setting-system-settings.html
+
+2. проверить что для всех эластиков площадки - везде отключен свап или активирован mlockall.
+и отписаться в доку на атлассиане.
+
+--
