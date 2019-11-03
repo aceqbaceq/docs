@@ -869,6 +869,16 @@ memory locking requested for elasticsearch process but memory is not locked
 [Service]
 LimitMEMLOCK=infinity
 
+замечу сразу что наебался с неправильным путем.
+соблюди правильно путь
+/etc/systemd/system/elasticsearch.service.d/override.conf
+а я сделал вначале неправильный путь
+/etc/systemd/system/multi-user.target.wants/elasticsearch.service.d/override.conf
+также. вместо того чтобы создавать файл override.conf 
+можно заюзать команду 
+# systemctl edit elasticsearch
+
+
 обмусолим обсудим подоробнее что это как это итп.
 значит мы  активировали опцию bootstrap.memory_lock: true 
 она пытается заюзать опцию линукса mlockall которая запустит процесс и недаст
