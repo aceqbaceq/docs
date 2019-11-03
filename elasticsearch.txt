@@ -874,9 +874,9 @@ LimitMEMLOCK=infinity
 /etc/systemd/system/elasticsearch.service.d/override.conf
 а я сделал вначале неправильный путь
 /etc/systemd/system/multi-user.target.wants/elasticsearch.service.d/override.conf
-также. вместо того чтобы создавать файл override.conf 
-можно заюзать команду 
-# systemctl edit elasticsearch
+
+
+
 
 
 обмусолим обсудим подоробнее что это как это итп.
@@ -1169,6 +1169,17 @@ syslog (и ошибки если они будут)
 ---
 //////////////////////////////////////////
 возвращаемся обратно
+
+отключать полностью свап вообще это ебанутая политика.
+лучше всеже свап неотключать.
+а юзать опцию для эластика
+
+bootstrap.memory_lock: true 
+
+также стаонвоится понятно что лучше при отключенном свапе на ноде кибану и эластик 
+вместе назепускать. может нехватить памяти.
+
+
 
 следущий шаг - 
 1. проработать - https://www.elastic.co/guide/en/elasticsearch/reference/master/setting-system-settings.html
