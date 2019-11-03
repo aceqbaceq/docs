@@ -862,7 +862,7 @@ memory locking requested for elasticsearch process but memory is not locked
 оказалось чтобы это вылечить нужно
 в 
 
-/etc/systemd/system/multi-user.target.wants/elasticsearch.service
+/etc/systemd/system/elasticsearch.service.d/override.conf
 
 добавить
 
@@ -964,6 +964,26 @@ LimitMEMLOCK=infinity
 а если к примеру мы запускаем эластик через init.d то тогда 
 все нормально. 	init.d использует лимиты прописанные в /etc/security/limits.conf
 
+что также странно.
+что мы сделали настройку systemd через файл 
+
+/etc/systemd/system/elasticsearch.service.d/override.conf
+
+кстати замечу что при обнолвении версии эластика настройка не будет затерта.
+
+но! если мы попробуем вместо этого вставить настройку в /etc/default/elasticsearch
+то это почемуто непрокатывает. почему непонятно.
+
+и вот наконец кстати подтверждение что мы все сдедали правильно из документации
+https://www.elastic.co/guide/en/elasticsearch/reference/master/setting-system-settings.html
+
+кстати там написано что если у нас ubuntu  + init.d то тогда 
+у нас опять же игнорируются при запуске сервиса лимиты ulimit и нужно делать 
+доп манипуляции с /etc/pam.d/su
+
+пиздец... как все запутанно по дебильному. но у нас  не init.d
+
+у нас ubuntu 16 + systemd
 
 --
 значит что я еще с удивелением одбнаружил из форума гитхаба эластика.
