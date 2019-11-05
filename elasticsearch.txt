@@ -765,6 +765,186 @@ xpack.monitoring.enabled: false
 видеть статистику по пеорфомансу кластера эластика
 
 --
+значит вернемся к эластику.
+
+во первых что интересно.
+в systemd конфиге в /etc/systemd/system/multi-user.target.wants/elasticsearch.service
+указан в качестве бинарника который мы запускаем
+
+ExecStart=/usr/share/elasticsearch/bin/elasticsearch ...
+
+а в ps aux такого бинарника вы не увидите. там будет /usr/bin/java
+
+хахаха...
+
+
+далее значит эластик крутится на JVM.
+опции запуска JVM положено конфигурировать прежде всего через 
+/etc/elasticsearch/jvm.options
+
+в конфиге линии которые начинаются с минуса "-" относятся к JVM любой версии
+
+-Xmx2g
+
+а линии с числами
+
+8:-Xmx2g
+
+отвечают за опции для JVM уже определенной версии
+
+а если вот такая опция
+
+8-:-Xmx2g
+
+то опция подходит для JVM >= версии 8
+
+а вот эта опция
+
+8-9:-Xmx2g
+
+то версия JVM между 8 и 9
+
+рассмотрим конкретно как выглядит живой jvm.options
+
+
+#  cat jvm.options | grep -v '#'
+
+-Xms1g
+-Xmx1g
+-XX:+UseConcMarkSweepGC
+-XX:CMSInitiatingOccupancyFraction=75
+-XX:+UseCMSInitiatingOccupancyOnly
+-XX:+AlwaysPreTouch
+-server
+-Xss1m
+-Djava.awt.headless=true
+-Dfile.encoding=UTF-8
+-Djna.nosys=true
+-Djdk.io.permissionsUseCanonicalPath=true
+-Dio.netty.noUnsafe=true
+-Dio.netty.noKeySetOptimization=true
+-Dio.netty.recycler.maxCapacityPerThread=0
+-Dlog4j.shutdownHookEnabled=false
+-Dlog4j2.disable.jmx=true
+-Dlog4j.skipJansi=true
+-XX:+HeapDumpOnOutOfMemoryError
+
+как видно все просто. то есть все опции валидны для любой версии JVM и без всякой
+мудоты с версиями JVM
+
+посмотрим есть ли эти опции уже на живом запущенном эластике
+
+# ps aux | grep elas
+elastic+ 16697  2.2 21.2 4350128 1517204 ?     SLsl Nov04  64:26 /usr/bin/java 
+
+-Xms1g 
+-Xmx1g
+-XX:+UseConcMarkSweepGC
+-XX:CMSInitiatingOccupancyFraction=75
+-XX:+UseCMSInitiatingOccupancyOnly 
+-XX:+AlwaysPreTouch
+-server
+-Xss1m
+-Djava.awt.headless=true
+-Dfile.encoding=UTF-8
+-Djna.nosys=true
+-Djdk.io.permissionsUseCanonicalPath=true 
+-Dio.netty.noUnsafe=true
+-Dio.netty.noKeySetOptimization=true
+-Dio.netty.recycler.maxCapacityPerThread=0
+-Dlog4j.shutdownHookEnabled=false
+-Dlog4j2.disable.jmx=true
+-Dlog4j.skipJansi=true
+-XX:+HeapDumpOnOutOfMemoryError
+
+итак вот эти настройки что выше они из jvm.options
+а те что ниже их там нет.хм.. давайте искать откуда они взяты,
+
+хм.. вот эти настройки непонятно из какого конфига 
+-Des.path.home=/usr/share/elasticsearch 
+-cp /usr/share/elasticsearch/lib/* org.elasticsearch.bootstrap.Elasticsearch 
+
+
+а настройки что ниже они из /etc/systemd/system/multi-user.target.wants/elasticsearch.service
+
+-p /var/run/elasticsearch/elasticsearch.pid 
+--quiet 
+-Edefault.path.logs=/var/log/elasticsearch 
+-Edefault.path.data=/var/lib/elasticsearch 
+-Edefault.path.conf=/etc/elasticsearch
+
+
+рассмотрим еще раз две настройки которые непонятно из какого файла читаются
+-Des.path.home=/usr/share/elasticsearch 
+-cp /usr/share/elasticsearch/lib/* org.elasticsearch.bootstrap.Elasticsearch 
+
+мне кажется что первая настройка
+-Des.path.home=/usr/share/elasticsearch 
+
+она прописывается в /etc/systemd/system/multi-user.target.wants/elasticsearch.service
+через
+
+Environment=ES_HOME=/usr/share/elasticsearch
+
+видно что не совсем совпадает. но я думаю это оно.
+
+про вторую настройку
+-cp /usr/share/elasticsearch/lib/* org.elasticsearch.bootstrap.Elasticsearch
+
+незнаю где она прописывается.
+
+
+итого. настройки сервиса эластик ( судя по ps aux ) идут из двух файлов
+
+/etc/elasticsearch/jvm.options
+/etc/systemd/system/multi-user.target.wants/elasticsearch.service
+
+это существенно.
+также существенно что по факту настройки сервиса эластик это по факту 
+настройки для запуска java.
+
+ну а теперь соберем суммарно вообще в каких файлах вообще делаются 
+всевозможные настройки эластика
+
+/etc/elasticsearch/jvm.options
+/etc/systemd/system/multi-user.target.wants/elasticsearch.service
+/etc/elasticsearch/elasticsearch.yml
+/etc/default/elasticsearch
+
+далее. 
+насколко я понимаю /etc/default/elasticsearch используется для указания настроек
+которые должны override настройки в файле /etc/systemd/system/multi-user.target.wants/elasticsearch.service
+
+еще немного скажу про конфигурирование имеенно параметров запуска java
+можно делать через параметры вида
+-блаблабла
+
+а можно через опцию
+
+ES_JAVA_OPTS="$ES_JAVA_OPTS -Djava.io.tmpdir=/path/to/temp/dir"
+./bin/elasticsearch
+
+нахуя она нужна если честно непонятно. ибо исходный способ итак отличный.
+в любом случае данная опция в ubuntu указывается в 
+
+/etc/default/elasticsearch
+
+
+еще замечу такую фишку. что настройки эластика имеют две природы.
+первый тип настроек это настройки самой java которая лежит в underline природе эластика
+а второй тип настроек это настройки уже самого эластика как проги.
+
+далее. в доке написано что java когда стартует она встроенно имеет такую фичу
+что она также ищет опции старта через переменную JAVA_TOOL_OPTIONS.
+но! эластик конкретно эту переменную неисполтзует. так как ее юзают 
+другие проги на джаве и мы нехотим чтобы настройки старта эластика
+пересекались с настройками других джава программ.
+
+так ( 11/6/2019) закончил на этом - https://www.elastic.co/guide/en/elasticsearch/reference/6.5/secure-settings.html
+
+
+итак судя по живому запущенному сервису эластика
+
 есть весьма важные параметры которые надо бы прописать в конфиге эластика
 
 1)
@@ -994,6 +1174,20 @@ https://www.elastic.co/guide/en/elasticsearch/reference/master/setting-system-se
 пиздец... как все запутанно по дебильному. но у нас  не init.d
 
 у нас ubuntu 16 + systemd
+
+что еще прикольно в /etc/default/elasticsearch 
+есть такой текст про нашу больную тему
+
+# The maximum number of bytes of memory that may be locked into RAM
+# Set to "unlimited" if you use the 'bootstrap.memory_lock: true' option
+# in elasticsearch.yml.
+# When using Systemd, the LimitMEMLOCK property must be set
+# in /usr/lib/systemd/system/elasticsearch.service
+#MAX_LOCKED_MEMORY=unlimited
+
+то есть как ни крути. memlock настроаивается только в systemd конфиге. увы..
+
+
 
 
 ///////////////////////////////////////////////
