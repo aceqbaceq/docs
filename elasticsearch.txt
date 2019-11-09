@@ -1373,8 +1373,158 @@ bootstrap.memory_lock: true
 также стаонвоится понятно что лучше при отключенном свапе на ноде кибану и эластик 
 вместе назепускать. может нехватить памяти.
 
+
+далее.что я для себя открыл про /etc/deafult
+/etc/default - это доп файлы конфигурации для sysV (init.d) которые служат
+в основном для того чтобы задать кастомные параметры запуска сервиса который запускается через 
+init.d обычно туда пихаются параметры которые мы хотим чтобы остались в силе
+даже после обновления пакета сервиса. то есть скрипт в init.d обновился но нам пофиг
+ибо наша кастомная переменная запуска этого сервиса осталась незатронута.
+также это значит  что к systemd каталог /etc/default
+не имеют никакой силы никакого отношения для конфигурирования!
+
+что я узнал про systemd.
+есть дефолтная папка /lib/systemd в  которой лежат конфиги сервисов.
+сейчас чаще всего она не используется в вместо нее используется /usr/lib/systemd.
+итак либо в одну либо в другую папку падают конфиги при установке из пакета.
+пример для пакета эластика
+
+# dpkg-query -L elasticsearch | grep systemd
+/usr/lib/systemd/system/elasticsearch.service
+
+важно то что конфиги в этих папках менять нельзя. не положено.
+а если мы хотим отредактировать сервис на наш лад для этого есть два пути.
+путь первый. скопировать конфиг 
+из /usr/lib/systemd/system/elasticsearch.service
+в  /etc/systemd/system/multi-user.target.wants/elasticsearch.service
+
+и там менять как нам угодно.  при наличии файла во второй папке файл из первой
+папки нечитается. плюс состоит в том что обновление пакета никак неповлияет 
+на наш кастомный конфиг. его настройки небудут перетерты. ура!
+
+но  у этого способа есть минус. во первых неочевидно чтоже мы там наменяли 
+по сравнению с исходным файлом. во вторых, когда мы обновим пакет 
+то новые фичи прописанные в обновленном /usr/lib/systemd/system/elasticsearch.service
+небудут задействованы.
+
+поэтому есть еще второй способ отредактировать конфиг сервиса.
+создать файл в папке 
+/etc/systemd/system/elasticsearch.service.d/vasya.conf
+
+и в нем мы указываем ТОЛЬКО те параметры конфига которые хотим поменять или добавить.
+то есть всю портянку конфига переписывать ненужно.
+
+пример
+[Service]
+LimitMEMLOCK=infinity
+
+у этого способа есть два плюса.
+во первых четко видно что конкретно мы внесли нового.
+во вторых при обновлении пакета эластика его обновленный конфиг /usr/lib/systemd/system/elasticsearch.service с новыми модными фичами будет задействован.
+очено хорошо !
+
+из этого обьяснения становится очень хорошо понятно 
+почему настройка LimitMEMLOCK=infinity не имела никакой силы когда 
+мы ее вносили в /etc/default/elasticsearch - потому что этот конфиг никакого отношения к
+systemd неимеет!
+
+также становится хорошо понятно что внесение данной настройки в файл 
+/etc/systemd/system/multi-user.target.wants/elasticsearch.service
+это мы используем первый способ
+а внесение насторойки в файл /etc/systemd/system/elasticsearch.service.d/vasya.conf
+это мы вносим настройку вторым способом.
+очень хорошо теперь понятно!
+
+
+далее. в systemd есть параметры которые могут иметь сразу несколько значений (хз что это значит)
+но важно тут другое. что чтобы его переписать надо его вначале занулить. 
+пример. меняем параметр ExecStart.
+
+если написать в /etc/systemd/system/elasticsearch.service.d/vasya.conf
+[Service]
+ExecStart=/usr/share/elasticsearch/bin/elasticsearch \
+                                                -p ${PID_DIR}/elasticsearch.pid \
+                                                -Edefault.path.logs=${LOG_DIR} \
+                                                -Edefault.path.data=${DATA_DIR} \
+                                                -Edefault.path.conf=${CONF_DIR}
+
+то systemd выдаст ошибку при рестарте сервиса.
+а правильно будет вот так :
+
+если написать в /etc/systemd/system/elasticsearch.service.d/vasya.conf
+[Service]
+ExecStart=
+ExecStart=/usr/share/elasticsearch/bin/elasticsearch \
+                                                -p ${PID_DIR}/elasticsearch.pid \
+                                                -Edefault.path.logs=${LOG_DIR} \
+                                                -Edefault.path.data=${DATA_DIR} \
+                                                -Edefault.path.conf=${CONF_DIR}
+
+
+то есть его вначале занулить а потом уже указать новое значение!
+
+далее. я узнал что systemd имеет свой лог файл. как я понял под логом 
+имеется ввиду что сиранул сервис при старте в стандартный output. то есть
+грубо говоря чтобы мы увидели на экране если бы стартовали сервис руками 
+из командной строки. это значит что  в данном логе применительно к эластику
+небудет логов которые эластик пишет в /var/log/elasticsearch/name.log
+они как были так там и будут. здесь имеется еще раз подчеркну в виду 
+только та информация которую сервис кидает на стандартный output
+то бишь грубо говоря то что выдает сервис на экран при старте.
+неболее того.
+далее лог этот он нетекстовый он бинарный.
+чтобы его посмотреть надо юзать команду
+
+#journalctl
+
+а чтобы в этом журнале посмотреть логи от конкретного юнита ( сервиса ) то надо юзать
+
+# journalctl --unit elasticsearch
+
+в доке от эластика сказано что по дефолту эластик молчит на экран при старте
+(https://www.elastic.co/guide/en/elasticsearch/reference/6.5/deb.html)
+а если мы хотим чтобы он не молчал то надо убрать опцию --quiet
+она прописана в конфиге systemd в опции ExecStart
+
+# cat /usr/lib/systemd/system/elasticsearch.service
+...
+[Service]
+
+ExecStart=/usr/share/elasticsearch/bin/elasticsearch \
+                                                -p ${PID_DIR}/elasticsearch.pid \
+                                                --quiet
+                                                -Edefault.path.logs=${LOG_DIR} \
+                                                -Edefault.path.data=${DATA_DIR} \
+                                                -Edefault.path.conf=${CONF_DIR}
+
+а соотвесвтенно чтобы --quiet отключить надо написать конфиг
+
+# cat /etc/systemd/system/elasticsearch.service.d/override.conf
+[Service]
+ExecStart=
+ExecStart=/usr/share/elasticsearch/bin/elasticsearch \
+                                                -p ${PID_DIR}/elasticsearch.pid \
+                                                -Edefault.path.logs=${LOG_DIR} \
+                                                -Edefault.path.data=${DATA_DIR} \
+                                                -Edefault.path.conf=${CONF_DIR}
+
+я это сделал. но ничего существенного в логирование старта это недало.
+вот что я вижу при старте эластика в systemd журнале
+
+# journalctl --unit elasticsearch
+Nov 04 00:49:05 test-es2 systemd[1]: Starting Elasticsearch...
+Nov 04 00:49:05 test-es2 systemd[1]: Started Elasticsearch.
+
+
+то есть буквально нихрена полезного.
+двигаем дальше.
+
+
 закончил доку примерно на этом
 
+https://www.elastic.co/guide/en/elasticsearch/reference/6.5/deb.html
+
+а в итоге надо дойти до этого
 https://www.elastic.co/guide/en/elasticsearch/reference/master/setup-configuration-memory.html
 
 
