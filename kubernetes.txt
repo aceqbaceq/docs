@@ -158,7 +158,6 @@ root@test-kub-01:~# kubectl get nodes
 NAME          STATUS     ROLES    AGE   VERSION
 test-kub-01   NotReady   master   87s   v1.16.0
 
-&&&&& 24.01.2020
 
 видно что статус мастер ноды notready.
 это потому что нам нужно поставить компонент который будет рулить внутренней сетью к8.
@@ -339,6 +338,7 @@ networking:
   serviceSubnet: 10.96.0.0/12
 scheduler: {}
 
+&&&&&&& 27.01.2020
 
 пробуем в кластере опубликовать под. и сервис 
 
