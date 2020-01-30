@@ -338,7 +338,7 @@ networking:
   serviceSubnet: 10.96.0.0/12
 scheduler: {}
 
-&&&&&&& 27.01.2020
+здес четки видно какие ip будут иметь поды и какие сервисы
 
 пробуем в кластере опубликовать под. и сервис 
 
@@ -350,6 +350,28 @@ scheduler: {}
 NAME         TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)        AGE
 kubernetes   ClusterIP   10.96.0.1       <none>        443/TCP        107m
 nginx        NodePort    10.96.231.223   <none>        80:31546/TCP   13m
+
+кхм... когда попробовал опубликовать сервис в другой раз то  у меня получилась другая картина
+
+# kubectl get services
+NAME         TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)        AGE
+kubernetes   ClusterIP   10.96.0.1      <none>        443/TCP        6d20h
+nginx        NodePort    10.103.21.37   <none>        80:31104/TCP   9m21s
+
+тут видно что cluster-ip для nginx лежит в какйото неведомой сети.
+
+и сервис недосутпен ни по
+
+curl localhost:31104
+
+ни по 
+
+curl 10.10.3.21.37:80
+
+пока это загадка .. ?
+
+но я продолжаю описывать как это все работало при первой публикации сервиса
+
 
 
 проверяем что nginx заработал
@@ -419,6 +441,7 @@ root@test-kub-01:~# cat /etc/network/interfaces
         gateway 172.16.102.1
 
 
+хм.... и чтото тут мысль обрывается..
 
 
 ====================================
@@ -436,6 +459,8 @@ root@test-kub-01:~# cat /etc/network/interfaces
 
 //// Concepts
 
+
+&&&&&&& 30.01...
 кубернетес это тимпа сложная система.
 мы с ней общаемся через api. можно напрямую в api а можно через утилиту 
 которая преобразует команды в api. 
