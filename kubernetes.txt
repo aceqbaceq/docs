@@ -1,4 +1,39 @@
-﻿21/09/2019
+﻿----
+как удалить следы старой установки 
+
+a) # kubeadm reset
+
+b) но этого недостаточно.
+надо проверить /etc/default/kubelet и удалить либо изменить там на коректный high-level runtime который будет кубелет использовать
+
+c) /etc/systemd/system/kubelet.service.d 
+проверить нет ли там лишнего и сам конфиг
+
+в)   apt-get purge  kube*
+
+д) проверить какие стоят на ноде рантаймы
+
+# dpkg -l | grep -E "docker|container|singularity"
+# ps aux | grep -E "docker|container|sycri" 
+какие ненужны удалить 
+какие нужно доставить
+
+тут же скажу как узнать к какому  systemd unit относится бинарник который мы обнаружили через ps aux. берем pid бинарника и
+
+# systemctl status  27952
+
+все ноду зачистили от старого. рантайм если нужно доставили
+
+пеезагрузиться и убедиться что никакие kubectl не сидят на сокетах  и ничего не слушают
+
+# netstat -nlp
+
+теперь порядок
+теперь можно ставить куб
+-----
+
+
+21/09/2019
 прежде всего как установить кубернетес
 
 статья здесь просто отличная - https://www.linode.com/docs/applications/containers/kubernetes/how-to-deploy-nginx-on-a-kubernetes-cluster/
@@ -167,11 +202,6 @@ test-kub-01   NotReady   master   87s   v1.16.0
 обычно советуют ставить calico
 
 
-в статье что выше указана версия calico которая не встает на данный кубернетес. поэтому юзаем 
-другую команду из доков самого кубернетеса отсюда - https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/create-cluster-kubeadm/#pod-network
-
-# kubectl apply -f https://docs.projectcalico.org/v3.8/manifests/calico.yaml
-
 но!!!  calico достаточно глючный продукт . он успешно не стартует когда мы ставим уже третью дата ноду. так что нахуй calico
 
 так что в реале ставим flannel. этот продукт вообще работает без проблем
@@ -238,7 +268,11 @@ root@test-kub-01:~#
 
 
 далее.
-запустили под а у него статус pending
+публикуем pod 
+
+# kubectl run vasya --image=quay.io/openshiftlabs/simpleservice:0.5.0 --port=9876
+
+  а у него статус pending
 
 ~# kubectl get pods
 NAME    READY   STATUS    RESTARTS   AGE
@@ -263,7 +297,8 @@ root@test-kub-01:~#
 
 
 теперь добавляем дата ноды в к8
-
+дата ноды ставим как уже написано выше
+замечу что flannel на дата ноду ставить ненужно
 
 на дата нодах вводим 
 
@@ -340,9 +375,133 @@ scheduler: {}
 
 здес четки видно какие ip будут иметь поды и какие сервисы
 
-пробуем в кластере опубликовать под. и сервис 
+проверим . опубликум несколько подов . и убедимся что 
+их ip лежат в сети 10.252.0.0
+
+пробуем в кластере опубликовать под. 
+
+для этого создадим файл nginx.yaml
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx
+  labels:
+    env: test
+spec:
+  containers:
+  - name: nginx
+    image: nginx
+    imagePullPolicy: IfNotPresent
+  nodeSelector:
+    disktype: ssd
+
+и создадим под
+
+# kubectl apply -f nginx-pod.yaml
+
+
+посморим какой у него IP
+
+
+# kubectl describe  pods nginx | grep IP
+IP:           10.252.1.4
+
+если мы отмотаем наверх к команде kubeadm config view
+
+то мы увидим
+
+podSubnet: 10.252.0.0/16
+
+очевидно что под имеет IP из сети podSubnet
+
+опубликуем еще один под
+
+для этого в yaml файле просто имя подправим 
+name: nginx
+на
+name: nginx2
+
+публикуем наш второй под
+
+# kubectl apply -f nginx-pod.yaml
+
+смотрим какой у него IP
+
+# kubectl describe  pods nginx2 | grep IP
+IP:           10.252.1.5
+
+очевидно что он входит в podSubnet: 10.252.0.0/16
+
+окей. это мы прояснили.
+
+
+напоминаю конфигурацию кластера по нодам
+
+root@test-kub-01:~/kube-samples# kubectl get nodes
+NAME          STATUS   ROLES    AGE    VERSION
+test-kub-01   Ready    master   108m   v1.18.0
+test-kub-02   Ready    <none>   94m    v1.18.0
+
+пробуем  пинговать под на мастере и дата ноде.
+
+
+на мастер ноде(test-kub-01) это ничего недаст
+а вот на дата(test-kub-02) ноде все успешно
+
+попробуем понять почему
+
+сравним IP на мастер ноде
+
+root@test-kub-01:~/kube-samples# ip a | grep inet | grep -v 'inet6'
+    inet 127.0.0.1/8 scope host lo
+    inet 172.16.102.31/24 brd 172.16.102.255 scope global ens160
+    inet 172.17.0.1/16 brd 172.17.255.255 scope global docker0
+    inet 10.252.0.0/32 scope global flannel.1
+    inet 10.252.0.1/24 scope global cni0
+
+
+и на дата ноде
+
+root@test-kub-02:~# ip a | grep inet | grep -v 'inet6'
+    inet 127.0.0.1/8 scope host lo
+    inet 172.16.102.32/24 brd 172.16.102.255 scope global ens160
+    inet 172.17.0.1/16 brd 172.17.255.255 scope global docker0
+    inet 10.252.1.0/32 scope global flannel.1
+    inet 10.252.1.1/24 scope global cni0
+
+
+берем IP нашего второг пода = IP:           10.252.1.5
+
+видим что этот IP входит в сеть 10.252.1.1/24 на дата ноде.
+это и обьясняет почему он успешно пингуется на дата ноде
+и почему непигуется на мастер ноде.
+
+еще раз напомню также podSubnet: 10.252.0.0/16
+
+тоже самое касается и IP:           10.252.1.4 для первого пода.
+будет пинговаться только на дата ноде.
+
+пинговать поды мы пинганули... жалко что с мастер ноды до подов недостучаться.
+
+теперь сделаем к нжинкс запрос по 80 порту.
+
+# curl 10.252.1.4
+опять же на мастер ноде неудачно
+а на дата ноде все окей.
+
+4/8/2020
+
+
+пользуясь случаем также замечаю что serviceSubnet: 10.96.0.0/12
+для нее нет никаких IP ни на дата ноде ни на мастер ноде.
+
+
+
+
 
 # kubectl create deployment nginx --image=nginx
+и сервис 
 
 # kubectl create service nodeport nginx --tcp=80:80
 
@@ -351,7 +510,8 @@ NAME         TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)        AGE
 kubernetes   ClusterIP   10.96.0.1       <none>        443/TCP        107m
 nginx        NodePort    10.96.231.223   <none>        80:31546/TCP   13m
 
-кхм... когда попробовал опубликовать сервис в другой раз то  у меня получилась другая картина
+кхм... когда попробовал опубликовать сервис в другой раз то  у меня получилась
+ другая картина
 
 # kubectl get services
 NAME         TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)        AGE
@@ -2327,21 +2487,7 @@ kubectl delete pods --namespace=kube-system calico-node-4sq8z
 установка cri-o
 
 
-///отступ
-как удалить ноду из кластера
 
-# kubectl drain test-kub-05 --ignore-daemonsets --delete-local-data
-#  kubectl delete nodes test-kub-05
-
-как очистить ноду после того как ее вывели из кластера от конфигов старого кластера
-
-# kubeadm reset
-но замечу что настройки kubelet сервиса ( часть) например cgroup driver останется тоже.
-и настройки high-level runtime останется тоже.
-и хотя это часть состава кубернетеса. но  поскольку  kubelet и high-level runtime ставится ДО подключения к кластеру то 
-kubeadm reset никак не затрагивает эти настройки
-
-\\\
 
 
 было предположение что kubelet не поднимается изза того что cri-O + kubelet имея cgroup driver = systemd
@@ -3829,7 +3975,8 @@ kind: ReplicationController
 NAME               READY   UP-TO-DATE   AVAILABLE   AGE
 nginx-deployment   3/3     3            3           3m46s
 
-когда мы обновили деплоймент он делает обновление подов вот так : создает новую репликусет и в ней создает один под. 
+когда мы обновили деплоймент он делает обновление подов вот так : создает новую 
+репликусет и в ней создает один под. 
 а в старой репликесет
 он уменьшает на один число подов, потом в новой репликесет он добавляет +1 под, в старой репликесет уменьшает число подов еще на 1.
  и так 
@@ -4019,7 +4166,10 @@ $ kubectl logs $pods
 
 следущий тип контроллера это CronJob, он создает Jobs по расписанию
 
-далее рассматриваем таку сущность как Services.
+
+
+
+Далее рассматриваем таку сущность как Services.
 они пишут что под(группа контейнеров) получает свой IP.
 и при пересоздании пода его IP изменится и это проблема
 так как с этим подом может взаимодействовать другой под
@@ -4165,7 +4315,8 @@ via a flag or by setting an annotation in the apiserver for the node.
 далее.
 при создании сервиса создается clusterIP
 прикол втом что он доступен только внутри кластера
-. вместо clusterIP который снаружи недоступен ( непонятно почемучто и как) можно при создании сервиса создать NodePort. 
+. вместо clusterIP который снаружи недоступен ( непонятно почемучто и как) можно
+ при создании сервиса создать NodePort. 
 это значит что на каждой ноде будет забронирован порт. и тогда если обратиться на
 
 NodeIP:port 
@@ -4196,7 +4347,8 @@ CNAME в DNS
 при этом непонятно почему это будет идти связь
 при обрашении на external IP внутрь подов этого сервиса
 
-Iptables operations slow down dramatically in large scale cluster e.g 10,000 Services поэтому в этом случае вместо 
+Iptables operations slow down dramatically in large scale cluster
+ e.g 10,000 Services поэтому в этом случае вместо 
 режима iptables используют ipvs
 
 дальше книжка пишет что любой сервис в к8 получает запись 
@@ -4208,7 +4360,8 @@ my-svc.my-namespace.svc.cluster.local
  
 которая ведет в cluster IP
 
-а если сервис headless то он получает в DNS такую же запись но на ведет на множество IP адресов подов.
+а если сервис headless то он получает в DNS такую же запись но на ведет
+ на множество IP адресов подов.
 
 всопмним что при публикации сервиса можно публиковать
 неодин порт а несколько.  и в этом случае их именуют.
@@ -4232,39 +4385,17 @@ my-svc.my-namespace.svc.cluster.local
 я перегрузил. но почемуто куб так и не запустился. на порту 8080 никто ничего не слушал
 и я начал его ставить с нуля заново.
 --------
-как удалить следы старой установки 
 
-a) # kubeadm reset
-
-b) но этого недостаточно.
-надо проверить /etc/default/kubelet и удалить либо изменить там на коректный high-level runtime который будет кубелет использовать
-
-c) /etc/systemd/system/kubelet.service.d 
-проверить нет ли там лишнего и сам конфиг
-
-в)   apt-get purge  kube*
-
-д) проверить какие стоят на ноде рантаймы
-
-# dpkg -l | grep -E "docker|container|singularity"
-# ps aux | grep -E "docker|container|sycri" 
-какие ненужны удалить 
-какие нужно доставить
-
-тут же скажу как узнать к какому  systemd unit относится бинарник который мы обнаружили через ps aux. берем pid бинарника и
-
-# systemctl status  27952
-
-все ноду зачистили от старого. рантайм если нужно доставили
-
-пеезагрузиться и убедиться что никакие kubectl не сидят на сокетах  и ничего не слушают
-
-# netstat -nlp
-
-теперь порядок
-теперь можно ставить куб
 ------
+///отступ
+как удалить ноду из кластера
 
+# kubectl drain test-kub-05 --ignore-daemonsets --delete-local-data
+#  kubectl delete nodes test-kub-05
+
+
+
+\\\
 
 
 helm изучить.
