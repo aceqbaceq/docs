@@ -484,6 +484,28 @@ root@test-kub-02:~# ip a | grep inet | grep -v 'inet6'
 
 пинговать поды мы пинганули... жалко что с мастер ноды до подов недостучаться.
 
+замечу что сесть 172.17.0.1 от  docker0 неимеет вообще никакого смысла связи с кубернетесом.
+сеть 10.252.0.0\24 на мастере и 10.252.1.0\24 на дата ноде. 
+это сети под поды. то есть сидя на этой ноде. можно пингануть под этой ноды. ip будет указан 
+в его свйойствах. 
+
+таким образом еще раз подведем значению ip адресов на нодах на серверах
+
+    inet 127.0.0.1/8 scope host lo
+    inet 172.16.102.32/24 brd 172.16.102.255 scope global ens160   ( адрес ноды в локалке  который был до установки k8)
+    inet 172.17.0.1/16 brd 172.17.255.255 scope global docker0   (смысла нет практического)
+    inet 10.252.1.0/32 scope global flannel.1                    (смысла нет)
+    inet 10.252.1.1/24 scope global cni0                    ( сеть под поды )
+
+
+сеть под поды - это еще раз значит что смотрим в свйоствах пода какой у него ip через kubectl describe pod nginx
+и под этим IP зайдя на эту дата ноду на которой он лежит ( с другой дата ноды его непропинговать) он будет доступен.
+забавно что пока мы неувидели нигде вот эту группу ip serviceSubnet: 10.96.0.0/12 под сервисы.
+но двигаем дальше.
+
+
+
+
 теперь сделаем к нжинкс запрос по 80 порту.
 
 # curl 10.252.1.4
@@ -506,6 +528,266 @@ root@test-kub-02:~# ip a | grep inet | grep -v 'inet6'
 
 ибо низшая структура это pod, потом видимо реплика сет, потом дейлоймент, потом сервис.
 как то так...
+
+
+оказалось что узнать куда входит в под ( в какую replicaset) можно через kubectl describe pods 
+и ищем строку controlled by
+
+пример
+
+# kubectl describe pods nginx-f89759699-kcp84 | grep -i Controlled
+Controlled By:  ReplicaSet/nginx-f89759699
+
+отсюда мы узнаем что под nginx-f89759699-kcp84 не сам по себе болтается а входит в определунный
+replicaset
+
+
+далее таким же образмо мы можем узнать а куда входить данная replicaset
+
+ kubectl describe  replicaset nginx-f89759699 | grep -i controlled
+Controlled By:  Deployment/nginx
+
+ага она входит в деплоеймент nginx
+
+
+обратим внимание на системыные поды. и посмотрим про них информацию
+
+
+~# kubectl get pods --namespace=kube-system
+NAME                                  READY   STATUS    RESTARTS   AGE
+coredns-66bff467f8-5cm7d           
+
+посмотрим куда входит под coredns-66bff467f8-5cm7d
+
+Controlled By:  ReplicaSet/coredns-66bff467f8
+
+
+ага в реплику сут такую то.
+
+смотрим еще один системный под куда он входит
+
+ kubectl describe pod --namespace=kube-system etcd-test-kub-01 | grep -i controlled
+Controlled By:  Node/test-kub-01
+
+ага уже входит невреплику а в Node. что такое node ?
+
+но я смотрю пока дальше а куда входят другие системыные поды
+
+root@test-kub-01:~# kubectl describe pod --namespace=kube-system kube-apiserver-test-kub-01 | grep -i controlled
+Controlled By:  Node/test-kub-01
+
+root@test-kub-01:~# kubectl describe pod --namespace=kube-system kube-controller-manager-test-kub-01 | grep -i controlled
+Controlled By:  Node/test-kub-01
+
+ага опять загадочный тип Node
+
+root@test-kub-01:~# kubectl describe pod --namespace=kube-system kube-flannel-ds-amd64-b5wxf | grep -i controlled
+Controlled By:  DaemonSet/kube-flannel-ds-amd64
+
+демонсет это уже более знакомый тип контроллера
+
+root@test-kub-01:~# kubectl describe pod --namespace=kube-system kube-proxy-dgdqq | grep -i controlled
+Controlled By:  DaemonSet/kube-proxy
+
+root@test-kub-01:~# kubectl describe pod --namespace=kube-system kube-scheduler-test-kub-01 | grep -i controlled
+Controlled By:  Node/test-kub-01
+
+
+итак осталось понять что это за загодный тип контроллера Node. просмотрел поискал - пока загадка что это значит.
+Controlled By:  Node/test-kub-01
+
+такого контроллера как Node нет в доках.
+
+
+а так суммарно получается что системные поды входят либо  в
+
+ReplicaSet
+DaemonSet
+Node
+
+ради интереса посмотрим какие IP имеют системные поды
+
+вот системные поды
+
+root@test-kub-01:~# kubectl get pod --namespace=kube-system
+
+coredns-66bff467f8-5cm7d	      
+coredns-66bff467f8-6v6fj 	             
+etcd-test-kub-01          	               
+kube-apiserver-test-kub-01            
+kube-controller-manager-test-kub-01   
+kube-flannel-ds-amd64-b5wxf           
+kube-flannel-ds-amd64-v5l4l           
+kube-proxy-dgdqq                      
+kube-proxy-mj7hp                      
+kube-scheduler-test-kub-01            
+
+
+а вот их IP и в какой контроллер они входят
+# kubectl get pod --namespace=kube-system  | grep -v NAME | awk '{print $1}' |  kubectl describe pod --namespace=kube-system | grep -E -i 'controlled|IP:'
+
+
+IP:                   10.252.0.2
+  IP:           10.252.0.2
+Controlled By:  ReplicaSet/coredns-66bff467f8
+
+IP:                   10.252.0.3
+  IP:           10.252.0.3
+Controlled By:  ReplicaSet/coredns-66bff467f8
+
+IP:                   172.16.102.31
+  IP:           172.16.102.31
+Controlled By:  Node/test-kub-01
+
+IP:                   172.16.102.31
+  IP:           172.16.102.31
+Controlled By:  Node/test-kub-01
+
+IP:                   172.16.102.31
+  IP:           172.16.102.31
+Controlled By:  Node/test-kub-01
+
+IP:           172.16.102.32
+  IP:           172.16.102.32
+Controlled By:  DaemonSet/kube-flannel-ds-amd64
+
+IP:           172.16.102.31
+  IP:           172.16.102.31
+Controlled By:  DaemonSet/kube-flannel-ds-amd64
+
+IP:                   172.16.102.31
+  IP:           172.16.102.31
+Controlled By:  DaemonSet/kube-proxy
+
+IP:                   172.16.102.32
+  IP:           172.16.102.32
+Controlled By:  DaemonSet/kube-proxy
+
+IP:                   172.16.102.31
+  IP:           172.16.102.31
+Controlled By:  Node/test-kub-01
+
+что мы видим
+
+если под вхоим в репликасет то его IP входит в сеть выделенную под поды 10.252.0.0\16
+если под входит в Node контроллер то его ip  = 172.16.102.31 , это LAN IP мастер ноды как сервера
+если под входит в демонсет то его ip = 172.16.102.31 | 172.16.102.32 , то есть это LAN IP мастер ноды как сервера и дата 
+ноды как сервера.
+
+я вверху в списке подов подрисовал руками куда они входят
+
+(имя-пода)				(куда-входит)		(IP-пода)		(хост-где-лежит)
+
+coredns-66bff467f8-5cm7y		(ReplicaSet)		10.252.0.2		test-kub-01
+coredns-66bff467f8-6v6fj 	        (ReplicaSet)     	10.252.0.3		test-kub-01
+etcd-test-kub-01			(Node)			172.16.102.31		test-kub-01
+kube-apiserver-test-kub-01		(Node)  		172.16.102.31          	test-kub-01
+kube-controller-manager-test-kub-01	(Node) 			172.16.102.31		test-kub-01
+kube-flannel-ds-amd64-b5wxf           	(DaemonSet)		172.16.102.32		test-kub-02
+kube-flannel-ds-amd64-v5l4l           	(DaemonSet)		172.16.102.31		test-kub-01
+kube-proxy-dgdqq			(DaemonSet)         	172.16.102.31           test-kub-01  
+kube-proxy-mj7hp			(DaemonSet) 		172.16.102.32           test-kub-02          
+kube-scheduler-test-kub-01            	(Node)			172.16.102.31		 test-kub-01
+
+
+мы видим что все поды лежат на одном хосте - на мастер ноде, кроме одного фланнеля и одного кубпрокси
+мы видим coredns входит в репликусет
+мы видим что фланнэль и кубпрокси входят в демонсет
+а остальное входит в Node
+
+навскидку делаем себе зарубки. если под входит в репликусет то его IP лежит в сети выделенной под поды. 10.252.0.0\16
+если под входит в Node то его ip = IP мастер ноды
+если под входит в демонсет то его ip = IP нод входящих в кластер ( мастер нода и дата нода )
+
+получается что все системные поды они пингуются со всех нод.
+а coredns поды нет. они только на мастер-ноде видны.
+
+
+вспоминаем исходную задачу -->
+
+-->я закончил на том что мне надо понять вот мы взяли pod
+и надо понять к какому деплойменту сервису итд он принадлежит.
+дальнейший ход понять что такое деплоймент сервис
+и какие IP им будут назначены. <--
+
+
+я научился понимать как узнать куда входит под.
+если в описании пода в поле "controlled by" ничего нестоит значит это одинокий под сам себе предоставленный.
+
+еще я дополняю задачу -->
+-->надо понять если убить под то автоматом он будет восстановлен системой или нет
+и сохранит ли свой IP и все это в зависимости куда он входит посмотреть<--
+
+
+на данном этапе мы рассмотрели поды. . выяснили их IP и куда они входят.
+ поднимемся выше. посмотрим куда свою очередь входят реплики сет , демонсет, Node.
+и какие полезные параметры они имеют.
+
+
+вот они системные репликисет и демонсет
+
+root@test-kub-01:~# kubectl get replicaset --namespace=kube-system
+NAME                 DESIRED   CURRENT   READY   AGE
+coredns-66bff467f8   2         2         2       4d1h
+
+root@test-kub-01:~# kubectl get daemonset --namespace=kube-system
+NAME                      DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR            AGE
+kube-flannel-ds-amd64     2         2         2       2            2           <none>                   4d1h
+kube-proxy                2         2         2       2            2           kubernetes.io/os=linux   4d1h
+
+
+посмотрим куда входит сисемная репликасет
+
+~# kubectl describe replicaset --namespace=kube-system coredns-66bff467f8  | grep -i controlled
+Controlled By:  Deployment/coredns
+
+ в деплоймент
+
+других полезных параметров в свойствах репликасет  я ненашел
+
+
+посмотрим куда входят демонсеты
+
+# kubectl describe daemonset --namespace=kube-system kube-flannel-ds-amd64 | grep -i control
+root@test-kub-01:~#
+
+~# kubectl describe daemonset --namespace=kube-system kube-proxy | grep -i control
+root@test-kub-01:~#
+
+то есть демонсет невходит уже нивочто. он является высшей структурой.
+в свйоствах демонсета я интересного пока ненашел.
+
+
+ я заглянул в свойства деплоймента.
+пока чтотоже интересного там ненашел.
+
+
+ни репликасет , ни демонсет , ни деплоймент = неимеют никаких IP в своих свойствах.
+
+вот так мы рассмотрели системыне поды их свойства куда они входят.
+уже какоето представление.
+
+
+coredns поды это ничто иное как днс серверы запущенные на подах. а это IP адреса
+по которым к ним можно обратиться.
+самое опять же смешное что они оба сидят на мастер ноде. поэтому доступ к ним есть только с этой
+мастер ноды. а с дата ноды уже никакого доступа нет.
+
+ 
+вспоминаю поставленные задачи , убираю то что сделали
+и оставляю то что осталось
+
+задача-->
+понять что такое деплоймент, сервис
+и какие IP им будут назначены. <--
+
+-->надо понять если убить под то автоматом он будет восстановлен системой или нет
+и сохранит ли свой IP и все это в зависимости куда он входит посмотреть<--
+<--задача
+
+то что я щас буду делать - это убивать системные поды и смотреть что получится   12\04\2020
+
+
 
 
 
