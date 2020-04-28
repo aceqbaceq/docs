@@ -2066,6 +2066,1993 @@ Link groups are similar to port ranges found in managed switches. You can add ne
 
 
 
+в итоге я пока оставляю эту тему про scope.
+несовсем она понятна. но с другой стороны
+какой либо важной роли параметр scope на мой взгляд не играет.
+
+
+-->\\\вехи
+
+список вопросов
+причем есть еще вопросы и выше недоделанные
+
+k8 сеть.
+
+
+
+kube-proxy
+flannel сеть
+надо понять в чем разница
+
+сеть для подов
+сеть для сервисов
+
+связность между подами на разных нодах
+
+veth
+
+
+возрващается обратно высоко вверх узнаем инфо про veth интерфейс
+
+# ip  -c -d  link show vethedebf689
+9: vethedebf689@if3: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1450 qdisc noqueue master cni0 state UP mode DEFAULT group default
+    link/ether 82:d4:2a:8e:87:48 brd ff:ff:ff:ff:ff:ff link-netnsid 1 promiscuity 1
+    veth
+    bridge_slave state forwarding priority 32 cost 2 hairpin on guard off root_block off fastleave off learning on flood on addrgenmode eui64
+
+
+видим что он бридж slave
+
+создать два неймспейса и две проги чтобы они связь наладили в рамках
+одного неймспейса а потом между неймспейсами через veth
+
+сетевые неймспейсы
+
+утилита ip
+
+
+
+создать loopback интерфейс
+
+
+разобраться с выводом ip
+
+разобраться со scope
+
+
+\\<--
+
+
+
+я узнал секрет про вот такой кусок brd + который часто встречается в интернете. например
+ip addr add 192.168.100.199/24 brd + dev eth10
+
+brd + = broadcast +  и означает две вещи
+1) мы разрешаем на L3 интерфейс принимать  IP пакеты  которые имеют броадкастный L3 IP  адрес
+2) мы говорим системе ( через знак + ) чтобы она сама вычислила броадакастный IP адрес на основе IP интерейса и маски 
+что мы указали 
+
+в случае знака + броадскастный IP адрес будет вычислен путем установки в 1 всех битов которые отвечают за хостовую
+часть адреса.
+
+пример.
+
+ip интерфейса = 172.16.0.1 маска 24. значит броадкастный IP = 172.16.255.255
+
+частично это описано в  man ip-address
+
+ broadcast ADDRESS
+              the broadcast address on the interface.
+              It is possible to use the special symbols '+' and '-' instead of the broadcast address. In this case, the broadcast address is derived by setting/resetting the host bits of the interface prefix.
+
+насколько я понимаю если указать brd - то броадкастный ip будет вычислен как 172.16.0.0
+зачем он такой нужен непонятно.
+
+
+создадим loopback интерфейс
+
+вот такой синтаксис для этого
+
+# ip link add [ link DEVICE ] [ name ] NAME
+               [ txqueuelen PACKETS ]
+               [ address LLADDR ] [ broadcast LLADDR ]
+               [ mtu MTU ] [ index IDX ]
+               [ numtxqueues QUEUE_COUNT ] [ numrxqueues QUEUE_COUNT ]
+               type TYPE [ ARGS ]
+
+где  TYPE := [ bridge | bond | can | dummy | hsr | ifb | ipoib | macvlan | macvtap | vcan | veth | vlan | vxlan | ip6tnl | ipip | sit | gre | gretap | ip6gre |
+               ip6gretap | vti | nlmon | ipvlan | lowpan | geneve ]
+
+поскольку у нас будет лупбэк то его type = dummy
+
+
+в итоге хочется написать вот такую команду
+
+# ip link add link lo3 name lo3 type dummy
+
+но система выдаст ошибку что она незнает такое спец устройство как lo3
+и как его создать руками непонятно. остается только одно, убрать эту опцию из команды
+
+# ip link add name lo3 type dummy
+
+и вот такая команда сработает.
+
+непонятно если link add неможет само создать сетевое устройство зачем тогда эту опцию включать в команду.
+с другой стороны когда мы вообще опускаем имя сетевог спец устройства команда проходит. 
+значи в итоге ip link add все же создает это сетевое устройство... в общем загадка.
+
+смотрим что получилось.
+
+
+~# ip link show lo3
+6: lo3: <BROADCAST,NOARP> mtu 1500 qdisc noop state DOWN mode DEFAULT group default qlen 1000
+    link/ether 96:e7:51:82:7c:45 brd ff:ff:ff:ff:ff:ff
+
+видим флаг BROADCAST
+что он значит несовсем понятно. согласно таблице что выше @IFF_BROADCAST: broadcast address valid. Volatile.
+но я нашел в другом месте что якобы это флаг означает что толи интерфейс толисеть поддерживает отправку прием броадкастов.
+то есть интерфейс может отправлят и принимтаь броадкасты. и под броадкастами я понимаю броадкаст фреймы L2
+собсвтенно и показан мак такого фрейма brd ff:ff:ff:ff:ff:ff
+таким образом флаг BROADCAST не имеет никакого отношения к L3 броадкастам. он имеет отношение только к L2 броадкастам.
+это важно.
+второй флаг его значение @IFF_NOARP: no ARP protocol. тоже несовсем понятно.
+
+
+попробуем сменить какието параметры уровня L2 для lo3
+
+
+синтаксис
+
+ ip link set { DEVICE | group GROUP } { up | down | arp { on | off } |
+               promisc { on | off } |
+               allmulticast { on | off } |
+               dynamic { on | off } |
+               multicast { on | off } |
+               protodown { on | off } |
+               txqueuelen PACKETS |
+               name NEWNAME |
+               address LLADDR | broadcast LLADDR |
+               mtu MTU |
+               netns PID |
+               netns NETNSNAME |
+               alias NAME |
+               vf NUM [ mac LLADDR ] [ vlan VLANID [ qos VLAN-QOS ] ] [ rate TXRATE ] [ max_tx_rate TXRATE ] [ min_tx_rate TXRATE ] [ spoofchk { on | off } ] [state { auto | enable | disable} ] |
+               master DEVICE |
+               nomaster  |
+               addrgenmode { eui64 | none }
+               link-netnsid ID  }
+
+
+# ip link set lo3 up arp on promisc off allmulticast off multicast off 
+
+смотрим что получилось
+
+~# ip link show lo3
+6: lo3: <BROADCAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UNKNOWN mode DEFAULT group default qlen 1000
+    link/ether 96:e7:51:82:7c:45 brd ff:ff:ff:ff:ff:ff
+
+интересно что исчез NO_ARP из флагов
+
+странно что для создаваемого вручную лупбэка нет возмжоности установить флаг LOOPBACK как это есть для l0 
+которй система создает
+
+и еще странно что для лупбэков state = UNKNOWN
+
+окей с L2 разобрались. поехали на L3 настройки
+
+назначим ему ip адрес
+
+синтаксис
+
+ip address { add | change | replace } IFADDR dev IFNAME [ LIFETIME ] [ CONFFLAG-LIST ]
+
+из интересных параметров
+
+ IFADDR := PREFIX | ADDR peer PREFIX [ broadcast ADDR ] [ anycast ADDR ] [ label LABEL ] [ scope SCOPE-ID ]
+
+PREFIX в данном случае это ip + prefix  
+
+# ip address add 127.1.0.1/16 broadcast +  label lo3:vasya scope host dev lo3
+
+прописал я scope = host так как этот ip точно доступен только на хосте. так что здесь с scope все просто.
+label он связан с алиасом может даже это одно и тоже. но всегда у них связь такая
+
+label = name:alias
+
+если у нас name=lo3 то label=lo3:alias
+alias любой.  я выбрал vasya
+
+итого label = lo3:vasya
+
+label должен быть короче 16 символов иначе будет ошибка.
+
+
+
+смотрим что получилось
+
+# ip -c -f inet  address  show lo3
+6: lo3: <BROADCAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UNKNOWN group default qlen 1000
+    inet 127.1.0.1/16 brd 127.1.255.255 scope host lo3:vasya
+       valid_lft forever preferred_lft forever
+
+рассмотрим строку
+    inet 127.1.0.1/16 brd 127.1.255.255 scope host lo3:vasya
+
+inet - значит что L3 адрес относится к ipv4 протоколу. то есть ipv4 адрес обозначается линуксом как inet адрес.
+тоесть inet 127.1.0.1/16 = ipv4 address 127.1.0.1/16
+
+то есть словом inet линукс хочет сказать что за ним щас будет указан адрес протокола ipv4
+если бы наш интерфейс имел l3 ipx адрес то строка бы выглядела как
+
+ipx ........
+
+а у нас
+
+inet .....
+
+scope host - понятно. то что данный ip адрес для чужих компов недоступен. ибо он доступен только внутри хоста.
+
+lo3:vasya  - это LABEL . но лейбл чего непонятно пока.
+
+
+
+
+добавим еще один IP на lo3
+
+~# ip address add 127.2.0.1/16 broadcast +  label lo3:petya scope host dev lo3
+
+смотрим что в итоге получилось
+
+# ip -c -f inet  address  show lo3
+6: lo3: <BROADCAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UNKNOWN group default qlen 1000
+    inet 127.1.0.1/16 brd 127.1.255.255 scope host lo3:vasya
+       valid_lft forever preferred_lft forever
+    inet 127.2.0.1/16 brd 127.2.255.255 scope host lo3:petya
+       valid_lft forever preferred_lft forever
+
+
+
+root@test-kub-03:~# netstat -i
+Kernel Interface table
+Iface   MTU Met   RX-OK RX-ERR RX-DRP RX-OVR    TX-OK TX-ERR TX-DRP TX-OVR Flg
+ens160     1500 0    551190      0     19 0        961353      0      0      0 BMRU
+lo        65536 0       170      0      0 0           170      0      0      0 LRU
+lo3        1500 0         0      0      0 0             7      0      0      0 BRU
+lo3:petya  1500 0       - no statistics available -                        BRU
+lo3:vasya  1500 0       - no statistics available -                        BRU
+
+
+я создал еще один лупбэк вот такой
+
+root@test-kub-03:~# ip ad show loopback-04
+7: loopback-04: <BROADCAST,NOARP,UP,LOWER_UP> mtu 1500 qdisc noqueue state UNKNOWN group default qlen 1000
+    link/ether e6:88:96:fa:7f:c3 brd ff:ff:ff:ff:ff:ff
+    inet 127.3.0.1/16 brd 127.3.255.255 scope host loopback-04
+       valid_lft forever preferred_lft forever
+    inet 127.4.0.1/16 brd 127.4.255.255 scope host loopback-04
+       valid_lft forever preferred_lft forever
+    inet6 fe80::e488:96ff:fefa:7fc3/64 scope link
+       valid_lft forever preferred_lft forever
+
+
+теперь вот что сравниваем
+
+
+
+lo3: 
+    inet 127.1.0.1/16  lo3:vasya
+      
+    inet 127.2.0.1/16  lo3:petya
+     
+  
+loopback-04: 
+    inet 127.3.0.1/16  loopback-04
+       
+    inet 127.4.0.1/16  loopback-04
+       
+   для lo3 мы задавали label при добавлени ip адресов
+   для lopback-04 я не задавал label вообще.
+
+
+
+пытаюсь понять суть поля LABEL.
+lo3:vasya  - это LABEL . но лейбл чего непонятно пока. какой смысл что обозначает.
+
+чуть в сторону. я экспериментально установил что name и dev в линуксе это одно итоже для сетевых устройств.
+
+потому что 
+я создал интефейс с name=lo5 без указания dev
+
+~# ip link add name lo6 type dummy
+
+далее вот как выгляди синтаксис ip link show
+
+ ip link show  DEVICE
+
+то есть после show мы указываем не name а dev
+
+я выполнил
+
+~# ip link show lo6
+10: lo6: <BROADCAST,NOARP> mtu 1500 qdisc noop state DOWN mode DEFAULT group default qlen 1000
+    link/ether ba:86:d4:58:f5:e3 brd ff:ff:ff:ff:ff:ff
+  
+прошло успешно. ну окей. значит при создании интерфейса он создает dev который равен name.
+
+далее я переименовал name  для dev=lo6  согласно этому синтксису
+
+ip link set  DEVICE name NEWNAME 
+
+~# ip link set lo6 name loopback-06
+
+то есть я dev неменял я менял только name
+
+но в итоге либо поменялся сразу и dev потому что 
+
+~# ip link show loopback-06
+10: loopback-06: <BROADCAST,NOARP> mtu 1500 qdisc noop state DOWN mode DEFAULT group default qlen 1000
+    link/ether ba:86:d4:58:f5:e3 brd ff:ff:ff:ff:ff:ff
+
+~# ip link show lo6
+Device "lo6" does not exist.
+
+либо name и dev это одно  и тоже.
+
+я буду счиать что name и dev это одно  и тоже для линукса.
+
+поэтому в выводе команды ip link show первый столбец это DEV=NAME
+
+получается это имя интерфейса. причем имя L2 интерфейса как я понимаю.
+
+потому что имя есть у интфейса еще до присвоения ему L3 адреса.
+а LABEL появляется только при присвоении интерфейсу L3 адреса. 
+если label явно непрописывать то он автоматом = имени L2 интерфейса.
+
+тогда наверно понятен теперь суть LABEl.
+
+все  интерфейсы в линуксе должны иметь имя.
+причем интерфейс имеет четко принадлежность к L2 либо к L3
+
+скажем eth0 это L2 интерфейс
+
+а eth0:vasya это L3 интерфейс.
+
+
+и показаны они будут в линуксе раздельно
+
+пример
+
+# ifconfig
+
+lo3       Link encap:Ethernet  HWaddr 96:e7:51:82:7c:45
+          inet6 addr: fe80::94e7:51ff:fe82:7c45/64 Scope:Link
+          UP BROADCAST RUNNING  MTU:1500  Metric:1
+          RX packets:0 errors:0 dropped:0 overruns:0 frame:0
+          TX packets:7 errors:0 dropped:0 overruns:0 carrier:0
+          collisions:0 txqueuelen:1000
+          RX bytes:0 (0.0 B)  TX bytes:570 (570.0 B)
+
+lo3:vasya Link encap:Ethernet  HWaddr 96:e7:51:82:7c:45
+          inet addr:127.1.0.1  Bcast:127.1.255.255  Mask:255.255.0.0
+          UP BROADCAST RUNNING  MTU:1500  Metric:1
+                
+то есть они представлены в линуксе как совершенно разные незавииисмые интерфейсы.
+
+почему. ну наверно потому что функционал подход обработка работа с L2 интерфейсом и L3 она разная.
+
+
+до этого момента мы прописывали L3 параметры через командную строку.
+которая исчезнет настройка после перезагрузки.
+
+чтоб после перезагузки настройки сохранились надо вписать это в конфиг.
+в конфиге мы будем юзать именно label
+
+auto lo3:vasya
+iface lo3:vasya inet static
+        address 172.16.102.33
+        ...
+
+или как мы там будем ?????
+все таки суть label не совсем понятка зачем она нужна и что дает.
+
+вот интересный вопрос что означает в выводе ip show  первая колонка 
+скажем вот пример
+
+lo3:vasya Link encap:Ethernet  HWaddr 96:e7:51:82:7c:45
+          inet addr:127.1.0.1  Bcast:127.1.255.255  Mask:255.255.0.0
+          UP BROADCAST RUNNING  MTU:1500  Metric:1
+
+и я говорю про lo3
+я раньше думал что это название спецустройства типа /dev/lo3
+но сейчас я полагаю что это нетак. и что это не имя устройства а имя интерфейса которое необязано
+совпадать с именем устройства.
+я нашел в интернете по адресу линукс кернела что ip alias это средство чтобы на одном физ интерфейсе
+иметь несклоько IP адресов.
+
+как я понимаю изначальная архитектура такова была что один физ интерфейс должен иметь один IP
+адрес. поэтому по этой логике следует что если мы имеем два IP адреса на компе значит должно 
+быть два физ порта на компе.
+
+поэтому нам надо эти два порта родить на компе с одним портом.
+делается это искуственным путем на уровне ОС
+
+первый порт eth0
+второй порт eth0:vasya
+
+тогда для софта все становится понятно. первый IP = eth0
+второй IP = eth0:vasya
+
+как я понимаю label это термина аналогиный алиас просто более поздний.
+
+не очень понимаю алиас и субинтерфейс это одно и тоже?
+
+насоклько я понимаю label=alias=sub-interface
+
+раньше за насттройки сети вдела пакет net-tools
+в который входит ifconfig
+щас вместо этого пакета пришел пакет iproute2 ( это не команда это целый пакет утилит).
+
+An alias interface should not have "gateway" or "dns-nameservers"; dynamic IP assignment is permissible.
+
+alias должен быть в той же сети что и основной адрес.
+
+значит что я нашел в итоге.
+новая утилита ip пакета iproute2 спокойно может присвоить несколкьо ip адресов на один сетевой 
+интерфейс. 
+
+но старая утилита ifconfig из пакета net-tools она такое непонимает. я незнаю это проблема ядра
+или проблема самой утилиты ifconfig но факт есть факт.
+раньше интерфейс мог иметь только один IP адрес.  а для того чтобы один интерфейс имел 
+два и более IP адресов на интерфейс использовался трюк alias. он позволял создать виртуальный сетевой
+интерфейс (который был програмно связан с реальным физ интерфейсом) и ему присвоить второй IP
+
+пример
+
+eth0 = 192.168.0.1
+eth0:vasya =192.168.0.2
+
+на уровне софта кажется что в компе две сетевые карты.
+по факту она одна. а второе сетевое устройство виртуальное.
+
+так было во времена старого ядра и ifconfig (net-tools)
+
+новое ядро поддерживает много ip адресов на один физ интерфейс.
+поэтому алиасы больше ненужны. то есть теперь ненужно заводить допонительные виртуальные 
+сетевые интерфейсы чтобы на них навесить второй IP.
+и утилита ip ( из пакета iproute2) она умеет понимать это. и показывать. и работаь с этим.
+
+раньше два IP на одном физ интерфейсе конфиг выглядел так
+
+
+а теперь вот так
+
+
+старый ifconfig новую настройку непоймет и покажет это
+
+а ip show все поймет и покажет
+
+
+так вот, в новом ядре чтобы сохранить совместимость со старым ifconfig оставили  aliases.
+только они теперь называются labels
+
+если мы в конфиге пропишем lables то ifconfig сможет правильно понимать конфигурацию.
+
+пример
+
+/etc/network/interfaces
+auto lo2
+iface lo2 inet static
+        address 127.10.0.1
+        netmask 255.255.0.0
+        network 127.10.0.0
+
+
+iface lo2 inet static
+        address 127.10.0.2
+	netmask 255.255.0.0
+
+
+iface lo2 inet static
+        address 127.10.0.3
+	netmask 255.255.0.0
+
+
+я привел пример с лупбэк интерфейсом. это неважно что он нефизический. там тоже самое.
+
+вывод ip show
+
+~# ip -c -f inet address  show lo2
+4: lo2: <BROADCAST,NOARP,UP,LOWER_UP> mtu 1500 qdisc noqueue state UNKNOWN group default qlen 1000
+    inet 127.10.0.1/16 brd 127.10.255.255 scope host lo2
+       valid_lft forever preferred_lft forever
+    inet 127.10.0.2/16 brd 127.10.255.255 scope host secondary lo2
+       valid_lft forever preferred_lft forever
+    inet 127.10.0.3/16 brd 127.10.255.255 scope host secondary lo2
+       valid_lft forever preferred_lft forever
+
+
+
+
+вывод ifconfig
+
+
+lo2       Link encap:Ethernet  HWaddr 62:b2:97:7f:4c:55
+          inet addr:127.10.0.1  Bcast:127.10.255.255  Mask:255.255.0.0
+          inet6 addr: fe80::60b2:97ff:fe7f:4c55/64 Scope:Link
+          UP BROADCAST RUNNING NOARP  MTU:1500  Metric:1
+          RX packets:0 errors:0 dropped:0 overruns:0 frame:0
+          TX packets:3 errors:0 dropped:0 overruns:0 carrier:0
+          collisions:0 txqueuelen:1000
+          RX bytes:0 (0.0 B)  TX bytes:210 (210.0 B)
+
+видно что ifconfig ничего не знает про второй и третий адрес на lo2
+
+добавим labels (aliases ) в конфиг так чтобы ifconfug тоже понял
+
+
+cat /etc/network/interfaces
+
+auto lo2
+iface lo2 inet static
+        address 127.10.0.1
+        netmask 255.255.0.0
+        network 127.10.0.0
+
+auto lo2:sub1
+iface lo2:sub1 inet static
+        address 127.10.0.2
+        netmask 255.255.0.0
+
+auto lo2:sub2
+iface lo2:sub2 inet static
+        address 127.10.0.3
+        netmask 255.255.0.0
+
+
+посморим вывод ifconfig
+
+# ifconfig
+
+lo2       Link encap:Ethernet  HWaddr fa:93:1f:89:1d:0b
+          inet addr:127.10.0.1  Bcast:127.10.255.255  Mask:255.255.0.0
+          inet6 addr: fe80::f893:1fff:fe89:1d0b/64 Scope:Link
+          UP BROADCAST RUNNING NOARP  MTU:1500  Metric:1
+          RX packets:0 errors:0 dropped:0 overruns:0 frame:0
+          TX packets:1 errors:0 dropped:0 overruns:0 carrier:0
+          collisions:0 txqueuelen:1000
+          RX bytes:0 (0.0 B)  TX bytes:70 (70.0 B)
+
+lo2:sub1  Link encap:Ethernet  HWaddr fa:93:1f:89:1d:0b
+          inet addr:127.10.0.2  Bcast:127.10.255.255  Mask:255.255.0.0
+          UP BROADCAST RUNNING NOARP  MTU:1500  Metric:1
+
+lo2:sub2  Link encap:Ethernet  HWaddr fa:93:1f:89:1d:0b
+          inet addr:127.10.0.3  Bcast:127.10.255.255  Mask:255.255.0.0
+          UP BROADCAST RUNNING NOARP  MTU:1500  Metric:1
+
+видно что ifconfig вывел теперь все коректно. увидел все ip адреса
+
+и вот до кучи какой вывод ip show
+
+k# ip -c -f inet address show lo2
+7: lo2: <BROADCAST,NOARP,UP,LOWER_UP> mtu 1500 qdisc noqueue state UNKNOWN group default qlen 1000
+    inet 127.10.0.1/16 brd 127.10.255.255 scope host lo2
+       valid_lft forever preferred_lft forever
+    inet 127.10.0.2/16 brd 127.10.255.255 scope host secondary lo2:sub1
+       valid_lft forever preferred_lft forever
+    inet 127.10.0.3/16 brd 127.10.255.255 scope host secondary lo2:sub2
+       valid_lft forever preferred_lft forever
+
+
+покажу еще способ как в interfaces прописать labels другим способом
+
+/etc/network/interfaces
+
+pre-up ip link add name lo2 type dummy
+pre-down ip link del  lo2 type dummy
+
+auto lo2
+iface lo2 inet static
+        address 127.10.0.1
+        netmask 255.255.0.0
+        network 127.10.0.0
+        up ip address add 127.10.0.2/16 broadcast +  label lo2:sub1 scope host dev lo2
+        up ip address add 127.10.0.3/16 broadcast +  label lo2:sub2 scope host dev lo2
+ 
+
+
+
+еще сразу скажу , что 
+просто так добавить еще один лупбэк адаптер не получится через конфиг
+
+вот как имеем изначально
+# The loopback network interface
+auto lo
+iface lo inet loopback
+
+
+вот как хотим сделать по логике
+
+# The loopback network interface
+auto lo
+iface lo inet loopback
+
+auto lo2
+iface lo2 inet loopback
+        address 127.10.0.1
+        netmask 255.255.0.0
+        network 127.10.0.0
+
+
+
+ан нет. так несработает.
+нужно вот так.
+
+/etc/network/interfaces
+
+pre-up ip link add name lo2 type dummy
+pre-down ip link del  lo2 type dummy
+
+auto lo2
+iface lo2 inet static
+        address 127.10.0.1
+        netmask 255.255.0.0
+        network 127.10.0.0
+
+обрати внимание на строки с pre-up и pre-down
+про них можно прочитать в man interfaces
+они нужны обязательно
+они создают ( и удаляют ) device lo2
+без этого конфиг несработает.
+
+
+
+итоги  aliases = lables = sub-intefaces
+для нового ядра и iproute2 они ненужны,
+но если мы хотим чтобы ifconfig тоже все видел то они оставлены,
+
+-->
+когда я искал инфо по ip , iprouting2
+и напоролся на продвинутый пост про продивнутые настройки карт и роутингов
+
+https://wiki.edgarbv.com/index.php/Multiple_IP_addresses_on_one_NIC_and_Multiple_internet_connections_on_one_nic
+
+а в нем на книгу про этоже
+
+http://linux-ip.net/html/tools-ip-route.html
+
+<--
+
+нашел
+когда у нас на интерфейсе несколько IP то в качестве исходящего адреса будет указан первый основной IP
+The first address you added will be used as source address for outgoing traffic by default, it's referred to as primary address.
+
+также
+There is no way to swap primary and secondary addresses or explicitly set the new primary address. Try to always set the primary address first.
+
+тут я выяснил новую интересную информацию. 
+все это время мы много говорили про labels = aliases .
+вспоминаем что labels=aliases имеет отношение к IP адресации.
+
+так вот ДЛЯ ЛИНКОВ команда ip  умеет делать алиасы. и они имеют смысл текстового комментария. 
+то есть алиас для линка неимеет ничего общегос алиасом для ip адреса. но это совершенно разные вещи.
+alias для ip имеет смысл чтобы была обратная совместимость с командой ifconfig.
+а alias для линка это текстовый комент смысла этого линка неболее того
+
+# ip link set dev lo2 alias " second loopback "
+
+посмотреть результа можно в ip link show
+
+# ip -c  link show lo2
+ lo2: <BROADCAST,NOARP,UP,LOWER_UP> mtu 1500 qdisc noqueue state UNKNOWN mode DEFAULT group default qlen 1000
+    link/ether 7a:5a:5a:17:a0:c3 brd ff:ff:ff:ff:ff:ff
+    alias  second loopback
+
+
+
+в ip address show этого показано небудет. и это логично ибо алиас имеет отношение к линку не к ip адресу
+
+k# ip -c -f inet  address show lo2
+ lo2: <BROADCAST,NOARP,UP,LOWER_UP> mtu 1500 qdisc noqueue state UNKNOWN group default qlen 1000
+    inet 127.10.0.1/16 brd 127.10.255.255 scope host lo2
+       valid_lft forever preferred_lft forever
+    inet 127.10.0.2/16 brd 127.10.255.255 scope host secondary lo2:sub1
+       valid_lft forever preferred_lft forever
+    inet 127.10.0.3/16 brd 127.10.255.255 scope host secondary lo2:sub2
+       valid_lft forever preferred_lft forever
+
+
+
+далее я нашел такой комент.
+что type dummy это нечистый лупбэк. поэтому его и неполучается превратить в линкс с флагом loopback
+
+еще в линуксе есть рутинговые таболицы. это когда у нас не единая таблица маршрутизации
+а их несколько. по сути получается одна болшая ее можно разбить на несколько мелких а смысл от этого 
+только один выхлоп он в том что при несколтких таблицах можно заимет несеолько маршрутов по дефолту.
+
+помимо таблица создаются правила. если правило по трафику IP выполняется то происходит переход в 
+соотвутсвующую таблицу.  в целом эта тема называется linux PBR = linux policy based routing.
+выхлоп по мне только один что можно  спомощью такого трюка иметь несколько  марщрутов по дефолту.
+
+vrf - virtual routing and forwarding
+смысла и выигрыша от vrf я непонял. 
+отличие vrf от pbr я тоже непонял.
+
+вот статья легенькая как применятеся vrf - https://habr.com/ru/post/138698/
+а так е
+ще тут читал - https://baturin.org/docs/iproute2/#Network%20namespace%20management
+
+могу тока сказать что прочитал. vrf  изоляция рабоатает на уровне L3
+а namespaces это полная копия сетевого стэка то есть на уровне L2 как минимум
+
+
+получается создание неймспейса = создание копии сетевого стэка
+
+
+# ip netns add ns-01
+
+создать новый namespace
+
+# ip netns list
+
+список неймспейсов
+
+# ip netns exec ns-01 /bin/sh
+
+выполнить процесс в данном неймспейсе.
+
+прикольно то что при создании неймспейса в нем автоматом создается свой лупбэк
+
+пример убедимся
+
+# ip netns add ns-02
+
+# ip netns exec ns-02 ip -c link show
+
+1: lo: <LOOPBACK> mtu 65536 qdisc noop state DOWN mode DEFAULT group default qlen 1
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+
+
+# ip netns pids ns-01
+узнать какие процессы в линуксе привязаны в сетевом плане к неймспейсу ns-01 (очень полезная команда)
+
+# ip netns identify 10
+узнать какой неймспейс является у процесса 10  линукс первичным
+тут немного непонятно разве процесс линукса может одновременно принадлежат к нескольким неймспейсам ?
+
+до настояшего момента мы говорили пока только про неймспейсы сами по себе как структура и о процессах линукса
+которые можно подлкючить к этим неймспейсам.
+щас новый аспект - сетевые интерфейс и неймспейсы
+
+неймспеейс это софт. стэк. настала пора в него ввести интерфейсы сетевые.
+
+создаем лупбэк lo3-ns и добавялем его в ns-01
+# ip link add lo3-ns type dummy
+# ip link set lo3-ns netns ns-01
+
+проверяем что в дефолтовом неймспейсе нет lo3-ns интерфейса
+
+#  ip -c link show  lo3-ns
+Device "lo3-ns" does not exist.
+
+все верно.
+
+# ip netns exec ns-01 ip -c link show  lo3-ns
+
+6: lo3-ns: <BROADCAST,NOARP> mtu 1500 qdisc noop state DOWN mode DEFAULT group default qlen 1000
+    link/ether 2e:cb:07:79:39:cd brd ff:ff:ff:ff:ff:ff
+
+все верно. интерфейс lo3-ns лежит в нейспейсе ns-01
+
+
+написано что если мы переносим интерейс с неймспейса на другой неймспейс то у него обнуляется вся L3 информация - IP итакдалее и 
+он перводится в состояние down. то есть полное его обнуление.
+
+
+если вот такую команду заюзать
+
+# ip link set dev ${interface name} netns ${pid}
+
+пример
+
+# ip link set lo3-ns netns 15
+
+сравним эту команду с командой выше
+
+# ip link set lo3-ns netns ns-01
+
+
+как видно мы используем PId вместо имени неймспейса. что это дает.
+такая команда засовывает линк в primary namespace процесса в линуксе с pid=15
+то есть мы неуеказываем имя неймспейса мы его незнаем . мы говорим иди в неймспейс в котором сидит вот этот процес линукса
+
+я бы сказал что линуксовые неймспейсы это аналог VLAN в свичах.
+потому что контакт между линками лежами в разных нейспесах невозможен.
+
+перейдем к veth интерфейсам. они всегда существуют только парами. что входит в один выходит из другого. насоклько я понимаю 
+также они всегда L2 типа. их часто сранивают с патч кордом который соединяет чтото с чемто.
+обычно с помощью пары veth соединяют да нейсмпейса.  я бы сказал что вефы выполняют функцию бриджа.
+то есть это рутер только на уровне L2. 
+если одиин неймспейс это один вилан а второй неймспейс это второй вилан.
+то соединяя их с помощью вефов мы получаем в итоге один большой вилан. и получается линки которые входят в первый вилан
+могут иметь связь на уровне L2 и L3 с линками во втором вилане. по мне это напоминает что на свиче есть одна группа
+портов в первом вилане и есть вторая группа портов во втором вилане ну и внутри свича между ними делают перемычку уровня L2
+причем виланы нетегированные. поэтому автоматом мы имеем один большой вилан. все порты одного вилана могут видеть порты
+другого вилана. ну или снаружи соединяем проводом порт одного вилана с портов другого вилана. и получаем один большой вилан. 
+виланы нетегированные. поэтому неймспейсы это виланы. а вефы это бридж. хотя стоп! вефы имеют уровень функционала L3
+то есть на них можно вешать IP адреса. поэтому они не роль бриджа выполняют а роль рутера. они позволяют наладить 
+связь между виланами на уровне IP ( L3 ). на уровне рутинга.... хммм. надо это прояснить. можно ли 
+чтобы они на уровне L2 давали связь тоже.
+
+если вефы работают как L3 только то получается такая картина.
+первый неймспейс с кучей L2 портов  это свич на нем группа портов уровня L2 ( на самом свиче) в одном нетегироавнном вилане в них воткнуты кабели с компов на которых порты уровня L3 . это первый неймспейс.
+
+второй такой же самый. только вилан другой.
+
+добавление вефов дает то что порты на свиче витоге внутри замыкаются на внутреннем L3 порты с IP адресом. 1.1.1.1 , это еще раз скажу адрес вефа.
+и получается что компы могут указать 1.1.1.1 как гейтвей и таким макаром влезть внутри свича который уже становится рутером.
+при этом с фреймов будет содрана оболочка и только останется L3 пакет. и информация уже может лететь запределы первого вилана.
+тоже самое со вторым вефом. 2.2.2.2
+
+и таким образом компы через эти гейтвеи могут начать общаться друг с другом на уровне L3.
+
+хочу еще раз заметить что хотя в мануале к ip link add есть вот такая запись
+
+ ip link add [ link DEVICE ] [ name ] NAME ...
+
+по факту это наглое вранье в плане link device  опции. она никогда неработает. никогда. поэтому про нее можно забыть 
+при создании линка. линк создается только через использование name NAME
+
+
+пример
+создаем пару veth
+
+# ip link add name veth1 type veth peer veth2
+
+вот так оно выглядит после создания
+
+~# ip link show
+
+7: veth0@veth1: <BROADCAST,MULTICAST,M-DOWN> mtu 1500 qdisc noop state DOWN mode DEFAULT group default qlen 1000
+    link/ether 2a:09:59:5a:ba:64 brd ff:ff:ff:ff:ff:ff
+8: veth1@veth0: <BROADCAST,MULTICAST,M-DOWN> mtu 1500 qdisc noop state DOWN mode DEFAULT group default qlen 1000
+    link/ether 06:fe:df:dd:f9:5a brd ff:ff:ff:ff:ff:ff
+
+
+root@test-kub-03:~# ip link show veth1
+
+8: veth1@veth0: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN mode DEFAULT group default qlen 1000
+    link/ether 06:fe:df:dd:f9:5a brd ff:ff:ff:ff:ff:ff
+
+root@test-kub-03:~# ip link show veth0
+
+7: veth0@veth1: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN mode DEFAULT group default qlen 1000
+    link/ether 2a:09:59:5a:ba:64 brd ff:ff:ff:ff:ff:ff
+
+поскольку тип веф интерфейсов peer to peer то в их имени указывается и сосед сразу.
+
+ifconfig показывает вот так
+
+# ifconfig -a
+
+
+veth0     Link encap:Ethernet  HWaddr 2a:09:59:5a:ba:64
+          BROADCAST MULTICAST  MTU:1500  Metric:1
+
+veth1     Link encap:Ethernet  HWaddr 06:fe:df:dd:f9:5a
+          BROADCAST MULTICAST  MTU:1500  Metric:1
+
+
+
+
+что интересно. ключ -d показывает к какому L2 типу относится каждый интерфейс
+
+root@test-kub-03:~# ip -c -d link show
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN mode DEFAULT group default qlen 1
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00 promiscuity 0 addrgenmode eui64
+
+тип неуказан
+
+2: ens160: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP mode DEFAULT group default qlen 1000
+    link/ether 00:50:56:a3:56:a7 brd ff:ff:ff:ff:ff:ff promiscuity 0 addrgenmode eui64
+
+тип неуказан
+
+3: dummy0: <BROADCAST,NOARP> mtu 1500 qdisc noop state DOWN mode DEFAULT group default qlen 1000
+    link/ether 7a:18:fe:ad:7c:40 brd ff:ff:ff:ff:ff:ff promiscuity 0
+    dummy addrgenmode eui64
+
+тип dummy
+
+4: lo2: <BROADCAST,NOARP,UP,LOWER_UP> mtu 1500 qdisc noqueue state UNKNOWN mode DEFAULT group default qlen 1000
+    link/ether 7a:5a:5a:17:a0:c3 brd ff:ff:ff:ff:ff:ff promiscuity 0
+    dummy addrgenmode eui64
+
+тип dummy
+
+5: docker0: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc noqueue state DOWN mode DEFAULT group default
+    link/ether 02:42:d4:2b:46:03 brd ff:ff:ff:ff:ff:ff promiscuity 0
+    bridge forward_delay 1500 hello_time 200 max_age 2000 ageing_time 30000 stp_state 0 priority 32768 vlan_filtering 0 vlan_protocol 802.1Q addrgenmode eui64
+
+тип bridge
+
+
+7: veth0@veth1: <BROADCAST,MULTICAST,M-DOWN> mtu 1500 qdisc noop state DOWN mode DEFAULT group default qlen 1000
+    link/ether 2a:09:59:5a:ba:64 brd ff:ff:ff:ff:ff:ff promiscuity 0
+    veth addrgenmode eui64
+
+тип veth
+
+8: veth1@veth0: <BROADCAST,MULTICAST,M-DOWN> mtu 1500 qdisc noop state DOWN mode DEFAULT group default qlen 1000
+    link/ether 06:fe:df:dd:f9:5a brd ff:ff:ff:ff:ff:ff promiscuity 0
+    veth addrgenmode eui64
+
+тип veth
+
+
+а вот все возможные типов линков
+
+   TYPE := [ bridge | bond | can | dummy | hsr | ifb | ipoib | macvlan | macvtap | vcan | veth | vlan | vxlan | ip6tnl | ipip | sit | gre | gretap | ip6gre |
+               ip6gretap | vti | nlmon | ipvlan | lowpan | geneve ]
+
+
+самое при это странное что непонятно к какому типу относится обычный L3 физический порт.
+хм...
+
+ замечу про вот эту надпись в портах
+
+ link/ether
+
+она значит что на уровне L1-L2 или L2  инкапсуляция = ethernet
+
+итак создали vet0\veth1
+
+засунем veth1 в ns-1
+
+# ip link set dev veth1 netns ns-01
+
+
+проверяем что он туда попал
+
+~# ip netns exec ns-01 ip -c link show  veth1
+8: veth1@if7: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN mode DEFAULT group default qlen 1000
+    link/ether 06:fe:df:dd:f9:5a brd ff:ff:ff:ff:ff:ff link-netnsid 0
+
+видно что veth1 засунут в ns-01 успешно
+
+но что интересно. peer соседом указан какойто непонятный if7
+почему так незнаю.
+
+поднимаем интерфейс и даем IP
+
+# ip netns exec ns-01 ip link set veth1 up
+
+смотрим его статус
+
+# ip netns exec ns-01 ip link show
+8: veth1@if7: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc noqueue state LOWERLAYERDOWN mode DEFAULT group default qlen 1000
+    link/ether 06:fe:df:dd:f9:5a brd ff:ff:ff:ff:ff:ff link-netnsid 0
+
+state=lowerdown
+
+интересно
+
+
+что интересно. вот у нас есть неймспасе. в нем несколько линков. каждый со своим IP адресом.
+и подключаем этот неймспейс к процессу в линуксе ( баш пинг ) , так вот интересно то что этом процессу доступны 
+все линки этого неймспейса он может пользоваться ими всеми. то есть важно то что не линки привязываются к процессу.
+к процессу привязывается неймспейс.  а к неймспейсу привязываются линки. неймспейс это как сумка. в сумке навалено линков. 
+а процессу отдается сумка ( с линками ). все линки неймспейса  доступны процеессу. неотдельные линки а все линки доступны 
+процессу. 
+
+итак добавялем IP адрес
+# ip netns exec ns-01 ip address add 127.30.0.1/16  dev veth1
+
+# ip netns exec ns-01 ip -c address  show
+
+6: lo3-ns1: <BROADCAST,NOARP> mtu 1500 qdisc noop state DOWN group default qlen 1000
+    link/ether 2e:cb:07:79:39:cd brd ff:ff:ff:ff:ff:ff
+    inet 127.20.0.1/16 scope host lo3-ns1
+       valid_lft forever preferred_lft forever
+8: veth1@if7: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc noqueue state LOWERLAYERDOWN group default qlen 1000
+    link/ether 06:fe:df:dd:f9:5a brd ff:ff:ff:ff:ff:ff link-netnsid 0
+    inet 127.30.0.1/16 scope host veth1
+       valid_lft forever preferred_lft forever
+
+
+добавляем ip к veth0 который лежит в дефолтовом неймспейсе
+
+#  ip address add 127.30.0.2/16  dev veth0
+
+
+напоминаю
+
+veth0 лежит в namespace=default, 127.30.0.2/16
+
+veth1 лежит в namespace=ns-01,   127.30.0.1/16
+
+
+
+для начала еще надо поднять veth0 
+
+# ip link set dev veth0 up
+
+пробуем пинговать.
+
+
+не получается.
+
+что я обнаружил. 
+
+вот зашел  я в неймспейс ns-01. 
+
+в нем такие линки
+
+1: lo:
+    inet 127.0.0.1/8 
+      
+
+6: lo3-ns1: 
+    inet 127.20.0.1/16 
+
+8: veth1@if7: 
+    inet 127.30.0.1/16 
+
+так вот я немогу пинговать находясь в этом неймспейсе ни lo3-ns1 ни veth1
+и оказалось методом тыка что нужно было поменять состояние lo интерфейса на UP
+как толко я это сделал то сразу смог пинговать и lo3-ns1 и veth1
+
+
+но далее все равно проблема. я немогу пингануть veth0 который нахоится в другом неймспейсе=default
+
+
+# ping 127.30.0.2
+connect: Invalid argument
+
+хм... проблема была в том что я дал veth адрес из сети 127.  ну и как я понимаю 
+ping 127.30.0.2 он пытался его сделать через lo  интерфейс. поскольку на lo интерфейсе указан сеть с маской 8
+
+lo
+127.0.0.1\8
+
+как только я сделал вот так
+
+
+veth0 лежит в namespace=default, 10.10.10.1/24
+
+veth1 лежит в namespace=ns-01,   10.10.10.2/24
+
+
+то сразу пинг заработал. межу неймспейсами. то есть с дефолтового неймсейса я могу пинговать 10.10.10.2
+
+~# ping 10.10.10.2
+PING 10.10.10.2 (10.10.10.2) 56(84) bytes of data.
+64 bytes from 10.10.10.2: icmp_seq=1 ttl=64 time=0.074 ms
+
+да интересный вопрос. если есть два интерфейса когда сеть одного входитв сеть другого
+
+lo
+127.0.0.1\8
+
+veth1
+127.10.0.1\16
+
+и мы пинугем ping 127.10.0.2
+
+то вопрос , какой интерфейс выбирает система для отсылкаи пинга. из этих двух.
+
+формально я считаю что это делается через таблицу марщуртизации
+
+вот она такая
+
+~# ip route show
+
+10.10.10.0/24 dev veth1  proto kernel  scope link  src 10.10.10.2
+127.20.0.0/16 dev lo3-ns1  proto kernel  scope link  src 127.20.0.1
+127.30.0.0/16 dev veth1  proto kernel  scope link  src 127.30.0.1
+
+видно что в ней нет lo интерфейса. тем не менее. вот с сетями 127 вышла накладка почемуто.
+
+ксати veth= v-eth = virtual ethernet
+
+то что пара veth это типа как провод - это неверно. это было бы верно если бы veth были L2 портами. а они L3 порты.
+пара veth это рутер с двумя дырками veth L3. поэтому передача информции идет не по проводу на уровне L1-L2 а она 
+идет через рутинг и через рутер. вот что такое пара veth портов.
+
+интересно сейчас понять вот что. два компа втыкаются в свич. компы имеют порты уровня L3 а свич имеет порты уровня L2
+получается порты уровня L3 втыкаются в порты уровня L2 вот как это работает.
+бридж получается это свич. если два L3 порта обьединить через бридж то это равносильно эти два L3 порта воткнуть как бы в свич.
+и когда мы работает с портами надо четко понимать этот порт относится к чему - к "порту компа" или к "порту свича".
+это очень важно.
+
+отсюда например такое следствие получается. 
+неважно какого уровня порт в компе L3 или выше. важно какого уровня порты в свиче куда втыкаются порты компов. 
+так как в свиче порты уровня L2 то передача данных между портами двух компов возможно только на уровне L2.
+через фреймы. то есть уровень связи между компами определяется не их собвстенным уровнем а уровнем свича.
+
+
+-->
+еще одна задача
+нужно научиться пользоваться cgroups
+<--
+
+насколько я понимаю TAP это тот же самый ethernet port только виртуальный.
+
+<--
+вот это тоже пока непонятно
+
+tap vs bridge
+
+есть еше непонятный момент что значит userspace networking
+
+-->
+
+из tap интерфейса вылетаеют L2 ethernet фреймы
+из tun интерфейса вылетают L3 IP пакеты
+
+насколько я понимаю линуксовский бридж br0 это ничто иное как свич.
+
+неймспейс я думаю еще можно представить как рутер с функцией бриджа внутри линукса. то есть там и L2 и L3 порты натыканы.
+
+
+<--
+задача.
+
+вот у нас есть два veth интерфейса.
+один в одном неймспейсе а другой вдругом.
+
+надо понять как узнавать имя и нейспейс второго veth зная первый.
+когда они в одном неймспейсе то это просто написано в ip link show
+а когда в разных то уже непонятно
+
+-->
+
+неймспейсы.
+
+они вот какие бывают
+
+ cgroup
+ ipc 
+ mnt 
+ net
+ pid
+ user 
+ uts
+
+cgroup - для того чтобы ограничивтаь исполтщование ресурсов
+ipc for IPC objects and POSIX message queues
+mnt for filesystem mountpoints
+net for network abstraction (VRF)
+pid to provide a separated, isolated process ID number space
+uts to isolate two system identifiers — nodename and domainname – to be used by uname
+user - как я понял чтобы иметь несколько независимых таблицы с юзерами и группами
+
+
+вот еще
+
+	      /proc/pid/ns/mnt    the mount namespace
+              /proc/pid/ns/uts    the UTS namespace
+              /proc/pid/ns/ipc    the IPC namespace
+              /proc/pid/ns/net    the network namespace
+              /proc/pid/ns/pid    the PID namespace
+              /proc/pid/ns/user   the user namespace
+              /proc/pid/root      the root directory
+              /proc/pid/cwd       the working directory respectively
+
+
+
+
+каждый процесс  в линуксе принадлежит к какому то обяазательно неймспейсу в каждом типе.
+
+если процесс имеет pid = 1 то информация в какие конкретно номера неймспейсов он входит хранится тут
+
+/proc/1/ns/
+
+пример
+
+root@test-kub-04:/# ls -1l /proc/1/ns
+total 0
+lrwxrwxrwx 1 root root 0 Apr 27 19:01 cgroup -> cgroup:[4026531835]
+lrwxrwxrwx 1 root root 0 Apr 27 19:01 ipc -> ipc:[4026531839]
+lrwxrwxrwx 1 root root 0 Apr 27 19:01 mnt -> mnt:[4026531840]
+lrwxrwxrwx 1 root root 0 Apr 27 19:01 net -> net:[4026531957]
+lrwxrwxrwx 1 root root 0 Apr 27 19:01 pid -> pid:[4026531836]
+lrwxrwxrwx 1 root root 0 Apr 27 19:01 user -> user:[4026531837]
+lrwxrwxrwx 1 root root 0 Apr 27 19:01 uts -> uts:[4026531838]
+
+
+насколько я понял цифра в квадратных скобках [4026531957] это не имя неймспейса нет.
+это номер инода на proc. дело в том что proc это не раздел на диске
+это файловая система но виртуальная. дающая связь к структурам ядра.
+так вот как я понял какие то файлы на proc ихнепонятно как прочитать
+внутри они пустые а ls выводы ссылку на inod (как будто это обычная фс) этого файла.
+пока непонятно. 
+ясно одно что у двух процессов неймспейсы одинаковые если иноды одинаковые по номеру.
+но как узнать сам номер непонятно.
+
+вот эти номера неймспейсов для процесса 1 являются дефолтовыми номерами для неймспейсов.
+
+возникает вопрос. как вывести все неймспейсы созданные в системе.
+ответ по приколу походу в том что команды такой нет.
+надо просканировать все процессы в /proc узнать иноды их неймспейсов а потом 
+вывести в таблице.
+
+вот скрипт на питоне
+
+#!/usr/bin/python
+#
+# List all Namespaces (works for Ubuntu 12.04 and higher)
+#
+# (C) Ralf Trezeciak    2013-2014
+#
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+import os
+import fnmatch
+
+if os.geteuid() != 0:
+    print "This script must be run as root\nBye"
+    exit(1)
+
+def getinode( pid , type):
+    link = '/proc/' + pid + '/ns/' + type
+    ret = ''
+    try:
+        ret = os.readlink( link )
+    except OSError as e:
+        ret = ''
+        pass
+    return ret
+
+#
+# get the running command
+def getcmd( p ):
+    try:
+        cmd = open(os.path.join('/proc', p, 'cmdline'), 'rb').read()
+        if cmd == '':
+            cmd = open(os.path.join('/proc', p, 'comm'), 'rb').read()
+        cmd = cmd.replace('\x00' , ' ')
+        cmd = cmd.replace('\n' , ' ')
+        return cmd
+    except:
+        return ''
+#
+# look for docker parents
+def getpcmd( p ):
+    try:
+        f = '/proc/' + p + '/stat'
+        arr = open( f, 'rb').read().split()
+        cmd = getcmd( arr[3] )
+        if cmd.startswith( '/usr/bin/docker' ):
+            return 'docker'
+    except:
+        pass
+    return ''
+#
+# get the namespaces of PID=1
+# assumption: these are the namespaces supported by the system
+#
+nslist = os.listdir('/proc/1/ns/')
+if len(nslist) == 0:
+    print 'No Namespaces found for PID=1'
+    exit(1)
+#print nslist
+#
+# get the inodes used for PID=1
+#
+baseinode = []
+for x in nslist:
+    baseinode.append( getinode( '1' , x ) )
+#print "Default namespaces: " , baseinode
+err = 0
+ns = []
+ipnlist = []
+#
+# loop over the network namespaces created using "ip"
+#
+try:
+    netns = os.listdir('/var/run/netns/')
+    for p in netns:
+        fd = os.open( '/var/run/netns/' + p, os.O_RDONLY )
+        info = os.fstat(fd)
+        os.close( fd)
+        ns.append( '-- net:[' + str(info.st_ino) + '] created by ip netns add ' + p )
+        ipnlist.append( 'net:[' + str(info.st_ino) + ']' )
+except:
+    # might fail if no network namespaces are existing
+    pass
+#
+# walk through all pids and list diffs
+#
+pidlist = fnmatch.filter(os.listdir('/proc/'), '[0123456789]*')
+#print pidlist
+for p in pidlist:
+    try:
+        pnslist = os.listdir('/proc/' + p + '/ns/')
+        for x in pnslist:
+            i = getinode ( p , x )
+            if i != '' and i not in baseinode:
+                cmd = getcmd( p )
+                pcmd = getpcmd( p )
+                if pcmd != '':
+                    cmd = '[' + pcmd + '] ' + cmd
+                tag = ''
+                if i in ipnlist:
+                    tag='**'
+                ns.append( p + ' ' + i + tag + ' ' + cmd)
+    except:
+        # might happen if a pid is destroyed during list processing
+        pass
+#
+# print the stuff
+#
+print '{0:>10}  {1:20}  {2}'.format('PID','Namespace','Thread/Command')
+for e in ns:
+    x = e.split( ' ' , 2 )
+    print '{0:>10}  {1:20}  {2}'.format(x[0],x[1],x[2][:60])
+#
+
+
+вот его вывод
+
+root@test-kub-04:/var/run/netns# ~/temp/namespaces-list.py
+       PID  Namespace             Thread/Command
+        --  net:[4026532468]      created by ip netns add 396a8fa82a7e
+        --  net:[4026531957]      created by ip netns add 1
+        --  net:[4026532468]      created by ip netns add 3588
+        16  mnt:[4026531857]      kdevtmpfs
+       552  mnt:[4026532435]      /lib/systemd/systemd-timesyncd
+      3588  net:[4026532468]**    nginx: master process nginx -g daemon off;
+      3588  uts:[4026532464]      nginx: master process nginx -g daemon off;
+      3588  ipc:[4026532465]      nginx: master process nginx -g daemon off;
+      3588  pid:[4026532466]      nginx: master process nginx -g daemon off;
+      3588  mnt:[4026532463]      nginx: master process nginx -g daemon off;
+      3617  net:[4026532468]**    nginx: worker process
+      3617  uts:[4026532464]      nginx: worker process
+      3617  ipc:[4026532465]      nginx: worker process
+      3617  pid:[4026532466]      nginx: worker process
+      3617  mnt:[4026532463]      nginx: worker process
+
+
+он проканировал весь /proc для всех процессов.
+и вывел неймспейсы которые отличаются от тех что у процесса 1
+Namepspace - это тип неймспейса и номер его инода в proc
+PID - это процесс который принадлежит данному неймспейсу
+
+
+первые три неймспейса неимеют PID 
+
+	--  net:[4026532468]      created by ip netns add 396a8fa82a7e
+        --  net:[4026531957]      created by ip netns add 1
+        --  net:[4026532468]      created by ip netns add 3588
+
+это значит что неймспейсы были созданы а процессы к ним никакие небыли прилеплены
+это нормально. потому это независит друг от друга.мы создаем неймспейсы 
+а потом  если хотим добаялвем в этот неймспейс процесс или недобавляем.
+
+главное к сожалению другое.
+если мы хотим посмотреть какие неймспейсы созданы на хосте то мы это одной удобной командой 
+сделать неможем.  
+
+
+вернемся конкретно к сетевым неймспейсам.
+
+мызнаем команду
+
+# ip netns list
+
+она якобы показыает созданные сетевые нейспейсы на компе.
+увы это брехня отчасти.
+
+эта команда показывает только те неймспейсы которые были созданы этой же командой
+или неймспейсы которые указаны в папке
+
+/var/run/netns
+
+когда мы этой командой создаем namespace то файл связанный с неймспейсом (дескриптор или как его там)
+создается в этой папке.
+
+верно и другое если мы туда добавим дескриптор от себя  то команда ip netns его покажет.
+
+а все неймспейсы которые созданы и их дескрпторы не скопированы в /var/run/netns их ip netns list
+непоказывает.
+
+в этом и жопа.
+
+получается мы  с помощью этой команды неможем узнать все неймспейсы что созданы на компе.
+например докер создает неймспейсы но дескрипторы этих сетевых неймспейсов он невписывает в /var/run/netns
+он их вписывает  в /var/run/docker/netns
+
+если сделать симлинк с файлом дескриптором в папку /var/run/netns то тогда ip netns list уже покажет.
+
+если мы говорим про информацию в каком неймспейсе лежит конкретный процесс то инфо об этом как уже говоил 
+хранится в /proc/$PID/ns/@net, если сделать с этого файла симлинк в /var/run/netns 
+то ip netns list покажет сетевой неймспейс в котором лежит этот неймспейс.
+
+все это обьясняет почему мы докером контейнеры создаем а ip netns list ничего непоказывает
+
+еще есть команда 
+
+# nsenter 
+
+она тоже позволяет запускать программы и присваивать им определенный неймспейс. причем в отличие от
+ip netns она умеет присваивать нетолько сетевой неймспейс
+
+ключ --net позволяет указатть сетевоей неймспейс с которым мы хотим работать.
+
+
+# nsenter --net=/var/run/docker/netns/396a8fa82a7e ip -c -f  inet address show
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1
+    inet 127.0.0.1/8 scope host lo
+       valid_lft forever preferred_lft forever
+12: eth0@if13: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default  link-netnsid 0
+    inet 172.17.0.2/16 brd 172.17.255.255 scope global eth0
+       valid_lft forever preferred_lft forever
+
+root@test-kub-04:/proc/101/ns# nsenter --net=/proc/3588/ns/net ip -c -f  inet address show
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1
+    inet 127.0.0.1/8 scope host lo
+       valid_lft forever preferred_lft forever
+12: eth0@if13: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default  link-netnsid 0
+    inet 172.17.0.2/16 brd 172.17.255.255 scope global eth0
+       valid_lft forever preferred_lft forever
+
+из этих примеров видно что я в первом примере указал в качестве дескриптора неймспейса 
+файл из файлов докера /var/run/docker/netns/..
+
+а во втором случае я указал дескриптор сетевого неймспейса напрямую из параметров proc для процесса который
+работает в том же сетевом неймспейсе
+
+и получили конечно одно и тоже.
+
+в мане к nsenter сказано что вот эти вот файлы которые  я зову дескрипторами 
+
+:/# ls -1l /proc/1/ns
+total 0
+lrwxrwxrwx 1 root root 0 Apr 27 19:01 cgroup -> cgroup:[4026531835]
+lrwxrwxrwx 1 root root 0 Apr 27 19:01 ipc -> ipc:[4026531839]
+lrwxrwxrwx 1 root root 0 Apr 27 19:01 mnt -> mnt:[4026531840]
+lrwxrwxrwx 1 root root 0 Apr 27 19:01 net -> net:[4026531957]
+lrwxrwxrwx 1 root root 0 Apr 27 19:01 pid -> pid:[4026531836]
+lrwxrwxrwx 1 root root 0 Apr 27 19:01 user -> user:[4026531837]
+lrwxrwxrwx 1 root root 0 Apr 27 19:01 uts -> uts:[4026531838]
+
+назвыаются contexts
+
+замечу очень полезное замечание что в /var/run/docker/netns/ файлы создаются с такими же именами как CONTAINER-ID у контейнера
+
+
+root@test-kub-04:/proc/101/ns# docker ps
+CONTAINER ID        IMAGE               COMMAND                  CREATED             STATUS              PORTS                NAMES
+7eeebd1c32c2        nginx               "nginx -g 'daemon of…"   6 hours ago         Up 6 hours          0.0.0.0:80->80/tcp   mynginx1
+
+поэтому зная ID контейнера сразу понятно какое имя имеет файл-дескриптор в /var/run/docker/netns/
+
+
+вот как один чувак написал в интернете - It’s quite hard to explore the Linux namespace. There is a lot of documentation flowing around. I did not find any simple program to look for namespaces in the system. 
+
+
+получется кстати такой вывод - ip netns list показыает толкько те сетевые неймспейсы которая она же и создала.
+
+далее возвращаемся к исходному вопросу - если второй veth из пары лежит в другом неймспейсе то как его найти.
+
+рассмотрим вначале случай когда второй veth из пары лежит в неймспейсе который имеет имя то есть который мы создали
+через команду ip netns add и о котором есть запись в /var/run/netns
+
+пример
+
+создаем пару
+
+# ip link add name veth1 type veth peer name veth2
+
+
+создаем namespace
+
+# ip netns add ns-02
+
+пихаем второй интерфейс из пары в этот неймспейс
+
+# ip link set veth2 netns ns-02
+
+смотрим что стало с veth1 в нашем неймспейсе
+
+# ip -c link show veth1
+5: veth1@if4: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN mode DEFAULT group default qlen 1000
+    link/ether 4a:fd:5b:68:6c:22 brd ff:ff:ff:ff:ff:ff link-netnsid 0
+
+
+смотрим nsid у veth1
+
+видим что netnsid = 0
+
+что это такое. это специальный индикатор в каком неймспейсе нужно искать второй интерфейс из пары.
+
+но тут небольшая жопа. так как указано не имя неймспейса с которым мы привыкли работать ( имя это то что 
+указано в /var/run/netns ) а указан некий nsid.
+
+значит далее мы зная ns-id хотим узнать имя соотвествующего ему неймспейса
+
+# ip netns list-id
+nsid 0 (iproute2 netns name: ns-02)
+
+
+и видим что для ns-id=0 соответствует имя = ns-02
+
+теперь мы знаем неймспейс в котором лежит veth2
+
+# ip netns exec ns-02 ip -c link show type veth
+4: veth2@if5: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN mode DEFAULT group default qlen 1000
+    link/ether 86:d8:19:ab:64:bc brd ff:ff:ff:ff:ff:ff link-netnsid 0
+
+
+но !!! это еще не все. имеется подвох. откуда мы знаем имя у второго интерфейсы. откуда мы знаем что оно равно veth2
+мы этого абсолютно незнаем.
+
+приведу пример 
+
+вот мы имеем интерфейс
+
+p# ip -c link show type veth
+9: vethedebf689@if3: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1450 qdisc noqueue master cni0 state UP mode DEFAULT group default
+    link/ether 82:d4:2a:8e:87:48 brd ff:ff:ff:ff:ff:ff link-netnsid 1
+
+с именем vethedebf689 , его создавал нея а куберентес. поэтому абсолютно неизвестно какое имя имеет его напарник.
+
+если в том неймспейсе сто интерфейсов то непонятно.
+
+и тут на помощь приходит доп информация!
+
+вернемся к нашему исходному примеру 
+
+
+в нашем неймспейсе для veth1  мы видим
+
+# ip -c link show veth1
+5: veth1@if4: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN mode DEFAULT group default qlen 1000
+    link/ether 4a:fd:5b:68:6c:22 brd ff:ff:ff:ff:ff:ff link-netnsid 0
+
+
+а именно обращаю внимание на кусок
+
+5: veth1@if4:
+
+первая цифра это не порядковый номер интерфейса в списке. нет! приведу пример чтобы это было наглядно
+
+root@test-kub-01:~/temp# ip -c link show
+1: lo: 
+2: ens160: 
+3: docker0: 
+6: flannel.1: 
+7: cni0: 
+9: vethedebf689@if3: 
+15: veth26afb3ad@if3: 
+16: dummy0: 
+
+видно что цифры 1, 2, 3, 6, 7, 9, 15, 16 не являются порядковыми числами.
+
+на самом деле первая цифра в строке это  ifindex из sys
+возвращаемся к нашему примеру
+
+5: veth1@if4:
+
+
+для veth1  ifindex равен
+
+# cat /sys/class/net/veth1/ifindex
+5
+
+пять
+
+именно поэтому первая цифра в строке это 5.
+
+теперь посмотрим на это if4
+эта штука это iflink для veth1
+
+# cat  /sys/class/net/veth1/iflink
+4
+
+iflink обозначает ifindex того интерфейсы который для veth1 является пирром.
+
+это нам дает то что когда мы посмотрим список интерфейсов в ns-02 то  наш искомый интерфейс там должен иметь порядковый номер = 4
+
+# ip netns exec ns-02 ip -c link show type veth
+4: veth2@if5: 
+
+что собственно мы и видим 4:
+
+
+таким образом зная iflink для veth1 мы знаем ifindex для искомого второго интерфейса в том неймспейсе в котором он лежит.
+
+я считаю что вместо veth1@if4: было бы более информативно вот так писать veth1@iflink4: но увы такого нет.
+
+
+моожно заметить что если оба veth лежат в одном неймспейсе то ip -c link show показыает их не ввиде
+veth1@if4:
+
+а в более красивом виде
+
+6: veth4@veth3: <BROADCAST,MULTICAST,M-DOWN> mtu 1500 qdisc noop state DOWN mode DEFAULT group default qlen 1000
+    link/ether 6e:85:da:88:2f:ff brd ff:ff:ff:ff:ff:ff
+7: veth3@veth4: <BROADCAST,MULTICAST,M-DOWN> mtu 1500 qdisc noop state DOWN mode DEFAULT group default qlen 1000
+    link/ether 3a:17:e5:4c:ed:e6 brd ff:ff:ff:ff:ff:ff
+
+то есть
+
+veth4@veth3 вместо veth4@if12312321
+
+почему так.  потому что линукс лезет смотрим iflink для veth4
+
+~# cat /sys/class/net/veth4/iflink
+7
+
+а далее он пытается считать имя для интерфейса с ifindex=7
+
+ну как то он сканирует /sys/class/net  думаю. и например вот это находит
+
+# cat /sys/class/net/veth3/uevent
+INTERFACE=veth3
+IFINDEX=7
+
+и понимает что имя интерфейса у которо ifindex=7  равно veth3 И ПОДСТАВЛЯЕТ ЭТУ ИНФО В ВЫВОД IP SHOW
+
+так вот когда второй интерфейс  В ДРУГОМ НЕЙМСПЕЙСЕ ЛЕЖИТ ТО ЕГО ПРОСТО НАПРОСТО НЕТ В /SYS/CLASS/NET
+поэтому линукс неможет понять какое имя у интерфейса который является пиром для нашего veth1 и пишет только то что 
+он знает  а именно iflink номер.
+
+
+
+так. ну это была еще простая задача. потому что для ns-id у нас было имя неймспейса.
+а имени  может и небыть  а ns-id есть.
+
+и нам нужно зная ns-id как докопаться до его неймспейса и там найти наш искомый интерфейс.
+
+
+итак у нас нет именованных неймспейсов
+
+# ip netns list
+#
+
+но у нас есть ns-id
+
+~# ip netns list-id
+nsid 0
+nsid 1
+
+
+это значит что физически сетевые нейпсейсы в системе точно есть отличные от дефолтового сетевого неймспейса
+осталось их найти.
+
+насколько я понял их напрямую ненайти.
+
+остается только одно.
+для всех процессов в системе  взять дескрипторы сетевых неймспейсов и сделать симлинки  в /var/run/netns
+
+таким образом мы через ip netns list увидим все неймспейсы что есть на компе.
+
+и вот что мы увидим в # ip netns list
+
+proc77
+proc76
+proc75
+proc7511 (id: 0)
+proc74
+proc7482
+proc73
+proc7379 (id: 0)
+proc7349
+proc72
+proc71
+
+
+и тут мы видим самое главное - что ip netns list каким то образом понимает и показывает ns-id у неймспейса.
+
+таким образом мы узнали через непрямой метод какие $PID имеют неймспейс который имеет ns-id
+
+ура. мы знаем $PID неймспейса с заданными ns-id. а зная $PID мы знаем неймспейс можем в него войти.
+
+
+далее я публикую чужой скрипт который все и делает.
+
+
+
+# Create netns directory if not exist
+mkdir -p /var/run/netns
+
+# Add all process namespaces to netns
+for i in /proc/[0-9]*/ns/net; do
+  ln -s $i /var/run/netns/proc$(echo $i | cut -d/ -f3)
+done
+
+# Remove unassociated network namespaces
+for i in $(ip netns | grep ^proc | grep -v id); do
+  rm -f /var/run/netns/${i}
+done
+
+# Remove children processes
+for i in $(ip netns | grep ^proc | awk 'a[$3]++ {print $1}'); do
+  rm -f /var/run/netns/${i}
+done
+
+
+
+что он делает.
+он копирует все ns дескрипторы всех процессов в /var/run/netns
+
+получаем вот такой каталог файлов
+
+proc77
+proc76
+proc75
+proc7511 (id: 0)
+proc74
+proc7482
+proc73
+proc7379 (id: 0)
+proc7349
+proc72
+proc71
+
+убираем в каталоге все лишние записи там где нет (id: vasya)
+
+далее убираем еще там дубликаты 
+
+в итоге получаем вот такой каталог
+
+root@test-kub-01:/var/run/netns# ls -1
+proc7511
+proc9947
+
+# ip netns list
+proc9947 (id: 1)
+proc7511 (id: 0)
+
+все ура . мы нашли те пиды которые сидят в нужных нам неймспейсах.
+таким образом мы решили проблемы - как найти неймспейс без имени но у этого неймспейса есть ns-id
+
+смотрим какие veth есть на хосте
+
+# ip -c -f inet link show type veth
+9: vethedebf689@if3: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1450 qdisc noqueue master cni0 state UP mode DEFAULT group default
+    link/ether 82:d4:2a:8e:87:48 brd ff:ff:ff:ff:ff:ff link-netnsid 1
+
+15: veth26afb3ad@if3: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1450 qdisc noqueue master cni0 state UP mode DEFAULT group default
+    link/ether 4a:a1:e9:6a:a9:3b brd ff:ff:ff:ff:ff:ff link-netnsid 0
+
+ищем где сидят соседи для vethedebf689 и veth26afb3ad
+
+рассмотрим 
+
+9: vethedebf689@if3:
+link-netnsid 1
+
+мы имеем что сосед этого вефа сидит в неймспейсе с ns-id=1  и что этот сосед имеет ifindex=3
+как видно выше такой ns-id=1 имеет
+
+proc9947 (id: 1)
+
+подлкючимся к этому неймспейсу 
+первый вариант подключения
+
+# nsenter --net=/proc/9947/ns/net ip -c link show type veth
+
+3: eth0@if9: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1450 qdisc noqueue state UP mode DEFAULT group default
+    link/ether 8e:1e:cf:9b:07:cd brd ff:ff:ff:ff:ff:ff link-netnsid 0
+
+видим 36 значит ifindex=3 иммет eth0
+
+найдем тоже самое через ip netns
+торой способ это сделать симлинк  /proc/9947/ns/net в /var/run/netns
+тогда мы сможем зайти в неймспейс через ip netns exec
+
+# ip netns exec proc9947  ip -c link show type veth
+
+3: eth0@if9: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1450 qdisc noqueue state UP mode DEFAULT group default
+    link/ether 8e:1e:cf:9b:07:cd brd ff:ff:ff:ff:ff:ff link-netnsid 0
+
+получили одно и тоже двумя способами
+
+убедимся что для eth0 ifindex=3 через другое место
+# ip netns exec proc9947 cat /sys/class/net/eth0/ifindex
+3
+
+убедились.
+
+
+ а вот почему то убедиться что ifindex=3 для eth0 через nsenter не получается
+
+# nsenter --net=/proc/9947/ns/net ls -1al /sys/class/net
+total 0
+drwxr-xr-x  2 root root 0 Apr 28 16:05 .
+drwxr-xr-x 65 root root 0 Apr 28 16:05 ..
+lrwxrwxrwx  1 root root 0 Apr 28 16:05 cni0 -> ../../devices/virtual/net/cni0
+lrwxrwxrwx  1 root root 0 Apr 28 16:05 docker0 -> ../../devices/virtual/net/docker0
+lrwxrwxrwx  1 root root 0 Apr 28 16:05 dummy0 -> ../../devices/virtual/net/dummy0
+lrwxrwxrwx  1 root root 0 Apr 28 16:05 ens160 -> ../../devices/pci0000:00/0000:00:15.0/0000:03:00.0/net/ens160
+lrwxrwxrwx  1 root root 0 Apr 28 16:05 flannel.1 -> ../../devices/virtual/net/flannel.1
+lrwxrwxrwx  1 root root 0 Apr 28 16:05 lo -> ../../devices/virtual/net/lo
+lrwxrwxrwx  1 root root 0 Apr 28 16:05 veth26afb3ad -> ../../devices/virtual/net/veth26afb3ad
+lrwxrwxrwx  1 root root 0 Apr 28 16:05 vethedebf689 -> ../../devices/virtual/net/vethedebf689
+
+root@test-kub-01:/var/run/netns# nsenter -t 9947  ls -1al /sys/class/net
+total 0
+drwxr-xr-x  2 root root 0 Apr 28 16:05 .
+drwxr-xr-x 65 root root 0 Apr 28 16:05 ..
+lrwxrwxrwx  1 root root 0 Apr 28 16:05 cni0 -> ../../devices/virtual/net/cni0
+lrwxrwxrwx  1 root root 0 Apr 28 16:05 docker0 -> ../../devices/virtual/net/docker0
+lrwxrwxrwx  1 root root 0 Apr 28 16:05 dummy0 -> ../../devices/virtual/net/dummy0
+lrwxrwxrwx  1 root root 0 Apr 28 16:05 ens160 -> ../../devices/pci0000:00/0000:00:15.0/0000:03:00.0/net/ens160
+lrwxrwxrwx  1 root root 0 Apr 28 16:05 flannel.1 -> ../../devices/virtual/net/flannel.1
+lrwxrwxrwx  1 root root 0 Apr 28 16:05 lo -> ../../devices/virtual/net/lo
+lrwxrwxrwx  1 root root 0 Apr 28 16:05 veth26afb3ad -> ../../devices/virtual/net/veth26afb3ad
+lrwxrwxrwx  1 root root 0 Apr 28 16:05 vethedebf689 -> ../../devices/virtual/net/vethedebf689
+
+как видно интерфейса eth0 нет вообще.
+
+
+
+
+
+рассмотрим следущий veth
+15: veth26afb3ad@if3
+link-netnsid 0
+
+имеем что ns-id = 0 , ifindex у пира = 3
+
+из 
+
+# ip netns list
+proc9947 (id: 1)
+proc7511 (id: 0)
+
+видно что ns-id=0 имеет pid=7511
+
+зайдем в этот сетевой неймспейс через nsenter 
+
+# nsenter --net=/proc/7511/ns/net ip -c link show type veth
+
+3: eth0@if15: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1450 qdisc noqueue state UP mode DEFAULT group default
+    link/ether 1a:98:d1:91:5e:1c brd ff:ff:ff:ff:ff:ff link-netnsid 0
+
+
+видим что eth0 имеет ifindex=3
+
+зайдем в этотже неймспейс через ip netns 
+
+# ip netns exec proc7511  ip -c link show type veth
+3: eth0@if15: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1450 qdisc noqueue state UP mode DEFAULT group default
+    link/ether 1a:98:d1:91:5e:1c brd ff:ff:ff:ff:ff:ff link-netnsid 0
+
+видим что обоими способами мак один и тот же. и ifindex=3 для eth0
+
+таким образом мы решили задачу - как находить второй veth когда он лежит  вдругом неймспейсе
+и нам неважно есть у того неймспейса имя или только ns-id
+ns-id назначается неймспейсу автоматом системой когда мы veth переносим  в тот неймспейс.
+
+еще раз замечу 
+когда мы сами создали namepsace через ip netns add и оно получило имя,
+то понять какое это имя зная ns-id легко
+
+# ip netns list
+ns-03 (id: 1)
+ns-02 (id: 0)
+foo (id: 4)
+inet_1
+
+видим соотвествие ns-id и имени.
+
+далее.
+если name есть то можно ему назначать ns-id
+
+b-04:/# ip netns list
+foo
+
+root@test-kub-04:/# ip netns set foo 4
+root@test-kub-04:/# ip netns list
+foo (id: 4)
+
+но какой от этого толк непонятно.
+
+
+далее
+
+
+есть еще важный вопрос.
+
+мы сидим в дефолтовом неймспейсе. и видим какието неймспейсы. и даем даже им ns-id
+потом создали новый неймспейс. переходим в него. увидим ли мы в нем все теже неймспейсы и будут у 
+них теже ns-id
+
+# ip netns list
+
+# ip netns add ns-01
+
+# ip netns list
+ns-01
+
+# ip netns set ns-01 10
+
+# ip netns list
+ns-01 (id: 10)
+
+# ip netns list-id
+nsid 10 (iproute2 netns name: ns-01)
+
+
+итак мы завели сетевой неймспейс с именем ns-01
+и сами назначили ему ns-id = 10
+
+# ip netns list-id
+nsid 10 (iproute2 netns name: ns-01)
+
+# ip link add name veth1 type veth peer name veth2
+# ip link set veth2 netns ns-01
+
+
+мы создали veth1  и veth2
+
+и поместили veth2 в ns-01 неймспейс
+
+посмотрим как видны неймспейсы  из дефолтового сетевого неймспейса
+создадим еще один неймспейс чтобы был чистый эксперимент
+чтобы у нас был неймспейс в котором не лежит ни один из наших veth
+
+# ip netns add netns-empty
+
+назначим ему тоже ns-id
+
+# ip netns set netns-empty 100
+
+теперь самое главное посмотрим как видны неймспейсы из дефолтового неймспейса
+
+~# ip netns list
+netns-empty (id: 100)
+ns-01 (id: 10)
+
+
+теперь самое интересное посмотрим как видны неймспейсы из неймспейса ns-01
+
+# ip netns exec ns-01 ip netns list
+netns-empty
+ns-01
+
+мы видим что из под неймспейса недефолтового видны все неймспейсы только ns-id у них исчез.
+
+вывод №1 = получается параметры ns-id он являются неймспейс зависимыми для тех же самых имен неймспейсов
+вывод №2 = если у нас изменился только сетевой неймспейс ( а остальные виды неймспейсов остались дефолтовыми) то 
+в новом неймспейсе сетевом мы видим все другие неймспейсы , имеется ввиду с точки зрения утилиты ip netns
+
+
+далее
+ксати удаление записи из /var/run/netns не удалеяет как я понял неймспейс а только удаляет его имя.
+но потом попробуй его найти без имени.
+
+далее
+заметка про proc и его файлы
+
+root@test-kub-04:/# stat /proc/6009/ns/pid
+  File: '/proc/6009/ns/pid' -> 'pid:[4026532641]'
+  Size: 0               Blocks: 0          IO Block: 1024   symbolic link
+Device: 4h/4d   Inode: 74920       Links: 1
+Access: (0777/lrwxrwxrwx)  Uid: (    0/    root)   Gid: (    0/    root)
+Access: 2020-04-28 01:54:12.748202822 +0300
+Modify: 2020-04-28 01:53:37.335287839 +0300
+Change: 2020-04-28 01:53:37.335287839 +0300
+
+фуууууууууууууух! вот вроде теперь наконец все про сетевые неймспейсы и veth в них.
+
+      
 
 
 
@@ -2073,27 +4060,17 @@ Link groups are similar to port ranges found in managed switches. You can add ne
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+ 
 
 
 
 
 №№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№№
+
+важно что в линуксе и к8 пока невижу красивой настройки 
+чтобы пользоваться NUMA как это есть esxi
+
+
 
 # kubectl create deployment nginx --image=nginx
 и сервис 
