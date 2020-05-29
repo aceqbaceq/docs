@@ -1,0 +1,584 @@
+freebsd
+
+как перенести его на другой диск
+
+надо работать с нормального полноустановленного фрибсд или фринас.
+а не из livecd потому что на livecd может неоказаться нужных файлов.
+итак работаем не с livecd а с рабочего фрибсд или фринас.
+
+
+смотрим какие диски есть 
+# camcontrol devlist
+<NECVMWar VMware IDE CDR10 1.00>   at scbus1 target 0 lun 0 (pass0,cd0)
+<VMware Virtual disk 1.0>          at scbus2 target 0 lun 0 (pass1,da0)
+<VMware Virtual disk 1.0>          at scbus2 target 1 lun 0 (pass2,da1)
+
+наш новый диск da1
+
+смотрим что наш диск пустой
+
+# gpart show
+=>     9  383743  cd0  MBR  (750M)
+       9  383743       - free -  (749M)
+
+=>     9  383743  iso9660/FREENAS  MBR  (750M)
+       9  383743                   - free -  (749M)
+
+=>      40  33554352  da0  GPT  (16G)
+        40      1024    1  freebsd-boot  (512K)
+      1064  33521664    2  freebsd-zfs  (16G)
+  33522728     31664       - free -  (15M)
+
+мы вообще невидим da1 в выводе.
+
+здесь  я хочу обьяснить что значит вывод gpart show
+на примере
+
+gpart show
+=>       34  312581741  ada0  GPT  (149G)
+         34          6        - free -  (3.0K)
+         40        128     1  freebsd-boot  (64K)
+        168  304086904     2  freebsd-ufs  (145G)
+  304087072    8388608     3  freebsd-swap  (4.0G)
+  312475680     106095        - free -  (52M)
+
+
+GPT - значит что у нас GPT разметка таблицы разделов(слайсов) диска а не MBR
+тут надо сразу сказать то что в линуксе называется partition в bsd называется slice.
+а уже внутри слайса можно создавать partitions с точки зрения терминологии bsd.
+дальше эти два термина будут постоянно использоваться в одном значении
+
+
+первый столбик это номер начало раздела в секторах (сектор = 512б)
+=>       34  312581741  ada0  GPT  (149G)
+
+здест начало начинается на 34-м секторе.
+
+второй столбик  это длинна раздела в секторах. 312581741.
+
+        168  304086904     2  freebsd-ufs  (145G)
+начало раздела с сектора 168
+длинна раздела 304086904 секторов
+
+из man gpart видно что
+
+freebsd-boot = тип слайса. это раздел под bootstrap code для freebsd
+
+freebsd-ufs = тип слайса. раздел имеет UFS\UFS2 файл систем.
+
+freebsd-swap = свап слайс
+
+
+
+далее создаем таблицу разделов и тип таблицы разделов = GPT
+
+# gpart create -s GPT da1
+
+ключ -s как задает тип таблицы разделов -s GPT
+
+создаем слайс freebsd-boot
+
+# gpart add -b 40 -s 1024 -t freebsd-boot da1
+
+-b 40 = первый сектор слайса
+-s 1024 = размер слайса в секторах
+
+-t freebsd-boot = тип слайса
+
+
+далее делаем несовсем понятно что . но это позволит грузиться с этого диска :
+Embed bootstrap code into the partitioning scheme's metadata on the geom	(using -b bootcode)
+		   
+команда сработает только если мы ее запускаем из установленного фрибсд.
+из под загрузочного фринас диска эта команда несработает. потому что там не будет файла /boot/pmbr
+
+Write the bootstrap code from the file /boot/gptzfsboot  into	the geom partition 1 specified by	-i 1.  
+
+# gpart bootcode -b /boot/pmbr -p /boot/gptzfsboot -i 1 da1
+partcode written to da1p1
+bootcode written to da1
+
+
+
+bsdlabel ов в современом фринасе вообще нет. походу оно больше ненужно. или ненужно если 
+мы в качестве фс будем использовать zfs
+
+
+
+root@freenas[~]# gpart list da0
+Geom name: da0
+modified: false
+state: OK
+fwheads: 255
+fwsectors: 63
+last: 33554391
+first: 40
+entries: 128
+scheme: GPT
+Providers:
+1. Name: da0p1
+   Mediasize: 524288 (512K)
+   Sectorsize: 512
+   Stripesize: 0
+   Stripeoffset: 20480
+   Mode: r0w0e0
+   efimedia: HD(1,GPT,60332aaa-a01f-11ea-9b9b-005056a31a4e,0x28,0x400)
+   rawuuid: 60332aaa-a01f-11ea-9b9b-005056a31a4e
+   rawtype: 83bd6b9d-7f41-11dc-be0b-001560b84f0f
+   label: (null)
+   length: 524288
+   offset: 20480
+   type: freebsd-boot
+   index: 1
+   end: 1063
+   start: 40
+2. Name: da0p2
+   Mediasize: 17163091968 (16G)
+   Sectorsize: 512
+   Stripesize: 0
+   Stripeoffset: 544768
+   Mode: r1w1e1
+   efimedia: HD(2,GPT,603ca0f4-a01f-11ea-9b9b-005056a31a4e,0x428,0x1ff8000)
+   rawuuid: 603ca0f4-a01f-11ea-9b9b-005056a31a4e
+   rawtype: 516e7cba-6ecf-11d6-8ff8-00022d09712b
+   label: (null)
+   length: 17163091968
+   offset: 544768
+   type: freebsd-zfs
+   index: 2
+   end: 33522727
+   start: 1064
+Consumers:
+1. Name: da0
+   Mediasize: 17179869184 (16G)
+   Sectorsize: 512
+   Mode: r1w1e2
+
+
+rawtype. он строго определен.
+
+
+freebsd-boot 
+это микрораздел без файловой системы. ее там нет.
+и там нахоится код для биоса который его читает. и это бывает тока в случае когда диск GPT.
+то есть это тип как бутто тот самый MBR который читает биос тока в случае GPT он читает freebsd-boot раздел.
+
+туда помещается вот такая информация
+
+# dd if=/boot/gptboot of=/dev/ada0p1
+
+получается к файловой системе уже загруженной системы
+этот раздел не виден и не имеет никакого отношения.
+
+
+создаем раздел с zfs
+
+# gpart add -a 1m -t freebsd-zfs  da1
+da1p2 added
+
+
+root@freenas[~]# gpart show da1
+=>      40  41942960  da1  GPT  (20G)
+        40      1024    1  freebsd-boot  (512K)
+      1064       984       - free -  (492K)
+      2048  41938944    2  freebsd-zfs  (20G)
+  41940992      2008       - free -  (1.0M)
+
+походу строка с таким значком 
+
+=>      40  41942960  da1  GPT  (20G)
+
+показывает слайс
+а внутри него показаны уже партишоны.
+
+команда с ключом -p 
+
+]# gpart show -p da1
+=>      40  41942960    da1  GPT  (20G)
+        40      1024  da1p1  freebsd-boot  (512K)
+      1064       984         - free -  (492K)
+      2048  41938944  da1p2  freebsd-zfs  (20G)
+  41940992      2008         - free -  (1.0M)
+
+
+
+покажет da1p1 и da1p2 для разделов.  (вместо бессмысленных  1 и 2 как раньше)
+
+
+ # gnop create -S 4096 da1p2
+ 
+ # mkdir /mnt/1
+ # zpool create -f -o altroot=/mnt/1 -O canmount=off -m none zroot /dev/da1p2.nop
+
+
+# zfs snapshot -r freenas-boot@migrate
+
+# zfs send -R freenas-boot@migrate | zfs receive -F zroot
+
+# zpool set bootfs=zroot/ROOT/default zroot
+
+эта команда выствляет значение опции  bootfs для пула zpool.
+в этой опции пула она прописывает к какому датасету 
+должен обращаться загрузчик в поисках ядра и прочего.
+в данном случае мы выбираем датасет = zroot/ROOT/default
+именно данный датасет к нему будет обращаться
+загрузчик на фоне всех других датасетов.
+это еще раз скажу опция пула недатасета.
+в пуле указывается загрузочный датасет.
+таких опций у zfs разделов вагон. разделы в zfs зовутся dataset.
+(проверить zfs get all zfs-dataset-name )
+
+(про bootfs написано в man gptzfsboot)
+
+втыкаем флэшку.
+но загрузиться с нее поканеомжем.
+нам надо переименовать наш пул.
+потому что питон джанго вэб морда фринас она помнит 
+прежнее название пула и будут ошибки.
+корче нам над перимновать пул в его исходное название.
+на рабочей системе мы немогли так сделать так как нельзя иметь два пула 
+с одним именем.
+
+грузимся  с live cd
+
+# zpool import -o altroot=/mnt -f zroot freenas-boot
+
+# zpool export freenas-boot
+
+вот и все мы переименовали пул. перманентно.
+
+теперь можно грузиться с флэшки.
+
+
+
+
+
+]# zfs list
+NAME                                                            USED  AVAIL  REFER  MOUNTPOINT
+freenas-boot                                                   1.26G  14.7G    88K  none
+freenas-boot/.system                                           6.19M  14.7G    96K  legacy
+freenas-boot/.system/configs-445a1355f3314ba4946bd845d9821e43    88K  14.7G    88K  legacy
+freenas-boot/.system/cores                                      636K  14.7G   580K  legacy
+freenas-boot/.system/rrd-445a1355f3314ba4946bd845d9821e43      4.83M  14.7G  4.77M  legacy
+freenas-boot/.system/samba4                                     164K  14.7G   100K  legacy
+freenas-boot/.system/syslog-445a1355f3314ba4946bd845d9821e43    320K  14.7G   184K  legacy
+freenas-boot/.system/webui                                       88K  14.7G    88K  legacy
+freenas-boot/ROOT                                              1.25G  14.7G    88K  none
+freenas-boot/ROOT/Initial-Install                                  0  14.7G  1.24G  legacy
+freenas-boot/ROOT/default                                      1.25G  14.7G  1.24G  legacy
+
+
+
+freenas-boot =  имя пула. аналогично  блочному устройству /dev/sda
+freenas-boot/ROOT - аналогично разделу /dev/sda1
+
+поэтому все что в строках это считай разделы виртуальные.
+именно поэтому они и фигурируют в df 
+
+
+]# df -h
+Filesystem                                                       Size    Used   Avail Capacity  Mounted on
+freenas-boot/ROOT/default                                         16G    1.2G     15G     8%    /
+devfs                                                            1.0K    1.0K      0B   100%    /dev
+tmpfs                                                             16G    9.3M     16G     0%    /etc
+tmpfs                                                            2.0G    8.0K    2.0G     0%    /mnt
+tmpfs                                                            1.5T     28M    1.5T     0%    /var
+fdescfs                                                          1.0K    1.0K      0B   100%    /dev/fd
+freenas-boot/.system                                              15G     96K     15G     0%    /var/db/system
+freenas-boot/.system/cores                                        15G    580K     15G     0%    /var/db/system/cores
+freenas-boot/.system/samba4                                       15G    100K     15G     0%    /var/db/system/samba4
+freenas-boot/.system/syslog-445a1355f3314ba4946bd845d9821e43      15G    184K     15G     0%    /var/db/system/syslog-445a1355f3314ba4946bd845d9821e43
+freenas-boot/.system/rrd-445a1355f3314ba4946bd845d9821e43         15G    4.8M     15G     0%    /var/db/system/rrd-445a1355f3314ba4946bd845d9821e43
+freenas-boot/.system/configs-445a1355f3314ba4946bd845d9821e43     15G     88K     15G     0%    /var/db/system/configs-445a1355f3314ba4946bd845d9821e43
+freenas-boot/.system/webui                                        15G     88K     15G     0%    /var/db/system/webui
+
+
+то есть видно что вместо привычных блоных устройств разделов у нас
+
+
+ 
+freenas-boot/ROOT/default монтируется как /
+
+итп.
+
+пул freenas-boot аналогичен  диску sda
+
+все что показывает zfs list оно аналогичено партициям. /dev/sda1 и  их поэтому можно использоват как точки монтирования.
+
+
+
+вопрос из за снэпшота неначнети ли место увеличивться.
+може его удалить ?
+
+
+накатил бэкап из конфига.
+и после этого чтото у него слетело
+и граб тупо входит в бесконечный loop.
+попробовал переделать загрузку через zfs загрузчик  - несработало. а жаль.
+
+на полноценном freebsd cd-1-bootonly 330MB есть все файлы в /boot
+
+очень важная настрйка это network - general - DNS сервер.
+нужно хотя бы один указать иначе из  за этого у вэб морды крыша едет.
+кажое изменнеие вызывает кучу ошибок в консоли. и походу именно изза этого
+и накатиить конфи ииз бэкапа вызыало оошибку.
+
+перегнать флэшку черз zfs send zfs receive неполуичлось так как на ней уже она нечитается.
+и снэпшот считать нгельщя.
+
+приглось ставить туже версию фринас с нуля. и потом на нее накатывать вэбовский бэкап.
+
+
+попробвать для тренироваки фринас который на граб - перевести на zfs загрузчик на виртуалке.
+
+geom это какойто слой абстракциию
+
+с zfs и fstab ненужен
+
+da8 geom problem
+
+vlan15 - igb0 - IP,
+
+проверить лог на ошибки чтения usb
+
+описать схему загрузки фрибсд с грабом и с zfs зашгрузчиком.
+
+отписать что нужно чтобы восстановить фринас когда ставим с нуля + накатываем конфиг, а потом сетвые настройки
+и днс.
+
+описать что fstab ненужен для zfs
+
+описать еще раз что df -h вид смущает когда у нас zfs
+
+
+получается пул - это как бы блочное устройство. и zfs позволяет удобно снимать бэкапы 
+с этого блочного устройства (пула). со всей его внутренней требухой ( zfs разделами ).
+
+
+
+есть zpool import
+zpool import -fo altroot=/import -N 15879539137961201777
+
+но этого походу недостаточно чтоли.
+
+чтобы увидеть датасеты нужно еще
+
+# zfs mount zroot
+
+
+если отключена текстовая консоль то ее можно запустить как
+
+/usr/libexec/getty freenas
+
+разобраться как все же смотреть слайсф  а как партиции 
+
+замечу что никакой раздел ненужно помечать как активный
+
+вопрос когда сняли снэпшот - что потом как будем место разрастаться. а что будет если я удалю 
+снэпшот с данными. они потеряются или что.
+
+не совсем понятно что происходит когда мы пересылаем снэпшот с одного пула на другой через
+zfs send\receive
+
+датасеты это как бы партиции. и эти партиции можно монтировать в папки.
+у партиции в свойствах ( zfs get all имя-датасета ) можно указать точку монтирования и тогда
+zfs будет монтировать датасет в эту папку автоматом. 
+
+прежде всего df -h показвыает какой датасет в какой mountpoint подключен.
+а zfs list в графе mountpoint показывает в какую папку датасет должен быть по идее по дефолту
+системой автоматом примаунчен. то есть zfs list показывает как должно быть а df -h показывает 
+как по факту есть
+
+# zfs list
+NAME                                USED  AVAIL  REFER  MOUNTPOINT
+freenas-boot                        755M  14.6G    64K  none
+freenas-boot/ROOT                   748M  14.6G    29K  none
+freenas-boot/ROOT/Initial-Install     1K  14.6G   740M  legacy
+freenas-boot/ROOT/default           748M  14.6G   740M  legacy
+freenas-boot/grub                  6.95M  14.6G  6.95M  legacy
+zroot                               975M  16.4G    88K  none
+zroot/ROOT                          967M  16.4G    88K  none
+zroot/ROOT/Initial-Install             0  16.4G   954M  legacy
+zroot/ROOT/default                  967M  16.4G   955M  legacy
+zroot/grub                         7.85M  16.4G  7.85M  legacy
+
+
+
+так вот в zfs list можно увидеть странные моунтпоинты - none и legacy
+если указан lagacy это значит что система zfs автоматом при загрузке данный датасет 
+небудет монттроавть никуда.
+но можно указать через /etc/fstab куда его монтировать если захотеть.
+в общем legacy указывается для тех датасетов которые мы хотим монтировать через файл /etc/fstab
+
+
+руками можно такой датасет смонтировать вот так
+
+# mount -t zfs zroot/grub /mnt/2
+
+
+датасет с none также можно примонтировать руками через 
+# mount -t zfs zroot/ROOT /mnt/3
+
+насколько я понимаю такие датасеты они не преднахзначаются для монтирования вообще.
+то есть технически их можно руками подмонтровать но автоматом самой zfs или через fstab
+они не будут монтироваться.
+
+
+и все же какже изящно все сделано в zfs . сложно но изящно
+
+
+вот у нас список датасетов с их предплагаемыми точками монтироания
+
+ # zfs list
+NAME                                USED  AVAIL  REFER  MOUNTPOINT
+freenas-boot                        976M  16.4G    88K  none
+freenas-boot/ROOT                   967M  16.4G    88K  none
+freenas-boot/ROOT/Initial-Install      0  16.4G   954M  legacy
+freenas-boot/ROOT/default           967M  16.4G   955M  legacy
+freenas-boot/grub                  7.85M  16.4G  7.85M  legacy
+
+а вот фактическая картина монтирования датасетов в папки.
+
+ # df -h
+Filesystem                   Size    Used   Avail Capacity  Mounted on
+freenas-boot/ROOT/default     17G    955M     16G     5%    /
+devfs                        1.0K    1.0K      0B   100%    /dev
+tmpfs                         32M     10M     22M    32%    /etc
+tmpfs                        4.0M    8.0K    4.0M     0%    /mnt
+tmpfs                        3.0G     35M    3.0G     1%    /var
+freenas-boot/grub             16G    7.9M     16G     0%    /boot/grub
+fdescfs                      1.0K    1.0K      0B   100%    /dev/fd
+tmpfs                        1.0G     39M    985M     4%    /var/db/collectd/rrd
+
+видно что freenas-boot/grub имеет точку монтирования плановую  = legacy
+и видно что пофакту он смотнтрован в /boot/grub
+
+значит это сделано через /etc/fstab 
+и действительно я там нашел строку его прописыавющую.  я ее оттуда убрал.
+так как теперь мы грузимся не через граб а через zfs boot loader
+
+в целом - получилось. взять фринас который себя устанавил так что он грузится через grub
+и перенести этот фринас на новый диск и чтобы он грузился через zfs boot loader
+
+надо разобраться с деталями разбиния диска ( начальные сектора и прочее).
+
+]# gpart show -p da1
+=>      40  41942960    da1  GPT  (20G)
+        40      1024  da1p1  freebsd-boot  (512K)
+      1064       984         - free -  (492K)
+      2048  41938944  da1p2  freebsd-zfs  (20G)
+  41940992      2008         - free -  (1.0M)
+  
+
+надо разобраться как делать несколько слайсов а не один.
+
+надо подчеркнуть что bsdlabel нам неважны вообще больше.
+
+надо разораться с этим вот трехступенчатым процессом заггрузки фрибсд
+
+надо разораться установка снэпшота. она как с местом потом отражается оно растет ?
+удалние снэжпштоа вдеет к потере даных ?
+
+почему то удаление строки про grub из /etc/ftasb все равно она там появляется.
+на ладно. немешает.
+
+в итоге
+
+ # df -h
+Filesystem                   Size    Used   Avail Capacity  Mounted on
+freenas-boot/ROOT/default     17G    955M     16G     5%    /
+devfs                        1.0K    1.0K      0B   100%    /dev
+tmpfs                         32M     10M     22M    32%    /etc
+tmpfs                        4.0M    8.0K    4.0M     0%    /mnt
+tmpfs                        3.0G     25M    3.0G     1%    /var
+fdescfs                      1.0K    1.0K      0B   100%    /dev/fd
+tmpfs                        1.0G     39M    985M     4%    /var/db/collectd/rrd
+
+если мы отбросим всякие там tmpfs которые вирт фс системы
+
+то остается
+# df -h
+Filesystem                   Size    Used   Avail Capacity  Mounted on
+freenas-boot/ROOT/default     17G    955M     16G     5%    /
+freenas-boot/grub             16G    7.9M     16G     0%    /boot/grub
+
+
+ну граб понятно в /etc/fstab прописан
+ а freenas-boot/ROOT/default     монтируется в / потому что в свойствах пула
+ указано что bootfs=/freenas-boot/ROOT/default
+ 
+ вот мы и разгадали тайну  что куда и почему монтиирутся в фрибсд из zfs датасетов.
+ 
+ самое прикольно е что я немог понять сначала забыл это то что в df -h вместо привычных устройств типа
+ 
+ /dev/da0p1 ... стоят freenas-boot/ROOT/default
+ 
+ а это же прикол zfs
+ 
+ у которой имена партиций как раз так и выглядят freenas-boot/ROOT/default
+ 
+ еще раз 
+ 
+ диск  в линуксе 			/dev/sda
+ диск в freebasd+zfs 		freenas-boot
+ 
+ раздел в линуксе			/dev/sda1
+ датасет в freebas+zfs		/freenas-boot/ROOT/default
+ 
+ а я думал что за папки что за папки в именах вместо sda1
+ 
+ по факту получается что в фрибсд перенести 
+ систему на другой диск. сделать диск загрузочных в 100раз проще чем в линукс.
+ прям прост и приятно это делать.
+ 
+zfs надо собирать на метках а не именах дисков. разобрраться как это делает фринас.
+
+
+фринас образует пулы на основе gpt меток.
+как быстро найти соотвествие какая pgt метка соответует какому диску
+
+смотрим из каких меток составлен пул
+
+root@freenas:~ # zpool list -v
+NAME                                     SIZE  ALLOC   FREE  EXPANDSZ   FRAG    CAP  DEDUP  HEALTH  ALTROOT
+HDDx4                                   9.06T   940G  8.14T         -     8%    10%  1.00x  ONLINE  /mnt
+  mirror                                5.44T   588G  4.86T         -     6%    10%
+    gptid/117aacf2-4aab-11ea-8a35-80c16e650184      -      -      -         -      -      -
+    gptid/18342775-4aab-11ea-8a35-80c16e650184      -      -      -         -      -      -
+  mirror                                3.62T   353G  3.28T         -    11%     9%
+    gptid/1e932b20-4aab-11ea-8a35-80c16e650184      -      -      -         -      -      -
+    gptid/1f64f5ac-4aab-11ea-8a35-80c16e650184      -      -      -         -      -      -
+log                                         -      -      -         -      -      -
+
+метки получили.
+
+теперь смотрим какая метка сотвтетует какому диску
+
+ # gpart list | grep -E "Name|1f64f5ac|117aacf2|18342775|1e932b2"
+2. Name: da2p2
+   rawuuid: 18342775-4aab-11ea-8a35-80c16e650184
+2. Name: da3p2
+   rawuuid: 117aacf2-4aab-11ea-8a35-80c16e650184
+2. Name: da4p2
+   rawuuid: 1e932b20-4aab-11ea-8a35-80c16e650184
+2. Name: da5p2
+   rawuuid: 1f64f5ac-4aab-11ea-8a35-80c16e650184
+
+и видим что это диски da2 da3 da4 da5
+
+ну а теперь можем легко смотреть по ним статистику через 
+
+# gstat
+
+интересно конечно разобраться с загрузкой ОС через uefi bios.
+может она круче удобнее чем MBR загрузка
+
+дописать статю красиво.
+
+ 
+ 
+ 
+
+
+
+

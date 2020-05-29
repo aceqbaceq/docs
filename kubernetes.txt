@@ -4050,17 +4050,4806 @@ Access: 2020-04-28 01:54:12.748202822 +0300
 Modify: 2020-04-28 01:53:37.335287839 +0300
 Change: 2020-04-28 01:53:37.335287839 +0300
 
+
+еще скажу вот что.
+неймспейсы неймспейсами.
+но когда мы переходим к процессам и их сетью то все тогда вот так:
+процесс видит некоторые сетевые интерфейсы.
+эти интерфейсы составляют таблицу маршрутизации
+и в итоге процесс шлет пакет в сетевой интерфейс а оттуда с помощью таблицы маршрутизации он улетает дальше.
+поэтому если мы хотим понять какие сети видит процесс то самое простое это взять $PID процесса и помотреть сетевые 
+интерфейсы ему доступные и таблицу маршрутизации
+
+# nsenter -net $PID ip -c link show
+# nsenter -net $PID ip -c route show
+
+так мы отходим от абстрактных сетевых неймспейсов к конкретному сетевому обмену для процессов
+
+
+
+
 фуууууууууууууух! вот вроде теперь наконец все про сетевые неймспейсы и veth в них.
 
       
+все талдычат одно и тоже что нейтворк неймсейсес они дают тебе  изолированный сетевой стек
+и ты имеешь незаивисые сеетвые интерфпейсы  таблицу маршрутизации при этом никто не обьясняет 
+как это сказыавется на особых каталогах линукса таки как proc dev sys. что в них меняется.
+жаль . это пока непонятно.
+
+
+совершенно логичная штука что интерфейс (физ или виртуальный) может принадлежать только одному сетевому
+неймспейсу
+
+насколько я понял чтобы трафик между veth интерфейсами ходил нужно также чтобы на хосте
+был активирован форвардинг
+
+
+хотя каждый из veth принадлжеит разным неймспейсам ( если так сделать ) но связь между ними работает.
+
+значит все это время я работал с неймспейсами и никак не мог понять почему я немогу поставить lsns
+оказыается потому что в ubuntu 16 ее нет в составе util-linux
+
+я прописал более новый дистрибутив в apt
+
+и наконец обновил util-linux
+
+и теперь у меня появидся lsns
+
+щас начнем его смотреть. что он умеет.
+
+
+
+lsns основыввает свою работу
+на информации из /proc
+поэтому  lsns видит неймспейсы только те в которых запущен хотя бы один линукс процесс.
+
+так вобщем я посмотрел на эту lsns
+
+вот ее типичный вывод
+
+root@test-kub-01:/# lsns -t net -o NS,TYPE,PATH,NPROCS,PID,PPID,COMMAND,UID,USER
+        NS TYPE PATH              NPROCS   PID  PPID COMMAND    UID USER
+4026531957 net  /proc/1/ns/net       163     1     0 /sbin/init   0 root
+4026532504 net  /proc/9831/ns/net      2  9831  9796 /pause       0 root
+4026532569 net  /proc/7379/ns/net      2  7379  7349 /pause       0 root
+root@test-kub-01:/#
+
+
+вцелом пока полезность этой утилиты под вопросом.
+чтото новое она показывает но при этов неудобном виде.
+
+пока на этом с ней все.
+
+кстати что интересно lsns несмог увидеть неймспейсы у которых нет имент но есть ns-id
+
+
+вот вывод про ns-id
+
+root@test-kub-01:/# ip netns list-id
+nsid 0 
+nsid 1 
+
+при этом я уже выяснил ранее какие процессы  лежат в этих неймспейсах
+
+nsid 0 = proc7511)
+nsid 1 = proc9947)
+
+
+
+а вот что увидел lsns
+
+root@test-kub-01:/# lsns -t net -o NS,TYPE,PATH,NPROCS,PID,PPID,COMMAND,UID,USER
+
+        NS TYPE PATH              NPROCS   PID  PPID COMMAND    UID USER
+4026531957 net  /proc/1/ns/net       163     1     0 /sbin/init   0 root
+4026532504 net  /proc/9831/ns/net      2  9831  9796 /pause       0 root
+4026532569 net  /proc/7379/ns/net      2  7379  7349 /pause       0 root
+
+то есть видно что lsns неувидел нужные процессы.
+
+в общем lsns я так понимаю идет в помойку
+
+что еще интересно.
+
+оказывается ps умеет показыват типа номер неймспейса для процесса
+пример
+
+m~# ps -eo pid,user,netns,args --sort user
+  PID USER          NETNS COMMAND
+  761 daemon   4026531957 /usr/sbin/atd -f
+  744 message+ 4026531957 /usr/bin/dbus-daemon --system --address=systemd: --nofork --nopidfile --systemd-activation
+ 2706 mkadm    4026531957 /lib/systemd/systemd --user
+ 2708 mkadm    4026531957 (sd-pam)
+ 2766 mkadm    4026531957 sshd: mkadm@pts/0
+ 2767 mkadm    4026531957 -bash
+    1 root     4026531957 /sbin/init
+    2 root     4026531957 [kthreadd]
+
+вот эти вот числа 4026531957 это конечно не ns-id это параметр который взят отсюда /proc/$PID/ns/net
+тот который называется номером инода в файловой системе proc.
+
+получается через ps мы можем узнать все процессы которые лежат в одном неймспейсе.
+утилита ip тоже умеет такое делать НО только для неймспейсов имеющих имя
+ ip netns pids NAME
+
+а через ps мы можем увидеть все такие процессы и для неймспейсов неимющих имя.
+
+с другой стороны если мы создаим симлинк с /proc/$PID/ns/net в /var/run/netns то тогда неймспейс станет именованным
+и ip netns pids NAME сработает.
+
+
+итак теперь мы умеем очень важное - мы умеем искать второй хвост у veth
+а это нам очень поможет с докером теперь.
+
+еще раз себе напомню что самое простой способ войти в неймспейс сетевой это использовать pid процесса
+который сидит в этом неймспейсе
+
+nsenter -t $PID ...
+
+<---
+я закнчил на том что поставил 
+докер на пустой хост.
+
+и начал изучать какая там сеть. как работает сеть у докера.
+на уровне какие интерфейсы какая ip адреса
+
+где там бридж у докера
+
+что в  него входит.
+
+как получается что контейнер имеет адрем 172.17.0.х
+а связь с ним работает через 127.0.0.1
+
+как работает проброс порта из неймспейса наружу
+
+-->
+
+поставил докер.
+
+докер создал интерфейс типа bridge
+
+3: docker0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP mode DEFAULT group default
+    link/ether 02:42:8e:1e:18:de brd ff:ff:ff:ff:ff:ff promiscuity 0
+    bridge forward_delay 1500 hello_time 200 max_age 2000 ageing_time 30000 stp_state 0 priority 32768 vlan_filtering 0 vlan_protocol 802.1Q addrgenmode eui64
+
+причем это порт уровня L3 его адрес
+
+    inet 172.17.0.1/16 brd 172.17.255.255 scope global docker0
+
+
+в докере я создал контейнер с нжинкс
+
+root@test-kub-04:~# docker ps
+CONTAINER ID        IMAGE               COMMAND                  CREATED             STATUS              PORTS                NAMES
+6c52734f2d22        nginx               "nginx -g 'daemon of…"   2 days ago          Up 20 hours         0.0.0.0:80->80/tcp   mynginx1
+
+посмотрим сетевые настройки этого контейнера.
+
+# docker inspect 6c52734f2d22  | grep -i ip
+            "IPAddress": "172.17.0.2",
+
+посмотрим теперь ip через неймспейс
+
+# docker inspect 6c52734f2d22  | grep -i pid
+            "Pid": 17056,
+
+
+~# nsenter --net=/proc/17056/ns/net ip -c address show
+6: eth0@if7: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default
+    inet 172.17.0.2/16 brd 172.17.255.255 scope global eth0
+
+итак мы выяснили что у контейнера ip = 172.17.0.2/16  
+
+теперь убедимся что eth0 в контейнере имеет veth тип
+
+~# nsenter --net=/proc/17056/ns/net ip -c -d link show
+6: eth0@if7: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP mode DEFAULT group default
+    veth 
+
+итак выяснилось теперь что сетевая карта у контейнера имеет тип veth
+то есть вефы это именно вот какие карточки сетевые используются в контейнерах
+именно вефы только вефы использует докер в контейнерах
+
+найдем второй veth из пары у вефа контейнера eth0@if7:, link-netnsid 0
+
+в общем я подмонтировал ns от $PID=1 
+
+и в неймспейсе контейнера я вижу
+
+# ln -s /proc/1/ns/net /var/run/netns/1
+root@test-kub-04:~# nsenter --net=/proc/17056/ns/net ip netns list
+1 (id: 0)
+
+таким образом мы знаем что хвост у eth0@if7: лежит в неймспейсе pid=1
+
+ищем в нем 
+причем ищем интерфейс сразу с номером 7 , поскольку if7
+
+~# ip -c link -c -d show
+
+7: vethad1f79f@if6: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue master docker0 state UP mode DEFAULT group default
+    link/ether da:68:27:36:52:e1 brd ff:ff:ff:ff:ff:ff link-netnsid 0 promiscuity 1
+    veth
+    bridge_slave state forwarding priority 32 cost 2 hairpin off guard off root_block off fastleave off learning on flood on addrgenmode eui64 
+
+итак это 
+7: vethad1f79f@if6:
+
+посмотрим какой у него ip 
+
+# ip -c  address show dev vethad1f79f
+7: vethad1f79f@if6: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue master docker0 state UP group default
+    link/ether da:68:27:36:52:e1 brd ff:ff:ff:ff:ff:ff link-netnsid 0
+    inet6 fe80::d868:27ff:fe36:52e1/64 scope link
+       valid_lft forever preferred_lft forever
+
+то есть у этого интерфейса нет IP
+
+итак мы имеем такую картину
+
+контейнер:
+ns = $pid 17056
+if = eth0@if7 (veth)
+ip = 172.17.0.2/16
+
+второй хвост у вефа
+ns = $pid 1
+if = vethad1f79f@if6
+ip = его нет
+
+окей на уровне L2 мы узнали как устроена сетевая система связи между контейнером
+и внешним миром.
+
+еще щас посмотрим только сетевой неймспейс у контейнерного pid отличается от дефолтового или и остальные
+
+
+~# lsns  -o NS,TYPE,PATH,NPROCS,PID,PPID,COMMAND,UID,USER | grep -E "PATH|/proc/1/|/proc/17056/"
+        NS TYPE   PATH               NPROCS   PID  PPID COMMAND                                   UID USER
+4026531835 cgroup /proc/1/ns/cgroup     134     1     0 /sbin/init                                  0 root
+4026531836 pid    /proc/1/ns/pid        132     1     0 /sbin/init                                  0 root
+4026531837 user   /proc/1/ns/user       134     1     0 /sbin/init                                  0 root
+4026531838 uts    /proc/1/ns/uts        132     1     0 /sbin/init                                  0 root
+4026531839 ipc    /proc/1/ns/ipc        132     1     0 /sbin/init                                  0 root
+4026531840 mnt    /proc/1/ns/mnt        130     1     0 /sbin/init                                  0 root
+4026531957 net    /proc/1/ns/net        132     1     0 /sbin/init                                  0 root
+4026532575 mnt    /proc/17056/ns/mnt      2 17056 17038 nginx: master process nginx -g daemon off   0 root
+4026532576 uts    /proc/17056/ns/uts      2 17056 17038 nginx: master process nginx -g daemon off   0 root
+4026532577 ipc    /proc/17056/ns/ipc      2 17056 17038 nginx: master process nginx -g daemon off   0 root
+4026532578 pid    /proc/17056/ns/pid      2 17056 17038 nginx: master process nginx -g daemon off   0 root
+4026532580 net    /proc/17056/ns/net      2 17056 17038 nginx: master process nginx -g daemon off   0 root
+
+
+
+видим что у контейнера свои индивидуальные неймспейсы для
+ pid 
+ uts
+ ipc
+ net
+
+
+хотя можно и по другому посмотреть это же
+
+
+~# ls -1al  {/proc/1/ns,/proc/17056/ns}
+/proc/17056/ns:
+lrwxrwxrwx 1 root root 0 Apr 30 01:36 cgroup -> cgroup:[4026531835]
+lrwxrwxrwx 1 root root 0 Apr 30 01:36 ipc -> ipc:[4026532577]
+lrwxrwxrwx 1 root root 0 Apr 30 01:36 mnt -> mnt:[4026532575]
+lrwxrwxrwx 1 root root 0 Apr 30 01:35 net -> net:[4026532580]
+lrwxrwxrwx 1 root root 0 Apr 30 01:36 pid -> pid:[4026532578]
+lrwxrwxrwx 1 root root 0 Apr 30 01:36 user -> user:[4026531837]
+lrwxrwxrwx 1 root root 0 Apr 30 01:36 uts -> uts:[4026532576]
+
+/proc/1/ns:
+total 0
+lrwxrwxrwx 1 root root 0 Apr 29 14:48 cgroup -> cgroup:[4026531835]
+lrwxrwxrwx 1 root root 0 Apr 29 14:48 ipc -> ipc:[4026531839]
+lrwxrwxrwx 1 root root 0 Apr 29 14:48 mnt -> mnt:[4026531840]
+lrwxrwxrwx 1 root root 0 Apr 29 14:48 net -> net:[4026531957]
+lrwxrwxrwx 1 root root 0 Apr 29 14:48 pid -> pid:[4026531836]
+lrwxrwxrwx 1 root root 0 Apr 29 14:48 user -> user:[4026531837]
+lrwxrwxrwx 1 root root 0 Apr 29 14:48 uts -> uts:[4026531838]
+ 
+что мы видим
+
+cgroup - у них общий
+ipc - разный
+mnt - разный
+net - разный 
+pid - разный
+user - общий
+uts - разный
+
+
+малек прокроментирую
+
+mnt разный это значит что у  контейнера индивидуальная файловая система
+pid разный это значит что процессы контейнера не видят процессы хоста и хост невидит процессы контейнера
+user общий это значит что пользователи контейнера и пользователи хоста одни и теже
+uts разный это значит что hostname хоста отличается от hostname контейнера
+
+
+окей. на уровне L2 интерфейсов мы разобрались как организованы интерфейсы в контейнере.
+это veth в своем неймспейсе это неймспейс контейнера. и второй veth сидит в неймспейсе хоста.
+и таким макаром на уровне L2 осуществляется связь между контейнером и хостом.
+
+теперь посмотрим как устроена связь между контейнером и хостом на уровне L3
+
+
+значит схема на уровне L2 такая
+
+[ контейнер ] (eth0@if7) --- (docker0 {vethad1f79f@if6}) [ хост ] 
+
+
+docker0 {vethad1f79f@if6} - значит что veth входит в состав бриджа docker0 
+# brctl show docker0
+bridge name     bridge id               STP enabled     interfaces
+docker0         8000.02428e1e18de       no              vethad1f79f
+
+
+  
+таким образом мы ушли от неймспейсов которые нам теперь по барабану.
+и перешли к классической сетевой структуре - интерфейсам уровня L2
+
+фреймы между этим двумя сетевыми интерфейсами могут ходит без проблем.
+еще видно что vethad1f79f входит в состав  бриджа docker0
+значит фрейм влетающий в docker0 переправляется в vethad1f79f
+а фрейм вылетающий из vethad1f79f вылетает в docker0
 
 
 
 
+
+переходим к L3 связи между хостом и контейнером
+ведь исходная задача которая меня заинтересовала как это так получается что мы на хосте 
+даем команду curl 127.0.0.1:80   и это долетает внутрь контейнера у которого адрес 172.17.0.2
+
+контейнер
+eth0@if7
+ip = 172.17.0.2/16
+
+хост
+vethad1f79f@if6 ( в составе docker0 )
+ip = нет
+docker0
+ip =  172.17.0.1/16
+
+
+кстати неудивительно что vethad1f79f@if6 не имеет ip ,  так как интерфейсы входящие в состав бриджа
+немогут иметь свой ip. и это логично. так как все порты входящие в состав бриджа получают IP самого бриджа.
+
+получается в теории 
+мы имеем вот такую сеть уровня L3
+
+интерфейсы L3
+docker0 (хост) = 172.17.0.1/16
+eth0 (контейнер) = 172.17.0.2/16
+
+
+получается мы можем в теории с хоста "напрямую" пингануть  IP контейнера потому что 
+на хосте есть интерфейс который входит в туже IP сеть что и сеть контейнера.
+
+# ping 172.17.0.2
+PING 172.17.0.2 (172.17.0.2) 56(84) bytes of data.
+64 bytes from 172.17.0.2: icmp_seq=1 ttl=64 time=0.079 ms
+
+и curl тоже работает
+
+# curl 172.17.0.2:80
+<!DOCTYPE html>
+<html>
+...
+
+\справка по iptables:
+ LOCAL means ANY IP assigned on one of the interfaces of the host, including the loopback.
+ LOCAL - the destinations are assigned to this host.  The packets are looped back and delivered locally.
+ \
+ 
+ 
+
+(тут такая ремарка я ниже пишу про доке-прокси docker-proxy но иногда путаю термин и пишу куб-прокси.
+это неверно конечно же мы щас говорим про докер прокси. я везде вроде исправил но могло еще гдето остаться
+итак верно докер прокси.)
+
+на всякий случай посмотрим что там с таблицей iptables
+
+root@test-kub-04:~# iptables-save
+
+*filter
+:INPUT ACCEPT [10940:1075816]
+:FORWARD ACCEPT [0:0]
+:OUTPUT ACCEPT [3792:774535]
+:DOCKER - [0:0]
+:DOCKER-ISOLATION-STAGE-1 - [0:0]
+:DOCKER-ISOLATION-STAGE-2 - [0:0]
+:DOCKER-USER - [0:0]
+-A FORWARD -j DOCKER-USER
+-A FORWARD -j DOCKER-ISOLATION-STAGE-1
+-A FORWARD -o docker0 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+-A FORWARD -o docker0 -j DOCKER
+-A FORWARD -i docker0 ! -o docker0 -j ACCEPT
+-A FORWARD -i docker0 -o docker0 -j ACCEPT
+-A DOCKER -d 172.17.0.2/32 ! -i docker0 -o docker0 -p tcp -m tcp --dport 80 -j ACCEPT
+-A DOCKER-ISOLATION-STAGE-1 -i docker0 ! -o docker0 -j DOCKER-ISOLATION-STAGE-2
+-A DOCKER-ISOLATION-STAGE-1 -j RETURN
+-A DOCKER-ISOLATION-STAGE-2 -o docker0 -j DROP
+-A DOCKER-ISOLATION-STAGE-2 -j RETURN
+-A DOCKER-USER -j RETURN
+COMMIT
+# Completed on Thu Apr 30 22:45:35 2020
+# Generated by iptables-save v1.6.0 on Thu Apr 30 22:45:35 2020
+
+*nat
+:PREROUTING ACCEPT [1672:305719]
+:INPUT ACCEPT [1672:305719]
+:OUTPUT ACCEPT [45:3375]
+:POSTROUTING ACCEPT [44:3291]
+:DOCKER - [0:0]
+-A PREROUTING -m addrtype --dst-type LOCAL -j DOCKER
+-A OUTPUT ! -d 127.0.0.0/8 -m addrtype --dst-type LOCAL -j DOCKER (пакеты подпадающие под это правило - пакет летит  хоста на адрес интерфейса хоста за исключением лупбэка)
+-A POSTROUTING -s 172.17.0.0/16 ! -o docker0 -j MASQUERADE
+-A POSTROUTING -s 172.17.0.2/32 -d 172.17.0.2/32 -p tcp -m tcp --dport 80 -j MASQUERADE
+-A DOCKER -i docker0 -j RETURN
+-A DOCKER ! -i docker0 -p tcp -m tcp --dport 80 -j DNAT --to-destination 172.17.0.2:80
+COMMIT
+
+
+мы стучимся на 172.17.0.2 это "чужой" интерфейс
+это пакет который летит через FORWARD
+
+путь прохождения пакета ( согласно картинке отсюда https://aceqbaceq.blogspot.com/2014/11/linux-z0.html ) будет такой
+
+routing decision(LOOK AT ROUTE TABLE) -> mangle (OUTPUT) -> nat (OUTPUT) -> 
+-> filter (OUTPUT) -> mangle (POSTROUTING) -> nat (POSTROUTING)
+
+в итоге когда мы 
+# ping  172.17.0.2 
+то сработают такие правила
+
+mangle (OUTPUT)
+пусто
+nat (OUTPUT) 
+-A OUTPUT ! -d 127.0.0.0/8 -m addrtype --dst-type LOCAL -j DOCKER = несработает
+filter (OUTPUT)
+пусто
+mangle (POSTROUTING)
+пусто
+nat (POSTROUTING)
+-A POSTROUTING -s 172.17.0.2/32 -d 172.17.0.2/32 -p tcp -m tcp --dport 80 -j MASQUERADE = несработает
+-A POSTROUTING -s 172.17.0.0/16 ! -o docker0 -j MASQUERADE =сработает
+
+в итоге пролетев все правила iptables ip будет такое преобразование :
+ip пакет поменяет scr ip на  172.17.0.1 и таким он будет выплюнут в docker0 интерфейс
+
+и таким он прилетит в контейнер
+то есть для контейнера все пакеты с хоста выглядят как прилетевшие с 172.17.0.1 ( в случае пингов )
+
+посмотрим что будет для такой команды с точки зрения iptables преобразований
+
+# curl 172.17.0.2:80
+
+я посмотрел будет все ровно тоже самое что и для пинга
+
+в итоге получаем что связь с сетью контейнера работает как связь с компом в локалке
+один veth в контейнере второй veth на хосте. хостовый veth воткнут в бридж порт на хосте.
+бридж порт на хосте имеет туже ip сеть что и порт в контейнере. в итоге обычная связь по локалке.
+эту схему можно представить вот так. в компе карта docker0 которая воткнута в свич. в этот же свич воткнут
+другой комп с картой контейнера. и они лежат в одной ip сети. вот так все просто.
+
+так. получается со связью с контейнером с самого хоста разобрались.
+
+теперь надо понять как работает связь с контейнером через 127.0.0.1
+
+с точки зрения прохождения цепочек iptables порядок будет тот же самый
+
+routing decision(LOOK AT ROUTE TABLE)mangle (OUTPUT) -> nat (OUTPUT) -> 
+-> filter (OUTPUT) -> mangle (POSTROUTING) -> nat (POSTROUTING)
+
+странно.. насколько я вижу.  когда мы пуляем с хоста на 127.0.0.1 ни одно правило ничего
+неменяет в пакете. таким образом пакет будет
+src ip  = 172.17.0.1  dst ip = 127.0.0.1 port=80
+в итоге он неприлетит в контейнер. однакоо эксперимент показыает что пакет прилетает в контейнер
+
+# curl 127.0.0.1:80
+<!DOCTYPE html>
+<html>
+
+какже так получается...?
+а получается вот как предварительно. при запуске контейнера помимо процесса с контейнером
+докер запускает и процесс docker-proxy который слушает все входящие на :80 и получив перенаправляет 
+в контейнер.
+получается такая вещь что если мы обращаемся к контейнеру по его родному ip = 172.17.0.2
+то связь происходит натуральным сетевым способом через L2-L3 механизм (ну только таблица
+iptables меняет src ip ).
+а если мы обращаемся на 127.0.0.1:80 то этот реквест поступает в docker-proxy а уже он его перенаправляет  в контейнер.
+именно из за docker-proxy работает связь с контейнером при обращении на 127.0.0.1:80
+если убить процесс с докер-прокси то связьтс с контейнером через 127.0.0.1:80 прекращает работать
+( а через 172.17.0.2:80 продолжает работать ибо для этого пути docker-proxy ненужен)
+
+
+Остановился на том что звездочками обозначил вопросы которые надо разобрать:
+
+*раз уж мы напоролись на docker-proxy 
+давайте его разберем
+
+теперь надо понять что значит docker-proxy
+root@test-kub-04:~# netstat -tnlp
+Active Internet connections (only servers)
+Proto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program name
+tcp6       0      0 :::80                   :::*                    LISTEN      17028/docker-proxy
+
+насколько я понял docker-proxy запускается докером если мы при создании контейнера указали опцию 
+проброса порта от контейнера во внешний мир -p 80:80
+
+docker run -p
+
+ -p, --publish ip:[hostPort]:containerPort | [hostPort:]containerPort
+          Publish a container's port, or range of ports, to the host.
+
+
+$ docker run --name mynginx1 -p 80:80 -d nginx
+
+эта опция -p задаает что мы можем обратиться а любой ip порт компа и порт1 и попадем в контейнер на порт2
+
+так вот при этой опции запускается докером докер-прокси. это было условие когда он запускается.
+теперь внимательно посмотрим когда он срабатывает.
+
+если мы с самого хоста обращаемся на ip контейнера : port то  докер прокси нам ненужен.
+мы попадаем на сокет контейнера чисто из за сетевых законов
+
+если мы с самого хоста обращемся на LOCAL_IP:port (кроме 127.0.0.1 ) то нам тоже докер прокси ненужен
+мы попадем на сокет контейнера за счет правила iptables
+-A DOCKER ! -i docker0 -p tcp -m tcp --dport 80 -j DNAT --to-destination 172.17.0.2:80
+
+если мы с самого хоста обратимся на 127.0.0.1:port ВОТ ТУТ ПЕРВЫЙ раз когда сработает докер-прокси !
+
+посмотрим какие таблицы\цепочки iptables срабаывают при обращении из вне на LOCAL_IP:port
+согласно (https://aceqbaceq.blogspot.com/2014/11/linux-z0.html)
+
+из вне обращаемся как
+
+(foregn_hostB)# curl hostA:80
+
+поскольку все что лежит за docker0 это как бы "внешняя сеть" по отношени. к хосту с классической сетевой
+точки зрения то пакет пойдет по filter(FORWARD) а не filter(INPUT)
+
+
+mangle(PREROUTING) - nat(PREROUTING) - routing decision(LOOK AT ROUTE TABLE)- mangle(FORWARD) -
+-  filter(FORWARD) - mangle(POSTROUTING) - nat(POSTROUTING)
+
+*filter
+:INPUT ACCEPT [10940:1075816]
+:FORWARD ACCEPT [0:0]
+:OUTPUT ACCEPT [3792:774535]
+:DOCKER - [0:0]
+:DOCKER-ISOLATION-STAGE-1 - [0:0]
+:DOCKER-ISOLATION-STAGE-2 - [0:0]
+:DOCKER-USER - [0:0]
+-A FORWARD -j DOCKER-USER
+-A FORWARD -j DOCKER-ISOLATION-STAGE-1
+-A FORWARD -o docker0 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+-A FORWARD -o docker0 -j DOCKER
+-A FORWARD -i docker0 ! -o docker0 -j ACCEPT
+-A FORWARD -i docker0 -o docker0 -j ACCEPT
+-A DOCKER -d 172.17.0.2/32 ! -i docker0 -o docker0 -p tcp -m tcp --dport 80 -j ACCEPT
+-A DOCKER-ISOLATION-STAGE-1 -i docker0 ! -o docker0 -j DOCKER-ISOLATION-STAGE-2
+-A DOCKER-ISOLATION-STAGE-1 -j RETURN
+-A DOCKER-ISOLATION-STAGE-2 -o docker0 -j DROP
+-A DOCKER-ISOLATION-STAGE-2 -j RETURN
+-A DOCKER-USER -j RETURN
+COMMIT
+# Completed on Thu Apr 30 22:45:35 2020
+# Generated by iptables-save v1.6.0 on Thu Apr 30 22:45:35 2020
+
+*nat
+:PREROUTING ACCEPT [1672:305719]
+:INPUT ACCEPT [1672:305719]
+:OUTPUT ACCEPT [45:3375]
+:POSTROUTING ACCEPT [44:3291]
+:DOCKER - [0:0]
+-A PREROUTING -m addrtype --dst-type LOCAL -j DOCKER
+-A OUTPUT ! -d 127.0.0.0/8 -m addrtype --dst-type LOCAL -j DOCKER (пакеты подпадающие под это правило - пакет c хоста
+летит  на адрес интерфейса хоста за исключением лупбэка)
+-A POSTROUTING -s 172.17.0.0/16 ! -o docker0 -j MASQUERADE
+-A POSTROUTING -s 172.17.0.2/32 -d 172.17.0.2/32 -p tcp -m tcp --dport 80 -j MASQUERADE
+-A DOCKER -i docker0 -j RETURN
+-A DOCKER ! -i docker0 -p tcp -m tcp --dport 80 -j DNAT --to-destination 172.17.0.2:80
+COMMIT
+
+смотрим
+
+важный момент в этой цепи это момент когда ядро принимает роутинговое решение то есть когда оно смотрит 
+в таблицу маршутизации.  потомучто после этого момента ядро узнает какая сетевая карта будет output
+(непутать с цепочкой OUTPUT) и когда ядро это поняло то мы получаем ответ для ключа -o "выходная карта"
+а этот ключ широко используется в iptables таблицах.
+входная сетевая карта ключ -i известна с самого начала.
+
+в данном случае -i ens160
+
+значит пробег по цепочкам будет такой 
+ 
+ mangle(PREROUTING) пусто
+
+ nat(PREROUTING)
+-A PREROUTING -m addrtype --dst-type LOCAL -j DOCKER = true
+-A DOCKER -i docker0 -j RETURN  = false
+-A DOCKER ! -i docker0 -p tcp -m tcp --dport 80 -j DNAT --to-destination 172.17.0.2:80
+
+получили что dst ip теперь = 172.17.0.2
+
+далее смотрим в рутинговую таблицу 
+
+ routing decision(LOOK AT ROUTE TABLE)
+default via 172.16.102.1 dev ens160 onlink
+172.16.102.0/24 dev ens160  proto kernel  scope link  src 172.16.102.34
+172.17.0.0/16 dev docker0  proto kernel  scope link  src 172.17.0.1
+
+понимаем что пакет полетит через docker0
+и значит полетит через FORWARD а не INPUT
+
+значит  -o = docker0
+
+итого	-i = ens160
+	-o = docker0
+	src ip = HOSTB
+	dest ip = 172.17.0.2
+
+ mangle(FORWARD) пусто
+
+ filter(FORWARD)
+-A FORWARD -j DOCKER-USER = true 
+-A DOCKER-USER -j RETURN = true
+-A FORWARD -j DOCKER-ISOLATION-STAGE-1 = true
+-A DOCKER-ISOLATION-STAGE-1 -i docker0 ! -o docker0 -j DOCKER-ISOLATION-STAGE-2 = false
+-A DOCKER-ISOLATION-STAGE-1 -j RETURN = true
+-A FORWARD -o docker0 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT = false
+-A FORWARD -o docker0 -j DOCKER = true
+-A DOCKER -d 172.17.0.2/32 ! -i docker0 -o docker0 -p tcp -m tcp --dport 80 -j ACCEPT = true
+
+ mangle(POSTROUTING) пусто
+
+ nat(POSTROUTING)
+-A POSTROUTING -s 172.17.0.0/16 ! -o docker0 -j MASQUERADE = false
+-A POSTROUTING -s 172.17.0.2/32 -d 172.17.0.2/32 -p tcp -m tcp --dport 80 -j MASQUERADE = false
+
+
+в итоге пакет направляется в docker0
+
+src ip = HOSTB
+dest ip = 172.17.0.2
+--dport = 80
+
+из этого я вижу что для связи из внешнего мира с контейнером docker-proxy ненужен 
+связь работает и без него средставами iptables
+
+проверим это убив процесс с докер-прокси.
+я проверил. убил докер-прокси. и с внешнего хоста по локалке постучал на мой хост на порт 80
+и успешно получил ответ от нжинкс то ест связь до контейнера дошла. без докер-прокси.
+
+ПОЛУЧАЕТСЯ что докер-прокси на данный момент оказыавется только нужен если 
+1) мы обращаемся изнутри самого хоста 
+2) на адрес 127.0.0.1:80
+и хотим при этом попасть на докер конейнер сокет.
+вот только в этом единственном случае нужен докер-прокси.
+все остальное успешно решает iptables 
+
+
+получается также что со связью с контейнером из внешнего мира мы попутно разобрались.
+
+* надо все таки разобрать так зачем же они ввели этот докер-прокси и можно ли его отключить 
+при запуске контейнера
+
+вот что написано в man dockerd
+
+--userland-proxy=true|false Rely on a userland proxy implementation for inter-container and outside-to-container loopback communications. Default is true.
+
+я отлючил userland proxy 
+
+я вставил 
+
+  "userland-proxy": false,
+  "iptables": true,
+
+в /etc/docker/daemon.json
+
+# cat /etc/docker/daemon.json
+{
+  "exec-opts": ["native.cgroupdriver=cgroupfs"],
+  "log-driver": "json-file",
+  "log-opts": {
+    "max-size": "100m"
+  },
+  "userland-proxy": false,
+  "iptables": true,
+  "storage-driver": "overlay2"
+}
+
+вот как netstat выглядит
+
+# netstat -tnlp
+Active Internet connections (only servers)
+Proto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program name
+tcp        0      0 0.0.0.0:22              0.0.0.0:*               LISTEN      1112/sshd
+tcp6       0      0 :::80                   :::*                    LISTEN      23756/dockerd
+tcp6       0      0 :::22                   :::*                    LISTEN      1112/sshd
+
+непонято то у нас порт конейнера слушал docker-proxy теперь его слушает dockerd
+есть ли разница? непонятно
+ведь мы хотели избавиться от прокси. чтоб связь с контейнером работала
+через iptables only
+
+вот как iptables выглядит теперь
+
+
+
+# iptables-save
+# Generated by iptables-save v1.6.0 on Sat May  2 21:44:14 2020
+*filter
+:INPUT ACCEPT [279:20641]
+:FORWARD ACCEPT [0:0]
+:OUTPUT ACCEPT [231:29908]
+:DOCKER - [0:0]
+:DOCKER-ISOLATION-STAGE-1 - [0:0]
+:DOCKER-ISOLATION-STAGE-2 - [0:0]
+:DOCKER-USER - [0:0]
+-A FORWARD -j DOCKER-USER
+-A FORWARD -j DOCKER-ISOLATION-STAGE-1
+-A FORWARD -o docker0 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+-A FORWARD -o docker0 -j DOCKER
+-A FORWARD -i docker0 ! -o docker0 -j ACCEPT
+-A FORWARD -i docker0 -o docker0 -j ACCEPT
+-A DOCKER -d 172.17.0.2/32 ! -i docker0 -o docker0 -p tcp -m tcp --dport 80 -j ACCEPT
+-A DOCKER-ISOLATION-STAGE-1 -i docker0 ! -o docker0 -j DOCKER-ISOLATION-STAGE-2
+-A DOCKER-ISOLATION-STAGE-1 -j RETURN
+-A DOCKER-ISOLATION-STAGE-2 -o docker0 -j DROP
+-A DOCKER-ISOLATION-STAGE-2 -j RETURN
+-A DOCKER-USER -j RETURN
+COMMIT
+# Completed on Sat May  2 21:44:14 2020
+# Generated by iptables-save v1.6.0 on Sat May  2 21:44:14 2020
+*nat
+:PREROUTING ACCEPT [1:229]
+:INPUT ACCEPT [1:229]
+:OUTPUT ACCEPT [0:0]
+:POSTROUTING ACCEPT [0:0]
+:DOCKER - [0:0]
+-A PREROUTING -m addrtype --dst-type LOCAL -j DOCKER
+-A OUTPUT -m addrtype --dst-type LOCAL -j DOCKER
+-A POSTROUTING -o docker0 -m addrtype --src-type LOCAL -j MASQUERADE
+-A POSTROUTING -s 172.17.0.0/16 ! -o docker0 -j MASQUERADE
+-A POSTROUTING -s 172.17.0.2/32 -d 172.17.0.2/32 -p tcp -m tcp --dport 80 -j MASQUERADE
+-A DOCKER -p tcp -m tcp --dport 80 -j DNAT --to-destination 172.17.0.2:80
+COMMIT
+# Completed on Sat May  2 21:44:14 2020
+
+посмотрим изменилось ли чтото с точки зрения сетевой пути к контейнеру
+
+*связь с другого компа сети в наш контейнер
+*связь изнутри хоста на контейнер по его IP 172.17.0.2
+*связь изнутри хоста на 127.0.0.1:80
+*связь изнутри хоста на LOCAL (исключая 127.0.0.1)
+
+*связь с другого компа сети в наш контейнер:
+если пакет летит с другого компа на порт 80 то в прероутинг подменяется dest ip на 172.17.0.2
+дальше в FORWARD такой пакет пропускается. итого этот путь прежний.
+
+
+*связь изнутри хоста на контейнер по его IP 172.17.0.2:
+routing decision - mangle (output) - nat(output) - filter(ouput) - 
+- mangle(postrouting) - nat(postrouting)
+
+routing decision
+(в routing decision для локальных процессов мы определяем выходной интерфейс -o 
+а также исходный интерфейс и src ip который удобнее использовать потому что
+в случае когда пакет прилетает с другого компа его src ip и -i известен пофакту,
+а когда мы с процесса с компа хотим куда то постучать то нам надо выбрать с какого
+интерфейса компа (их же несколько) мы будем это делать и каким исходным ip будем пользоваться)
+
+понимаем что -o=docker0
+понимаем что -i=docker0
+src ip = src ip (docker0) = 172.17.0.1
+
+
+mangle (output)
+пусто
+
+nat(output)
+DNAT --to-destination 172.17.0.2:80
+
+filter(ouput)
+accept
+
+mangle(postrouting)
+пусто
+
+nat(postrouting)
+-j MASQUERADE
+
+в итоге цепочка выглядит
+
+docker0 /src ip 172.17.0.1 dst ip 127.0.0.1/ -> routing decision - mangle (output) - nat(output) - filter(ouput) - 
+- mangle(postrouting) - nat(postrouting) -> docker0 /src ip 172.17.0.1 dst ip 172.17.0.2/
+
+итог: пролетели в контейнер через iptables как и раньше
+
+
+*связь изнутри хоста на 127.0.0.1:80 :
+
+# iptables-save
+# Generated by iptables-save v1.6.0 on Sat May  2 21:44:14 2020
+*filter
+:INPUT ACCEPT [279:20641]
+:FORWARD ACCEPT [0:0]
+:OUTPUT ACCEPT [231:29908]
+:DOCKER - [0:0]
+:DOCKER-ISOLATION-STAGE-1 - [0:0]
+:DOCKER-ISOLATION-STAGE-2 - [0:0]
+:DOCKER-USER - [0:0]
+-A FORWARD -j DOCKER-USER
+-A FORWARD -j DOCKER-ISOLATION-STAGE-1
+-A FORWARD -o docker0 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+-A FORWARD -o docker0 -j DOCKER
+-A FORWARD -i docker0 ! -o docker0 -j ACCEPT
+-A FORWARD -i docker0 -o docker0 -j ACCEPT
+-A DOCKER -d 172.17.0.2/32 ! -i docker0 -o docker0 -p tcp -m tcp --dport 80 -j ACCEPT
+-A DOCKER-ISOLATION-STAGE-1 -i docker0 ! -o docker0 -j DOCKER-ISOLATION-STAGE-2
+-A DOCKER-ISOLATION-STAGE-1 -j RETURN
+-A DOCKER-ISOLATION-STAGE-2 -o docker0 -j DROP
+-A DOCKER-ISOLATION-STAGE-2 -j RETURN
+-A DOCKER-USER -j RETURN
+COMMIT
+# Completed on Sat May  2 21:44:14 2020
+# Generated by iptables-save v1.6.0 on Sat May  2 21:44:14 2020
+*nat
+:PREROUTING ACCEPT [1:229]
+:INPUT ACCEPT [1:229]
+:OUTPUT ACCEPT [0:0]
+:POSTROUTING ACCEPT [0:0]
+:DOCKER - [0:0]
+-A PREROUTING -m addrtype --dst-type LOCAL -j DOCKER
+-A OUTPUT -m addrtype --dst-type LOCAL -j DOCKER
+-A POSTROUTING -o docker0 -m addrtype --src-type LOCAL -j MASQUERADE
+-A POSTROUTING -s 172.17.0.0/16 ! -o docker0 -j MASQUERADE
+-A POSTROUTING -s 172.17.0.2/32 -d 172.17.0.2/32 -p tcp -m tcp --dport 80 -j MASQUERADE
+-A DOCKER -p tcp -m tcp --dport 80 -j DNAT --to-destination 172.17.0.2:80
+COMMIT
+
+
+routing decision - mangle (output) - nat(output) - filter(ouput) - 
+- mangle(postrouting) - nat(postrouting)
+
+--dst ip=127.0.0.1
+
+
+routing decision
+понимаем что -o=lo
+--src ip=127.0.0.1
+-i=lo
+
+mangle (output)
+пусто
+
+nat(output)
+-A OUTPUT -m addrtype --dst-type LOCAL -j DOCKER
+-A DOCKER -p tcp -m tcp --dport 80 -j DNAT --to-destination 172.17.0.2:80
+в итоге происходит подмена dest-ip
+
+
+кстати я хочу тут привести какие были правила на этот же счет, когда докер работал 
+с опцией user-proxy
+
+-A OUTPUT ! -d 127.0.0.0/8 -m addrtype --dst-type LOCAL -j DOCKER
+-A DOCKER -i docker0 -j RETURN
+-A DOCKER ! -i docker0 -p tcp -m tcp --dport 80 -j DNAT --to-destination 172.17.0.2:80
+отсюда видна разница.
+что раньше если у нас dest-ip был равен 127.0.0.1 то подмена destination ip непроисходила.
+именно поэтому вслучае когда мы стучали на 127.0.0.1 нужен был docker-proxy работающий
+
+filter(ouput)
+accept
+
+mangle(postrouting)
+пусто
+
+nat(postrouting)
+поскольку  dest-ip = 172.17.0.2 то
+правило 
+-A POSTROUTING -o docker0 -m addrtype --src-type LOCAL -j MASQUERADE = true
+в итоге
+src ip = 172.17.0.1
+
+
+в итоге
+-i=docker0
+src ip=172.17.0.1
+
+-o=docker0
+dst = 172.17.0.2
+
+в итоге связь через 127.0.0.1 пройдет средствами только iptables.
+
+*связь изнутри хоста на LOCAL (исключая 127.0.0.1)
+для примера dest-ip=172.16.101.32 (ens160)
+
+
+# iptables-save
+# Generated by iptables-save v1.6.0 on Sat May  2 21:44:14 2020
+*filter
+:INPUT ACCEPT [279:20641]
+:FORWARD ACCEPT [0:0]
+:OUTPUT ACCEPT [231:29908]
+:DOCKER - [0:0]
+:DOCKER-ISOLATION-STAGE-1 - [0:0]
+:DOCKER-ISOLATION-STAGE-2 - [0:0]
+:DOCKER-USER - [0:0]
+-A FORWARD -j DOCKER-USER
+-A FORWARD -j DOCKER-ISOLATION-STAGE-1
+-A FORWARD -o docker0 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+-A FORWARD -o docker0 -j DOCKER
+-A FORWARD -i docker0 ! -o docker0 -j ACCEPT
+-A FORWARD -i docker0 -o docker0 -j ACCEPT
+-A DOCKER -d 172.17.0.2/32 ! -i docker0 -o docker0 -p tcp -m tcp --dport 80 -j ACCEPT
+-A DOCKER-ISOLATION-STAGE-1 -i docker0 ! -o docker0 -j DOCKER-ISOLATION-STAGE-2
+-A DOCKER-ISOLATION-STAGE-1 -j RETURN
+-A DOCKER-ISOLATION-STAGE-2 -o docker0 -j DROP
+-A DOCKER-ISOLATION-STAGE-2 -j RETURN
+-A DOCKER-USER -j RETURN
+COMMIT
+# Completed on Sat May  2 21:44:14 2020
+# Generated by iptables-save v1.6.0 on Sat May  2 21:44:14 2020
+*nat
+:PREROUTING ACCEPT [1:229]
+:INPUT ACCEPT [1:229]
+:OUTPUT ACCEPT [0:0]
+:POSTROUTING ACCEPT [0:0]
+:DOCKER - [0:0]
+-A PREROUTING -m addrtype --dst-type LOCAL -j DOCKER
+-A OUTPUT -m addrtype --dst-type LOCAL -j DOCKER
+-A POSTROUTING -o docker0 -m addrtype --src-type LOCAL -j MASQUERADE
+-A POSTROUTING -s 172.17.0.0/16 ! -o docker0 -j MASQUERADE
+-A POSTROUTING -s 172.17.0.2/32 -d 172.17.0.2/32 -p tcp -m tcp --dport 80 -j MASQUERADE
+-A DOCKER -p tcp -m tcp --dport 80 -j DNAT --to-destination 172.17.0.2:80
+COMMIT
+
+
+routing decision - mangle (output) - nat(output) - filter(ouput) - 
+- mangle(postrouting) - nat(postrouting)
+
+--dst ip=172.16.101.32
+
+routing decision 
+-o=ens160
+-src-ip=172.16.101.32
+-i=ens160
+
+mangle (output) 
+пусто
+
+nat(output)
+-A OUTPUT -m addrtype --dst-type LOCAL -j DOCKER
+-A DOCKER -p tcp -m tcp --dport 80 -j DNAT --to-destination 172.17.0.2:80
+
+значит -o меняется на -o=docker0
+
+filter(ouput)
+accept
+
+mangle(postrouting)
+пусто
+
+nat(postrouting)
+-A POSTROUTING -o docker0 -m addrtype --src-type LOCAL -j MASQUERADE
+значит
+--src-ip=172.17.0.1
+-i=docker0
+
+в итоге
+пакет пойдет в контейнер средствами исключетльно iptables
+
+
+главный итог - во всех случаях пакет доходит до контейнера 
+и доходит исключиетльно средствами iptables
+значит отключение user-proxy действительно его отключает.
+и действительно вся связт идет средствами iptables
+едиснвтенное что непонятно зачем тогда совать в netstat чтобы
+dockerd типа слушал 80 порт. если это вообще ненужно.
+
+
+что еще интересно заметить. поскольку для случая когда локальный процесс лезет в интернет 
+в цепи обработки этого пакета нет цепочки nat(PREROUTING) которая позволяет менять dest ip
+у пакета то эту роль выполняет цепочка nat(OUTPUT)
+поэтому полезно запомнить что
+nat(preoruting) меняет dest io
+nat(output) тоже меняет dest ip
+а
+nat(postrouting) меняет src ip
+
+
+
+*еще надо в целом проанализировать все правила iptables
+
+вначале посмотрим на таблицу когда докер запущен  с опцией user-proxy
+
+*filter
+:INPUT ACCEPT [10940:1075816]
+:FORWARD ACCEPT [0:0]
+:OUTPUT ACCEPT [3792:774535]
+:DOCKER - [0:0]
+:DOCKER-ISOLATION-STAGE-1 - [0:0]
+:DOCKER-ISOLATION-STAGE-2 - [0:0]
+:DOCKER-USER - [0:0]
+-A FORWARD -j DOCKER-USER
+-A FORWARD -j DOCKER-ISOLATION-STAGE-1
+-A FORWARD -o docker0 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+-A FORWARD -o docker0 -j DOCKER
+-A FORWARD -i docker0 ! -o docker0 -j ACCEPT
+-A FORWARD -i docker0 -o docker0 -j ACCEPT
+-A DOCKER -d 172.17.0.2/32 ! -i docker0 -o docker0 -p tcp -m tcp --dport 80 -j ACCEPT
+-A DOCKER-ISOLATION-STAGE-1 -i docker0 ! -o docker0 -j DOCKER-ISOLATION-STAGE-2
+-A DOCKER-ISOLATION-STAGE-1 -j RETURN
+-A DOCKER-ISOLATION-STAGE-2 -o docker0 -j DROP
+-A DOCKER-ISOLATION-STAGE-2 -j RETURN
+-A DOCKER-USER -j RETURN
+COMMIT
+# Completed on Thu Apr 30 22:45:35 2020
+# Generated by iptables-save v1.6.0 on Thu Apr 30 22:45:35 2020
+
+*nat
+:PREROUTING ACCEPT [1672:305719]
+:INPUT ACCEPT [1672:305719]
+:OUTPUT ACCEPT [45:3375]
+:POSTROUTING ACCEPT [44:3291]
+:DOCKER - [0:0]
+-A PREROUTING -m addrtype --dst-type LOCAL -j DOCKER
+-A OUTPUT ! -d 127.0.0.0/8 -m addrtype --dst-type LOCAL -j DOCKER (пакеты подпадающие под это правило - пакет c хоста
+летит  на адрес интерфейса хоста за исключением лупбэка)
+-A POSTROUTING -s 172.17.0.0/16 ! -o docker0 -j MASQUERADE
+-A POSTROUTING -s 172.17.0.2/32 -d 172.17.0.2/32 -p tcp -m tcp --dport 80 -j MASQUERADE
+-A DOCKER -i docker0 -j RETURN
+-A DOCKER ! -i docker0 -p tcp -m tcp --dport 80 -j DNAT --to-destination 172.17.0.2:80
+COMMIT
+
+ для пакетов прилетевших с чужого компа сети на порт 80 :
+dst ip подменяется на ip контейнера (172.17.0.2) 
+и оно долетает до контейнера
+
+ для пакетов исходящих от локальных процессов :
+если мы стучимся на 127.0.0.1 то iptables ничего неделает. и пакет улетает на 127.0.0.1:80
+просто его там перехватывает docker-proxy и только поэтому он долетает до контейнера
+ если мы стучимся на остальные LOCAL адреса
+например на 172.16.101.32(ens160)
+происходит подмена dest ip на 172.17.0.2, src ip остается = 172.16.101.32
+получается непонятно как такое пакет прилетает обратно из контейнера 
+в хост. я зашел в неймспейс контейнера и посмотрел доступные ему маршруты
+
+# docker inspect mynginx1 | grep -i pid
+            "Pid": 25499,
+
+# nsenter --net=/proc/25499/ns/net ip -c route show
+default via 172.17.0.1 dev eth0
+172.17.0.0/16 dev eth0  proto kernel  scope link  src 172.17.0.2
+
+получается у контейнеров дефеолтовый гейтвей это docker0
+поэтому конечно пакет из контейнера долетает до docker0
+попадает на хост с его хостовой таблицей маршрутизации большой
+и конечно тогда уже понятно куда посылать после docker0 пакет.
+то есть вся фишка в том что докер прописывает внутри контейнера
+дефолтоый маршрут через docker0.
+
+
+
+\
+
+также хочу еще раз заметить 
+как странно работает nsenter
+
+если указываю --net то показывает один результат
+если указыываю -t то показыает совершенно другой результат. что за бред
+
+# nsenter -t 25499 ip -c route show
+default via 172.16.102.1 dev ens160 onlink
+172.16.102.0/24 dev ens160  proto kernel  scope link  src 172.16.102.34
+172.17.0.0/16 dev docker0  proto kernel  scope link  src 172.17.0.1
+172.18.0.0/16 dev br-9a31314af513  proto kernel  scope link  src 172.18.0.1 linkdown
+
+# nsenter --net=/proc/25499/ns/net ip -c route show
+default via 172.17.0.1 dev eth0
+172.17.0.0/16 dev eth0  proto kernel  scope link  src 172.17.0.2
+
+но прикол в том что правильно именно через --net
+потому что если зайти в контейнер
+
+# docker exec -it mynginx1 /bin/bash
+и посмотреть руты из нутри то покажет 
+
+~# nsenter --net=/proc/25499/ns/net ip -c route show
+default via 172.17.0.1 dev eth0
+172.17.0.0/16 dev eth0  proto kernel  scope link  src 172.17.0.2
+
+
+поэтому как бутто ключ -t можно забыть. он гавно. он показывает вранье
+
+\
+
+ если мы стучимся непосредственно на адрес контейнера (172.17.0.2) :
+то src ip = 172.17.0.1 и как бы происходит прямая передача в рамках
+броадкаст домена.
+
+ таким образом для локальных процессов связь с контейнером работает так:
+если мы стучимся на ip контейнера 172.17.0.2 то связь идет без проблем
+поскольку хост имеет ip (docker0)= 172.17.0.1
+если мы стучимся на 127.0.0.1:80 то этот пакет приходит на сокет докер прокси
+и он его как то там переправляет для нас прозрачно в контейнер. если докер
+прокси убить то эта связь перестает работать
+если мы стучимся на любой другой локальный для хоста ip адрес то 
+iptables подменяет dest ip на 172.17.0.2 а src ip остается прежний
+но с этим нет проблем потому что внутрти контейнера прописан docker0
+как дефолт гейтвей. поэтому контейнер может спокойно пинговать все 
+сети которые есть в таблице маршрутизации самого хоста. 
+
+таким образом докер прокси нужен только для одного случая.
+когда изнутри хоста мы обращаемся на 127.0.0.1 а хотим 
+попасть в контейнер.
+
+5\3\2020 = закончил тут.!!!!!!!!!!!!!!!!
+
+теперь посмотрим на таблицу когда докер запущен без опции user-proxy
+
+# iptables-save
+# Generated by iptables-save v1.6.0 on Sat May  2 21:44:14 2020
+*filter
+:INPUT ACCEPT [279:20641]
+:FORWARD ACCEPT [0:0]
+:OUTPUT ACCEPT [231:29908]
+:DOCKER - [0:0]
+:DOCKER-ISOLATION-STAGE-1 - [0:0]
+:DOCKER-ISOLATION-STAGE-2 - [0:0]
+:DOCKER-USER - [0:0]
+-A FORWARD -j DOCKER-USER
+-A FORWARD -j DOCKER-ISOLATION-STAGE-1
+-A FORWARD -o docker0 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+-A FORWARD -o docker0 -j DOCKER
+-A FORWARD -i docker0 ! -o docker0 -j ACCEPT
+-A FORWARD -i docker0 -o docker0 -j ACCEPT
+-A DOCKER -d 172.17.0.2/32 ! -i docker0 -o docker0 -p tcp -m tcp --dport 80 -j ACCEPT
+-A DOCKER-ISOLATION-STAGE-1 -i docker0 ! -o docker0 -j DOCKER-ISOLATION-STAGE-2
+-A DOCKER-ISOLATION-STAGE-1 -j RETURN
+-A DOCKER-ISOLATION-STAGE-2 -o docker0 -j DROP
+-A DOCKER-ISOLATION-STAGE-2 -j RETURN
+-A DOCKER-USER -j RETURN
+COMMIT
+# Completed on Sat May  2 21:44:14 2020
+# Generated by iptables-save v1.6.0 on Sat May  2 21:44:14 2020
+*nat
+:PREROUTING ACCEPT [1:229]
+:INPUT ACCEPT [1:229]
+:OUTPUT ACCEPT [0:0]
+:POSTROUTING ACCEPT [0:0]
+:DOCKER - [0:0]
+-A PREROUTING -m addrtype --dst-type LOCAL -j DOCKER
+-A OUTPUT -m addrtype --dst-type LOCAL -j DOCKER
+-A POSTROUTING -o docker0 -m addrtype --src-type LOCAL -j MASQUERADE
+-A POSTROUTING -s 172.17.0.0/16 ! -o docker0 -j MASQUERADE
+-A POSTROUTING -s 172.17.0.2/32 -d 172.17.0.2/32 -p tcp -m tcp --dport 80 -j MASQUERADE
+-A DOCKER -p tcp -m tcp --dport 80 -j DNAT --to-destination 172.17.0.2:80
+COMMIT
+
+
+* почитать хотя бы кратко про устройство сетей в докер
+
+докер на хосте для поднимает интерфейс docker0 типа бридж L3. потом создает пары veth
+первый из пары оставляет в неймспейсе сетевом хоста. и  вставляет его в состав бриджа.
+второй veth из пары он сует в неймспейс контеенера. и veth который в контейнере он дает IP из той же
+сети что и docker0
+
+пример
+
+docker0 = 172.17.0.1\16
+
+в контейнере
+
+eth0(тип veth) = 172.17.0.2
+
+таким образом все ip контейнеров помещаются в сеть 172.17.0.0\16
+
+созданный при установке докера бридж docker0 назывыается дефолтовая бридж сеть докера.
+
+фишка в том что можно создавать дополниельный бридж сети . они называются user bridge networks
+и при создании контейнера указывать что его нужно поместить в бридж сеть свою.
+
+посмотреть список "сетей" докера
+
+~# docker network list
+NETWORK ID          NAME                DRIVER              SCOPE
+f35a33c40fd7        bridge              bridge              local
+e1518aab5f14        host                host                local
+857eee255516        none                null                local
+9a31314af513        vasya-net           bridge              local
+
+
+name=bridge - дефолтовая бридж сеть докера
+name= vasya-net - это бридж сеть которую создал я.
+
+
+создам еще одну bridge2-net сеть
+
+~# docker network create bridge2-net
+c92fe5983a5ed768a7ff86d82ca9c32c596ab778333946221e2ad60c8a0951f2
+
+root@test-kub-04:~# docker network list
+NETWORK ID          NAME                DRIVER              SCOPE
+f35a33c40fd7        bridge              bridge              local
+c92fe5983a5e        bridge2-net         bridge              local
+e1518aab5f14        host                host                local
+857eee255516        none                null                local
+9a31314af513        vasya-net           bridge              local
+
+при создании бридж сети созждается на компе бридж интерфейс L3
+
+root@test-kub-04:~# ip -c link show type bridge
+3: docker0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP mode DEFAULT group default
+    link/ether 02:42:8e:1e:18:de brd ff:ff:ff:ff:ff:ff
+14: br-9a31314af513: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc noqueue state DOWN mode DEFAULT group default
+    link/ether 02:42:be:63:e7:31 brd ff:ff:ff:ff:ff:ff
+25: br-c92fe5983a5e: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc noqueue state DOWN mode DEFAULT group default
+    link/ether 02:42:54:91:f8:e2 brd ff:ff:ff:ff:ff:ff
+
+
+посмотрим их адреса
+
+# ip -c -f inet address  show
+
+3: docker0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default
+    inet 172.17.0.1/16 brd 172.17.255.255 scope global docker0
+
+14: br-9a31314af513: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc noqueue state DOWN group default
+    inet 172.18.0.1/16 brd 172.18.255.255 scope global br-9a31314af513
+
+25: br-c92fe5983a5e: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc noqueue state DOWN group default
+    inet 172.19.0.1/16 brd 172.19.255.255 scope global br-c92fe5983a5e
+
+
+посморим на тоже самое средствами самого докера
+
+~# docker inspect bridge2-net | grep -i subnet
+                    "Subnet": "172.19.0.0/16",
+
+
+теперь я создам новый контейнер и укажу чтобы его вставили в сеть bridge2-net
+
+# docker run --net=bridge2-net -it ubuntu /bin/bash
+
+посмотрим какой ip получился у этого контейнера изнутри
+
+/# ip -c -f inet address show
+28: eth0@if29: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default  link-netnsid 0
+    inet 172.19.0.2/16 brd 172.19.255.255 scope global eth0
+
+итак мы видим что контейнер имеет ip из сети bridge2-net
+
+так вот в доке от докера написано что если контейнер входит в дефолтовый бридж 
+то контейнеры могут общаться друг с другом только через ip 
+а вот если контейнеры входят в состав юзерских бриджей то контейнеры автоматом
+могу общаться друг с другом и через dns имена через имена короче.
+как я понимаю это происходит через то что докер автоматом делать автоматом 
+записи в /etc/hosts в контейнерах друг про друга. 
+щас проверим
+
+итак имеем контейнер 
+
+# docker ps
+CONTAINER ID        IMAGE               COMMAND                  CREATED             STATUS              PORTS                NAMES
+35729aeb0a08        ubuntu              "/bin/bash"              16 minutes ago      Up 3 minutes                             silly_driscoll
+
+он имеет адрес
+
+172.19.0.2
+
+и имеет hosts
+
+~# nsenter --mount=/proc/30420/ns/mnt cat /etc/hosts
+127.0.0.1       localhost
+172.19.0.2      35729aeb0a08
+
+
+(удобно все смотрет внутри контейнера используя знание про неймспейсы)
+
+
+создадим еще один контейнер в юзер сети bridge2-net
+
+# docker run --name=b2-c1 --net=bridge2-net -it ubuntu /bin/bash
+# docker start b2-c1
+
+# docker ps
+CONTAINER ID        IMAGE               COMMAND                  CREATED             STATUS              PORTS                NAMES
+5a3fdbce4d7b        ubuntu              "/bin/bash"              20 seconds ago      Up 2 seconds                             b2-c1
+35729aeb0a08        ubuntu              "/bin/bash"              21 minutes ago      Up 8 minutes                             silly_driscoll
+
+
+контейнер b2-c1
+ip = 172.19.0.3
+
+
+итак 
+
+контейнер b2-c1
+ip = 172.19.0.3
+
+конейтер silly_driscoll
+ip = 172.19.0.2
+
+посмотрим их hosts
+появился ли автоматом в их hosts инфо друг про друга
+
+~# nsenter --mount=/proc/30420/ns/mnt cat /etc/hosts
+127.0.0.1       localhost
+172.19.0.2      35729aeb0a08
+
+# nsenter --net=/proc/30420/ns/net ip -c -f inet address show scope global
+    inet 172.19.0.2/16 brd 172.19.255.255 scope global eth0
+
+
+
+
+
+
+# nsenter --mount=/proc/30913/ns/mnt cat /etc/hosts
+127.0.0.1       localhost
+172.19.0.3      5a3fdbce4d7b
+
+# nsenter --net=/proc/30913/ns/net ip -c -f inet address show scope global
+34: eth0@if35: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default  link-netnsid 0
+    inet 172.19.0.3/16 brd 172.19.255.255 scope global eth0
+
+
+значит из того что Я вижу. то что пишет дока от докера это полная ложь.
+я создал два контейнера в юзер бридж сети. но в их hosts прописаны только  собственные ip.
+поэтому это ложь что контейнеры могут  общаться пинговать друг друга по именам контейнера (dns имена)
+это ложь. они в итоге могут пинговать друг друга только по ip
+также как и контейнеры сидящие в дефолтовой бриджевой сети.
+
+
+что я открыл 
+
+# nsenter --net=/var/run/docker/netns/
+19ddc25dea2d  76e5fdc15c50  8bcb48d07d0b
+
+root@test-kub-04:~# docker ps
+~# docker ps | awk '{print $1}'
+CONTAINER
+5a3fdbce4d7b
+35729aeb0a08
+6c52734f2d22
+
+
+ то есть что в папке =/var/run/docker/netns/
+ создаются файлы совершенно несовпадающие с container-id
+ 
+это плохо.
+ 
+
+вот как найти связь между container-id 
+# docker ps --format "table {{.ID}}\t{{.Names}}"
+CONTAINER ID        NAMES
+5a3fdbce4d7b        b2-c1
+35729aeb0a08        silly_driscoll
+6c52734f2d22        mynginx1
+
+
+
+и файлом описывающим сетевой неймспейс
+# ls -1 /var/run/docker/netns/
+19ddc25dea2d
+76e5fdc15c50
+8bcb48d07d0b
+
+
+
+
+этого контейнера
+
+# docker inspect 5a3fdbce4d7b  | grep -E "19ddc25dea2d|76e5fdc15c50|8bcb48d07d0b"
+            "SandboxKey": "/var/run/docker/netns/76e5fdc15c50", 
+
+это очень плохо что имя контейнера и его файл докеровский который указыает на контейнерный
+сетевой неймспейс несовпадают.
+
+
+
+короче я щас войду в контейнер и убедюсь что он неможет пинговать своего соседа по имени.
+
+
+контейнер b2-c1
+id  5a3fdbce4d7b
+pid 30913
+ip = 172.19.0.3
+
+hosts
+127.0.0.1       localhost
+172.19.0.3      5a3fdbce4d7b
+
+
+конейтер silly_driscoll
+id 35729aeb0a08
+pid 30420
+ip = 172.19.0.2
+
+hosts
+127.0.0.1       localhost
+172.19.0.2      35729aeb0a08
+
+
+
+итак я вошел в контейнер
+# docker exec -it b2-c1 /bin/bash
+
+
+# hostname
+5a3fdbce4d7b
+
+# ip address show
+    inet 172.19.0.3/16 brd 172.19.255.255 scope global eth0
+
+
+и пробую пингануть своего соседа по имени
+
+
+# ping 35729aeb0a08
+PING 35729aeb0a08 (172.19.0.2) 56(84) bytes of data.
+64 bytes from 35729aeb0a08.bridge2-net (172.19.0.2): icmp_seq=1 ttl=64 time=0.080 ms
+^C
+--- 35729aeb0a08 ping statistics ---
+1 packets transmitted, 1 received, 0% packet loss, time 0ms
+rtt min/avg/max/mdev = 0.080/0.080/0.080/0.000 ms
+
+работает! значит дока говорит правду!
+
+пингуется он по container-id
+
+но что странно как это работает?
+ведь в /etc/hosts ничего нет про 172.19.0.2
+
+
+# cat /etc/hosts
+127.0.0.1       localhost
+172.19.0.3      5a3fdbce4d7b
+
+а вот по имени непингуется
+
+
+
+# ping silly_driscoll
+ping: silly_driscoll: Temporary failure in name resolution
+
+такое ощущение что у современного докера появился DNS сервис
+и резолвинг имен идет теперь не через hosts а через докеровский DNS
+
+далее написано что если контейнер входит в юзеровскую сеть 
+то контейнер можно налету из это сети убирать и подключать 
+к другой юзерской сети. это круто щас проверим.
+ а вот если контейнер входит в дефолтовую докервскую сеть 
+ то налету неполучится.
+ 
+ 
+ берем контейнер
+ 
+ контейнер b2-c1
+id  5a3fdbce4d7b
+pid 30913
+ip = 172.19.0.3
+
+и отключаем его от сети
+
+~# docker network disconnect bridge2-net b2-c1
+
+посмотрим что там с сетью внутри контейнера сейчас
+
+/# ip link show
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN mode DEFAULT group default qlen 1
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+
+ожидаемо. докер убрал eth(тип veth) из неймспейса контейнера
+
+
+подключаем контейнер b2-c1 к сети vasya-net ("172.18.0.0/16")
+
+# docker network connect vasya-net b2-c1
+
+смотрим что внутри контейнера с сетью стало
+
+
+~# docker inspect b2-c1 | grep -i ipaddress
+            "SecondaryIPAddresses": null,
+            "IPAddress": "",
+                    "IPAddress": "172.18.0.2",
+					
+					
+					
+					
+итого 
+
+было
+
+ 
+ контейнер b2-c1
+id  5a3fdbce4d7b
+pid 30913
+ip = 172.19.0.3
+
+стало
+
+ контейнер b2-c1
+id  5a3fdbce4d7b
+pid 30913
+ip = 172.18.0.2
+
+
+посмотрим можно ли пинговать по IP контейнер с одной сети в другой сети
+
+будем пинговать с 172.18.0.2 конейтер с 172.19.0.2 
+
+
+/# ping 172.19.0.2
+PING 172.19.0.2 (172.19.0.2) 56(84) bytes of data.
+^C
+--- 172.19.0.2 ping statistics ---
+3 packets transmitted, 0 received, 100% packet loss, time 2000ms
+
+пинги не проходят.
+значит между сетями  типа бридж докер неразрешает иметь связь.
+
+
+еще раз укажу вот на эту делать. 
+During a container’s lifetime, you can connect or disconnect it
+ from user-defined networks on the fly. To remove a container from 
+ the default bridge network, you need to stop the container and recreate 
+ it with different network options.   
+
+
+тут я вспоминаю про кубернетес. докер сети есть нетоько в докере.
+они есть и в докере который работает в кубернетесе
+
+вот список сетей на мастер -ноде
+
+~# docker network list
+NETWORK ID          NAME                DRIVER              SCOPE
+be292b1499a3        bridge              bridge              local
+1f0be08a419d        host                host                local
+cb0b55d82ec5        none                null                local
+
+
+на дата ноде к8 тоже есть докер сети
+
+~# docker network list
+NETWORK ID          NAME                DRIVER              SCOPE
+df38a3a0ec7b        bridge              bridge              local
+4a496e875af8        host                host                local
+293243971b1a        none                null                local
+
+поэтому изучуение как устроены сети в докере имеет прямую связь с  докером в куберентесе
+
+
+docker network create  создает именно бридж сеть. у докера есть и другие 
+типы сетей. но пока мы говорим о бридж сетях
+
+ я проверил и прочитал про то что при создании контейнера нельзя
+ так сделать чтобы у него было две и более сетевые карточки сразу которые принадлежат
+ двум бриж сетям.
+ 
+ то есть вот такая команда непрокатит
+ 
+ # docker network create --name=box4 --network-bridge2-net --network=vasya-net  -it ubuntu /bin/bash
+
+создать контейнер можно только с одной сетью.
+
+# docker create -it --name="box6" --network=bridg2-net ubuntu /bin/bash
+
+а уже далее мы можем добавить еще одну сеть к этому контейнеру
+
+# docker network connect vasya-net box6
+
+теперь контейнер подключен сразу к двум сетям
+bridge2-net
+vasya-net
+
+на уровне ядра получается вот что.
+в нашем сетевом неймспейсе лежит два бридж интерфейса
+docker0
+docker1
+
+в контейнере лежит два veth интерфейса в сетевом неймспейсе контейнера.
+а их хвосты лежат в неймпейсе хоста , там же где docker0 и docker1
+
+
+кстати щас такая мода пошла что если есть команда и опция например docker create
+то мануал именно для этой комбинации выглядит как man docker-create. ну хоть удобно стало
+
+очень быстро возникает вопрос. 
+как посмотреть какие контейнера лежат в той или этой сети докера.
+
+ответ
+
+~# docker network inspect bridge2-net | grep -i name
+        "Name": "bridge2-net",
+                "Name": "silly_driscoll",
+                "Name": "box3",
+
+
+в сети bridge2-net 
+сидят два контейнера
+ "Name": "silly_driscoll",
+ "Name": "box3"
+				
+
+очень удобно
+
+щас мы проверим
+если на хосте поставить
+net.ipv4.ip_forward = 0
+
+то смогут ли контейнеры общаться друг с другом
+могут ли они пинговать сеть хоста
+могут ли они выходить за рамки хоста
+
+
+# docker inspect silly_driscoll | grep -i address
+          
+                    "IPAddress": "172.19.0.2",
+                    
+
+# docker inspect box3 | grep -i address
+            
+                    "IPAddress": "172.19.0.3",
+                   
+				   
+				   
+				   
+
+
+
+чтобы контейнеры могли общаться с 
+
+
+итак ответы на вопросы
+при net.ipv4.ip_forward = 0
+
+
+
+контейнеры общаться друг с другом = да
+могут ли они пинговать сеть хоста = да
+могут ли они выходить за рамки хоста = нет
+
+
+
+
+настройки дефолтовой бридж сети докера кастомизируются в daemon.json
+если что
+
+
+немного щас отойдем от кубернетеса и чуть более уйдем в сторону докера.
+
+помимо бридж сетей в докере есть оверлей сети.
+они позволяют связываться контейнерам друг с другом между хостами.
+
+
+чтобы создать оверлей сеть надо  ( https://docs.docker.com/network/overlay/ )
+
+# docker swarm init
+# docker network create -d overlay --attachable overlay-net-1
+
+существенно то что в докере сеть оверлейную нельзя создать без сворма.
+то есть вначале хост должен стать мастером сворма или присоединиться к другому мастеру 
+сворма. и только после этого можно создать оверлейную сеть.
+
+
+как только мы создали сворм либо вошли в состав другого сворма то на хосте
+возникнте две сети
+
+ingress ( driver overlay)
+docker_gwbridge ( driver bridge )
+
+как я понял docker_gwbridge используется самим докер сервисом чтобы связываться через 
+эту сеть с другими докер сервисами расположенными на других хостах
+
+через ingress идет цитирую control and data trafic related with swarm services.
+это пока неясно что значит.
+
+вобщем эти две сети создаюбтся автоматом.
+
+а мы при этом можем уже и свою оверлей сеть создать.
+
+# docker network create -d overlay --attachable overlay-net-1
+
+как я понял когда мы создали сворм то после этого у нас есть два класса 
+сущностей - есть  сворм сервисы а есть standalone контейнеры.
+
+
+флаг --attacahble дает то что оверлейную сеть overlay-net-1
+смогую юзать нетолько оверлейные сервисы но и стэндэлоун 
+контейнеры
+
+если посмотреть в свойства ingress сети 
+то увидим какой ip оно имеет
+
+:~# docker network inspect ingress
+[
+    {
+        "Name": "ingress",
+                    "Subnet": "10.0.0.0/24",
+                    "Gateway": "10.0.0.1"
+                }
+            ]
+
+
+
+сразу хочу сказать что документация от докеры в 1 000 000 раз лучше написана
+чем к кубернетесу.
+
+и управляемость докер структурой в 1000 000 раз проще чем кубернетесом.
+ладно проехали
+
+значит я убрал свои сети из докера и мы иммеем вот такой конфиг
+
+~# docker network list
+NETWORK ID          NAME                DRIVER              SCOPE
+f35a33c40fd7        bridge              bridge              local
+727eeb050197        docker_gwbridge     bridge              local
+e1518aab5f14        host                host                local
+dkfgngbom561        ingress             overlay             swarm
+857eee255516        none                null                local
+
+
+посмотрим плотно параметры этих сетей
+
+
+
+~# docker netowrk inspect bridge
+docker: 'netowrk' is not a docker command.
+See 'docker --help'
+root@test-kub-04:~# docker network inspect bridge
+   
+        "Driver": "bridge",
+                    "Subnet": "172.17.0.0/16",
+                    "Gateway": "172.17.0.1"
+            "com.docker.network.bridge.name": "docker0",
+     
+видим какая ip сеть скрывается за этой сетью
+и какая сетевая карта была создана на хосте под эту сеть.
+
+
+про сеть под именем host ничего интересного нет в inspect
+дока пишет что контейнер можно подключить к сети хоста.
+при этом контейнер будет сидеть в сетевом неймспейсе хоста.
+получается как самый обычный процесс на хосте
+как это было раньше по старринке.
+при этом контейнер небудет иметь своего личного ip
+ну это и понятно потому что процесс сидя в неймсппейсе хоста
+работает со всеми сетевыми карточками которые доступны хосту.
+
+осталось на практике понять как рабооать с конейнером в сети хоста.
+и что это дает.
+
+в доке от докера они так и пишут 
+что контейнер по всем другим неймспейсам имеет их свои.
+в этом смысле он изолирован от системы
+но с точки зрения сетевого неймспейса он лежит в том же что и хост
+(имеется ввиду неймпейс что и у $PID = 1)
+
+кстати теперь мне непонятно что же такое runc и зачем он нужен.
+если у нас есть неймспейсы + cgroup что еще надо 
+чтобы иметь контейнер. вроде и так все есть.
+
+чтобы контейнер при создании поппал в сеть host надо указать ключ
+
+ --network host 
+ 
+пример
+
+# docker run --rm -d --network host --name my_nginx nginx
+
+
+при этом порты ключом -p ненужно экспоузить.
+
+
+в итоге имеем контейнер у которого в доступе все сетевые интерейсы хоста.
+с другой стороны  его процессы и фс итп полностью изолированны от системы.
+
+чтото типа виртуалки которая при этом имеет доступ ко всем интерфейсам хоста.
+
+как я понял такой контейнер скорее диковинка и практическое его использование
+пока непонятно. ну типа пишут что если нам надо заэкспоузить очень 
+много портов то есть смысл поместить контейнер в сеть host а не в bridge.
+
+
+вот что показывает нам netstat про такой контейнер
+
+# netstat -tnlp
+Active Internet connections (only servers)
+Proto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program name
+tcp        0      0 0.0.0.0:80              0.0.0.0:*               LISTEN      7312/nginx: master
+
+
+7312 это pid нашего контейнера.
+
+потому что
+
+~# docker ps
+CONTAINER ID        IMAGE               COMMAND                  CREATED             STATUS              PORTS                NAMES
+6b34bad007d1        nginx               "nginx -g 'daemon of…"   11 minutes ago      Up 11 minutes                            my_nginx
+
+~# docker inspect my_nginx | grep -i pid
+            "Pid": 7312,
+
+посмотрим малек подробнее про 7312
+ PPID   PID
+    1  1131  1131  1131 ?           -1 Ssl      0   1:20 /usr/local/bin/containerd
+ 1131  7294  7294  1131 ?           -1 Sl       0   0:00  \_ containerd-shim -namespace moby -workdir /var/lib/containerd/io.containerd.runtime.v1.linux/moby
+ 7294  7312  7312  7312 ?           -1 Ss       0   0:00      \_ nginx: master process nginx -g daemon off;
+ 7312  7324  7312  7312 ?           -1 S      101   0:00          \_ nginx: worker process
+
+PID - это pid процесса
+PPID - это pid родительского процесса
+
+а вот как изнутри контейнера  ps выглядит
+
+
+(контейнер)# ps axjf
+ PPID   PID  PGID   SID TTY      TPGID STAT   UID   TIME COMMAND
+    0   492   492   492 pts/0      499 Ss       0   0:00 /bin/bash
+  492   499   499   492 pts/0      499 R+       0   0:00  \_ ps axjf
+    0     1     1     1 ?           -1 Ss       0   0:00 nginx: master process nginx -g daemon off;
+    1     6     1     1 ?           -1 S      101   0:00 nginx: worker process
+
+
+вопросы что за shim  я забыл 
+также вопрос можно ли  с хоста видеть процессы внутри контейнера (они же вроде в другом pid неймспейсе лежат)
+почему отличаются номера pid
+как технически мы оказываемся внутри контейнера в команде EXEC
+
+для этих целей 
+я начал изучать вывод ps, top и все про процессы в линуксе.
+
+
+в выводе ps есть столбик S
+который сообщает состояние процесса. 
+
+R - означает что процесс исполняется(RUNNING)  на ЦПУ или что он готов к исполнению но
+линукс шедулер из за того что цпу занят пока что неможет его поместить на цпу и он стоит в очереди
+на исполнение (RUNNABLE). тут про очереди. насколько я понял в линуксе.
+интересно то что  если состояние процесса R то мы неможем понять этот процесс реально исполняется
+на цпу или стоит в очереди на исполнение.
+
+
+S - interruptible sleep.   в первом приближении это означает что процесс на данный момент невыполняется
+на цпу и нестоит в очереди на исполнение. окей на цпу его нет и попасть на него он нежаждет.
+в более глубокой расшифровке выясняется что данный процесс вызвал системный вызов system call
+и ждет от него возврата ответа. узнать какой системный коллл он вызвал можно через ps колонка WCHAN
+
+сразу надо добавить что load average учитывает нетолько R процессы за период времени но и D процессы
+то есть те которые ждут ответа от дисковой системы.
+
+кстати получается такой прикол.
+cpu usage - это характеристика процессор.
+а load average - это вообще нехарактеристика процессора это характеристика совершенно
+другой сущности- системы. точнее группы процессов.
+
+
+cpu usage это сколько % времени за промежуток процессор чтото исполнял а не отдыхал.
+в мире дисков это аналог %(busy time) и это характеристика оперирует временем.
+итак cpu usage это характеристика процессора+времени
+
+а load average это характеристика процессов в штуках + время
+
+это характеристики описывающие разные сущности абсолютно.
+
+одно описывает цвет яблок а второе температуру в больнице.
+
+но так случилось что между ними ( между процессором и процессами ) есть некая связь.
+
+за 1 минуту одноядерный процессор мог работать 85% времени.
+и его cpu usage = 85%
+
+за эту 1 минуту на этом ядре могло отработать 125 процессов (они быстро возникали и быстро отрабатывали)
+поэтому load average = 125
+
+за эту же 1 минуту мог отработать всего два процесса. один занял 25% времени второй 60% времени.
+
+я очень нелюблю load average потому что его постоянно приплетают к характеристике
+загруженности цпу. а это характеристика не цпу а характеристика процессов в ОС.
+а всегда хотят узнать именно загрузку процессора упорно ища ее в load average
+
+мы ищем температуру в больнице по яркости солнца.
+
+у меня вопрос - как так получатеся что если мы смотрим в top
+то мы видим что состояние процесса = S
+а его %cpu_usage неравно нулю а даже скажем 60%.
+ведь S по определению означает что процесс его код ненаходяится в процессоре неисполняется 
+на нем.
+
+вот пример
+
+# top
+
+PID USER      PR  NI    VIRT    RES    SHR S  %CPU %MEM     TIME+ COMMAND
+ 4859 root      20   0   50.1g  49.4g 144356 S  82.7 82.4  20:28.62 java
+ 
+
+наверное ответ вот какой.
+
+по первых вывод команды top относится к промежутку времени 
+с начальным временем и конечным
+
+12ч 15м 3с - старт
+12ч 15м 13с - финиш
+
+так вот top показывает состояние процесса в конечный момент времени 12ч 15м 13с.
+и оно типа = S 
+но это абсолютно незначит что весь промежуток времени 12ч 15м 3с - 12ч 15м 13с
+этот процесс находился в том состоянии S
+в этом и была загвоздка и ошибка.
+
+за 10 секунд процесс мог миллиард раз переходитть из состояния R в состояние S
+а top показывает его состояние только в конкретный момент времени. и только то!
+
+поэтому важно понять что состояние это характеристика конкретного момента времени.
+
+а вот %cpu_usage это характеристика неконкретного момента времени
+а промежутка времени! промежутка!
+
+почуствуй разницу момент и промежуток. точка и отрезок.
+
+так вот за промежуток = 10 секунд (с12ч:5м:3с по 12ч:15м:13с)
+цпу был занят 85% этого промежутка.
+
+вот в чем секрет как так получаетс что процесс имеет статус S который четко 
+говорит что процесс неисполняется на цпу и тем что cpu_usage <> 0 !
+
+мы пытались совместить характеристики от разных природ.
+характеристика одномоментная и характеристика промежутка.
+
+типа как сейчас вася спит ( это состояние S ).
+но до этого он 82% времени работал в течение часа.
+
+получается что когда мы смотрим на top и мы хотим понять 
+какие процессы жрут процессорное время а какие его нежрут 
+то нам надо игнорировать столбец со стейтом процессов ( столбец где S )
+потому что мы хотим узнать характеристку за промежуток.
+мы хотим узнать кто грузил процессор последние там 10 секунд.
+и тут нам в помощник cpu_usage.
+
+мы нехотим знать какой процесс прям щас спит. нам это абсолютно похер.
+
+это как то что мы хотим узнать кто тырил помидоры последний час с полки.
+и нам похер что тот кто их тырил прямо щас их нетырит.
 
 
 
  
+
+
+~# ps -l 30913
+F S   UID   PID  PPID  C PRI  NI ADDR SZ WCHAN  TTY        TIME CMD
+4 S     0 30913 30896  0  80   0 -  1028 poll_s pts/0      0:00 /bin/bash
+
+
+wchan=poll_s
+это сокращенное имя system call 
+ответ от которого ждет pid=30913
+
+полное имя систменного колла можно посмотреть вот так:
+
+
+# cat /proc/30913/stack
+[<ffffffff81223304>] poll_schedule_timeout+0x44/0x70
+
+конкретно этот system call работает с вводом выводом. 
+типа когда нажал кнопку на клавиатуре то системный вызов возвращает данное событие процессу 30913
+а пока кнопка ненажата то процесс 30913 находится в неисполняемом состоянии. за него 
+как я понял на цпу крутится системный колл. ну или вызывается регулярно. 
+процесс невыполняется это значит что его код не исполняется на процессоре.
+
+про системные вызовы. пользовательская программа имеет очень мало прав доступа к железным ресурсам
+компа. ими ведает код под названием ядро то есть доступ программы к ресурсам идет через обращение к 
+коду ядра. программа говорит запиши на диск. это просьюа пердается ядру. а уже ядро неосредственно
+пишет на диск. так вот системный вызов это тоже код ядра. и это посредник общения между 
+программой и ядром. типа API для программы при обращении к ядру.
+
+так R S обсудили.
+
+но в выводе ps есть вот такие статусы - Ss S> итд
+
+будем их обсуждать.
+
+во первых Ss = S + s
+где S - это наш обсужденный S
+
+а s - это session leader.
+
+поговорим о session leader.
+
+оказывается ( man 7 credentials )
+
+что процесс помимо PID и PPID имеет также PGID SID
+
+PGID это PID group лидера. то есть пиды они еще входят в состав групп. 
+
+SID - это pid лидера сессий. то есть процесс также входит в сессию.
+
+
+там определенные правила когда процесс порождает ребенка ( fork или еще как там)
+то какие то штуки наследуются а какие то можно изменять в ребенка.
+
+процеессы из одной группы всегда входят и в одну сессию. 
+а сессия может иметь несколько групп.
+
+дальнейшая более глубокая и практическая фишка этого дела пока останется за кадром.
+
+главное что мы в целом поняли теперь что такое session leader и понимаем теперь 
+что такое
+
+Ss статус.
+
+
+важно еще сказать что команда ps она имеет ключи
+которые показывают информацию про процессы в стиле
+
+1) UNIX
+2) BSD
+3) GNU
+
+что стоит за этими понтовыми словами мало понятно.
+но на выхлопе смысл такой что при одних ключах например  статусы процессов будет выглядеть как
+
+S, R итп - простенькие
+
+а с другими ключами статусы будут понтовыми типа 
+Ss
+S>
+
+вот.
+
+итак мы поняли что каждый сложный статус типа
+
+S> = S + <
+
+
+рассмотрим простые статусы
+
+ D    uninterruptible sleep (usually IO)
+               R    running or runnable (on run queue)
+               S    interruptible sleep (waiting for an event to complete)
+               T    stopped by job control signal
+               t    stopped by debugger during the tracing
+               W    paging (not valid since the 2.6.xx kernel)
+               X    dead (should never be seen)
+               Z    defunct ("zombie") process, terminated but not reaped by
+                    its parent
+
+
+R, S обсудили.
+Z - это статус процесса ребенка который завершил свою работу
+и посла об этом сигнал родителю а тот ему подтвержлоение не шлет.
+
+
+посмотрим вот эти более интересные статусы
+
+				<    high-priority (not nice to other users)
+               N    low-priority (nice to other users)
+               L    has pages locked into memory (for real-time and custom IO)
+               s    is a session leader
+               l    is multi-threaded (using CLONE_THREAD, like NPTL pthreads
+                    do)
+               +    is in the foreground process group
+
+
+
+
+рассмотрим 
+
+				<    high-priority (not nice to other users)
+
+что значит высокие приоритет.
+посмотрим чему он равен
+
+~# ps lax
+F   UID   PID  PPID PRI  NI    VSZ   RSS WCHAN  STAT TTY        TIME COMMAND
+4     0     1     0  20   0  37844  5884 ep_pol Ss   ?          0:08 /sbin/init
+1     0     2     0  20   0      0     0 kthrea S    ?          0:00 [kthreadd]
+1     0     3     2  20   0      0     0 smpboo S    ?          0:00 [ksoftirqd/0]
+1     0     5     2   0 -20      0     0 worker S<   ?          0:00 [kworker/0:0H]
+1     0    13     2  20   0      0     0 smpboo S    ?          0:00 [ksoftirqd/1]
+1     0    15     2   0 -20      0     0 worker S<   ?          0:00 [kworker/1:0H]
+5     0    16     2  20   0      0     0 devtmp S    ?          0:00 [kdevtmpfs]
+1     0    17     2   0 -20      0     0 rescue S<   ?          0:00 [netns]
+1     0    18     2   0 -20      0     0 rescue S<   ?          0:00 [perf]
+1     0    19     2  20   0      0     0 watchd S    ?          0:00 [khungtaskd]
+1     0    20     2   0 -20      0     0 rescue S<   ?          0:00 [writeback]
+1     0    21     2  25   5      0     0 ksm_sc SN   ?          0:00 [ksmd]
+1     0    22     2  39  19      0     0 khugep SN   ?          0:02 [khugepaged]
+
+мы видим что  
+
+F   UID   PID  PPID PRI  NI    VSZ   RSS WCHAN  STAT TTY        TIME COMMAND
+1     0     5     2   0 -20      0     0 worker S<   ?          0:00 [kworker/0:0H]
+
+мы видим что 
+
+S< = PRI 0
+
+то есть если у процесса приоритет = 0  то есть высший то ему покаыывают < статус.
+
+кстати сразу видно и про этот статус
+
+N    low-priority (nice to other users)
+
+что N дают процессу который имеет PRI >= 25
+
+
+далее посмотрим про следущий параметр
+
+L    has pages locked into memory (for real-time and custom IO)
+
+мне стало интересно какие процесы в линуксе имеют страницы залоченные в памяти.
+
+
+# ps lax | grep -E "WCHAN|L"
+F   UID   PID  PPID PRI  NI    VSZ   RSS WCHAN  STAT TTY        TIME COMMAND
+5     0  1134     1  10 -10   5724  3516 poll_s S<Ls ?          1:05 /sbin/iscsid
+
+это iscsid
+
+статус S<Ls = S + < + L + s
+
+расшифроваываем
+
+S - что процесс спит невыполняется на цпу.
+<- что у него высший приоритет
+L - что у него страницы в ОЗУ залочены некоторые
+s - что он сессия лидер
+
+
+смотрим следующий параметр
+
+l    is multi-threaded (using CLONE_THREAD, like NPTL pthreads do)
+					
+					
+					
+этот флаг показвыает то что данный процесс имеет несколько тредов.
+что такое тред.
+это почти что полноценный процесс. треды еще зовут lightwight processes 
+					
+					
+посомтрим какие процессы мультитрредовые 
+
+~# ps lax | grep -E "WCHAN|Ssl|Sl"
+F   UID   PID  PPID PRI  NI    VSZ   RSS WCHAN  STAT TTY        TIME COMMAND
+4   100   550     1  20   0 100324  2624 ep_pol Ssl  ?          0:01 /lib/systemd/systemd-timesyncd
+4     0   739     1  20   0 141996 18660 futex_ Ssl  ?          0:01 /usr/lib/snapd/snapd
+4     0   758     1  20   0 275856  6264 poll_s Ssl  ?          0:09 /usr/lib/accountsservice/accounts-daemon
+4   104   770     1  20   0 260632  5240 poll_s Ssl  ?          0:01 /usr/sbin/rsyslogd -n
+4     0   885     1  20   0 277180  6028 poll_s Ssl  ?          0:00 /usr/lib/policykit-1/polkitd --no-debug
+4     0  1131     1  20   0 687492 56744 futex_ Ssl  ?          1:44 /usr/local/bin/containerd
+0     0  3209  1131  20   0 107700 12320 futex_ Sl   ?          0:04 containerd-shim -namespace moby -workdir /var/lib/containerd/io.containerd.runtime.v1.linux/moby/9989cc33dd9becb27e7702d1e986310b785ce4b09ca01128c35c4c1145768ed1 -address /run/containerd/containerd.sock -containerd-binary /usr/bin/containerd -runtime-root /var/run/docker/runtime-runc
+
+
+посмотрим для интереса а эластик он мультитредовый ?
+
+4   111  1177     1  20   0 18392 44472 futex_ Ssl ?    412759:40 /usr/bin/java -Xms20g -Xmx20g -XX:+UseConcMarkSweepGC -XX:CMSInitiatingOccupancyFract
+0   111  1366  1177  20   0 135688  2260 pipe_w Sl   ?          0:00  \_ /usr/share/elasticsearch/plugins/x-pack/platform/linux-x86_64/bin/controller
+
+видно что да
+
+
+тред это почти что процесс но не процесс
+группа  тредов имеют один процесс и они делят совместно общие ресурсы.
+но фишка треда в том что он может выполняться на своем отдельном цпу.
+
+получется это как бы группа процессов но у процессов у них своя память по крайней мере.
+как я понял. и свой pid это точно.
+а у тредов память общая. но каждый тред может выполняться на своем цпу.
+
+вот что обозначает флаг l
+
+команда ps может показывать нетолько процессы но и их треды
+
+root@test-kub-04:~# ps l  -T -p 30896
+F   UID   PID  SPID  PPID PRI  NI    VSZ   RSS WCHAN  STAT TTY        TIME COMMAND
+0     0 30896 30896  1131  20   0 107700 11948 futex_ Sl   ?          0:00 containerd-shim -namespace moby -workdir /var/lib/containerd/io.containerd.runtime
+1     0 30896 30897  1131  20   0 107700 11948 futex_ Sl   ?          0:00 containerd-shim -namespace moby -workdir /var/lib/containerd/io.containerd.runtime
+1     0 30896 30898  1131  20   0 107700 11948 futex_ Sl   ?          0:00 containerd-shim -namespace moby -workdir /var/lib/containerd/io.containerd.runtime
+1     0 30896 30899  1131  20   0 107700 11948 futex_ Sl   ?          0:01 containerd-shim -namespace moby -workdir /var/lib/containerd/io.containerd.runtime
+1     0 30896 30900  1131  20   0 107700 11948 futex_ Sl   ?          0:00 containerd-shim -namespace moby -workdir /var/lib/containerd/io.containerd.runtime
+1     0 30896 30901  1131  20   0 107700 11948 futex_ Sl   ?          0:01 containerd-shim -namespace moby -workdir /var/lib/containerd/io.containerd.runtime
+5     0 30896 30902  1131  20   0 107700 11948 ep_pol Sl   ?          0:00 containerd-shim -namespace moby -workdir /var/lib/containerd/io.containerd.runtime
+1     0 30896 30903  1131  20   0 107700 11948 ep_pol Sl   ?          0:00 containerd-shim -namespace moby -workdir /var/lib/containerd/io.containerd.runtime
+1     0 30896 30904  1131  20   0 107700 11948 futex_ Sl   ?          0:00 containerd-shim -namespace moby -workdir /var/lib/containerd/io.containerd.runtime
+1     0 30896 30959  1131  20   0 107700 11948 futex_ Sl   ?          0:01 containerd-shim -namespace moby -workdir /var/lib/containerd/io.containerd.runtime
+1     0 30896 30975  1131  20   0 107700 11948 futex_ Sl   ?          0:02 containerd-shim -namespace moby -workdir /var/lib/containerd/io.containerd.runtime
+
+SPID - это номер треда я так понимаю
+но все треды как видно имеют единый PID
+
+
+можно всегда подсмотрет сколько тредов у того или иного процесса через /proc
+
+~# ls -1 /proc/30896/task
+30896
+30897
+30898
+30899
+30900
+30901
+30902
+30903
+30904
+30959
+30975
+
+если в task много - значит процесс мультитредовый.
+
+
+
+следущий ключ
+
+
++    is in the foreground process group
+
+
+
+посмотрим пример
+
+~# ps ax o pid,ppid,pgid,sid,uid,stat,command | grep -E "29879|SID|29878|29825|1112" | tee
+
+  PID  PPID  PGID   SID   UID STAT COMMAND
+ 1112     1  1112  1112     0 Ss   /usr/sbin/sshd -D
+29825  1112 29825 29825     0 Ss   sshd: mkadm [priv]
+29878 29825 29825 29825  1000 S    sshd: mkadm@pts/0
+29879 29878 29879 29879  1000 Ss   -bash
+29891 29879 29891 29879     0 S    sudo bash
+29892 29891 29892 29879     0 S    bash
+32432 29892 32432 29879     0 R+   ps ax o pid,ppid,pgid,sid,uid,stat,command
+32433 29892 32432 29879     0 R+   grep --color=auto -E 29879|SID|29878|29825|1112
+32434 29892 32432 29879     0 S+   tee
+
+
+
+мне стало интересно 
+вот мы вводим пароль при входе в линуксе
+и зпускается bash
+как при этом распределяется pgid и sid
+это очень полезно чтобы отловить визуально какой процесс породил какой.
+
+
+
+при этом вспыло  /sbin/agetty --noclear tty2 linux
+как я понял когда мы жмем Alt+F2
+то система автоматом запускает команду
+/sbin/agetty --noclear tty2 linux
+это приводит  к тому что на экране появляется приглащение на ввод логина пароля.
+нажмем Alt+F5
+запуститмся
+/sbin/agetty --noclear tty5 linux
+
+значит вот я выяснил как выглядит ssh подключение
+
+# ps axf o sid,pid,ppid,pgid,uid,stat,command | grep -E "1279|1311|PID"
+
+  SID   PID  PPID  PGID   UID STAT COMMAND
+ 1279  1279  1112  1279     0 Ss    \_ sshd: mkadm [priv]
+ 1279  1310  1279  1279  1000 S         \_ sshd: mkadm@pts/3
+ 1311  1311  1310  1311  1000 Ss            \_ -bash
+ 1311  1330  1311  1330     0 S                 \_ sudo bash
+ 1311  1331  1330  1331     0 S                     \_ bash
+ 1311  1373  1331  1373     0 R+                        \_ ps axf o sid,pid,ppid,pgid,uid,stat,command
+ 1311  1374  1331  1373     0 S+                        \_ grep --color=auto -E 1279|1311|PID
+
+
+
+
+когда мы вошли по ssh то все процессы получают единый SID. а вот PGID с ним
+уже все нетак однозначно.
+поэтому лучше ориентироваться на SID если мы хотим отловить некую полную сессию что 
+ктото куда то вошел и чтото назапускал.
+
+также. если мы входим через консоль сервера то линукс юзает tty устройства /dev/tty*
+а если через ssh то /dev/pts/*
+это еще тоже предстоит выяснять. их разницу.
+
+
+разбираемся дальше с ps и top
+
+# man 1 top
+
+top - 20:08:00 up 90 days,  6:28,  1 user,  load average: 0.22, 0.17, 0.09
+Tasks: 137 total,   1 running, 136 sleeping,   0 stopped,   0 zombie
+%Cpu(s):  2.6 us,  1.1 sy,  0.0 ni, 96.2 id,  0.1 wa,  0.0 hi,  0.0 si,  0.0 st
+KiB Mem : 26.0/12304088 [||||||||||||||||||||||||||                                                                          ]
+KiB Swap:  0.0/0        [                                                                                                    ]
+
+  PID USER      PR  NI    VIRT    RES    SHR S  %CPU %MEM     TIME+ COMMAND
+25644 elastic+  20   0  0.098t 8.703g 6.221g S   7.4 74.2   5478:27 java
+ 1065 root      20   0  207760  27932   4672 S   0.0  0.2  72:00.31 vmtoolsd
+ 1087 root      20   0  235900   9368   2692 S   0.0  0.1   0:52.74 snapd
+ 7181 root      20   0   95400   6876   5936 S   0.0  0.1   0:00.01 sshd
+
+полезные кнопки
+
+m - меняет вверху график который показывает сколько физ памяти свободно 
+M - упорядочивает строки по столбцу %MEM
+
+RES - это сколько физ памяти занимает процесс. его резидентная часть называется.
+видно что java жрет в памяти 8.703g.
+
+%MEM это тот же самый RES только поделен на полный обьем физ памяти.
+%MEM = RES / (RAM size) * 100%
+
+так что RES и %MEM это одно и тоже только одно в гигабайтах а второе в процентрах
+
+I - позволяет переключать как показывать %CPU . по умолчанию 100% это полностью загруженное 
+одно ядро. по мне дебильно сделано.  а если тыкнуть "I" то 100% будет значить что все ядра 
+процессора загружены на 100%. по мне это и есть коретный режим.
+
+PR - приоритет процесса это мы ужезнаем.
+NI - это параметр nice чему равен. (по мне PR и NI взаимосвязаныные величиы)
+
+SHR - это размер shared памяти. важно знать что не вся shared память резидентная.
+а также что это обьем памяти который потенциально может быть разделен с другими 
+процессами. в итоге я считаю что на характеристику можно забить.
+
+кстати можно выбирать какие колонки показывать.
+для этого надо нажать f
+
+и увидим выбор
+
+
+Fields Management for window 1:Def, whose current sort field is %CPU
+   Navigate with Up/Dn, Right selects for move then <Enter> or Left commits,
+   'd' or <Space> toggles display, 's' sets sort.  Use 'q' or <Esc> to end!
+
+* PID     = Process Id             SUPGIDS = Supp Groups IDs
+* USER    = Effective User Name    SUPGRPS = Supp Groups Names
+* PR      = Priority               TGID    = Thread Group Id
+  NI      = Nice Value             ENVIRON = Environment vars
+  VIRT    = Virtual Image (KiB)    vMj     = Major Faults delta
+* RES     = Resident Size (KiB)    vMn     = Minor Faults delta
+* SHR     = Shared Memory (KiB)  * USED    = Res+Swap Size (KiB)
+* S       = Process Status         nsIPC   = IPC namespace Inode
+* %CPU    = CPU Usage              nsMNT   = MNT namespace Inode
+* %MEM    = Memory Usage (RES)     nsNET   = NET namespace Inode
+* TIME+   = CPU Time, hundredths   nsPID   = PID namespace Inode
+* COMMAND = Command Name/Line      nsUSER  = USER namespace Inode
+  PPID    = Parent Process pid     nsUTS   = UTS namespace Inode
+  UID     = Effective User Id
+  RUID    = Real User Id
+  RUSER   = Real User Name
+  SUID    = Saved User Id
+  SUSER   = Saved User Name
+  GID     = Group Id
+  GROUP   = Group Name
+  PGRP    = Process Group Id
+  TTY     = Controlling Tty
+  TPGID   = Tty Process Grp Id
+  SID     = Session Id
+  nTH     = Number of Threads
+  P       = Last Used Cpu (SMP)
+  TIME    = CPU Time
+  SWAP    = Swapped Size (KiB)
+  CODE    = Code Size (KiB)
+  DATA    = Data+Stack (KiB)
+  nMaj    = Major Page Faults
+  nMin    = Minor Page Faults
+  nDRT    = Dirty Pages Count
+  WCHAN   = Sleeping in Function
+  Flags   = Task Flags <sched.h>
+  CGROUPS = Control Groups
+
+
+
+колонка USED=RES+SWAP
+
+рассмтрим последний непонятный столбец TIME+
+
+KiB Mem : 37075864 total,   331252 free, 22992208 used, 13752404 buff/cache
+KiB Swap:        0 total,        0 free,        0 used. 13597808 avail Mem
+
+  PID USER      PR  NI    VIRT    RES    SHR S %CPU %MEM     TIME+ COMMAND                  TIME
+ 1177 elastic+  20   0 93.928g 0.030t 9.434g S 16.3 87.8 415466:44 java                     6924h
+    1 root      20   0   37872   4360   2424 S  0.0  0.0   0:27.46 systemd                  0:27
+    2 root      20   0       0      0      0 S  0.0  0.0   0:06.06 kthreadd                 0:06
+    3 root      20   0       0      0      0 S  0.0  0.0   0:23.46 ksoftirqd/0              0:23
+    5 root       0 -20       0      0      0 S  0.0  0.0   0:00.00 kworker/0:0H             0:00
+
+
+я помимо TIME+ вывел еще столбец TIME
+
+TIME+ отображается в сотых секунда в общем темный лес по факту
+415466:44 ознавает 415466 минут :44 секунд
+
+TIME отображает как я понял минимум это секунды. в итоге
+6924h - это часы.
+
+
+важно понять вот что. и TIME и TIME+ они показыавют сколько времени суммарно процесс
+обрабатывался на всех ядрах. скажем если он жрал четыре ядра на 100% два часа непрерывно.
+то TIME= 8часов.  потому что два часа на четыре процессора. 
+я так понял эту математику.
+важно понять то что если процесс необрабатывается процессором то этот 
+индикатор нерастет. то есть сервер может иметь аптайм пол года.
+а TIME у процесса будет 1 минута. потому что он лежал все время в S состоянии
+и на процессоре его код необрабатывался.
+
+витге по этому параметру можно понять какие процессы больше всего крутятся процессором.
+
+ну вот вроде мы наконец и разобрали все поля относящиейся к процессам в выводе top
+
+также получается что если система многопрцессорная и некий процесс постоянно 
+обрабатвыавается процессорами то его TIME будет намного больше аптайма.
+
+
+в итоге из top можно посомтреть какие процессы сколько отжирают физ памяти.
+какой процесс щас грузить процессор
+какие процессы больше всего в целом с момента старта крутятся на процессорах
+ну наверно и все.
+
+W - записать настройки top.
+очень полезно
+
+E - позволяет преключать в каких единицах показывается оперативка.
+в килобатах магабайтах гиагбайах.
+очень удобно.
+
+top - 21:15:54 up 108 days,  4:34,  1 user,  load average: 1.69, 1.49, 1.56
+Tasks: 169 total,   1 running, 168 sleeping,   0 stopped,   0 zombie
+%Cpu(s): 25.5 us,  0.4 sy,  0.0 ni, 73.9 id,  0.0 wa,  0.0 hi,  0.1 si,  0.0 st
+GiB Mem : 63.1/35.358   [|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||                                     ]
+GiB Swap:  0.0/0.000    [                                                                                                    ]
+
+ вот тут видно что память отображатется в Гиагбайтах.
+ потому что отобаржать ее в килобайтах это дебилизм.
+ 
+обращаю внимание на
+ 
+ GiB Mem : 63.1/35.358 
+ 
+ 35.358 GB - это обьем физ памяти. это понятно.
+ 63.1 - это сколько занято физической памяти ВПРОЦЕНТАХ !!!!
+
+при этом верна формула Total = free + used + buff/cache
+то есть занятая память не включает память под кэш.
+то есть занято чисто резидентными кусками тел процессов.
+
+то есть в системе занято 63.1% физ памяти , а всего памяти 35.358GB
+
+MiB Mem : 21.9/2000.254 [||||||||||||||||||||||                                                                              ]
+MiB Swap:  0.0/0.000    [                                                                                                    ]
+
+
+в этом примере в системе занято 21.9% памяти из 2000.254 MB
+
+
+вот как при этом выглядит расрпеделние памяти в цифрах
+
+MiB Mem : 2000.254 total,  437.559 free,  215.840 used, 1346.855 buff/cache
+
+видно что Total = free + used + buff/cache
+
+тыкая кнопку m 
+можно менять визуализацию сколько свободно занято, сколько свободно 
+и сколько под кэш использовано.
+
+визуально это выглядит так: слева направо жирная линия - это занято.
+потом рядом с ней пимпочка - это свободно.
+а черное пространство справа  - это память под кэш
+
+то есть примерно вот так
+
+[--------------------------------------+++                                         ]
+
+минусы это занято
+плюсы это свободно
+чернота это под кэш
+ну а скобки это всего.
+
+если нажимать "e" маленькую то 
+RES будет меняться , цифры будут в килобайтах, мегаьайтах, гигабайтах.
+тоже удобно.
+
+ 
+вот так по мне выглядит правильно анстроенный top
+
+top - 21:34:46 up 108 days,  4:53,  1 user,  load average: 1.43, 1.53, 1.48
+Tasks: 170 total,   1 running, 169 sleeping,   0 stopped,   0 zombie
+%Cpu(s): 27.8 us,  0.4 sy,  0.0 ni, 71.6 id,  0.0 wa,  0.0 hi,  0.1 si,  0.0 st
+GiB Mem : 63.2/35.358   [                                                                                                    ]
+GiB Swap:  0.0/0.000    [                                                                                                    ]
+
+  PID USER        RES S  %CPU %MEM     TIME+ COMMAND
+ 1177 elastic+ 0.030t S 196.7 87.1 415547:33 java
+  973 root      29.4m S   0.0  0.1  77:12.27 vmtoolsd
+  976 root      15.4m S   0.0  0.0   4:09.42 snapd
+ 1056 root       5.8m S   0.0  0.0   0:34.43 lxcfs
+  400 root       4.8m S   0.0  0.0   0:06.76 systemd-journal
+31790 root       4.7m S   0.0  0.0   0:00.14 bash
+    1 root       4.3m S   0.0  0.0   0:27.46 systemd
+31769 mkadm      3.7m S   0.0  0.0   0:00.03 bash
+17629 root       3.5m R   0.0  0.0   0:00.09 top
+ 1194 root       3.5m S   0.0  0.0   8:40.68 iscsid
+ 1065 syslog     3.2m S   0.0  0.0   0:01.13 rsyslogd
+
+
+GiB Mem : 63.2/35.358  = отобрадается в гигабайтах
+RES отображатеся в мегабайтх. (java просто очень большой поэтмоу его показывает она уже в терабайтах)
+нет лишних столбцов
+
+
+про load average 
+
+load average: 2.19, 2.03, 1.69
+
+2.19 как получили. взяли число процессов которые заходили на процессор (типа как число кошек
+посравших  в подьезде) за минуту и поделили на 1. усреднение за минуту
+
+2.03 взяли число процессов побываваших на цпу за 5 минут и поделили на 5. усреднение за 5 минут.
+
+1.69 взяли число процессов побывавших на цпу за 15 минут и усреднили по 15.
+
+
+в итоге кажое число показывает число процессов выполнявшихся или стоящих в очереди
+на выполнение или стоящих в очереди иза за дисковых тормозов (D) в течение минуты.
+усредение за 1 минуту более точное. за 15 минут самое неточное.
+в любом случае это показатель для минуты. 
+вот смешно - по этому показателю пытаются предсказать тормозит ли система.
+хуйня полная. потому что как отличить это процессы которые хотели 
+на цпу исполнится или которые жжали ответа от дисковой системы.
+непонятно.
+
+итоговая транскрипция - Load average это число процессов в течение минуты ( при разном усреднении)
+которые 
+либо выполнялись на цпу
+либо хотели выполнится и стоялив очереди
+либо ждали ответа от дисковой системы.
+
+чем больше load average тем это значит что просто надо взять и смотреть
+уже другие характерситики перфоманса.
+прежде всего надо понять тормозит ли дисковая система.
+если да. это одно.
+если нет. тогда остается процессор.
+
+в общем лоад аверадж это гавно а не характеристика.
+потому что она обьединяетя в одно число и нагрузку на систему по цпу
+и по дисковым траназакциям. поэтому нихера непонятно по конкретной
+цифре плохо щас системе или хорошо.
+
+только если какой то бэейслайн выработан дл сервера. вот если идет 
+отклонени от него тогда можно делать выводы конкретные.
+
+если высокий load avegare то это значит что = тормозит либо процессор либо диски либо smb
+вот и гадай. больше ничего нескжаешь из этой характеристики.
+
+а может и вообще ничего нетормозит. скажем у нас много процессов которы свербыстро 
+порождаются сверх мало работают и свербыстро умирают.
+тогда у нас будети выскойи load average но при этом даже cpu_usage будет маленький.
+так что эта характеристика в целом нихера ничего нормально непоказывает.
+
+чтоб чтото понять нужно  в добавов к  load average иметь данные по 
+cpu_usage
+и 
+дисковой системе
+и
+сетевым шарам.
+
+только тогда можно чтото сказать.
+
+и тогда возникает вопрос а нахера нам лоад аверадж если мы  можем без него
+обойтись всем другим.
+
+приколькно то что изанчально ее называли cpu load average 
+так вот это пиздеж полный. это никакое ни cpu load average
+
+load average это характеристика ни цпу ни дисков ни сетевых шар
+это характеристика совсем другого - характеристка ПРОЦЕССОВ.
+
+она показщывает сколько процессов в течение минуты работали
+либо с цпу (или его ждали) либо  с диском либо с сетевой шарой.
+
+ну и что.
+
+получается надо еще понять сколько процессов и с чем они работали.
+
+а потом уже думать - нужно ли ускорять цпу
+нужно ли ускорять диски
+нужно ли ускорят сетевые шары.
+
+ну работало столько то процессов суммарно с тем или этим ну и что.
+
+слишком интегральная характеристика.
+
+опять же если даже брать процессы которые только с процессором связаны.
+
+если за минуту два процесса работали на цпу по 1 мс то la = 2
+и если два процесса работали на цпу каждый по 30 секунда. то la =2 тоже.
+
+но это ж витоге хуйня полная. в первом случае процессор неявлется узким местом
+а во втором случае ну на грани.
+
+поэтому la нихуя незначит.
+
+хотя там вроде в плане процессора чуть поумнее они сделали.
+они берут отрезки в 5 секунд. и делают по ним усреднение. 
+а потом в итоге делают какую интегральную херню на минуту.
+в итоге может быть якобы первый случай покажет не 2 а чтото меньшее.
+
+но это пока только теория.
+
+если усреднение идет по пятисекундным отрезкам. то получается в первом случае
+
+будет число значительно меньшее чем 2.
+но это пока голая теория. отличающаяся от официальной документации.
+
+еще раз посмотрим
+в чем жопа top
+что часть цифр он показывает на данный момент = right now
+а часть цифр это усреднение за интервал между которыми top лазиит за данными.
+вообще непонятно. top скорей всего за данными лезет в proc
+возникает впорос в proc какой интервал усреднения для которого 
+высчитывается и показыается cpu_usage
+
+
+top - 22:03:34 up 11 days,  5:27,  3 users,  load average: 0.00, 0.00, 0.00
+Tasks: 159 total,   1 running, 157 sleeping,   0 stopped,   1 zombie
+%Cpu(s):  0.1 us,  0.1 sy,  0.0 ni, 99.8 id,  0.0 wa,  0.0 hi,  0.0 si,  0.0 st
+MiB Mem : 21.9/2000.254 [                                                                                                    ]
+MiB Swap:  0.0/0.000    [                                                                                                    ]
+
+с этой строкой разобрались
+
+top - 22:03:34 up 11 days,  5:27,  3 users,  load average: 0.00, 0.00, 0.00
+
+
+насколько я понимаю эту строку
+
+Tasks: 159 total,   1 running, 157 sleeping,   0 stopped,   1 zombie
+
+она показвыает right now. так же как и списко процессов . right now.
+
+вот эта строка
+
+%Cpu(s):  0.1 us,  0.1 sy,  0.0 ni, 99.8 id,  0.0 wa,  0.0 hi,  0.0 si,  0.0 st
+
+как я понимаю она выдает сумму %cpu по всем процессам.
+правда с разбивкой на us,sy, id итп.
+
+
+я закончил на том что хотел понять 
+как top считает cpu_usage для процесса
+
+это привело а proc
+
+это привело к jiffy
+
+что такое jiffy.
+у линукса есть таймер который регулярно срабатывает. когда он срабатывает то запускается 
+щедулер. который стопит текущие таски  на проце и запускает другие таски на проце.
+
+интервал времени между которыми срабатывает щедулер называется jiffy.
+
+скажем на виртуалке с ubuntu 16 он равен = 0.25 мс вроде как.
+
+перейдем к процессу в линукс и proc
+если в течение предыдущего jiffy интервала процесс выполнялся на процессоре 
+(или стоял в очереди на выполнение) то линукс записывает в /proc/$PID/...
+что процесс выполнялся напроцессоре +1 jiffy.
+
+если невыполнялся то недобавляет.
+
+система фиксирует для каждого процесса сколько времени этот процесс тусовался на цпу.
+но фиксирует это она не  в секундах не в милисекундах
+а в джиффях. потому что как еще раз скажу я понял каждому процессу дается на выполенение
+слот времени который называется джиффи. после этого процессор прекращает работу
+этого процесса и возращает управление шедулеру
+который решает какой следущий процесс запустить на процессоре.
+
+
+насколько я понял число джиффи задается при компиляции ядра линукса.
+то есть если мы хотим его изменить то нужно преекомпилировать ядро.
+
+посмотреть текущее значнеие можно в config файле
+
+# cat /boot/config-4.4.0-62-generic | grep -i HZ | grep -v '#'
+CONFIG_HZ=250
+
+насклько я понимаю то это и есть чему равно джиффи. = 1/250 HZ =  0.004 с = 4 мс
+
+как я понял в компе есть железный таймер 
+который еще можно программировать чтоли.
+
+он с одинаковой частотой генерирует сигнал на уровне хардвейр (interrupt) в проц наверное.
+проц получает этот сигнал и откладвыаеттекущее выполненеие и исполняет спец код 
+предназначенный при поступлении интеррапта от системного таймера.
+
+как я понял . вот этот таймер железный и программа которая срабатвыает от его сигнала - 
+эта штука работает строго через один и тот же промежуток времени.
+то есть в проц прерываение поступает все время через одн промежуток.
+и получается программа которая срабавыает на это прерывание 
+тоже срабатывает через одинаковые промежутки.
+
+ядро линукса - она знает частоту железного таймера. поэтому 
+когда в ОС приходит очередной интеррапт от этого таймера 
+то ОС четко знает что прошло +1 тик (так назвыаемый). 
+
+минусы плюсы когда джиффи маленький.
+чем чаще вызывается интеррапт хэндлер - программа которая должны выполниться при наступлении
+прерывания тем больше процессор тратится на выполнение этой служебной программы
+а не полезного юзерского кода.
+плюс получается кэщ процессора засирается ненужными данными.
+
+зато повышается откикаемость между задачами. также - уменьшается время бесползено тратимое 
+между событиями. например джиффи = 5 мс. если прога уже заокнчила работу. как я понял.
+за 2 мс в течение 5мс джифии. то 3 мс цпу будет простаивать. потому что чтобы следующая 
+задача могла быть засунута в проц надо чтобы вызывался щедулер и это сделал.
+а шедулера еще ждать 3мс.
+
+
+в общем по мне получается что чем более много задаченее комп. тем более короткий должен быть
+джиффи. чтобы мы могли переклюбчаться между задачаи часто.
+но при этом все больше выполняется сам шедулер а не полезная программа и кэш процессора
+засирается ненужными данными шедулера.
+
+это прикольно что процессу выделяется интервал времени = джиффи . в течение которого
+этот процесс может выполняться на цпу.
+а если он выполнится успеет за меньшее время то как я понял система никак неможет 
+запустить на цпу другой процесс.
+
+это как бутто один комп и очередь пользователей. каждому дается 1 мин на пользование
+компом. но если пользователь управился за 40 секунд то комп просто
+стоит 20 секунд и ничего непроисходит. другой пользователь небудет запущен на комп.
+
+система регистрирует число джиффей с момента старта системы.
+
+например 1000 джиффей.
+зная сколько длится один джиффи = скажем 4мс можно понят что аптайм системы = 1 000 х 4мс = 4 000мс = 4с
+
+джиффи это 32 битная переменная.
+но она  заполняется за 500 дней в среднем . а если джиффи = 1мс то за 50 дней
+поэтому это щас 64 битная переменная. 
+но софт обычно лезет в ее младшие 32 бита , если этому софту важно неасболютное
+значение а только дельту считывать.
+
+написано что вот этот вот интеррапт хэндлер он в свою очередь
+вызывает линукс шедулер
+
+всплыл попутно /proc/uptime
+
+# cat /proc/uptime
+1051140.63 2100245.85
+
+первая цифра это аптайм в секундах
+вторая цифра это время сколько все ядра суммарно отработали в холостом режиме. (поэтому
+если ядер много то эта цифра легко может быть больше аптайма)
+
+узнать сколько джиффей в штуках прошло с момента включения компа можно через
+
+c# cat /proc/timer_list | grep -i ^jiff
+jiffies: 4557732041
+jiffies: 4557732041
+
+
+строк несколько потому что ядер несколько.
+но цифра должна совпадать у всех ядер.
+
+итак мы имеем что с момента загрузки прошло 
+
+4 557 732 041  джиффей
+
+если мы знаем сколько длится один джиффи то если умножим число джиффей  на длительность
+одног джиффи то это число должно совпасть с аптаймом.
+
+
+вроде как выяснить время одного джиффи можно через  как я писал выше 
+
+
+
+
+надо понять как достверно узнать сколько по длинне равно джиффи в текущей системе.
+и переходит к вычислению cpu_usage процесса на основе proc и джиифи
+
+# cat /boot/config-4.4.0-62-generic | grep -i HZ | grep -v '#'
+CONFIG_HZ=250
+
+1 джиффи = 1\250 = 0.004с = 4 мс
+
+получается аптайм = 4 557 732 041 * 0.004с ~ 18 230 928 с
+
+это вычисленная нами величина.
+
+сверим ее с фактической
+
+oc# cat /proc/uptime
+1051627.43 
+
+1051627.43 ~ 1 051 627
+
+и как бы мы видим что вообще несовпадает.
+
+поэтому вопрос остается открытым. где тут ошибка
+
+
+дальше еще такой момент
+вот параметр компиляции ядра HZ который определяет длинну одного джиффи по времени.
+(правда тут опять же вранье так как указыается не длина по времени а величина обратная
+то есть частота в герцах).
+
+так вот. как я понял. вот эта инфорамация о том сколько прошло джиффей в штуках
+она гланвым образом она нужна коду ядра. как то так. драйверам там всяким.
+либо ядру либо драйверам. потому что джиффи главным образом используются для установки 
+счетчиков.  например какоето событие (процесс разбудить) надо выполнить через 
+четыре джиффи.  это основное примененеие этих джиффей.
+
+так вот типа информация о джиффях непредназначена для пользовательского использования.
+(бред конечно). так вот какая вылеза проблема.
+очень долго длинна джиффи была постоянная 10мс. и пользовательские программы
+они были так написаны что они эту величину 10мс вбили в свой код константой
+. они считывали с proc число джиффей а чтобы получить секунды они умножали их 
+на 10мс. так вот когда наконец в линуксе число джиффей стало меняться
+то такие программы стали работать неправильно.  
+поэтому завели еще одну переменную USER_HZ как я понимаю 
+это тоже переменная при компилироавнии ядра. и в нее константой вбили 10мс.
+и как я понимаю что когда программа запращивает у системы джиифи заивисимую 
+информацию(хуй знает как конкрето это выглядит) то 
+она получает информацию как бутто длинна джииффи 10мс 
+таким оюбразом пользователськие прорграммы показыают время в секундах правильное
+хотя реальерое джиффи в ядре другое.
+
+но точно мне стало известно что число джиффи в 
+
+/proc/timer_list показыаваются настоящее ядерное
+потому что эта переменная timer_list она непредназанчаена для пользрвания
+полтьзовательскими программами. это типа переменная для дебага.
+
+
+в любом случае остается открытым вопрос почему 
+чсило джииффи умноженное на длиннуу джииффи не совпдаает с аптаймом.
+это дерьмо.
+
+для справки также можно скомпилироват ядро что бы оно стало tickless
+это типа значит что шедулер будет вызываться системой нерегулярно через джиффи период
+а в зависимости от потребностей.
+как я примерно понимаю . на текущем шаге както определяется что следущий раз 
+шедулер можно вызывать через 10 джиффи. и так и происходит.
+то есть на текущем шаге можно программировать через сколько джиффи будет вызван шедулер
+в следущий раз.
+
+
+малек разобрались.
+значение длинны джиффи типа для пользоавтельских 
+программ можно считать через 
+
+c# getconf CLK_TCK
+100
+
+типа = 100 Гц => 1\100с = 10ms
+
+лично у меня возникает вопрос. если такая мудота с джиффи
+для кернел спейса и для юзер спейса то как же тогда
+высчитывать чтото мне как юзеру на основе этих джиффей.
+
+я имею ввиду например cpu_usage процесса.
+
+переходим обратно вверх. как узнать посчитать cpu_usage 
+процессом.
+
+
+значит в /proc/$PID/stat
+находится информация сколько данный процесс выполнялся на цпу
+времени. поле 14 и поле 15
+время выражается в джиффях.  как понимаю 
+время выражается в USER джиффях.
+поскольку как я понял - тольк один файл 
+показывает кернел джиффи. 
+остальные файлы proc показывают USER джиффи.
+
+
+поле 14 покаывает
+сколько в джиффях процесс выполнялся в юзер спейсе 
+то есть исполнялся сам код процесса
+
+поле 15 показывает  сколько в джиффях исполнялся код в кернел спейсе
+то есть как я понимаю код процесса когда
+вызывает через system call ядро. и вот сколько ядерный код 
+исполнялся который между прочим
+к самому процессу неимеет отношения прямого.
+
+возникает вопрос. что считать иполнением процесса - только чистый 
+код самого процесса или еще и вызываенные ядерный функции.
+
+видимо надо брать сумму.
+
+дальше я думал что нам надо узнавать сколько в секундах один 
+джиффи . а оказывается и ненадо.
+
+
+значит. вот тут - https://stackoverflow.com/questions/1420426/how-to-calculate-the-cpu-usage-of-a-process-by-pid-in-linux-from-c
+я нашел способ который позволяет вычислить
+cpu_usage процесса неузнавая сколько в секундах длинна одного джиффи.
+
+
+математика такая.
+
+j1 = поле 14 + поле 15 в /proc/$PID/stat в момент времени A1
+j2 = поле 14 + 15  в момент времени A1+dt
+
+значит за время dt процесс исполнялся на цпу (j2-j1) времени
+
+значит cpu_usage процесса : 100% * (j2-j1)/dt  
+
+прикол тока в том что надо получить dt в джиффях.
+
+поскольку j1 и j2 мы узнали в юзерских джиффях. то 
+dt мы будем искать не из /proc/timer_list
+а из другого файла.
+
+в /proc/stat 
+находится uptime  в юзерских джиффи . об этом написано вот здесь 
+(kernel.org/doc/Documentation/filesystems/proc.txt)
+
+~# cat /proc/stat
+cpu  145861 14132 71794 231683148 5981 0 518 0 0 0
+cpu0 71151 5990 33124 115846673 3050 0 163 0 0 0
+cpu1 74710 8141 38670 115836475 2930 0 354 0 0 0
+intr 60971678 45 31 0 0 0 0 2 0 1 0 0 0 215 0 0 0 
+
+сумма в первой строчке это аптайм в юзерских джиффи.
+
+получается если два раза считаем файл 
+то узнаем dt в юзерских джиффи.
+
+кстати таким макаром можно узнать 
+чему он равен в секундах.
+
+значит. я посчитал. получил что на двухпроцессорной
+системе за 1 секунду прошло 200 джиффи.
+так как это двух процессорная система 
+то значит по сто на ядро. то есть в итоге
+за 1 секунда на ядре одном протикивает 100 джиффи . значит джиффи =  10мс.
+в общем как и должно быть
+что на i386 юзрский джиффи 100ГЦ.
+
+ради интереса посчитаю какой кернел джиифи через 
+/proc/timer_list
+
+~# cat /proc/timer_list  | grep -i ^jif ; sleep 10 ; cat /proc/timer_list  | grep -i ^jif
+jiffies: 4585001143
+jiffies: 4585001143
+jiffies: 4585003644
+jiffies: 4585003644
+root@test-kub-04:~# bc <<< "(4585003644-4585001143)/10"
+250
+
+значит за 1с на цпу протикивает 250 ядерных джиффи.
+что полностью соотвествует 
+~# cat /boot/config-4.4.0-62-generic | grep -i HZ
+CONFIG_HZ_250=y
+CONFIG_HZ=250
+
+итак в /proc/timer_list 
+мыожно узнать кернел джиффи
+и сверить с теоретическим из
+# cat /boot/config-4.4.0-62-generic
+
+а в 
+/proc/stat
+можно посмотреть юзер джиффи.
+и сверить его с каноническим значением
+для i386 цпу архитектуры это 100ГЦ
+
+все проги типа top итд
+они считывают из proc только юзерские джиффи.
+ и нам при расчетах надо пользоваться только ими.
+ 
+ 
+получается что в proc напрямую нет данных о cpu_usage для процесса
+только там есть джиффи о том сколько джиффей процесс с загрузки
+системы данный процесс провел на цпу.
+получается что в top 
+1) в колоноке cpu_usage  
+показываются данные которых нет напрямую в proc
+а top сам их вычисляет калькулирует.
+2) данные которые top вычисли и показал в cpu_usage
+относятся промежутку времени между текущим временем
+delta t назад.
+
+где delta t это параметр # top -d 20
+
+это все важно потому что важно понимать какой интервал 
+усреднения  , без него нет смысла говорить про cpu_usage
+
+
+посмотрим еще раз за top
+
+# top
+top - 01:40:11 up 14 days,  9:03,  2 users,  load average: 0.40, 0.23, 0.10
+Tasks: 155 total,   1 running, 153 sleeping,   0 stopped,   1 zombie
+%Cpu(s): 50.0 us,  0.1 sy,  0.0 ni, 49.8 id,  0.1 wa,  0.0 hi,  0.0 si,  0.0 st
+MiB Mem : 21.8/2000.254 [                                                                                                    ]
+MiB Swap:  0.0/0.000    [                                                                                                    ]
+
+  PID USER        RES S %CPU %MEM COMMAND
+18158 root     0.000t S 50.0  0.1 sysbench
+
+
+ 
+значит когда мы видим %CPU = 50%
+то мы понимаем что это вычисленное значение а не напрямую считанное откуда то из недр ОС
+
+и мы понимаем что 50% это среднее значение за период (важно ЗАПЕРИОД!) между 
+текущим моментом и делта тэ назад которая задана при запуске top в параметре -d
+по умолчанию это 10 секунд если это незадано явно через ключ -d
+
+итак еще раз
+смотрим на %CPU
+
+видим цифру ( скажем 50%)
+должны понять две вещи
+
+1) цифра полученная путем вычислений 
+2) 50% это среднее за период между текущим моментом и  моментом минус дельта тэ
+дельта тэ равно 10 секунд по дефолту или равно ключу -d  при запуске top
+
+
+далее
+
+top , P сортирует по %CPU
+
+
+еще раз обьянсю про джиффи.
+
+есть kernel джиффи. это та длинна в секундах 
+которой ядро оперирует в своих операциях когда исполняется
+ядерный код.  этот параметр задается при компилироавании ядра.
+
+есть другой параетр user джиффи.
+по факту их в природе несуществует.
+это фантомная величина которая получается путем конвертации
+керел джиифф умножением на коэффициент.
+
+зачем же их придумали. затем что давным давно менять кернел 
+джиффи длинну менять было нельзя.это была жесткая константа.
+поэтому софт когда считывал с proc число джифффи в штуках
+то чтобы их перевести джиффи из штук в секунды софт 
+умножал джиффи-штуки на фиксированный коэффициент который
+жестко прописан в софте.
+позже когда  длинну джиффи в секундах стало можно менять
+то получилась жопа.
+софт считывает с proc число джиффи в штуках.
+умножает штуки на коэффициаент (коэффициент это длинна одного джииффи в секундах 
+и эта величина константой прописана в софт) и полуает неверные секунды.
+потому что  длинна одного джииффи в секундах отличается от той константы
+которая закодирована в софте.
+
+поэтому как я понял было принято решение прорамистами ядра линукса.
+что все джиффи в штуках которые можно считать с proc должны быть 
+виртуальными , дожны быть такими как бутто длинна джифф в секундах 
+равна 10мс (100ГЦ). тогда софт считав такое модифицированне число 
+джиффи в штуках и умножив на длинну 10мс получит время джиффи в
+секундах правильное.
+
+поэтому все джииффи в proc в штуках которые можно считать из proc
+они ненастящие а модифицированные.
+ядро берет реалбное число джиффи и его модифицирует и только 
+потом кладет его в переменные /proc
+модифицируют джииффи исходя из того чему равен
+коэффициент user_HZ  который можно менять при компилации
+ядра. обычно оно равно 10мс (100ГЦ) . эту переменную
+надо задававть равной коэффициенту старого софта
+который устанавливается. исторически длинна одного джиффи
+зависела от типа процессора. для i386 это 10мс.
+итак цепочка
+
+HZ - это длинна одного кернел джиффи с секундах (или герцах)
+и эта величина которая реаьно исполтзуется ядерным кодом.
+
+для пользовательского софта эти джиффи модифицируются на основе 
+коэффициента user_hz
+
+hz --> user_HZ
+
+если ядерный джиффи = 250ГЦ = 0.004с
+то за 1с накапает 250 джиффи.
+
+если при этом user_HZ = 100ГЦ = 0.001с
+
+то в proc будет записано что прошло не 250 джиффи а 1000 джиффи.
+
+и софт читая переменные из /proc считает 1000 джиффи 
+хотя реально прошло 250.
+
+и софт умножим 1000 джиффи на 0.001(коэффициент захардкоженный
+в софте) и получит что прошла 1 секунда.
+
+все круто прошла  1 секунда в реале и софт узнал что прошла 1с.
+
+вот.
+
+едиснвтенное что одна из переменных proc
+
+/proc/timer_list
+
+она показыает реальные кернел джиффи.
+это исключение.
+
+там есть еще ряд параметров которые можно настраивать 
+при компиляции ядра связанные с шедулером.с настройкой
+его работы. (https://www.kernel.org/doc/html/latest/timers/no_hz.html)
+при необходимости читать.
+
+для ядра джиффи используются для отсчета времени.
+если прошло +1 джиифи и мы знаем длтинну одного джифи
+то ядро знает сколько времени в секундах прошло.
+
+также на выполнение каждого процесса ос выделяет на цпу времени 1 джиффи.
+после этого вызывает шедулер который решает какая следующая программа 
+будет засунута на цпу.
+
+CONFIG_HZ - длинна кернел джиффи в герцах ( обратная величина секундам)
+CONFIG_NO_HZ - эта настройка позволяет вызывать шудулер реже в следущий
+раз если четко понятно что в ближайшее время делать будет нечего.
+то есть эта настрока полезна только с точки зрения
+энергосбережения когда у нас много idle циклов.
+
+
+!! далее.
+смотрим в /proc/$pid/stat
+там очень много информации служебной об процессе
+
+в частности число minor и major 
+memory faults
+
+
+разбирвем что это такое.
+забегая вперед скажу.
+минорные фолты они нетребуют считывания с диска поэтому они быстрые
+мажорные фолты требует чтения с диска поэтому они очень медленные
+
+размер таблицы памяти 
+
+$ cat /proc/meminfo | grep PageTables
+PageTables:      24496 kB
+
+
+как работает доступ цпу к физ памяти.
+как я понял - цпу рабоает с виртуальной памятью. а не с физической.
+и когда цпу говорит дай мне данные с такого то адреса памяти то запрос идет на спец
+микросхему MMU которая транслирует адрес виртуальной памяти на адрес уже реальной 
+физ памяти. у mmu есть доп помощник tlb в котором есть кэш как я понял ряда трансляций. 
+если нет то mmu транслирует само но типа это медленнее. окей транлсяция прощла.
+и становится понятно с какого физ адреса надо считать.
+
+так вот как я понял верхушку айсберга .
+page fault - это хуевое название . это неошибка.
+это скорее микроошибка, или событие.
+процессор обращается к mmu за данными из адреса виртуального.
+и mmu понимает что для данного вирт адреса данных в физ памяти нет.
+это и есть page fault. то есть данных в памяти нет. вот его смысл.
+
+но есть два типа фолта.
+минор и мажор.
+
+при минор. mmu вдруг понимает что данные которые запрашиваются они 
+так случилось есть в физ памяти но совсем по другому адресу чем запрашивали.
+тогда mmu делает себе какито доп пометки (для себя). и выдает данные для цпу.
+важно тут то что при этом событии данные с диска нечитаются.
+
+major fault. насколько я понял главное про этот тип сообщения. это то 
+что для того чтобы цпу получило кусок данных нужно 
+будет обратиться  к диску. число мажор и минор фолтов 
+которые случились в жизни процесса можно 
+посмотреть в /proc/$pid/stat
+и через ps 
+
+# ps p 3209 -o min_flt,maj_flt,cmd
+ MINFL  MAJFL CMD
+  4648      0 containerd-shim -namespace moby -workdir /var/lib/containerd/io.containerd.runtime.v1.linux/moby/9989cc33dd9becb27e7702d1e986310b785ce4b09ca011
+
+
+минор фолт  - нетребует обращени к диску
+мажор фолт - потребовало обращению к диску
+
+
+также хотел про tlb, mmu, page table 
+пояснить
+
+описание как работает когда cpu хочет 
+считать кусок данных из ram:
+
+прежде всего. цпу работает в одном из колец.
+в зависимости от кольца цпу позволит выполнять или 
+запретит выполнять определенные инструкции.
+кольцо 0 дает максимальный доступ ко всем инструкциям
+и всем возможностям.
+кольцо 1 и 2 неиспользуются виндовсом и линуксом.
+кольцо 3 дает ограниченный набор инструкций.
+кольцо 3 недает возможности самовольно переключиться в кольцо 0.
+
+код в кольце 0 регистрирует куски кода которые будут 
+выполняться при наступлении разных прерываний.
+
+ в частности начинает работать на компе таймер 
+ который регулярно формирует на цпу прерывыание на которое вызывает 
+ код обрабатывающий это прерывание в кольце 0 и это шедулер.
+ 
+ шедулер регулярно запускает уже пользовательские программы в кольце 3.
+ 
+ 
+ программа в кольце 3 если ей нужно получить какойто функционал от ядра
+ формирует запрос с параметрами и запускает софтовое прерывание.
+ 
+ проц преключается в кольцо 0. передвате параметры от пользовательской проги
+ к коду который обрабатвыает прерыаение. и если все оформлено правильно
+ то выполняется ядерный кусок который делает то что просит 
+ польщовательская программа.
+ 
+ в кольце 3 программы работают точно не с физической памятью а с виртуальной.
+ конечно пользвательская программа это незнает. программа думает 
+ что работать с физической памятью.
+ 
+ вот откуда появляется та самая виртуальная память.
+ плюч вирт памяти в том что пользвательские
+ проги немогут навредить друг другу. ибо они неимеют
+ прямого доступа к памяти. 
+ 
+ когда цпу работает в колльце 0 то программа работает 
+ как я понял уже с физической памятью а не виртуальной. 
+ обязательно или нет я незнаю. может ли программа в режиме кольца 0
+ работать с виртуальной памятью незнаю.
+ 
+ пока что ясно точно одно  - в кольце 3 исполняетя пользовательская 
+ программа  и эта программа работает не с физической памятью
+ а наебкой под названием виртуальная память.
+ 
+ вот программа хочет считать данные с памяти.
+ то бишь цпу надо счттать кусок данных с памяти.
+ 
+ адрес указан виртуальный.
+ 
+ цпу обращается к микросхеме которая впаяна в сам корпус цпу 
+ под названием MMU.
+ вроде бы каждое ядро имеет свое индивидуальное MMU
+ mmu должен преобразовать виртуальный адрес в уже реальный физ адрес RAM
+ чтобы их можно уже было считать с реальной памяти.
+ mmu для этого смотрит в кэш который тоже вмонтирован тоже в корпус 
+ самого цпу под названием TLB.
+ в TLb есть таблица соотвествия виртальных адресов
+ и физ адресов.
+ если там это есть то отлично. мы узнаем физ адрес.
+ далее как я понимаю именно mmu обращается уже к memory controller
+ и просит его считать данные с узнанного адреса.
+ (но это неточно. я ненашел точных данных кто в итоге обращается
+ к memrory controller mmu или цпу.).
+ далее когда физ адрес памяти мы выяснили происходит
+ еще кое что интересное. цпу зная адрес ищет данные в своих кэшах.
+ поскольку как я понял зная физ адрес можно искать данные в
+ кэшах цпу. если в кэшах цпу нет то тогда запрос идет к 
+ мемори контроллеру. 
+ мемори контроллер по выданному ему адресу в физ памяти
+ выдает содержимое памяти по адресу.
+ отлично. конец истори.
+ 
+ немогу сказать точно mmu ищет в кэшах и обращается к
+ мемори контроллеру или сам цпу это делает а mmu только 
+ отвечает ли за преобразование вирт памяти в физ память.
+ это я так пока и ненашел.
+ 
+ итак еще раз цепочка
+ 
+ [ цпу -> mmu -> tlb -> кэш цпу ] -> memory controller -> RAM
+ 
+ в скобочках я показал те микросхемы которые сидят внутри цпу.
+ и даже мемори контроллер может сидеть внутри цпу.
+ в любом случае если данные содержатся в tlb и кэше
+ то цпу получает данные сверхбыстро потому что они все 
+ есть внутри цпу.
+ 
+ интереснее происходит если в tlb нет нужной информации.
+ тогда mmu лезет в RAM.
+ тут дальше несовсем понятно как это работает.
+ но смешно. чтобы получить данные из ram
+ мы лезем для этого в ram правда в другое место.
+ mmu лезет в ram в page table.
+ исходя из картинки что я увидел . именно mmu дает 
+ запрос к мемори контроллеру.
+ 
+ если mmu ненаходит нужное в tlb то оно генерирует 
+ page fault exception и interrupt cpu
+ 
+ странно на одной презентации я прочитал что кернел код 
+ использует тоже виртуальному адресацию ...хмм.. мне кажется это брехня
+ вобщем я прочитал вот что. код ядра он тоже работает не с реальным физ пространством
+ а в виртуальном пространстве.
+ насколько я понял все сделано вот как: все процессы которые работают ..
+ 
+ так тут вылезло много вопросов про память в линуксе.
+ 
+ я привык что все что в памяти можно увидеть в форме процессов через ps
+ оказыает сяэто вроде не так. 
+ то есть само ядро его невидно.
+ 
+ с виртуальной памятью и ядром непонятно.
+ 
+ ядро окащывается это не какойто бэкграунд процесс.
+ а набор рутин которые можно вызвать.
+ 
+ ...
+ 
+ paging - это когда процесс работае с виртуальной памятью.
+ и ему кажется что она реальная. но фишка в том что на самом деле
+ процеесс занимает в физической памяти несттолько места как ему кажется.
+ процессу можно выделять куски физ памяти тока по мере необходимости.
+ типа как у дисков thin provision.
+ 
+ paging и микросхема mmu неразлучны.
+ 
+ как только мы активировали MMU на цпу (незнаю как) то очень важный момент -
+ - как процессор там неизгоялялся - вся адресация будет виртуальная.
+ процессор будет работать только с виртуальными адресами.
+ это значит что все запросы на доступ к памяти будут проходить через MMU.
+ mmu в свою очередь для каждого запрошенного адреса
+ ищет соответствие физ адрему в своем кэше TLB.
+ если в TLB записи нет то возникает exception. ( толи эксепшн то ли интеррапт.
+ из того что нашел интеррапт это сигнал на ножке цпу от внешнего устройства
+ типа клава мышь о событий на периферийноим устройстве которое надо обработать.
+ если проц закончил выполнять команду и обнаружил на ножке своей сигнал 
+ от дургого устройства интеррапт то цпу передает управление интеррапт хэндлеру
+ спец программе которая обрабатыавет событие. как тока хэндлер закончит 
+ свою работу цпу начнет выполнять программу дальше которую онвыполнял 
+ до наступления интеррапта.
+ эксепшн это типа событие произошедшее внутри самого процессора.
+ его внутренние проблемки.
+ поэтому я считаю что отсутствие записи в tlb это эксепшн
+ но мое ощущение что люди используют оба термина 
+ как попало.)
+ 
+ так вот в TLB неоказалось записи. вознкает эксепшн.
+ дальше пишут что два варианта в зависимости от производителя 
+ процессора.
+ один вариант что цпу обращается к ОС непонятно в какую ее часть.
+ и ждет что ОС найдет ему сама необходимую трансляцию.
+ как я понял к интел это неотносится.
+ 
+ у интел работает другой вариант.
+ процессор лезет в RAM по специальному адресу как я понял
+ указанному в регистре CR3 (непонятно кем когда и как указанному).
+ адрес там указан реальный физический.
+ и идет по этому адресу и ожидает что там лежит
+ специально сфорсмированная таблица page table
+ которая имеет заранее оговоренный формат. и ищет в этой таблице
+ ровно теже данные что он искал в TLB.
+ находит их там и все отлично.
+ 
+ отсюда важные выводы - таблицей ее наполнением и коректным содержанием
+ занимается ОС. (как она это делает непонятно).
+ 
+ также получается смешная ситуация - чтобы считать данные с ячейки RAM
+ нужно еще понять откуда же по факту ее читать и для этого если в TLB записи
+ нет придется полазить по той же самой RAM причем неодин раз. получается
+ офигенная уменьшенеи скорости работы с памятью.
+ 
+ если запись есть в TLB котоый находится на самом чипе цпу то 
+ тут проблем нет. получим что буквально чтение из памяти будет считай
+ такое же по скорости как бутто мы сразу знадли адрес физ ячейки.
+ 
+ ОС как я понял конечно можем читать писать в TLB
+ 
+ получается ядерный код тоже работает в режиме виртуальной адресации.
+ 
+ из этго получается непонятная рекурсия. чтобы запрограммировать соотвествие вирт адреса
+ в физ адрес нужно указать это в TLB либо в RAM в таблице. но мы же еще ..... как обьяснить.
+ 
+ вот ядро как то оказалось в оперативке. нет еще ни данные в TLB ни в RAM нет page table.
+ как же нечать с ними работат. получается что чтобы была курица надо яйцо 
+ а чтобы было яйцо нужна курица.
+ 
+ скажем сидит у нас ядро в памяти и имеет для себя записи в page table в памяти.
+ как это поменять. ведь ядро то само видит только вирт адреса. и не может вырываться
+ в физ адресацию. то есть ядро же заперто каки другие процессы внутри 
+ невидимой тюрьмы вирт адресаци.
+ 
+ непонятно.
+ 
+ есть определенные трюкт точно.
+ например можно сделать что вирт адреса совпадают с физ адресами. 
+ тут тогда более все понятно.
+ 
+ каждый процесс уже полтзвательский имеет свою собвственую page table.
+ в которой записано какие физ блоки занимает его вирт адресаци.я
+ возможно его page table является частью одной большой page table
+ 
+ ядро у нас лежит в каком то пространстве адресов физ памяти.
+ и для каждого пользтвалельского процесса прописанов его page table
+ что определенный кусок памяти вирт пространства процесса ведет в физ 
+ пространство где лежит код ядра.
+ поэтому в вирт пространстве процесса каждого есть код ядра.
+ полуается каждый процесс в своей памяти видит код ядра.
+ 
+ вот это вот связывание адресов вирт памяти и адресов 
+ физ памяти как я понял называется pagin также маппинг
+ 
+ вирт адрес пространство это типа фронтенд
+ а физ адрес пространство это типа бэкенд
+ 
+ и говорят что код ядра замаплен в память каждого процесса.
+ 
+ зачем так сделано.
+ получается что у каждого процесса отобрали 1GB его вирт адресного пространства
+ где мог бы лежать доп код юзерского процесса.
+ 
+ сделано это для скорости. когда юзеркский код 
+ делает syscall то оказыается что ядерный код уже доступерн в этом 
+ адресном пронстранстве ненужно делать какието там переключения на цпу и терять
+ скорость. 
+ 
+ тот кусок куда замаплен код ядра в вирт пространстве памяти 
+ процесса называю high mem 
+ 
+ 
+ очень важная вешь которая пока непонятная.
+ не все структуры которые выполняются на цпу видны в ps.
+ ядро которое было загружено при загрузке 
+ его вообще непощупать. 
+ например работу шедулера линукса ее непонятно как пощупать отследить
+ сколько времени она заняла на цпу и других железках 
+ за какойто интервал. и это только одна из структур ядра невидимая.
+ 
+ насколько я понимаю как все работает:
+ вот загрузилось в память ядро линукса - vmlinuz.
+ то есть формально кусок кода записан в какойто кусок оперативки.
+ 
+ дальше этот код запускается. то есть начинает исполняться на цпу.
+ 
+ это может и не особо важно.
+ но когда ядро начинает выполняться на цпу тот там походу пьесы 
+ с точки зрения самой же ОС нет никаких процессов как это мы привыкли.
+ что если какая то программы выполняется на компе то она обязательно
+ имеет вид процесса.
+ такого там нет.
+ код ядра просто както там выполняется.
+ и вот там все варится варится варится.
+ и на какомто этапе ядро порождает первый процесс 
+ это init.
+  у него кстати $pid = 1
+  
+  до этого момента как я понимаю никаки процессов во вселенной запущенного ядра нет.
+  что там хуй знает. просто код который крутится на цпу.
+  
+  вот это конечно интересно как это там все работает с точки зрения самой же
+  ОС до возникновения процессов.
+  
+ 
+ перед тем как запустить первый процесс как я понимаю 
+ в системе настроена важная штука как шедулер и interrupt хэндлеры.
+ 
+ что оно дает. каждый раз когда в системе срабатывает таймер (железка) то она 
+ присылает на ножку цпу сигнал. и цпу идет в определенное место памяти 
+ и там сидит кусок кода ядра под названием шедулер.
+ и этот шедулер решает какой процесс будет запущен а цпу на время следущего джиффи.
+ 
+ то есть наверно так - загрузка ядра в память.
+ он так как то хуй знает работает. стой точки зрения что там все инициализируется.
+ и нет процессов а просто код както болтается на цпу.
+ 
+ потом в итоге в память записываются обработчики интерраптов.
+ и вызывается шедулер (  это типа функция  ) ,
+ который запускает код уже непросто как хуйзнает какойто код а уже по всей форме
+ а именно в форме процесса. все первый процесс пошел на регулярное исполнение.
+ 
+ и получается что уже никакой ядерный код невыполняется. он просто лежит в оперативке и все.
+ 
+ а выполняются либо пользовательский код в процессах.
+ либо по интерапту регулярно вызывается шедулер (кусок кода ядра) который неявляется
+ процессом.это кусок кода который отрабатывается во ответ на интеррапт от таймера.
+ 
+ получается ядро просто лежит в оперативке. 
+ ну и еще процессами юзеров время от времени вызываются куски кода ядра
+ чтобы выполнить какието специфические опасные задачи  - считать файл например.
+ то есть код ядра просто как бы становится частью кода пользовательского процесса.
+ 
+ а в остальном ядро никак неработает и неживет. оно мертвым грузом лежит в оперативке.
+ единственный живой регулярный хартбит от ядра это регулярно срабатыывающий шедулер.
+ в остальном ядро мертво.
+ 
+ есть еще такие вещикоторые путают мозг это 
+ 
+ kernel space
+ user space
+ 
+ это относится к характеристике RAM.
+ 
+ а есть kernel mode и user mode - это относится к совершенно другому 
+ это характеристика процессора его режима работы.
+ 
+ 
+ а их мешают в кучу.
+ 
+ плохо назвали.
+ 
+ kernel space, userspace -  
+ я бы сказал что здесь это включает вот какую сложную концепцию :
+  каждый процесс пользовательский работат в виртуальном адресном пронстранстве.
+  имеется в виду то что программа думает что она записывает данные в ячейку с адресом 1.
+  а на самом деле запись идет в совершенно другую ячейку в физ памяти.
+  плюс не все ячейки памяти которые программа думает она заняла в физ памяти 
+  она реально их заняла. то есть память с которой раотает процесс это фейк.
+  это некий фронтенд. виртуальнвый. а  бекенд для этого хитрый.
+  
+  так вот для каждого пользовательского процесса так сделано что 1GB  его виртуалтной памяти
+  завязывается с тем куском физ памяти где лежит ядро.
+  поэтому формально в адремном пронстранстве процесса есть и код ядра и код пользовательский
+  самой программы. и в режиме работы процессора в пользовательском режиме (ring 3) код программы
+  попав на цпу неможет считать и тем более записать ничего из адресов где типа лежит ядро.
+  также как юзер неможет зайти на диске в папку администратора - нет прав.
+  
+  но все таки вернемся к коду ядра котороый лежит где то в физической памяти.
+  как я понял в физ памяти ему выделяется некий оговоренный кусок.
+
+  так вот что важно. код который относится к ядру - например новый драйвер  - он будет записан 
+при считывании с диска только в ту область памяти.
+
+ну окей. типа просто делаем некую секретарскую работу - код ядра кладем в одну область а все остальное
+в другую область. 
+
+но вот я говорю одно из первых фишек что это дает . это то что - если мы имеем какойто кусок
+кода в той кернел области памяти. то этот код будет присутсвовать в КАЖДОМ пользовательском
+процессе в его вирт памяти. он будет туда замаплен.
+но конечно прямого доступа коду юзера в процессе небудет к памяти ядра.
+он будет только через syscall.  
+
+есть еще одно важное последствие.
+процессор можно перкключить в привилигировнный режим там где доступны для кода все команды цпу.
+так вот когда процессор работает в этом привилигированном режиме то он будет исполнять в этом 
+режиме только команды которые лежат в кернел области RAM.
+поэтому если мы хотим какойто код выполнять в привилигорованном режиме мы должны
+этот код поместить именно в кернел space.
+
+такова взаимосвязь между двумя совершенно разными железками - памятью и цпу
+связь между kernel space ( кусо в памяти ) и kernel mode ( привлигированный режим работы цпу )
+
+
+только код из kernel space будет выполняться на цпу  в kernel mode.
+
+
+далее. есть просто процессы.
+а есть kernel процессы.
+
+просто процесс . это пользовательский код который работает в ring3. и этот код 
+оформлен в виде процесса. это дает то что шедулер постоянно меняет какой из множества 
+процессов выполнять на цпу на данный момент джиффи.
+
+процесс это некая самодостаточная коробка со всеми ингридиентами для того чтобы ее
+можно было в любой момент отложить . а потом обратно достать и продолжить выдавать 
+заданный продукт.
+
+в чем проблема процесса работающего в ring3. если он часто вызывает syscall
+то есть функции ядра то процесс переключения цпу из ring 3 в ring 0 ( в котром выполняется
+та или иная функция ядра код куска ядра ) он очень долгий в плане времени потому что
+цпу надо много циклов чтобы переключиться с ring3 на ring0
+
+и тогда возникает идея что если поместить весь код  в kernel space и чтобы он работал 
+целиком в ring 0 то в плане цпу времени может существенно увелситься скорость выдаваемого
+продукта.
+
+так и делают. помещают код в kernel space.
+а потом есть спец провцедура которая создает процесс который работате только в ring0 
+беря кусок кода из kernel space.
+
+в чем разница между ядром, шедулером и кернел процессом.
+
+ядро - это просто весь код который лежит в кернел памяти мертвым грузом
+как мешки с гавном. лежит в памяти и на цпу его нет.как старый текстовый файл на 
+жестком диске. это ядро.
+
+шедулер это часть кода ядра. его кусочек. который вызывается регулярно на цпу
+потому что на цпу регулярно приходит сигнал от таймера и так настроено что когда приходит
+сигнал то цпу исполняет шедулер.
+при этом шедулер непроцесс. незнаю что это но непроцесс. у него как я понял нет 
+каких то атрибутов присущих процессу. и шедулер исполняется на ring0
+
+кернел процесс он попадает на цпу тоже регулярно как и шедулер
+тоже он каки и ядро и как шедулер лежит в памяти в кернел спейс 
+но в отличие от шедулера он попадает на цпу регулярно не изза сигнала таймера на цпу
+а потому что его регулярно вызывает шедулер. 
+мне это напоминает вот что.
+
+на компе можно программу вызывать ну просто через командную строку. 
+это типа как ну просто код выполняется на цпу.
+
+а можно код засунуть в task scheduler и он станет джобом.
+это мне напоминает процесс в ОС.
+
+то есть процесс это правильно зарегистрированный кусок кода в шедулере.
+также как любую программу можно зарегистрировтаь в виндовс шедулере и он превратиться в джоб.
+также походу любой кусок кода можно зарегистрировта в линукс шедулере и он станет процессоом.
+
+
+так случилось что привычнее всего кусок кода выполняющийся на процессоре в ОС
+видеть оформленным в виде процесса. как бы настолько это вьелось что непредставляешь
+как бы это можно было на цпу в ОС запустить программу и она бы не являлась процессом.
+
+но по факту процесс это только один из вариантов запуска кода на цпу.
+какие друние варианты я незнаю но они есть.
+
+(надо потихньку начать закрывтаь вкладки в браузере)
+
+я прочитал что когда сработал интеррапт и было пердано управление хэндлеру то в этот
+момент линия видимо ножка процессора которая принимает интеррапты она выключена.
+это непонятно. а что же если от хардвейра летит в это время сигнал он полуается пропадает?
+ладно. так вот изза этого хэндлер делает минимаьную работу чтобы как можно быстрее
+ножка приема интерраптов обратно включилась. поэтому интеррапт непроделывает все работу
+нужную по обработке интеррапта а только минимальную а остальную часть както передает
+комуто другому (типа  bottom half driver-у) а тот уже когда то потом доделывает 
+работу. важно то что когда работает bottom half driver то в это время ножка на цпу
+обратно включена. и это отлично. и вот поэтому хэндлер делаеют максимально быстрым и коротким.
+в общем botom half это спец куски кода в ядре которые вызываются тоже особым образом
+они представляют собой как бы вторую половину хэндлера. их назначение доделать всю работу 
+которая осталась несделанной после работы хэндлера. главное чтобы хэндлер был мелкий
+отрабатывал молниеносно чтобы сократит время когда цпу имеет дезактивированную ножку
+интерраптов. когда работает bottom half то ножка уже активирована.
+
+если код ядра выполняется  для обработки интеррапта это называется interrupt context.
+то есть это когда хэндлер выполняется. в этом режиме конечно код не имеет никакого 
+процесса. такой код неможет впасть в спячку чтобы потом его продолжить выполнять.
+он должен быть выполнен до конца.
+
+
+есть полная каша  в линуксе с такой штукой как context.
+попробуем прояснить. (https://www.kernel.org/doc/htmldocs/kernel-hacking/basic-players.html)
+
+цпу может исполнять код в следущих режимах :
+
+* выполняется код ядра. цпу в ring 0. код не принадлежит никакому процессу.
+код является обработчиком интеррапта. (это точно называется interrupt context)
+
+* выполняется непонятно код ядра или юзеркский код. цпу ring непонятен. код не принадлежит никакому процессу. 
+идет обработка tasklet или softirq (мало что понятно)
+
+* выполняется код адра. цпу в ring 0. код ассоциирован с процессом.
+данные вводные прилетели из юзерского кода (через syscall)
+ идет обработка syscall (это точно называется user context)
+
+* выполняется код юзерский. цпу в ring 3. код принадлежит процессу.
+выполнятеся юзерский код в процессе в ring 3
+
+
+остается вопрос что такое process context. 
+
+
+один важный момент вытекает.
+в ps или top указан процесс обычный какойто программы типа эластика.
+которая нахродится в состоянии S.
+
+теперь я болеее интересно трактую это состояние.
+
+прежде всего оно означает что на цпу сейчас юзерского кода этого процесса нет. невыполняется.
+но! это незначит что на цпу невыполняется ядерный код запущенный этим процессом.
+процесс мог сделать syscall 
+тогда все данные пользовательского кода с цпу убираются. 
+процесс получает статус S. цпу переключается в ring 0. запускается ядерный код
+с параметрами прилетевшими от юзерского кода. 
+
+вот у меня два вопроса. что мы увидим в таком случае в команде top или ps
+будет ли у процесса статус S, и какой будет cpu_usage для процесса.
+
+и вот этот ядерный код который будет выполняться он в каком статусе
+выполняется.приписывается ли он к процессу.  а значит можно ли выполнение этого кода
+приостановить  а потом возобновить через шедулер.
+
+в любом случае если процесс S прямо сейчас это незначит что он опосредованно
+негрузит цпу прямо сейчас (через syscall). да код самого процесса невыполняется на цпу
+но вместо этого на цпу выполняется код ядра. так какая разница все равно цпу занят.
+это как то что лопату сейчас использует не вася а петя которому вася лопату передал.
+
+прикольно что можно wchan напрямую для процесса читать
+
+# cat /proc/2406/wchan
+
+-->чуть в сторону
+в top кнопка "t" позволяет покаызывать суммарную загрузку цпу
+
+top - 20:50:21 up 18 days,  4:14,  2 users,  load average: 0.59, 0.86, 0.62
+Tasks: 153 total,   2 running, 150 sleeping,   0 stopped,   1 zombie
+%Cpu(s):   0.3/49.9   50[                                                                                                    ]
+MiB Mem : 22.2/2000.254 [                                                                                                    ]
+MiB Swap:  0.0/0.000    [              
+
+
+%Cpu(s):   0.3/49.9   50
+
+0.3 - это %us+%ni
+49.9 - это $sy
+50 это суммарная загрузка цпу.
+<--
+
+
+вот пример процесса java
+который все время показывает загрузку по %cpu_usage
+при этом эта загрузка вся %us и только капля %sy
+и при этом он постоянно S
+
+
+top - 20:54:56 up 115 days,  4:13,  2 users,  load average: 3.64, 3.38, 3.70
+Tasks: 175 total,   3 running, 172 sleeping,   0 stopped,   0 zombie
+%Cpu(s):  34.1/0.4    35[                                                                                                    ]
+
+  PID USER        RES S %CPU %MEM     TIME+ COMMAND
+ 1177 elastic+ 0.030t S 34.7 87.8 439018:09 java
+
+как видно
+%CPU 34.7
+%us 34.1
+%sy 0.4
+
+а вот другой пример
+команда dd
+
+top - 20:57:22 up 18 days,  4:21,  2 users,  load average: 0.96, 0.92, 0.75
+Tasks: 153 total,   2 running, 150 sleeping,   0 stopped,   1 zombie
+%Cpu(s):   0.6/49.7   50[                                                                                                    ]
+
+  PID USER        RES S %CPU %MEM COMMAND
+ 5527 root     0.000t R 49.9  0.1 dd
+
+
+%CPU 49.9
+%us 0.6
+%sy 49.7
+
+и при этом оно постоянно R
+
+мне непонятно если процесс постоянно запускает через syscall кернел код
+то как его состояние постоянно остается R
+
+и в тоже время предыдущий пример.
+процесс все время  исполняется юзерский код. но статус постоянно остается S
+
+а ведь S означает что процесс нырнул в syscall
+
+мы в итоге обрато вернулись с того с чего начали
+что значит S и R
+и как оно связано с cpu_usage 
+
+
+load average (1m) растер от 3м 40с до 4м 40 секунд с 0 до 1
+и падает с 0 до 1 тоже 4м 40с
+
+это пиздец.
+
+вторая жопа что по времени оно растет не с одинаковой скоростб. хотя
+тисходная функция константа
+  
+  подбирвется к макксимум очень меддленно
+  падает с макмимума очень быстро
+  
+  падает к нулю очень мделенно а растет от нуля очень быстро
+  
+ 
+ 18 минут непрервыйно нашгрузки привели к 1 во вторром la
+ 
+ 
+ получается чтобы load (1) дорос до 1 нужно как минимум 3:40 минуты
+ чтобы шарашил на полную
+ 
+ чтобы load (2) дорос до 1 нужно как миниум 18 минут шарашить на полную.
+ 
+ load растет внчале очень бодро потом средне а под конец вобще нехочетс расти
+ падает она очень бодро потом средне пдаает а в конце очень нехочет уходить в ноль
+ 
+ итолько через 50 минут load(3) дорос до 1. ну а така как  я начинал при ненулевом load(3)
+ то я думаюб что он от 0 до 1 растет целый час.
+ 
+ 
+ за первую минуту до 0.60)  (+0.60 за минуту)     
+ за вторую минуту до 0.86)  (+0.26 за минуту)  
+ за третью минуту до 0.95)  (+0.09 за минуту)
+ за четвертую минуту 0.98)  (+0.03 за минуту)
+ за четыре 40с    до 1.00   (+0.03 за минуту)
+ 
+ видим что чем больше во времени работает процесс тем меньше 
+ он дает вклад в среднеее. это жопа.
+ 
+ по мне load растет как логарифм во времени
+ 
+ 
+ 2 треда до load()=1 дошли за 45 секунд 
+ а до load()=2 дошли за 4м 40с теже.
+
+ я запустил sysbenmch на тест диска.
+ с 16 потоками чтения записи.
+ 
+ при прочмотре top видно что процесс один.
+ но ps ax -T покзаывыает что sysbench запустил lightweight треды.
+ и их 16 штук. все они в состоянии D
+ 
+ и load average показал = 15.4 за пару минут.
+ таким образом все эти дисковые нагрузки вылились в load average
+ и цпу тут ни причем.
+ и в top этого невидно там только один процесс со статусом D
+ а нужно открывать треды . и только тогда мы поймем в чем дело.
+ почему такой большой load average
+ 
+ что важного выяснилоась.
+ 
+ вот есть у нас есть процесс.
+ а у него много тредов.
+ 
+ так вот статус головного процесса не совпадает сос статусами тредов
+ 
+root     20265  0.0  0.0  26712   560 pts/0    Sl+  20:23   0:00 sysbench --num-threads 16 --test fileio --file-total-size 3G --file-test-mode rndrw --max-ti
+root     20265  1.7  0.0  26712   560 pts/0    Dl+  20:23   0:08 sysbench --num-threads 16 --test fileio --file-total-size 3G --file-test-mode rndrw --max-ti
+root     20265  1.7  0.0  26712   560 pts/0    Dl+  20:23   0:08 sysbench --num-threads 16 --test fileio --file-total-size 3G --file-test-mode rndrw --max-ti
+root     20265  1.7  0.0  26712   560 pts/0    Dl+  20:23   0:08 sysbench --num-threads 16 --test fileio --file-total-size 3G --file-test-mode rndrw --max-ti
+root     20265  1.7  0.0  26712   560 pts/0    Dl+  20:23   0:08 sysbench --num-threads 16 --test fileio --file-total-size 3G --file-test-mode rndrw --max-ti
+root     20265  1.7  0.0  26712   560 pts/0    Dl+  20:23   0:08 sysbench --num-threads 16 --test fileio --file-total-size 3G --file-test-mode rndrw --max-ti
+root     20265  1.7  0.0  26712   560 pts/0    Dl+  20:23   0:08 sysbench --num-threads 16 --test fileio --file-total-size 3G --file-test-mode rndrw --max-ti
+root     20265  1.7  0.0  26712   560 pts/0    Dl+  20:23   0:08 sysbench --num-threads 16 --test fileio --file-total-size 3G --file-test-mode rndrw --max-ti
+root     20265  1.7  0.0  26712   560 pts/0    Dl+  20:23   0:08 sysbench --num-threads 16 --test fileio --file-total-size 3G --file-test-mode rndrw --max-ti
+root     20265  1.7  0.0  26712   560 pts/0    Dl+  20:23   0:08 sysbench --num-threads 16 --test fileio --file-total-size 3G --file-test-mode rndrw --max-ti
+root     20265  1.7  0.0  26712   560 pts/0    Dl+  20:23   0:08 sysbench --num-threads 16 --test fileio --file-total-size 3G --file-test-mode rndrw --max-ti
+root     20265  1.7  0.0  26712   560 pts/0    Dl+  20:23   0:08 sysbench --num-threads 16 --test fileio --file-total-size 3G --file-test-mode rndrw --max-ti
+root     20265  1.7  0.0  26712   560 pts/0    Dl+  20:23   0:08 sysbench --num-threads 16 --test fileio --file-total-size 3G --file-test-mode rndrw --max-ti
+root     20265  1.7  0.0  26712   560 pts/0    Dl+  20:23   0:08 sysbench --num-threads 16 --test fileio --file-total-size 3G --file-test-mode rndrw --max-ti
+root     20265  1.7  0.0  26712   560 pts/0    Dl+  20:23   0:08 sysbench --num-threads 16 --test fileio --file-total-size 3G --file-test-mode rndrw --max-ti
+root     20265  1.7  0.0  26712   560 pts/0    Dl+  20:23   0:08 sysbench --num-threads 16 --test fileio --file-total-size 3G --file-test-mode rndrw --max-ti
+root     20265  1.7  0.0  26712   560 pts/0    Dl+  20:23   0:08 sysbench --num-threads 16 --test fileio --file-total-size 3G --file-test-mode rndrw --max-ti
+root     20353  0.0  0.1  35932  3064 pts/1    R+   20:32   0:00 ps auxH
+
+если мы смотрим top то там треды непоказыываются.
+а только головной процесс.
+и если скажем треды жрут диск и находятся в состоянии D
+то в топ этого совершенно невидно.
+
+только # ps auxH 
+это покажет
+
+в этом плане гораздо полезнее не top
+а vmstat
+
+
+root@test-kub-04:~# vmstat 1
+procs -----------memory---------- ---swap-- -----io---- -system-- ------cpu-----
+ r  b   swpd   free   buff  cache   si   so    bi    bo   in   cs us sy id wa st
+ 0  0      0  78720  33712 1828784    0    0    20    27    3    2  0  0 100  0  0
+ 0  0      0  78596  33712 1828912    0    0     0     0   30   61  0  0 100  0  0
+ 0  0      0  78596  33712 1828912    0    0     0     0   17   31  0  0 100  0  0
+ 0 16      0  75720  33712 1831144    0    0 20020 21128 2258 4388  1  4 77 19  0
+ 0 16      0  78236  33892 1828352    0    0 83588 95032 8722 18738  2 16  9 73  0
+ 0 12      0  75832  33896 1830968    0    0 82880 92520 9164 18480  1 16  1 83  0
+ 6 15      0  77560  33944 1829160    0    0 86584 93528 8976 18708  2 14  1 84  0
+ 5 14      0  76432  33916 1830420    0    0 87216 93296 8544 18324  2 16 12 70  0
+ 0  9      0  78952  33844 1827916    0    0 83240 89764 9047 18249  0 15  1 84  0
+ 0 12      0  75180  33980 1830700    0    0 82112 92680 8568 18363  1 17  2 81  0
+ 1 14      0  74720  34060 1831832    0    0 81512 93172 7224 17593  2 15 27 57  0
+ 3  8      0  72144  34088 1834056    0    0 88292 95308 9693 19112  1 18  1 81  0
+ 0 16      0  69644  34104 1836592    0    0 83196 92740 8296 18067  1 17 11 70  0
+ 0 16      0  71984  34084 1834380    0    0 83180 93640 8443 18166  1 14 13 72  0
+
+
+в колонке b 
+он показывает число и процессов и тредов все сразу которые ждут ответа от диска.
+так что это сразу видно. пплюс он показывает %wa который тоже подтвердит
+что дисковая система тормозит. где тормозит.
+
+получается vmstat полезнее чем top
+
+при этом top в верхней графе неопказывает процессы D
+это очень болшой пррокол.
+
+top - 20:40:35 up 22 days,  4:04,  3 users,  load average: 2.77, 6.05, 7.63
+Tasks: 140 total,   1 running, 139 sleeping,   0 stopped,   0 zombie
+%Cpu(s):  0.0 us,  4.1 sy,  0.0 ni, 50.0 id, 45.9 wa,  0.0 hi,  0.0 si,  0.0 st
+
+видно что процессов который D uninterruptible sleep
+он непоказыает.
+то есть для top все шоколадно.
+
+ у нас может быть 16 ядер на компе.
+ load average  = 1 
+ и типа все отлично
+ а это может быть  1 процесс который грузит диск на 100%.
+ 
+ в итоге система мертвая а load average в шоколаде.
+ 
+ то есть load average это дебильная характеристика. ни о чем.
+ 
+ load по мнению линукса сиюсекундная хараеткеристика данного момента.
+ это сколько процессов со статусом R+D + те которые както там застряли
+ на файловых шарах  на данный момент. число R+D на данный момент 
+ можно посмоттреть через vmstat 
+ 
+ root@test-kub-04:~# vmstat 1
+procs -----------memory---------- ---swap-- -----io---- -system-- ------cpu-----
+ r  b   swpd   free   buff  cache   si   so    bi    bo   in   cs us sy id wa st
+ 0  0      0 434980  92916 1421384    0    0    23    30    5    5  0  0 100  0  0
+ 0  0      0 434948  92916 1421400    0    0     0     0   33   53  0  0 100  0  0
+ 0  0      0 434948  92916 1421400    0    0     0     0   23   48  0  0 100  0  0
+
+
+видно r+b. (b это в терминах ps это статус D).
+вот это и есть load на данный  момент.  итак load это исходная функция
+которая их интерсует.
+
+load average это среднее от этой функции. но непросто арифметическое среднее. неееееет.
+это экспоненциальная скользящая среднее. и это уже хуй знает какой смысл имеет 
+физический.
+
+
+если  у нас запущено два треда по 100%. то load (первый параметр) достигает за 45 секунд.
+смысл физический? 
+
+получается что первый параметр доходит до 1 за 4м 40с
+второй параметр доходит до 1 за 18 минут
+третий за час - при однотредовой нагрузке 100.
+
+думаю хватит об этой дебильной характеристике.
+
+( про скользящую экмпоненциальную среднюю - https://ru.wikipedia.org/wiki/%D0%A1%D0%BA%D0%BE%D0%BB%D1%8C%D0%B7%D1%8F%D1%89%D0%B0%D1%8F_%D1%81%D1%80%D0%B5%D0%B4%D0%BD%D1%8F%D1%8F )
+
+ 
+ 
+!! возвращаемся к процессам в линуксе. к работе с памятью MMU.
+к тому как линукс работает с кодом.
+ 
+ 
+ 
+ (mmu вмонтирован в корпус цпу а не в корпус memory контроллера потому что...)
+ 
+
+
+грузится комп. цпу работает в кольце 0.
+первый код который попадет в цпу будет работать в кольце 0.
+
+
+
+
+
+процессору нужно получить кусок данных из вирт памяти.
+он обращается к своей микросхеме MMU
+MMU 
+наверное mmu это и есть memory controller или его часть.
+
+назначение mmu это чтобы определить каков адрес в физической памяти
+для запрошенного адреса в виртуальной памяти,то 
+есть чтобы преобразовать вирт адрес в физический
+
+
+освятить то что tlb сидит в цпу и поэтому доступ к физ памяти через него быстрее
+чем через page table
+
+также  я встретил что код ядра оперирует с памятью физической напрямую. без mmu .
+неиспользует виртульную адресацию. а оперирует физической адресацией напрямую.
+вау.
+
+
+
+
+tlb - это кусок цпу.  и кэширует page-table ( которая сидит в ram )
+
+
+
+minor page fault - это когда считывани с диск не происходит. ( и это отлично).
+
+
+!! такой штук.
+
+рассказываю про то что происходит когда в системе нет свап раздела
+и мы выжираем всю физ память. что будет происходить
+и почему.
+
+буду говортиь про kswapd0, бешеное чтение с диска, oom_killer
+
+когда линуксу физически нехваатает памяти он вызывает oom_killer
+он убивает процессы с максимальными поинтами.
+
+для кажждого процесса можно посмреть текущий оом поинт
+
+~# cat /proc/390/oom_score
+1
+
+чем выше поинты тем он более первый в списке на убиение.
+формула конечно назначени поинтов сложна но для простоты
+там так - чем больше памяти занимаеим процесс тем у него поинт выше.
+если процесс работает под рутом то его поинты пониже.
+
+была у меня такая практика.
+я захотел вызывать этот oom и посмотреть что будет.
+
+в лнуксе есть папка /dev/shm
+в нее смоонтирована оперативная память
+
+root@test-kub-04:~# df -h
+Filesystem      Size  Used Avail Use% Mounted on
+tmpfs          1001M     0 1001M   0% /dev/shm
+
+для чего нужен этот shm я таки непонял но факт в том что
+эта папка она ведет прямов память.
+поэтому если мы в нее запишем файлы то у нас займется память.
+
+вот как было до
+
+~# free -m
+              total        used        free      shared  buff/cache   available
+Mem:           2000         144        1582           5         273        1693
+Swap:             0           0           0
+
+
+вот как стало после
+
+root@test-kub-04:~# dd if=/dev/zero of=/dev/shm/vasya bs=1M count=1000
+root@test-kub-04:~# free -m
+              total        used        free      shared  buff/cache   available
+Mem:           2000         145         579        1005        1275         691
+Swap:             0           0           0
+
+видно что shared и cache увеличился а used нет.
+это наебка. ибо used очень даже увеличился.
+если мы расширим размер этого /dev/shm
+
+~# mount -o remount size=1800M /dev/shm
+
+а потом нафигачим туда данных. то у нас получится что из 2000МБ всего
+у нас занято 1800МБ
+
+и тут начнется жопа. 
+но не такая как я  ожидал.
+
+диск начнет бешено считываться
+
+даже SSD скорости небудет хватать. будет читаь по 8000 iops или 400МБ\с
+
+vmstat будет показыать bi
+
+procs -----------memory---------- ---swap-- -----io---- -system-- ------cpu-----
+ r  b   swpd   free   buff  cache   si   so    bi    bo   in   cs us sy id wa st
+ 1 11      0  63396    152 1825940    0    0 490812     0 9200 11787  0 59  0 41  0
+ 2  8      0  63716    156 1825740    0    0 463864    28 9729 11322  4 59  0 37  0
+ 1  8      0  63808    156 1825736    0    0 467564     0 8794 10592  1 61  0 39  0
+
+top будет показывать мощную активность kswapd0
+
+top - 19:58:56 up 9 min,  4 users,  load average: 9.19, 5.63, 2.56
+
+  PID USER        RES S %CPU %MEM COMMAND
+   34 root     0.000t R 50.5  0.0 kswapd0
+
+
+тоесть никакого oom killer очень даже долго небудет вызываться.
+те проги что были запущены будут рабоать
+но например ни одна команда в bash небудет срабаываться.
+будет писать что fork нет памяти.
+
+потом минут через 5 все такие процесс какйото будет убит памяти станет
+побольше и наконепц можно будет через командную строку очистить папку /dev/shm
+
+возникает вопрос почему так долго невызвыается oom killer - не знаю.
+
+также вопрос - откуда эта бешеная дисковая активность на чтение.
+в системе нет свапа так что это не свапинг.
+
+причем активность судя по vmware на котором сидит линукс 
+идет  только  чтение.
+
+
+     GID VMNAME                                    VDEVNAME NVDISK   CMDS/s  READS/s WRITES/s MBREAD/s MBWRTN/s LAT/rd LAT/wr
+53720774 _test_- kub - 04                                 -      1  2884.67  2884.67     0.00   167.09     0.00   1.09   0.00
+
+записи нет.
+
+мне неудалось узнат какие же файлы читаются.
+
+в общем как я понял. чтение идет потому что 
+когда памяти стало мало то линукс убрал из памяти библиотеки 
+и еще каието полезные файлы.
+
+и теперь чтобы чтото там выполнить системное нужно каждый раз
+это все читать с диска. 
+
+якобы отсюда бешеная дисковое чтение.
+
+второй вопрос что делал в это время kswapd0
+
+kswapd0 это процесс  который заведует какие страницы из памяти
+пихать в своп. этот процесс его регулярно вызывает шедулер.
+если памяти достаточно ( что конкретно это значит технически я не буду щас копать)
+то он обратно засыпает . если памяти по его мнению осталось 
+мало то он начинает работу. он определеяет какие страницы
+памяти запихнуть в своп. при этом как я понял именно kswapd0 если понимает
+что памяти уже никак нехватает то именно он вызывает oom-killer процесс
+который киляет процессы.
+
+это ответ на вопрос а когда же вызывается kswapd0 а когда oom-killer
+kswapd0 запускает oom-killer если считает нужным.
+
+а сам kswapd0 занимается тем что пихает страницы в своп.
+
+возвращшается обратно к моей ситуации - у меня своп
+был вообще отсуствовал так что пихать страницы было некуда.
+вопрос - что тогда делал kswapd0 если никакого свапа несуществует в
+моей системе.
+
+еще раз скажу какой процесс лучший кандидат на убиение через oom killer:
+системные процессы имеют маленький приоритет что логично.
+юзерские процессы имеют высокий приоритет.
+процесс который имеет много детей и все они сожрали много памяти - отличный кандидат на 
+убиение.
+
+я прочитал кое что. и там написано что оом киллер вызывается непросто когда
+стало мало памяти. а именно когда система понимает что свап уже непомогает
+что данные постоянно гоняются из свапа и в свап.
+
+так что логично что именно kswapd0 вызывает oom killer.
+
+важное замечание - как я понял в свап файл могут попасть только страницы
+памяти у котороых исходные данные для них взяты не из диска.
+например если мы запустим бинарник хрома и он считается в память.
+то страницы памяти которые заняты бинарником хрома немогут 
+попасть в свап раздел. потому что зачем. если надо
+их можно считать просто с диска.
+
+в линуксе страницы памяи которые не имеют исходных данных на из файла
+называются анонимными страницами памяти. полуачется они содержат 
+чистые данные от программы. расчетные.
+
+я могу подтвердить что когда у нас неактивирован свап в системе
+и при этом kswapd0 начинает работать как сумашедший и у нас бешеная дисковая активность
+то vmstat при этом абсолютно четко показыает что обмена данным со свап разделом нет. 
+что логично и коректно.
+
+насколько я понял из мутных обяснений в инете - 
+kswapd0 это процесс который то ли регуляно вызывается по шедулеру.
+то ли взывается когда срабатывает флаг что мало физ памяти свободной.
+итак kswapd0 - это главный слуга задача которого освобождать память.
+имено он и только он освобождает память.
+поэтому конечно - если в система стало мало памяти 
+то именно kswapd0 вылезет и начнет пытаться освободить память.
+неважно есть у нас свап раздел или нет. свап раздел это всего лишь
+следствие прислуга процесспа kswapd0. не kswapd0 прислуга раздела свапа
+а наоборот раздел свапа это хвост и прислужник процесса kswapd0
+
+линукс -> мало памяти -> вызываем освобождальщика памяти kswapd0 -> он использует свап раздел
+
+возвращшаемся к вопросу - так че он там делает когда свапа нет.
+ведь он пашет на 50% судя по цпу из опыта. а делает он вот что.
+он даже без свапа пашет и освобождает память. как он это делает.
+он сканирует память. и определяет какие куски памяти были считаны с диска с файлов (типа
+всякие там бинарники и библиотеки). и он типа делает такую штуку что он очищает память
+которую эти баинарники занимают. таким образом он свобождает память. 
+то есть он во первых - память освободил ? освободил.
+данные из памяи оказались на диске. только ему непришлось эти данные записывать на диск
+как это было бы со свап разделом. ибо они там уже есть. но конечный резултат ровно такойже
+како со свапом - част данных из памяти оказаласт на диске. в смысле конечного результата 
+данные были засваплены. так что в таком вот изврашенном виде свапинг на компе даже без 
+свап раздела работает.
+только получается что такой свапинг в 1000 раз хуже чем это было бы со свап разделом походу.
+ибо свапять самые необходимые данные - бинарники.
+
+так вот когда потом хрому или другому бинарнику надо выполнится он считывается обратно с диска.
+поскольку были "засваплены" очень горячие бинарники и библиотеки то как показал мой опыт
+процесс чтения будет идти постоянно с сумашедгей скоростью - 8000 iops, 400 MB\s
+
+kswapd0 грузит проц потому что ему постоянно нужно находить как я понял 
+бинарники в памяти и освобождать память и помечать что эти куски памяти надо считать с диска.
+то есть чтобы выполнить квант процесса 1 ему нужно выпилить из памяти кучу бинарников
+других процессов. а потом когда квант закончится ему нужно задискардить из памяти
+бинарники первого процесса а потом считать бинарники второго процесса.
+поэтому идет постоянная обработки памяти этим тредом. и идет постоянное чтение с диска.
+потому что выполненеие каждого процесса порождает огромное количество хард фолтов.
+процесс обращается к вирт памяти а ее же в памяти нет. она на диске. генерируется хард
+фолт. и идет считываение. 
+
+так что интересно
+команда free она покаыывает одной цифрой buff+cache
+
+root@escluster-data02:~# free -m
+              total        used        free      shared  buff/cache   available
+Mem:          36206       22635         775          41       12795       13089
+Swap:             0           0           0
+
+а если мы их хотим посмотреть раздельно то это видно в vmstat
+
+# vmstat 1
+
+procs -----------memory---------- ---swap-- -----io---- -system-- ------cpu-----
+ r  b   swpd   free   buff  cache   si   so    bi    bo   in   cs us sy id wa st
+ 3  0      0 805956  23204 13069176    0    0   472     0 2124 1673 19  1 81  0  0
+ 2  0      0 804048  23204 13071420    0    0   416     0 2682 1712 34  1 65  0  0
+ 1  0      0 802636  23204 13072588    0    0  1368     0 3562 2418 41  0 58  0  0
+
+в vmstat цифры показываются в килобайтах в free,buff,cache
+
+так я сделал такой эксперимент.
+я засунул в shm много данных в итоге в  лиинуксе стало мало физ памяти.
+это то что я делал раньше.
+при этом я заранее запустил сканирование сколько memory major faults 
+происходит на опреленном процессе который регулярно вызывается для исполнения в  моем примере
+это vmtools.
+
+так вот как только в системе стало мало памяти физ то начал активно работать kswapd0
+потребляя cpu. началась сильное чтение с диска. и для vmtols начали лавинно расти
+число major faults. это значит что виртуальная память для этого процесса постоянно ее небыло
+в физ памяти а она была на диске и ее нужно было постоянно читать.
+
+таким образом подовердилось что когда млао памяти и нет свапа то kswapd0 
+он вычищает память путем выбрасывания из нее бинарников которые можно считать с диска.
+и это бесконечый процесс.
+
+также я выяснил что пходу пьесы kswapd0 это сугубо непараллеллящийся процесс
+он сугубо одноядерный. потмоу что из двух ядер kswapd0 занимал только одно на 100% 
+а второе нетрогал.
+
+также про память я выяснил. для команды free
+
+~# free -m
+              total        used        free      shared  buff/cache   available
+Mem:           2000         158          66        1705        1774          17
+ 
+как нам понмать что память забита. потому что линукс приводит кучу путанных цифр
+в которых тонешь.
+так вот реаьно надо смотреть вот на что.
+
+занятая память это "used + shared" и она недолжна быть типа больше чем 98% от total
+
+на остальные колонки можно забить болт полный. они только путают.
+
+used - это памят как я понял под тела процессов. сумма их резидентных частей.
+shared - это типа тоже забитая память толкьо она непринадлежит какомуто 
+оному процессу а всем сразу илои куче сразу. но ее также как used ее нельзя вот так
+просто задискардить как это можно сделать с buff\cache.
+
+ну  в top когда мы тыкаем кнопу 'm' чтоб в граифеском виде посмотреть 
+сколько памяти занято. там он показывает проценты. в целом там можно конечно
+ориентирваться. что если указано 99% занято памяти то пора бить тревогу.
+но там он к used добавляет buff\cache.
+сам по себе buff\cache нестрашен. но если мы забиваем shared память то она также
+увеличивает buff\cache поэтому если buff\cache большой изза большой шаред памяти 
+то это жопа. аесли шаред память мало збита а buuff\cache большой то это фигня.
+
+поэтому лучше на показания в top для памяти забить. там очень долгодумать надо.
+
+а смотреть напрямую в free -m
+
+~# free -m
+              total        used        free      shared  buff/cache   available
+Mem:           2000         158          67        1705        1774          18
+Swap:             0           0           0
+
+вот тут четко понятно что память забита.
+
+used = 158
+shared = 1705
+
+used+sahred=1863
+
+а total = 2000
+
+поулчается занято 93% памяти. но как я понимаю free непоказывает памят которую ядро занимает или чтото
+типа того.
+
+экспериментальным путем я выяснил что  total - ( used +shared ) >= 136 MB
+если эта цифра ниже то начнется уже работа kswapd0 и он начнет выбрасывать бинарники с памяти
+и процессы будут постоянно читать свои бинарники с диска.
+
+интресно что вот скажем настала пора vmtools процессу выполняться на цпу. а его бинарников нет.
+у меня был вопрос - а кто ему баинарники читает с диска. какойто спец процесс  или кто.
+эксперимент показал что сам процесс и читает. 
+тоесть iotop показывает дисковую активность самих процессов если нехватает памяти.
+то есть с точки зрения механики - страницы засовывает на диск процесс kswapd0
+а обратно их читают уже сами процессы. имеется ввиду случай когда читаются бинарники с файлов.
+а вот если надо считать со свап раздела то я полагаю что чтение наверное ведет тоже
+kswapd0 а не процесс у которого часть данных лежит на свап разделе.
+
+итак получается такой алгоритм - хотим узнать как там у нас 
+с памятью на хосте.
+
+взываем free -m
+и сумируем used + shared.
+сравниваем с total.
+
+total >= used+shared на 136МБ как минимум.
+
+также можно посмотреть что думает линукс на счет сколько на данный момент осталось памяти которую
+если исчерпать то он начнет свапить
+
+это смотрим в meminfo
+
+:~# cat /proc/meminfo
+MemTotal:        2048260 kB
+MemFree:          150656 kB
+MemAvailable:     107304 kB
+
+так вот смотрим на MemAvailable 
+по мнению линукса это примерно сколько осталось памяти если ее исчерпать то 
+он начнет свапить.
+
+в данном случае 107304 kB = 104 MB
+
+то есть осталось 104МБ
+
+сравним что показывает free -m
+
+~# free -m
+              total        used        free      shared  buff/cache   available
+Mem:           2000         164         144        1605        1691         103
+
+used + shared = 1769
+total = 2000
+
+разница 2000 - 1769 = 231.
+
+помним что разница должны бытть как минимум 136МБ.
+
+так что 231-136 = 95МБ.
+
+поэтмоу да 104МБ ~ 95МБ.
+
+общий вывод такой - да MemAvailable более менее правильно показыавет сколько 
+еще есть свободной в реальном смысле памяти. но это значение тоже несоклько завышено.
+
+поэтому самый железный способ это free -m
+сложить used+shared+136MB и чтобы это непревысило total
+
+
+посмтрим для примера другой пример
+
+:~# free -m
+              total        used        free      shared  buff/cache   available
+Mem:          36206       22522         339          41       13344       13201
+
+
+used+shared+136= 22699MB
+total=36206
+да ситуация очень даже нормальная.
+свободно типа 13507MB
+
+посмотрим что в meminfo
+
+:~# cat /proc/meminfo
+MemAvailable:   13518076 kB = 13201MB
+
+видим что 13507MB ~ 13201MB
+
+цифры сходятся.
+
+вобще ксати получается самая подробная статистика по памяти это 
+/proc/meminfo
+
+там и буферы и кэши и прочее
+
+кстати обьем shared памяти в meminfo указывется строкой
+Shmem:           1644424 kB
+
+замапленная память насоклько я понимаю это области памяти у которых есть исходник на диске.
+единственное что я незнаю если память попала в свап -будет ли она счиаться замапленной
+думаю что недолжна. 
+
+ну наконец то стал в этом хаосе цифр и инструментов понятно 
+на какие цифры реаьно смотреть и каким инструментом пользвоться чтобы понять 
+как там дела с оперативкой на хосте
+
+тажке стало понятно что если в /proc/pid/stat 
+растет сильно во времени число major memory faults (12 столбец) значит куски процесса
+которые должны быть в памяти их там регулярно нет и их приходистя читать откуда то с диска.
+(это либо свап либо бинарники я так понимаю). в общем это негуд.
+все что в памяти должно лежать в памяти.
+то есть мажор фолты недолжны расти во времени. вот процесс загрузидся. все там устаканилось.
+и все.
+
+еще как я понял термин свапинг применяют некоректно. 
+и возникла полная мешанина.
+
+исторически свапинг это когда ОС соавала весь процесс целиком в свап.
+а типа то что щас происходит через kswapd0 это вроде как назыается paging
+
+минорные и мажорные фолты в итоге :
+минорные фолты нетребуют доступа к диску а занчит быстрые
+мажорные фолты требуют чтения с диска а значит мегамедленные.
+
+чиатть обычно нужно из какогото файла или из свапа
+
+
+!!!!!
+
+
+кернел процессы и юзер процессы.
+по факту это все одни и теже процессы. тут просто надо начать расказыать а что такое процессы.
+это код который завеернут в спец оболочку которая позволяет код останавливать 
+выполнять другой процесс а потом возращаться к исходному процессу и продолжать его
+выполнение. прикол в том что ОС может и выолпняет ряд кода без обертки в процессы.
+как минус это то что когда код выполняетмся без процесса то его нельзя остановить
+он должен выполниться целиком. это имеет минусы. об этом еще поговорим.
+так вот про процессы. разница теперь между юзер процессом и керел процессом.
+юзер процесс выполняется на цпу в режиме ring 3 а кернел процесс выполнятеся на 
+цпу в режиме ring 0.
+
+соотвесвтенно как следствие что чтобы процесс мог выполняться на режиме ring 0
+его код должен в памяти лежать в области где кернел код весь лежит.
+
+!!! context switching
+это просто напросто переключение между процессами в линуксе по шедулеру.
+так что context в термиах линукса это получается типа процесс. синоним.
+в википедии так и наприсано что context switch это процесс сохранения нужных 
+данных для процесса или треда чтоб потом можно было его продолжить
+видим что привязка идет к процессу.
+
+
+!!! вопросы
+как загружается линукс - ход мысли - как убрать модуль из загрузки - что такое initrd - как его разархивировать - как ядро 
+разархивировать - что такое ядро ---...- как запретить java попадать в swap -... -voluntary_ctxt_switches ? -
+- linux vmstat число cs in какие числа нормально.-- /proc/interrupts что в самой правой колонке назван
+ния драйверов? за что отвечают самые меняющиеся строки, почему драйвер выключил ata_piix а
+имя в правой колонке ata_piix все равно есть --почему неменяются cxtx числа ? 
+!!!
+
+!!! почему на ненагруженной 2 core  цпу машине  постоянно идут высокие nonv cxtx числа для top процесса
+а в тоже время на высоконоагржуенной машине для sysbench процесса вообще нет context switch 
+переключений 
+
+походу ответ такой что число переключений также сильно зависит нетолько от загруженности системы
+а от самого кода.
+если запустить sysbench то у него вобще никаких свичей не происходит. хотя он процессор грузит на 100%
+а запустить top или pidstat или mc так они процессор негрузят при этом выдают кучу вынужденных
+свичей. я так понимаю это сам код такой.
+мне непонятно главное как это процесс который на 100% грузит цпу он неиммет контекст свичей никаких.
+как же он может невыдавливаться с цпу шедулером. ведь сам шедулер должен же на процесоор попасть
+и выполниться. пока это непонятно...
+
+походу вот что. переключение цпу из ring 3 в rin 0 ничего неделает с его регистрами. поэтому
+при переключении ring 3 -> ring 0 не происходит context switch. инфо в регистрах от процесса который
+выполнялся остается сохраняется. просто процесс да перестает выполняться.
+
+далее - шедулер это не процесс как мы уже помним. это кусок кода. 
+
+далее я нашел что есть регистры которые доступны только в ring 0. и они сохраняются 
+при переключении из  между рингами.
+
+поэтму вот как походу работает работа шедулера:
+цпу в ринге 3 выполняет процесс. 
+на цпу прилетает на ножку сигнал интеррапт от таймера.
+цпу останавливает выполнение процесса
+цпу переключается в ринг 0 ( при этом во всех регистрах инфо неменяется).
+далее цпу обращается к заранее известному адресу в памяти где лежит хэгдлер интеррапта.
+далее либо этот хэгдлер это и есть уже код шедулера. либо хэндлер запускает код шедулера.
+при этом как замечу инфо в регистрах цпу лежит без изменений. по крайней мере 
+тех регистров которые хранят инфо о процессе.
+как я понял инфо необходимо для работы шедулера лежит в регистрах которые доступны только 
+в ринге 0. таким образом шедулер нетрогает и ненуждается в регистрах которые хранят инфо 
+относящееся к процессу. 
+далее шедулер либо сразу уже имеет всю необходимую инфо для принятия решения какой процесс 
+запустить на следущий тайм слайс из регистров доступных в ринге 0 (ибо там инфо неменялось при переклою
+чениях между рингами). либо шедулер подкачивает в эти свои приватные регситры инфо из памяти.
+таким образом на данный момент вся инфо о процессе все еще лежит на цпу без изменений и потерь.
+и если шедулер решит что на данном ядре следущим запустить ровно тот же процесс что там и и исполнялся
+только что то (важно !) вся информация уже лежит в регистрах ядра. таким образом 
+с одной стороны процесс был прерван и шедулер отработал.
+с другой стороны вся необхоимая информация по текущему процессу осталась в цпу.
+далее процесс продолжил свое исполнение и для контекст небыл переключен.
+отсюда разгадка - как же так шедулер отрабатывает регулярно прервывя исполнение процесса на ядре
+ при этом контекст в ядре сохраняется процесса и процесс продолжает исполенние после 
+ того как шедулер отработал без пререключения контекста. без выгрузки загрузки состояния регистров в цпу.
+ вот мы и получили обьяснение как процесс может на ядре работать без выкидывания его данных с ядра
+ и потом загрузки их обратно то есть без переключения контекста non volatile который.
+ ( и при этом шедулер там регулярно работает).
+ 
+ 
+отсюда важный вывод про контекст свичи такой - если приложение делает добровольные 
+контекс свичи то это пофиг. оно само возврашает управление шедулеру в течение выделенного 
+таймслайса. 
+а начет недобровольный контекст свичей :
+ это очень плохо для грузящего цпу процесса , добровольно понятное дело что он небудет отдавать
+таймслайс обратно. и значит что шедулер по каким то причинам неназначает этот же процесс
+на этом же ядре на следущий таймслайс. а сует туда другой процесс. а потом когда наш процесс
+обратно нужно запустить то его инфо нужно загружать в цпу (регистры tlb и прочее).
+ а если это процесс негрузящий ядро типа top , mc, pidstat ну неважно главное что он цпу по своей
+ приоде негрузит то для такого процесса недобровольные контекст свичи пофиг.
+ 
+ что такое контекст свич число в /proc/$pid/status  если оно увеличилось.
+ это значит что когда подошел к конце тайм слайс выделенные для данного процесса то процесс
+ сам его неотдал. и хочет дальше продолжаться неуспел процесс закончить все что он хотел
+ но дальше по интеррапту загрузился шедулер и покаким то причинам вычистил как грязь из дырявого
+ зуба всю инфо из регистров цпу от данного процесса , загрузил в регтистры цпу ифно от другого процесса
+ и запустил на этом цпу на следущий тайм слайс другой процесс.
+ то есть контекст свич +1 для данного процесса значит что данный процесс был выкинут с  процессора
+и вся его инфо была вычищена с процессора на следующий тайм слайс.
+то есть контекст свич - значит процесс выкинули из цпу. и вещи его выкинули из цпу.
+если процесс малонагруженный то нам это пофиг. это очень важно понять.
+от того что наш mc, top, итд небудет работать на цпу сколько то таайм слайсов подряд 
+а будет работаь скажем этот тайм слайс потом пять циклов небудет потом один цикл будет - нам 
+это пофиг. это никак на наш комфорт с работой с top mc итд нескажется.
+
+конеткст свичи надо четко отслеживать у нагруженных процессов ( java, базы , почтовики , итд).
+
+таким образрм мы разобрались как это работает конектс свич. что он значит.
+разобрались когда нужно обращать внимание на растущие числа его для конкретного 
+процесса когда это неважно.
+
+
+для нагруженных прцессов это число важно. и то число недобровольных свичей. добровольные нам пофиг.
+для ненагруженных вообще нам любые контекст свичи неважны.
+
+ну и получается что когда мы смотрим в vmstat число context свичей  в секунду то самое по себе 
+это число неговорит ничего плохо чтото или хорошо.
+ 
+# vmstat -w 1 -S M
+procs -----------------------memory---------------------- ---swap-- -----io---- -system-- --------cpu--------
+ r  b         swpd         free         buff        cache   si   so    bi    bo   in   cs  us  sy  id  wa  st
+ 0  0            0          596          148         1106    0    0     3     3   49  126   1   0  99   0   0
+ 
+ в данному случае cs = 126
+ ну и что.
+ 
+ видимо это все и добровольные и недоброваольные за секунду.
+ 
+ потому что по аналогии in = 49 это число все абсолютно интерраптов за секунду.
+ !!!
+ 
+ 
+ *!!! теперь всплывает следйщий вопрос
+ а сколько времени за 1с у нас заняло context switch. и сколько заняла
+ вся вот эта требуха -  работа шедулера, обработка интеррапта.
+ 
+ потому что время цпу складывается из :
+ работа юзер кода
+ работа кернел кода вызываенного юзер кодом
+ работы интераптов
+ контекс свичинг
+ время перкочения с ринг 3 на ринг 0
+ работа шедулера
+ 
+ и как это все увязать с покзаниями в top
+ 
+ *!!! вопрос haproxy показывает много недобрроволльных конекст свичей.
+ работет в одном треде. тред грузит цпу на 50%.
+ откуда недобрловарльные выдавливания. кроме хапрокси там больше ниче неработает.
+ пока вопросы открытый с haproxy
+ я зауцпстил тест sysbench который запустил множество контекст свичей.
+ при этом цпу загрузился на 100%.
+ через vmstat я увидел что в секунде генерится ~ 3 000 000 cs
+ ядра было три. значит на одно ядро генерилось 1 млн cs
+ я же в хапрокси получают 50-200 cs в секунде на проде.
+ да эта цифра маленькая.
+ но все же непонятно как влияет число cs на скорость рабты конкретного приложения.
+ также я прочитал что при работе mysql типа происходит какое то количество
+ cs на каждое клиентское подключение.. пока мне непонятна связь.
+  я обнаружил оченть интересуню вещь.
+  
+  # pidstat -tw 1
+  
+  оно показывает число cs нетолько для процессов но и для его тредов.
+  и вуялая.  я выяснил что java который имеет 126 тредов у него куча тредов 
+  каждый из которых в секунду испытывает 50 cs
+  итак я выяснил  что да головной тред процесса (который походу и фигирует в proc status)
+  у него нет cs но у его многчисленных тредов оно конешно есть.
+  у хапрокси всего один тред. так что походу это нормально что когда работающий процесс
+  имеет cs недобровольные и оно зависит от самого кода програамммы. да sysbench когда мы
+  теструем цпу там код так написан что там нет недобровольных cs.
+  но походу реальная программа которая работает с потоками данных  с соединениями 
+  типа http итд. там походу такой код который каким то образом заставляет делать cs недорволоьные.
+  
+  
+  вот я даю картинку для java 
+  
+# pidstat -tw 1
+  
+Average:      UID      TGID       TID   cswch/s nvcswch/s  Command
+Average:      111         -      1289      4.19      0.40  |__java
+Average:      111         -      1290      2.99      3.19  |__java
+Average:      111         -      1291      3.59      0.80  |__java
+Average:      111         -      1292      6.99      0.80  |__java
+Average:      111         -      1293      7.78      1.20  |__java
+Average:      111         -      1294      2.59     10.58  |__java
+Average:      111         -      1385    110.38      0.00  |__java
+Average:      111         -      1459     18.76     50.90  |__java
+Average:      111         -      1460     21.36     46.31  |__java
+Average:      111         -      1461     21.36     42.91  |__java
+Average:      111         -      1462     19.36     75.05  |__java
+Average:      111         -      1463     19.36     41.52  |__java
+Average:      111         -      1478     20.36     44.31  |__java
+Average:      111         -      1479     19.96     37.92  |__java
+Average:      111         -      1480     20.76     47.31  |__java
+Average:      111         -      1481     21.76     51.50  |__java
+Average:      111         -      1482     21.16     27.54  |__java
+
+итак как я уже сказал. что оказалось что java очень даже имеет недоброрвольные 
+контекс свичи.
+
+
+~# cat /proc/1177/status
+Name:   java
+Threads:        126
+voluntary_ctxt_switches:        22
+nonvoluntary_ctxt_switches:     4
+
+а вот то что я якобы у процесса java всего 4 недобровльных cs
+это оказалась брехня.
+ибо походу это верно только для головного треда.
+а вот про все его другие многочислнные треды тут хаха нет никакой информации.
+
+
+вот картинка для haproxy
+
+# pidstat -tw 1
+
+Average:      UID      TGID       TID   cswch/s nvcswch/s  Command
+
+Average:      111      1389         -    599.67     58.80  haproxy
+Average:      111         -      1389    599.67     58.80  |__haproxy
+
+видно что у хапрокси всего один тред. так что поэтому мы и видим в /proc/$PID/status
+то что процесс хапрокси имеет активно увеличивающися количество недобровольных
+вытеснений.
+
+окей.
+
+мы видели что 1 ядро может управится с миллионом cs.
+да непонятно как при этом будет себя чуствовать приложение.
+
+тем не менее это все наводит на мысль что все приложения работающие они имеют
+недобровльные cs. просто они прячутся в тредах. и то что число cs ~ 100-200 
+это абсолютно норм для цпу.
+
+
+прикольно еще и то что mpstat при тесте sysbemch на cs показывал %irq = 0 
+то есть понятное дело irq обработка и контекст свичи это несовсем связанные вещи.
+наверно...
+
+cs связан с процессами . а %irq связан с загрузкой цпу иза прилетевшего прерывания.
+
+
+походу в итоге смотрим чрез vmstat сколько cs в сек мы имеем.
+если их меньше чем миллион на ядро. ну и норм.
+грубо говорят примерно пока так.
+
+
+остатеся теперь тока момент о том что если карточка сетевая высокорскоростная 
+то надо смотреть что там у нее с интерраптами и нагрузкой на цпу. а хотя
+это совсем несвязано с context switches. это же совсем про другое.
+это про interrupts.
+все смешалось в гоолве cs и in
+
+
+*!!! важный вопрос веб свап оказывается это норм вещь.
+как тогда зареиттчть чтобы java непопдалв в свап по лююблому.
+
+*!!! как bash запускает проги - типа форкает или что там на уровне процессов.
+
+
+  
+  
+  
+  
+ 
+ 
+ *!!! остаетчя вопрос а что там с контекс свичами когда мы работает чреез гипервизор
+ на виртуалкею
+ 
+ 
+ *!!! есть также вопрос как оптиматльно для сетевых карт
+ распредедять irq по цпу. учитыавая что есть карты в которых есть несоклько очередей
+ для потоков
+ 
+ 
+ *!!! полчается такой момент если в системе много хардвейр устройств которые генеиируют 
+ много irq прерываний то под них надо отдельный цпу чтоб не томрозило. под мощнгые сетвые карты.
+ получается что желеки неомгут без работать без обработки со стороны цпу
+ это будет тормозить приложения или пакты терять наврено.
+ 
+ 
+ 
+ 
+ 
+ *!!! hard irq vs soft irq
+ 
+
+!!!
+
+vmlinuz - это самораспаковывающийся архив в котором хранится сжатый образ vmlinux
+vmlinux  - это уже ядро бинарное (правда без символов каких то там отладки).
+vm означает virtual memory. видимо 
+
+
+биос читает MBR
+тот запускает grub
+граб запускает кернел.
+
+кернел это  вцелом набор вызовов аля библиотек, кучка драйверов но не всех (остальные в модулях),
+управление памятью.
+
+кернел это и все и ничего. как фундамент бетонный здания. без него никуда. но залитый фундамент
+еще очень далек от здания которое будет на нем стоять.
+
+когда загрузился заработал кернел то еще ни одного процесса как я понимаю нет запущенного.
+
+
+
+
+\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+!!! как линукс работает с кодом
+линукс может код выполнять обернув его в процесс,
+или просто как кусок кода.
+
+может выполнять код  в ринге 0  или ринге 3
+
+если как выполнение идет просто как кусок кода то насколько я понимаю
+это когда обрабатыается интеррапт.
+
+может выполнять процесс в ринге 3 потом переключиться к ринг 0 по сисколлу
+и выполнять код ядра но в рамках этого процесса то есть как я понимаю
+выполняя кусок кода ядра но в рамках юзерского процесса то шедулер 
+может остановить выполннеие и перейти к другомц процессу
+
+
+важно что цпу занят либо ничем, либо цпу выполняет код процесса ( и это мы видим в top),
+либо код выполняется в рамках обработки интеррапта  ( и это невидно! в top )
+либо выполнять код шедулера ( и это тоже невидно в top! )
+
+получается цпу у нас работает но мы это невидим никак в top.
+поэтому не вся занятьость цпу видна в top
+мы частично слепы.
+
+а так больше ничего нет никакого кода, никакого кода ядра который бы выполнялся бы
+на цпу а мы этого невидели. нет никакого кода ядра который бы выполнялся и мы это бы
+невидели. код ядра выполняется либо - чере сисколл вызов процесса и это мы видим в топ,
+либо через обработку прилетевшего на ножку цпу интеррапта и это мы невидим в топ,
+либо шедулер всплывает и выполняется и это мы невидим в топ.
+
+сейчас все это рассмотрим.
+и будем выяснять как узнавать сколько же цпу отработал там где мы невидим.
+
+
+
+irq cpu usage
+pidstat
+java почему то major faults взывыает
+
+vmware непонятно как он с irq работает от вирт машин.
+они их пробраывает как это и написано в  виртуалке ?
+baclkilcist updateramfs
+
+нужно ли заниматься irq мэнеждимгом
+
+piix4 почему он жрет интеррапты
+
+как понять что цпу плохо с irq српавляется
+
+proc/interrupt что там нарисовано справа название драйвера или файла модуля.
+почему он там появляется если модуля незагружен.
+почему irq на эластике работает если нет устройства 
+
+\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+
+
+
+
+
+
+
+
+*!!! нераскрытые вопросы
+
+*!!! mmu кэши цпу
+*!!! непонятно когда процесс в статусе S и выолпняется код ядра.
+это время защитывается процессу в джиффях что этот
+процесс типа занимался цпу . работал на нем. или нет.
+*!!! также непонятен момент. есть процесс java
+он все время выоленяется в юзер спейсе.(вроде как)
+в тоже время он постоянно в состоянии S.
+есть и наоборот. постоянно в состоянии R но выполяется в кернел спейсе.
+*!!! разобраться с containerd-shim
+с тем как процесс запускает процесс и это показано в ps
+*!!! опять немогу понять top -d 20 он будет раз в 20 скунд показыать cpu_usage.
+вопрос за какой интервал он его показывает. потому что cpu_usage относится к интервалу а не моменту.
+
+!!! очень важное дополнение про load average.
+vmstat  который показыает текущее значение R он показывает число не процессов со статусом R
+а число тредов !!!! со статусом R. процесс может иметь кучу тредов. (можно посмотреьт через ps axH )
+поэтому Load average он работает не  с числом процессов а с числом  тредов. 
 
 
 
@@ -4496,6 +9285,7 @@ spec:
        image: nginx
        ports:
          - containerPort: 80
+
 
 
 а именно
