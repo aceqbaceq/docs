@@ -170,6 +170,75 @@ xpack.monitoring.enabled: false
 
 готово.
 
+-->(для версии эластика 7.7 есть отличия в конфиге
+
+http.enabled: true  = этой опции  больше нет
+cluster.initial_master_nodes: ["data01-14"] нужна эта доп опция чтобы кластер стартовал
+иначе будет писать что нет мастер нод ни одной
+
+итого для версии 7.7. конфиг будет такой
+
+path.data: /var/lib/elasticsearch
+path.logs: /var/log/elasticsearch
+cluster.name: escluster-6
+node.name: data01-14
+cluster.initial_master_nodes: ["data01-14"]
+network.host: ["172.16.102.14", "127.0.0.1"]
+http.port: 9200
+transport.tcp.port: 9300
+discovery.zen.ping.unicast.hosts: ["127.0.0.1"]
+discovery.zen.minimum_master_nodes: 1
+node.master: true
+node.data: true
+node.ingest: true
+xpack.security.enabled: false
+xpack.monitoring.enabled: false
+
+)<--
+
+
+позже. когда будет готов другой дополнительный эластик в который мы будем лить 
+перфоманс лог от данного кластера конфиг с активированным мониторингом будет выглядеть для 7.7.1 как
+
+path.data: /var/lib/elasticsearch
+path.logs: /var/log/elasticsearch
+
+
+cluster.name: escluster-2
+node.name: data01-230
+cluster.initial_master_nodes: ["data01-230"]
+network.host: ["192.168.0.230", "127.0.0.1"]
+http.port: 9200
+transport.tcp.port: 9300
+discovery.zen.ping.unicast.hosts: ["127.0.0.1"]
+discovery.zen.minimum_master_nodes: 1
+node.master: true
+node.data: true
+node.ingest: true
+
+xpack.monitoring.enabled: true
+xpack.monitoring.exporters.id1:
+   type: http
+   host: ["192.168.0.231:9200"]
+
+xpack.security.enabled: false
+
+xpack.monitoring.collection.enabled: true
+
+
+в этом конфиге появилась дополнитеьная опция которой 
+небыло раньше (https://www.elastic.co/guide/en/elasticsearch/reference/current/monitoring-settings.html)
+
+xpack.monitoring.collection.enabled: true
+
+она отвечает за то чтобы перфоманс лог начал был создан и данные в него начали литься.
+без этой опции перфоманс лог небудет создан. и данные в него небудут записываться.
+и соотвесвтенно в кибане небудет видна статистика по перфомансу работы эластика.
+
+кстати говоря в кибане 7.7.1 монтироинг перфоманса теперь нужно смотреть в другой вкладе = "Stack Monitoring"
+
+
+
 далее.
 по умолчанию у нас 30 дневная триальная лицензия на эластик ( у эластика 6.8.9 лицензия
 сразу уже нетриальная. она базовая и делать нихера ненадо если эластик более старый то читаем
@@ -413,33 +482,47 @@ ii  elasticsearch                      5.6.3
 
 root@mk-kibana-01:/etc/kibana# grep -v '#' kibana.yml
 
+elasticsearch.hosts: ["http://localhost:9200"]
 port: 5601
 server.host: "192.168.0.121"
 logging.quiet: true
 xpack.security.enabled: false
 
 
-где server.host: "192.168.0.121" это адрес эластика в котором кибана будет хранить свой индекс.
-да да. кибана использует эластик для хранения своего индекса.
-также кибана будет искат на 192.168.0.121 сервере специальный индекс .
+где elasticsearch.hosts: ["http://localhost:9200"] это адрес эластика в котором кибана будет хранить свой индекс.
+да да. кибане нетолько читает данные от эластика-А о его перфомансе но и самой кибане
+нужно хранить гдето свои внутренние данные и хранит кибана их тоже в форме эластикового индекса.
+кибана будет искать на http://localhost:9200 сервере специальный индекс .
 индекс перфоманса производительности эластика. какого эластика кибане пофиг.
-если кибана найдет на 192.168.0.121 специальный индекс спецаиально оформленный. то она будет из него
+если кибана найдет на http://localhost:9200 специальный индекс спецаиально оформленный. то она будет из него
 данные чиатть и рисовать графики в своей закладке мониторинг.
 прикол в том что эластик может хранить индекс статистики своего перфоманса как на самом себе
 так и на отдельном другом внешнем эластике.  завиисит это от настройки в эластике
+
+настройка server.host: "192.168.0.121"  прописывает адрес веб морды кибаны.
+
 
 # grep -v '#' /etc/elasticsearch/elasticsearch.yml
 xpack.monitoring.enabled: true
 xpack.monitoring.exporters.id1:
    type: http
    host: ["server-IP:9200"]
+xpack.monitoring.collection.enabled: true
+
+еще раз подчеркну что в 7.7.1 появилась доп опция xpack.monitoring.collection.enabled: true
+без нее перфоманс индекс небудет создан. 
+
 
 
 еслимы укажем server-IP=localhost то эластик свой индекс перфоманса будет писать на самого себя.
 если мы укажем server-IP=8.8.8.8 то эластик будет посылать свой индекс перфоманса на удаленный 8.8.8.8 эластик.
 
-так вот кибане в настройке  server.host: "192.168.0.121" мы указыаем где ей искат индекс перфоманса.
-индекс перфоманса на 192.168.0.211 конечно хранится тоже на эластике
+так вот кибане в настройке  elasticsearch.hosts: ["http://localhost:9200"] мы указываем 
+где ей искать индекс перфоманса.
+
+в кибане настройка server.host: "192.168.0.121" прописывает сокет по которому 
+можно подключиться к веб морде кибаны.
+
 
 
 еще раз нарисую схему
@@ -455,24 +538,25 @@ xpack.monitoring.exporters.id1:
 xpack.monitoring.enabled: true
 xpack.monitoring.exporters.id1:
    type: http
-   host: ["192.168.0.121:9200"]
+   host: ["192.168.0.121:9200"]        - ( адрес другого эластика-Б куда исходный эластик-А пишет свой перфоманс индекс)
 
 настройки кибаны
 # grep -v '#' kibana.yml
+elasticsearch.hosts: ["http://localhost:9200"]      - (еще раз это адрес эластика из которого эластик читает данные)
 port: 5601
-server.host: "192.168.0.121"
+server.host: "192.168.0.121"  - (это адрес веб морды кибаны)
 logging.quiet: true
 xpack.security.enabled: false
 
-где 192.168.0.211 это адрес эластика -Б.
+где 192.168.0.121 это адрес эластика -Б.
 
 
 если мы хотим чтобы перфоманс индекс хранился на самом эластике А то host: ["localhost:9200"]
 
-тогда в кибане нужно указать server.host: адрес эластика-А.
+тогда в кибане нужно указать elasticsearch.hosts: ["http://адрес-эластика-А:9200"] 
 
 если кибана сидит на тойже виртуалке что и эластик-А и эластик-А хранитс свой перфоманс индекс в себе 
-тов кибане указыаем server.host: localhost
+тов кибане указыаем elasticsearch.hosts: ["http://localhost:9200"]
 
 коментрую оставшиеся настройкив к конфиге кибаны
 

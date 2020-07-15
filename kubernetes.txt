@@ -60,10 +60,10 @@ c) /etc/systemd/system/kubelet.service.d
 # docker run hello-world
 
 
-curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
-echo 'deb http://apt.kubernetes.io/ kubernetes-xenial main' | sudo tee /etc/apt/sources.list.d/kubernetes.list
-sudo apt update
-sudo apt install -y kubelet kubeadm kubectl
+# curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
+# echo 'deb http://apt.kubernetes.io/ kubernetes-xenial main' | sudo tee /etc/apt/sources.list.d/kubernetes.list
+# sudo apt update
+# sudo apt install -y kubelet kubeadm kubectl
 
 
 
@@ -77,11 +77,11 @@ sudo apt install -y kubelet kubeadm kubectl
 
 я бы рекомендовал не в hosts нод происывать всех соседей. 
 а на центральном dns сервере. 
-ибо при добавлении +1 ноды через hosts придется делать изменения по всем нода кластера что пиздец. а если через внешний dns то 
-надо просто на dns добавить +1 запись
+ибо при добавлении +1 ноды через hosts придется делать изменения по всем нода кластера что пиздец. 
+а если через внешний dns то надо просто на dns добавить +1 запись
 
-далее полезно перед иницализацеий выкачать образы. это реально полезная команда потому что без нее у меня иницализация кластера
-встала  и долго ничего не происходило
+далее полезно перед иницализацеий выкачать образы. это реально полезная команда потому что
+ без нее у меня иницализация кластера встала  и долго ничего не происходило
 
 # kubeadm config images pull
 
@@ -91,7 +91,7 @@ root@test-kub-01:~# kubeadm init  --pod-network-cidr=10.252.0.0/16 --apiserver-a
 
 тут надо сразу сказать что --pod-network-cidr=10.252.0.0/16  это сеть никак несвязанная с реальными сетями и ip 
 адресами которые имеет наша нода. это сеть чисто внутренняя внутри нод кубернетеса которая будет 
-использоваться для выдачи внутренних ip адресов для подов.
+использоваться для выдачи внутренних ip адресов для ПОДОВ.
 а вот --apiserver-advertise-address=172.16.102.31 это уже реальный ip адрес нашей ноды. по которому к ней
 можно убдет с других нод достучаться до api сервера. этот тот ip который уже имеет наша LAN карточка.
 
@@ -188,7 +188,7 @@ unable to recognize  x509: certificate signed by unknown authority
 вот она еще раз скажу значит то что у нас config файл от старого кластера со старым уже невалидным ключом 
 или сертификатом пофик смысл один.
 
-можно подключаться к кубернетесу к его контрольной панели ( публикация подов итп) из под непривлигированного
+можно подключаться к кубернетесу к его контрольной панели ( публикация подов итп) из под любого
 пользователя линукс так как для этого линукс пользователю нужно всего лишь иметь ключ от кубернетеса 
 в своей домешней папке
 
@@ -212,7 +212,8 @@ test-kub-01   NotReady   master   87s   v1.16.0
 обычно советуют ставить calico
 
 
-но!!!  calico достаточно глючный продукт . он успешно не стартует когда мы ставим уже третью дата ноду. так что нахуй calico
+но!!!  calico достаточно глючный продукт . он успешно не стартует когда мы ставим уже третью дата ноду. 
+так что нахуй calico
 
 так что в реале ставим flannel. этот продукт вообще работает без проблем
 
@@ -280,9 +281,11 @@ root@test-kub-01:~#
 все - кубернетес на мастер ноду установлен успешно.
 
 
-еще надо провериить что и kubernetes и docker работают через один cgroup драйвер. ( как это сделать я пока нестал выяснять)
+еще надо провериить что и kubernetes и docker работают через один cgroup драйвер.
+ ( как это сделать я пока нестал выяснять)
 
-далее я нашел что нужно : Отключение SELinux командой setenforce 0 необходимо для корректного доступа контейнеров к файловой системе хоста, что, в свою очередь, требуется для работы сети у подов (pod networks).
+далее я нашел что нужно : Отключение SELinux командой setenforce 0 необходимо для корректного доступа 
+контейнеров к файловой системе хоста, что, в свою очередь, требуется для работы сети у подов (pod networks).
 (как это сделать я пока невыяснял)
 
 далее.
@@ -331,8 +334,6 @@ kubeadm token create <generated-token> --print-join-command --ttl=0
 
 
 
-если все окей то дата нода напишет
-
 [kubelet-start] Waiting for the kubelet to perform the TLS Bootstrap...
 
 This node has joined the cluster:
@@ -341,6 +342,18 @@ This node has joined the cluster:
 
 Run 'kubectl get nodes' on the control-plane to see this node join the cluster.
 
+
+далее если мы прям сразу посмотрим статус этой ноды
+то будет видно что нода notready.
+это потому что надо подождать минутку чтобы мастер-нода развернула  на дата ноде
+под с фланнелем. вот когда фланнель будет мастером установлен на дата ноде. вот тогда
+статус дата ноды станет ready. еще раз отмечу что руками разворачивать фланнель на 
+дата ноде ненужно. мастер поставит это сам автоматом.
+
+
+
+
+через пару минут если все окей то дата нода напишет
 
 проверяем статус этой ноды в кластере
 
@@ -4185,6 +4198,14 @@ m~# ps -eo pid,user,netns,args --sort user
 который сидит в этом неймспейсе
 
 nsenter -t $PID ...
+
+жопа в том что nsenter покажет соверщенно разное если выполним вот эти две команды
+
+#nsenter --net=
+#nsenter -t $PID
+
+а должны одно и тоже. 
+пока непонятно
 
 <---
 я закнчил на том что поставил 
@@ -8718,6 +8739,12 @@ cs связан с процессами . а %irq связан с загрузк
 
 *!!! как bash запускает проги - типа форкает или что там на уровне процессов.
 
+*!!! процессы которые имеют прикрепление к tty и не имеют. и умирают ли процессы которые 
+были запущены в tty консоли а потом ее закрыли
+
+
+*!!! поставить линукс на uefi
+
 
   
   
@@ -12764,3 +12791,615 @@ helm изучить.
 
 
 &&&& 2/4/2020
+
+
+
+
+установка elasticsearch в кубернетес через helm
+
+helm это такая скриптовая фигня. чтобы запуская ее скрипты 
+мы в итоге формировали скрипты которые есть кубернетес.
+
+официально они зовут что helm это пакетный менеджер кубернетеса.
+смешно.
+
+в итоге что он дает.
+мы в итоге можем редактировать конфиг который очень похож на классический
+конфиг от оригинальной программы. например конфиг для эластиксерч будет очень 
+похож его синтаксис на синтаксис конфига эластика как он есть из deb пакета вместо 
+вот этих киллометровых yaml хуевин. а хельм потом берет и это все уже конвертирует в километры
+yaml конфигов и скармливает кубернетесу.
+
+в итоге мы работаем с человеческим классическим конфигом к проге. натравливаем хельм и он 
+это конвертирует в километры yaml которые есть кубернетес.
+
+это очень удобно.
+
+в этом и есть смысл хельма.
+
+ставим хельм.
+
+root@test-kub-01:~# apt install snapd
+
+теперь нужно поставить helm chart repository
+
+#  helm repo add stable https://kubernetes-charts.storage.googleapis.com/
+
+# helm repo add elastic https://helm.elastic.co
+
+пробуем поставить elasticsearch 
+
+# helm install  elasticsearch elastic/elasticsearch   --set service.type=LoadBalancer
+
+
+посмотреть что мы поставили 
+-# helm list
+NAME            NAMESPACE       REVISION        UPDATED                                 STATUS          CHART                   APP VERSION
+elasticsearch2  default         1               2020-06-09 04:47:23.191718082 +0300 MSK deployed        elasticsearch-7.7.1     7.7.1
+
+удалить
+
+# helm delete elasticsearch2
+release "elasticsearch2" uninstalled
+
+сразу выяснилось что хвосты за собой хельм невычищает доконца.
+
+pvc он за собой зависшие неудаляет.
+
+# kubectl get pvc
+NAME                                          STATUS    VOLUME            CAPACITY   ACCESS MODES   STORAGECLASS    AGE
+elasticsearch-master-elasticsearch-master-0   Pending                                                               11m
+
+их приходится удалять за ним руками
+
+# kubectl delete pvc elasticsearch-master-elasticsearch-master-0
+
+
+создаем PV - путь к папке. указываем как вести если pvc удалили.
+создаем сторадж-класс и привязываем к PV
+
+в поде указываем сторадж-класс.
+
+как под в итоге получает pv 
+
+
+схема
+
+pod -> pvc (storage class) -> pv
+
+
+POD создает PVC в котором указан STORAGE CLASS 
+PVC на основе сторадж класса обращается к его PV
+
+если PV уже занят другим PVC то PV посылает нахер наш PVC.
+
+кто первый сел того и стул. 
+
+только один PV может владеть PVC.
+
+насколько я понял неможет такого быть чтобы у несколких подов был один pvc.
+потому что хотя в конфиге пода имя pvc задается как слово. но финальное имя pvc = слово в конфиге пода + имя пода.
+
+дальше еще интереснее.
+
+если мы убьем под. то его pvc остается висеть.
+дальше еще интереснее
+если мы убьем pvc то PV которым он владел будет иметь статус Retain . это значит 
+что он всебя невпустит никакой новый pvc.
+
+только если мы сменим политику на PVC с retain на recycle только тогда мы
+сможем подключить этот pv снова к pvc .
+
+я незнаю что будет если тотже самый pvc будет ломиться. может его pv пустит.
+я незнад удаляются ли данные в pv при наступлении recycle.
+
+миллион вопросов изза тупой архитектуры.
+
+еще прикол в том что PV монтируется напрямую как папка внутрь конейтнера.
+
+еще прткол в том что конфиг хельма отличается от конфига кубернетеса.
+
+пример
+
+кусок из stetless sset кубернетеса
+
+volumeClaimTemplates:
+   - metadata:
+      name: example-local-claim
+     spec:
+      accessModes:
+      - ReadWriteOnce
+      storageClassName: local-storage
+      resources:
+        requests:
+          storage: 2Gi
+
+
+кусок про тоже саоме из хельма
+
+root@test-kub-01:~/helm/01# cat values.yaml
+---
+# Permit co-located instances for solitary minikube virtual machines.
+antiAffinity: "soft"
+
+# Shrink default JVM heap.
+esJavaOpts: "-Xmx128m -Xms128m"
+
+# Allocate smaller chunks of memory per pod.
+resources:
+  requests:
+    cpu: "100m"
+    memory: "512M"
+  limits:
+    cpu: "1000m"
+    memory: "512M"
+
+# Request smaller persistent volumes.
+volumeClaimTemplate:
+  accessModes: [ "ReadWriteOnce" ]
+  storageClassName: "local-storage"
+  resources:
+    requests:
+      storage: 2Gi
+
+самое дебильное что они даже слова меняют
+
+у кубера
+templates
+
+у хельма
+template
+
+зачем эти дебилы так делают ?
+
+
+супер полезная вещь.
+вот мы устанавливаем прогу через хельм. там скрипты на скриптах 
+но в итоге он формиурет yaml и его скрмилвает куберу.
+так вот в кубере мжоно посмотрет так какой же на выходе был yamд файл.
+напрмиер
+
+# kubectl get vasya -o yaml
+
+это очень важно когда дебажишь почему же хельм неставить прогу.
+можно посмореть в yaml файл и увидет где там коряво .
+
+но это был еше неконец проблем.
+
+вот мы говорим что дескат дай нам папку на хосте.
+но процесс внутри контейнера имеет свой uid:guid а папака на хосте имеет своим пермишны.
+
+два варианта. один это в конфиге пода указать какой uid:guid он имеет типа при контакте 
+с внешним миром колорче  я не  разюирался пока опция такая
+
+securityContext:
+        fsGroup: 1000
+		
+
+
+а есть второй вариант.
+можно папке назначить gid тогда тот под который примаунчен к этой папке 
+когда он будет к не йобращаться то процесс пода будет как бы иметь другой gid
+
+вот эта опция
+
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv1
+  annotations:
+    pv.beta.kubernetes.io/gid: "1234"
+	
+
+и тоже надо разбирсять.
+
+я вообще сделал в итге просто. я папке дал 777 пренмишнс.
+=================================
+
+как оупубликовать StatelessState + PersistentVolume
+
+storage class
+
+# cat sc.yaml
+
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: local-storage
+provisioner: kubernetes.io/no-provisioner
+volumeBindingMode: WaitForFirstConsumer
+
+
+PersistentVolume
+
+# cat pv.yaml
+
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: task-pv-volume2
+  annotations:
+    pv.beta.kubernetes.io/gid: "0"
+  labels:
+    type: local
+spec:
+  storageClassName: local-storage
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/mnt/disks/vdb1"
+
+
+StatelessService
+
+# cat ss.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx
+  labels:
+    app: nginx
+spec:
+  ports:
+  - port: 80
+    name: web
+  clusterIP: None
+  selector:
+    app: nginx
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: web2
+spec:
+  selector:
+    matchLabels:
+      app: nginx # has to match .spec.template.metadata.labels
+  serviceName: "nginx"
+  replicas: 1 # by default is 1
+  template:
+    metadata:
+      labels:
+        app: nginx # has to match .spec.selector.matchLabels
+    spec:
+      terminationGracePeriodSeconds: 10
+      containers:
+      - name: nginx
+        image: k8s.gcr.io/nginx-slim:0.8
+        ports:
+        - containerPort: 80
+          name: web
+        volumeMounts:
+        - name: example-local-claim
+          mountPath: /usr/share/nginx/html
+  volumeClaimTemplates:
+   - metadata:
+      name: example-local-claim
+     spec:
+      accessModes:
+      - ReadWriteOnce
+      storageClassName: local-storage
+      resources:
+        requests:
+          storage: 2Gi
+
+установка 
+
+# kubectl apply -f *.yaml
+
+готово.
+
+поговорим что чо значит.
+
+что такое persistent volume.
+
+это на дата ноде папка которая монтируется внутрь пода.
+
+
+вначале нам нужно сооздать storageClass
+
+в нем главные строки
+
+
+  name: local-storage
+provisioner: kubernetes.io/no-provisioner
+
+первая это его имя.
+второе это тип стораджа который за ним стоит. no-provisioner означает тип : папка на локальном 
+для дата ноды диске.  еще быавют всякие там амазоны , iscsi и прочее.
+
+
+потом определяем PersistentVolume
+
+в нем главные строки
+
+  storageClassName: local-storage
+    storage: 10Gi
+    path: "/mnt/disks/vdb1"
+	
+
+path - путь к папке
+10Gi - мы говорим сколько максимум места можно отожрать из этой папки
+local-storage - это мы указали имя вышестоящего сторадж класса к которому эта папка относится.
+
+Persistentvolume это типа бэкенд обеспечение для сторадж класса.
+
+
+далее уже создаем StatelessService
+
+что в нем важно:
+
+        volumeMounts:
+        - name: example-local-claim
+          mountPath: /usr/share/nginx/html
+  volumeClaimTemplates:
+   - metadata:
+      name: example-local-claim
+     spec:
+      accessModes:
+      - ReadWriteOnce
+      storageClassName: local-storage
+      resources:
+        requests:
+          storage: 2Gi
+		  
+
+
+в разделах volumeMounts и volumeClaimTemplates должны совпадать строки
+
+
+        volumeMounts:
+        - name: example-local-claim
+  volumeClaimTemplates:
+      name: example-local-claim
+
+example-local-claim - сам по себе это имя неважно. важно чтобы было написано одно 
+и тоже в обоих секциях.
+
+и важны эти строки
+
+storageClassName: local-storage
+          storage: 2Gi
+		  
+		  
+		  в первой мы указыаем имя сторадж класса который создали выше.
+		  во второй указываем какой обьем из него хотим взять. конечно надо чтобы 2Gi <= 10Gi (который указан 
+		  гдето там выше).
+		  
+		  
+		  вот это важные моменты которые нужно , должны быть прописаны , и в таком виде , в нужных местах.
+		  
+		  тогда stateleessservice создаст под который внутрь себя получит примонтированную папку
+		  укзанную в персистент вольюме. ( подозреваю что с технической точки зрения mount namespace пода
+		  получит папку из персистент вольюма. )
+		  
+
+далее.
+в линуксе каждый юзер имеет uid и gid.
+uid - это число. типа логин но не в форме букв а в форме числа.
+gid - это тоже число означает группу к которой данный uid входит в состав.
+
+в зависимости в какую группу входит uid то ему линукс дает те или иные права делать чтото.
+
+далее. gid обозначает primary группу. она одна.
+а есть еще до 15 secondary групп куда может входит uid.
+
+пример
+
+$ id
+uid=1000(mkadm) gid=1000(mkadm) groups=1000(mkadm),
+4(adm),24(cdrom),27(sudo),30(dip),46(plugdev),110(lxd),115(lpadmin),116(sambashare)
+
+видно что юзер mkadm имеет uid= 1000 и gid = 1000
+но еще mkadm входит в тонну других групп. они и есть секондари.
+
+так вот разница между примари и секондари в том что  - если юзер создает файл то 
+владельцем файла прописывается = юзер с uid
+но это еще невсе.
+в линуксе в отличие от виндовса владеьльцем файла является нетолько какойто юзер
+но дополнительно владельцем является группа !
+то есть у файла формально сразу два владельца  - некоторый юзер и одноврееннно с этим
+некоторая группа ! ( вотличие от виндовс где владельцем является только юзер 
+и никаких групп).
+получается что когда мы создаем файл то ему нужно прописать владельца юзера 
+и владельца группу.
+
+так вот. когда файл создает юзер с uid и с gid то владельцем юзером для файла
+прописыается uid а владельцем группой прописыватся gid.
+
+то есть его праймари группа.  вот где у нас участвует gid в первую очередь - 
+при создании файла gid владелец файла.
+
+юзер uid=Вася gid=Honda создал файл. автоматом линукс указыает что 
+воадельцем юзером файла является uid а владельцем группой файла является gid
+
+при этом линукс назначает права на этот файл такие что и юзер имеет полные 
+права на файл (что логично) и груупа имеет полные права на файл !
+
+получается с файлом с одной стороны может делать что хочешь юзер
+и одновременно с этим с файлом может делать все что хочет любой член
+который также входит в туже группу !
+
+далее вспоминает про секондари группы наконец. они то с какого бока
+
+$ id
+uid=1000(mkadm) gid=1000(mkadm) groups=1000(mkadm),
+4(adm),24(cdrom),27(sudo),30(dip),46(plugdev),110(lxd),115(lpadmin),116(sambashare)
+
+а с того что наш юзер может иметь доступ к файлам у которых владельцем прописана
+секондари группа.
+
+если есть какойто файл у которого указано что его владельцем является группа sambashare
+то наш юзер mkadm сразу имеет к нему доступ.
+
+таким образом примари группа выстреливает при создании обьекта.
+а секондари группы дают право доступа к обьектам уже созданным.
+
+естесвтенно это неотменяет что gid также дает право доступа к обьектам у которых
+указана группа владелец gid.
+
+
+тперь мы знаем разницу между примари и секондари группами в линуксе для юзера.
+конечно понятно что в целом группы неделятся на примари и секондари. 
+это верно для конкретного юзера.
+для одного юзера группа А будет примари  а группа Б секондари
+а для друрго юзера наоборот группа Б будет примари а группа А будет секондари
+
+
+----------------
+fsGroup
+далее. 
+у пода может быть такой параметр fsGroup
+его смысл - Allocating an FSGroup that owns the pod's volumes	fsGroup
+то есть владельцем волюма будет группа с id=fsGroup
+вольюм это папка на диске. также как и файл она имеет владельца юзера
+и владельца группу.
+
+тут возникает очень важные вопросы.
+во первых есть user namespace который позволяет сделать так что 
+в контейнере будут свои юзеры никак несвязанные с юзерами в системе.
+скажем в контейнере запущен процесс и у этого процесса породителем указан uid,gid которых нет
+в родительской системе. более того они могут иметь такие же uid gid как родительская система
+но аутентифицироваться с помощью них на родителской системе нельзя. 
+то есть root в контейнере изолирован от root на хосте.
+(это надо прояснять как это на практике)
+
+в общем когда мы говорим про юзером и права на папку непонятно это с какой стороны
+со стороны внутри контейнера или снаружи для хоста.
+в любом случае а как это выглядит со стороны хоста ?
+
+
+разобраться с этой штукой !|
+
+интересно то что вот мы хотим посмотреть а какие контейнеры у нас есть в системе.
+но ведь контейнер это процесс. так вот. процесс который обеспечивает контейнер он с точки
+зрения процесс неймспейса лежит в другом неймспейсе. и вообще то в из под дефолтового 
+неймспейса недолжен быть виден. но так случилось что информацию и процессах сидит в папке /proc
+а папка это такая штука которая уже неимеет отношения к неймпейсу процессов
+она имеет отншение к неймспейсу папок. получется пародокосальная ситуация.
+когда мы пишем команду ps aux мы как бы говорим - покажи нам процессы которые лежат в
+НАШЕМ НЕЭМСПЕЙСЕ ПРОЦЕССОВ. утилита лезет в /proc а там ей видна инфо обо всех процессах
+нетолько которые крутятся внашем неймспйсе но и в других процессных неймспйспах.
+в итге утилита показывает все процессы и их чужих нам процессных неймспейсов.
+и таким мкаром мы видим в  нашем процессном неймспйсе инфо о процессах на которых крутстя
+котейнеры в других процессныъ неймспейсах.
+это первый бред.
+ну и отсюда ошибка что видя эти процессы интуитивно возникает вывод что эти процессы
+крутятся в нашем процессном нейсмейсе. нет. это нетак. они крутятся на нашем процессоре.
+но неймпейсе процессный у них другой.
+
+далее. но сейчас мы всеже говорим немного о другом.
+я хочу посмотреть какого юзера владельца имеет процесс который с точки зрения нашего неймпейса юзеров
+(не путать с неймспейсом процессов) и какого юзера владельца имеет этот же процесс
+но в неймпейсе юзеров контейнера.
+
+root@test-kub-02:~# docker ps
+CONTAINER ID        IMAGE                  COMMAND                  CREATED             STATUS              PORTS               NAMES
+9bfd57e885ae        4e9f801d2217           "/opt/bin/flanneld -…"   6 days ago          Up 6 days                               k8s_kube-flannel_kube-flannel-ds-amd64-tht2n_kube-system_6908c56e-5b6a-40d4-9cb4-ed0cf5d1eb1e_3
+
+:~# docker inspect 9bfd57e885ae
+[
+    {
+      
+        "State": {
+            
+            "Pid": 2295,
+
+
+итак узнали номер процесса контейнера.
+кстаи возникает вопрос вот этот номер процесса он с чьей точки зрения такой.
+с точки зрения нашего процессного неймспейса или его процессного неймспейса.
+
+
+смотрим номера неймспейсов процесса 2295
+
+~# ls -1al /proc/2295/ns/
+total 0
+dr-x--x--x 2 root root 0 Jun 15 19:53 .
+dr-xr-xr-x 9 root root 0 Jun  9 02:41 ..
+lrwxrwxrwx 1 root root 0 Jun 15 19:53 cgroup -> cgroup:[4026531835]
+lrwxrwxrwx 1 root root 0 Jun 15 19:53 ipc -> ipc:[4026532476]
+lrwxrwxrwx 1 root root 0 Jun 15 19:53 mnt -> mnt:[4026532486]
+lrwxrwxrwx 1 root root 0 Jun 15 19:53 net -> net:[4026531957]
+lrwxrwxrwx 1 root root 0 Jun 15 19:53 pid -> pid:[4026532487]
+lrwxrwxrwx 1 root root 0 Jun 15 19:53 user -> user:[4026531837]
+lrwxrwxrwx 1 root root 0 Jun 15 19:53 uts -> uts:[4026531838]
+
+тут я недоделал.
+
+
+
+значит если мы запустили контейнер прямо из докера
+
+# docker run -it ubuntu -c /bin/bash
+
+то user namespace ровно такойже самый как и на хосте
+
+
+root@test-kub-02:~# ls -1al /proc/24250/ns
+total 0
+dr-x--x--x 2 root root 0 Jun 16 20:33 .
+dr-xr-xr-x 9 root root 0 Jun 16 20:33 ..
+lrwxrwxrwx 1 root root 0 Jun 16 20:34 cgroup -> cgroup:[4026531835]
+lrwxrwxrwx 1 root root 0 Jun 16 20:34 ipc -> ipc:[4026532637]
+lrwxrwxrwx 1 root root 0 Jun 16 20:34 mnt -> mnt:[4026532635]
+lrwxrwxrwx 1 root root 0 Jun 16 20:33 net -> net:[4026532640]
+lrwxrwxrwx 1 root root 0 Jun 16 20:34 pid -> pid:[4026532638]
+lrwxrwxrwx 1 root root 0 Jun 16 20:34 user -> user:[4026531837]
+lrwxrwxrwx 1 root root 0 Jun 16 20:34 uts -> uts:[4026532636]
+root@test-kub-02:~#
+root@test-kub-02:~#
+root@test-kub-02:~# ls -1al /proc/1/ns
+total 0
+dr-x--x--x 2 root root 0 Jun  9 02:41 .
+dr-xr-xr-x 9 root root 0 Jun  9 02:41 ..
+lrwxrwxrwx 1 root root 0 Jun 16 20:29 cgroup -> cgroup:[4026531835]
+lrwxrwxrwx 1 root root 0 Jun 16 20:29 ipc -> ipc:[4026531839]
+lrwxrwxrwx 1 root root 0 Jun 16 20:29 mnt -> mnt:[4026531840]
+lrwxrwxrwx 1 root root 0 Jun 16 20:29 net -> net:[4026531957]
+lrwxrwxrwx 1 root root 0 Jun  9 02:41 pid -> pid:[4026531836]
+lrwxrwxrwx 1 root root 0 Jun 16 20:29 user -> user:[4026531837]
+lrwxrwxrwx 1 root root 0 Jun 16 20:29 uts -> uts:[4026531838]
+root@test-kub-02:~#
+
+мы видим что у контейнероа созданного руками в докере : 
+cgroup -тоже что и  на хосте
+ipc,mnt,net,pid - разные с хостом
+user - одинаковое с хостом
+uts - разный
+
+это интересно.
+
+
+
+
+
+и так получается что информация о чужих нам процессах она отображена в 
+
+--------- 
+
+
+
+ 
+
+
+
+
+:~# user add test2
+No command 'user' found, did you mean:
+ Command 'fuser' from package 'psmisc' (main)
+ Command 'userv' from package 'userv' (universe)
+ Command 'kuser' from package 'kuser' (universe)
+ Command 'users' from package 'coreutils' (main)
+user: command not found
+root@test-kub-01:~# useradd test2
+root@test-kub-01:~# su - test2
+No directory, logging in with HOME=/
+$
+$
+$
+$ id
+uid=1001(test2) gid=1001(test2) groups=1001(test2)
+

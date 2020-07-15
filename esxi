@@ -1,0 +1,421 @@
+чтобы в esxi создать виртуалку и поставит на нее esxi - nested esxi
+
+посоле создания виртуалки нужно зайти через путти на фс и в свойствах имя-виртуалки.vmx
+добавить две строки
+
+vhv.enable = "TRUE"
+hypervisor.cpuid.v0 = "FALSE"
+
+--
+
+
+DEVICE                                PATH/WORLD/PARTITION DQLEN WQLEN ACTV QUED %USD  LOAD   CMDS/s  READS/s WRITES/s MBREAD/s MBWRTN/s DAVG/cmd KAVG/cmd
+mpx.vmhba1:C0:T0:L0                            -              32     -    0    0    0  0.00     0.00     0.00     0.00     0.00     0.00     0.00     0.00
+mpx.vmhba1:C0:T1:L0                            -              32     -    0    0    0  0.00     0.00     0.00     0.00     0.00     0.00     0.00     0.00
+mpx.vmhba32:C0:T0:L0                           -               1     -    0    0    0  0.00     0.00     0.00     0.00     0.00     0.00     0.00     0.00
+
+
+
+
+клинируем флэшку с esxi установленным
+
+~ # dd if=/dev/disks/mpx.vmhba1:C0:T0:L0 of=/dev/disks/mpx.vmhba1:C0:T1:L0 bs=1M conv=notrunc
+24576+0 records in
+24576+0 records out
+
+--
+esxi установленный на флэшку грущится через загрузчик syslinux
+
+---
+
+верзние две строки покаывзают только ven dev
+
+чтоб узнать гораздо больше про иодеди флэшек надо заюзать
+
+lspci -v
+
+
+надо правильно тключичить usb arbirtaror.
+перезагрузиться. 
+
+~ # chkconfig --list | grep usb
+usbarbitrator      on
+
+
+# chkconfig usbarbitrator off
+
+
+и только потом можно на флэшку записать образ
+
+
+
+как в esxi найти название диска который USB флэшка с которой он грузится
+
+# esxcfg-info -s | grep -A10 "Diagnostic Partition"
+         |----Name..................................................mpx.vmhba32:C0:T0:L0:9
+
+
+значит путь к названию диска нашей флэшки /dev/disks/mpx.vmhba32:C0:T0:L0
+
+когда мы  знаем имя диска 
+то можем например посмотреть его размер
+
+ # esxcli storage core device list
+mpx.vmhba32:C0:T0:L0
+   Display Name: Local USB Direct-Access (mpx.vmhba32:C0:T0:L0)
+   Size: 7453
+   
+
+~ # esxcli storage core device list | grep -E "vmhba|USB|Size|Vendor"
+   Size: 160219
+   Queue Full Sample Size: 0
+   Is USB: false
+   Is Boot USB Device: false
+mpx.vmhba33:C0:T0:L0
+   Display Name: Local USB Direct-Access (mpx.vmhba33:C0:T0:L0)
+   Size: 7453
+   Devfs Path: /vmfs/devices/disks/mpx.vmhba33:C0:T0:L0
+   Queue Full Sample Size: 0
+   Is USB: true
+   Is Boot USB Device: true
+   Size: 160219
+   Queue Full Sample Size: 0
+   Is USB: false
+   Is Boot USB Device: false
+mpx.vmhba32:C0:T0:L0
+   Display Name: Local USB Direct-Access (mpx.vmhba32:C0:T0:L0)
+   Size: 15064
+   Devfs Path: /vmfs/devices/disks/mpx.vmhba32:C0:T0:L0
+   Queue Full Sample Size: 0
+   Is USB: true
+   Is Boot USB Device: false
+
+виден size в MB кстати обоих флэшек ( чтобы было понятно хватит ли флэшки для копирования )
+
+~ # ls -1 /dev/disks/
+mpx.vmhba32:C0:T0:L0
+mpx.vmhba32:C0:T0:L0:1
+mpx.vmhba33:C0:T0:L0
+mpx.vmhba33:C0:T0:L0:1
+mpx.vmhba33:C0:T0:L0:5
+mpx.vmhba33:C0:T0:L0:6
+mpx.vmhba33:C0:T0:L0:7
+mpx.vmhba33:C0:T0:L0:8
+mpx.vmhba33:C0:T0:L0:9
+
+
+!!!!перед тем как клонироваь нужно в 
+/bootbank/boot.cfg добавить ключ overrideDuplicateImageDetection 
+и только потом клонируем.!!!!
+
+# dd if=/dev/disks/mpx.vmhba33:C0:T0:L0 of=/dev/disks/mpx.vmhba32:C0:T0:L0 bs=1M  conv=notrunc
+
+почемуто при копироании с диска на диск обязательно нужен с ключом conv=notrunc
+
+two filesystems with the same UUID have been detected.
+Make sure you do not have two ESXI installations
+
+помогает что когда уже начинается заргрзука syslinux тыкаем Shift+o
+
+внизц будет видна строка через которую syslinux грузит  esxi
+и там надо дбавить слово overrideDuplicateImageDetection - его хватает только на  1 раз до перезагрузки.
+
+надо понять где его можно вбить в загрузчик.
+
+и еще хотя я гружусь с нровой флэшки но esxi в итоге монтирует себе старую флэшку.
+
+
+---
+полезная команда
+
+ # esxcli storage vmfs extent list
+Volume Name                               VMFS UUID                            Extent Number  Device Name                           Partition
+----------------------------------------  -----------------------------------  -------------  ------------------------------------  ---------
+local-0.104-156GB-ssd-r1-2dx159GB-first   4ce31cd8-b4afa840-4c52-00215ad4969e              0  naa.600508b1001c2463f2c7556ed2f0a7ae          1
+iscsi-0.102-4.6TB-zfs-4hdd                5d650939-22ae5f1f-93ec-70106fb182b2              0  naa.6589cfc00000084e913aa61f9f14882d          1
+local-0.104-156GB-ssd-r1-2dx159GB-second  4ce31cc2-3c75e0d0-ae46-00215ad4969e              0  naa.600508b1001c9c9f5e7f6e6d1e7f2c87          1
+iscsi-0.202-4.3TB-zfs-4hdd                5e3fbe43-843521ba-b352-000af753f904              0  naa.6589cfc0000001b2475dddbe6c9464f8          1
+
+
+----
+
+посмотреть каеие флэшки воткнуты  хост
+
+~ # lsusb
+Bus 002 Device 003: ID 8564:1000
+Bus 002 Device 002: ID 8564:1000
+Bus 006 Device 001: ID 1d6b:0001 Linux Foundation 1.1 root hub
+Bus 005 Device 001: ID 1d6b:0001 Linux Foundation 1.1 root hub
+Bus 004 Device 001: ID 1d6b:0001 Linux Foundation 1.1 root hub
+Bus 003 Device 001: ID 1d6b:0001 Linux Foundation 1.1 root hub
+Bus 002 Device 001: ID 1d6b:0002 Linux Foundation 2.0 root hub
+Bus 001 Device 001: ID 1d6b:0002 Linux Foundation 2.0 root hub
+~ #
+
+----
+
+связь между устройство и именем раздела на volumes
+
+~ # esxcfg-scsidevs -f
+mpx.vmhba33:C0:T0:L0:5                                           /vmfs/devices/disks/mpx.vmhba33:C0:T0:L0:5 cd284aef-38fd9052-5223-9a934dcd7dea
+mpx.vmhba33:C0:T0:L0:6                                           /vmfs/devices/disks/mpx.vmhba33:C0:T0:L0:6 73f22ee4-75bac953-b061-0a4f3e00df82
+mpx.vmhba33:C0:T0:L0:8                                           /vmfs/devices/disks/mpx.vmhba33:C0:T0:L0:8 5d5fd29a-dede4163-bed0-000af753f904
+~ #
+
+
+отсюда мы видим что раздел 5 на устройстве mpx.vmhba33:C0:T0:L0 смонтирован 
+в папаку /vmfs/volumes/cd284aef-38fd9052-5223-9a934dcd7dea
+
+freebsd неможет примонтировать fat раздел 5-ый и 6-ый
+приходится грузится в линукс ubuntu rescue. в нем нет vi но есть nano
+
+--
+научитьс япользлваться syslinux чтоы понимать как его стартовать руками парамтеры после boot
+
+-
+тажке надо понять нужно ли GPT таблицу править у диска на который скопировали.
+-
+как я понялв esxi ты фиг подмоириуешь руками даже vfat 32 все что он находит он монтирует автомтаом
+в папку /vmfs/vilumes/UUID
+
+но типа можно скпировать без мтонтирования.
+
+--
+# gpart recover можно делать.
+оно непортир татблицк разделов.
+а просто в конце флэшки свободное место создает
+--
+
+# fstyp -lu /dev/ada1p5
+msdosfs
+
+
+# file -s /dev/ada1p5
+/dev/ada1p5: DOS/MBR boot sector, code offset 0x3c+2, OEM-ID "MSDOS5.0",
+sectors/cluster 8, reserved sectors 2, root entries 512, Media
+descriptor 0xf8, sectors/FAT 250, sectors/track 32, heads 64, sectors
+511968 (volumes > 32 MB), serial number 0x4e781016, label: "
+", FAT (16 bit)
+
+---
+в общем я точно выяснил что проблема в самом фрибсд в его утилите mount_msdosfs 
+она почемуто неможет смонтровать vfat разделы от esxi,
+
+из по убунту все безрпоблем
+
+--
+надо попроавить gpt таблицу на 104-м на первой флешкек
+--
+
+разобраться можно ли как то по быстрому менять UUID на флэшке esxi
+--
+
+
+~ # esxcfg-scsidevs
+esxcfg-scsidevs <options>
+                           provides paths to.
+-o|--offline-cos-dev       Offline the COS device corresponding to this vmkernel
+                           device.
+-n|--online-cos-dev        Bring online the COS device corresponding to this vmkernel
+                           device.
+---
+
+
+No of outstanding IOs with competing worlds: 32
+какая товажная опция как я помн=ю которуб можно анстрвиатьав
+
+--
+
+
+как идентифицировать флэшки
+а именно связать номер mpx и название флэшки.
+потому что копируем мы по mpx  пути. а потом в биосе надо будет выбирать флэшку по имени
+
+
+
+
+~ # esxcfg-scsidevs -a
+vmhba32 usb-storage       link-n/a  usb.vmhba32                             () USB
+vmhba33 usb-storage       link-n/a  usb.vmhba33                             () USB
+vmhba34 usb-storage       link-n/a  usb.vmhba34                             () USB
+
+
+# lsusb -v
+
+  iManufacturer           1 Generic
+  iProduct                2 Ultra Fast Media Reader
+  iSerial                 3 000002660A01
+
+  iManufacturer           1 JetFlash
+  iProduct                2 Mass Storage Device
+  iSerial                 3 EN49NYR8
+
+  iManufacturer           1 JetFlash
+  iProduct                2 Mass Storage Device
+  iSerial                 3 95WW3Z45F04MVNFS
+ 
+
+~ # esxcli storage core device list
+
+mpx.vmhba33:C0:T0:L0
+   Size: 7452
+   Vendor: JetFlash
+   Model: Transcend 8GB
+   
+   
+mpx.vmhba32:C0:T0:L0
+   Size: 15064
+   Vendor: JetFlash
+   Model: Transcend 16GB
+    
+
+
+mpx.vmhba34:C0:T0:L0
+   Size: 256
+   Vendor: HP iLO
+   Model: LUN 00 Media 0
+   
+   
+текущая загрузочная флэшка
+   # esxcfg-info -s | grep -A10 "Diagnostic Partition"
+         |----Name..................................................mpx.vmhba33:C0:T0:L0:9
+
+   
+   значит сейчас мы грузится с той которая 7ГБ 
+   а новая флэшка  та которая на 15ГБ
+   
+   
+----------------
+   
+надо научитьс владеть uefi биосом
+---
+
+очень много подробной информации здест можно найти о хосте
+
+ esxcfg-info -s |
+ 
+ ====
+ 
+надо разоабрстяь с uefi как им пользоваться.
+как с его команднгой строкой рьроатта
+
+и как ставить syslinux чо он умеет его boot строка итд
+
+--
+если режим загрузки UEFI  то когда мы потом смотрим в esxi
+то в нем видно что для него загрузочная флэшка ровно та с которую мы указали
+для загрузки в биосе.
+
+
+====
+чтото я сделал нетак во время перезагрузки esxi хостов.
+
+в итоге у меня в вцентре появились виртуалки серые со статусом "orphaned"
+также у меня нетолько в вцентре но и если на хост зайти появилась виртуалка серая без имени
+а вместо имени unaccessible написано.
+
+
+начну со второго. если вместо имени втиртуалки написано unaaccessible.
+это проблема на самом хосте.
+у него есть файл 
+
+~ # cat /etc/vmware/hostd/vmInventory.xml
+
+<ConfigRoot>
+  <ConfigEntry id="0000">
+    <objID>1</objID>
+    <vmxCfgPath>/vmfs/volumes/4ce31cd8-b4afa840-4c52-00215ad4969e/core-dc-02/core-dc-02.vmx</vmxCfgPath>
+  </ConfigEntry>
+  <ConfigEntry id="0006">
+    <objID>8</objID>
+    <vmxCfgPath>/vmfs/volumes/4ce31cd8-b4afa840-4c52-00215ad4969e/fs-1/fs-1.vmx</vmxCfgPath>
+  </ConfigEntry>
+  <ConfigEntry id="0010">
+
+
+в нем как видно прописаны vmx виртуалок которые на нем зарегистрированы.
+хост когда перезагрузился то ему надо из этих vmx файлов прочитать параметры виртуалок. в том числе
+их имена.  если vmx файл недоступен для чтения то в инвентори хоста вместо имени этой виртуалки
+будет написано unknown.
+
+получается причина этого это то что хост неможет получить доступ к конкретному vmx файлу.
+(https://kb.vmware.com/s/article/2172 )
+
+надо проверить что все датасторы доступны для этого хоста.
+далее надо зайти в vmInventory.xml и методом исключения сравнивая с инвентори хоста понять 
+к какой конкретно виртуалке vmx файлу нет доступа.
+
+
+теперь про первую проблемы. orphan виртуалки это проблема на вцентре. в его базе
+указано что на таком то хосте зарегистрированар такая то виртуалка. а по факту ее там нет.
+написано что такая херня может быть если мы вцентр выключили .а на хостах с виртуалками 
+чтото шаманили.
+
+отсюда главный вывод - вцентр из всех виртуалок надо выключать самым последним а включать 
+первым.
+
+если вцентр выключил то акукратно и минимально чтот делать на самих хостах.
+
+я точно выключил вцентр рановато. возможно както полчилось что на хостах
+поемуто часть виртуалок была разрегистрированна.
+
+-----
+
+смена пароля на esxi
+
+есть хосты esxi которые управляются через vcenter
+
+заходим на хост esxi и через командную строку меняем пароль на root от хоста
+
+при этом связь с вцентр у хоста нетеряется.
+
+можно даже сделать в вцентр disconnect\connect для хоста и он приконнектит его неспрашивая новый пароль.
+процедура disconnect\connect абсолютно неопасна. не потеряются ни пулы ничего при реконнекте.
+
+насоклько я понимаю потому что vcenter коннектится к хостам не под рутом а под vpxuser чтоли.
+либо dcui юзером. а  на них то пароль неменялся.
+
+значит далее. кто то зашел через клиент на хост.
+
+как нам это увидеть. ответ никак.
+
+если человек зашел через вцентр то это видно в sessions.
+есь человек зашел напрямую на esxi хост через клиент то мы это в вцентр невидим. облом и жопа.
+
+но. можно гарантированно выкинуть всех с хостов esxi то есть убить их сессии.
+как это сделть.
+
+нужно зайти на каждый esxi хост и в строке 
+
+#  services.sh restart
+
+это выкинет всех кто зашел через клиент напрямую на esxi хост.
+если заранее сменит на хосте пароль то больше никто незайдет. 
+также надо зайти на хст черз клиент и посмотреть какие там есть локальные юзеры. а 
+то могли завести и в вцентр этого невидно.
+
+----
+получается в целом как это надо клонировать usb флэшку
+
+1. отлючить usb arbitrator 
+2. перезагрузится чтобы все флэшки отвалились от юсбарбитратора 
+и были видны в ls -1 /dev/disks
+3. определить имя mpx.vmbha флэшки с которой грузится esxi
+
+# esxcfg-info -s | grep -A10 "Diagnostic Partition"
+         |----Name..................................................mpx.vmhba32:C0:T0:L0:9
+
+4. на этой флэшке модиицировать через vi /bootbank/boot.cfg и /altbootbank/boot.cfg 
+добавив overrideDuplicateImageDetection
+
+5. склонировать эту флэшку на другую флэшку
+
+# dd if=/dev/disks/mpx.vmhba33:C0:T0:L0 of=/dev/disks/mpx.vmhba32:C0:T0:L0 bs=1M  conv=notrunc
+
+
+6. загрузиться с freebsd iso и исправить GPT разметку через 
+# gpt recover имя-флэшки
+
+готово.
+
+---
