@@ -531,4 +531,169 @@ $ /etc/init.d/usbarbitrator start
 
 ---
 
+посмотреть на каком устройстве лежит тот или иной vmfs массив
+
+~ #  esxcli storage vmfs extent list
+Volume Name                    VMFS UUID                            Extent Number  Device Name                           Partition
+-----------------------------  -----------------------------------  -------------  ------------------------------------  ---------
+iscsi-111.58-zfs-2xSSD-826GB   5e28f256-ec6bed36-98b6-009c029ff9ce              0  naa.6589cfc000000f658c2bd978f8e66bf8          1
+111.120-850GB-ssd-r1-2dx950GB  5dfc35ca-48921add-5174-40a8f0287bf8              0  naa.600508b1001c8d8be9a24e20e9e5bd74          1
+~ #
+
+
+=====
+
+как  найти связь между именем lun в hpssacli и esxi
+
+в hpssacli
+
+ # /opt/hp/hpssacli/bin/hpssacli ctrl slot=0   ld 1  show
+
+Smart Array P420i in Slot 0 (Embedded)
+
+   array A
+
+      Logical Drive: 1
+         Size: 850.0 GB
+         Fault Tolerance: 1
+         Heads: 255
+         Sectors Per Track: 32
+         Cylinders: 65535
+         Strip Size: 64 KB
+         Full Stripe Size: 64 KB
+         Status: OK
+         Caching:  Enabled
+         Unique Identifier: 600508B1001C8D8BE9A24E20E9E5BD74
+         Logical Drive Label: 02E827EF0014380305E49A094E2
+         Mirror Group 1:
+            physicaldrive 1I:1:1 (port 1I:box 1:bay 1, Solid State SATA, 912.6 GB, OK)
+         Mirror Group 2:
+            physicaldrive 1I:1:2 (port 1I:box 1:bay 2, Solid State SATA, 912.6 GB, OK)
+         Drive Type: Data
+         LD Acceleration Method: Controller Cache
+
+значит выяснилось что в esxi он будет иметь имя
+         Unique Identifier: 600508B1001C8D8BE9A24E20E9E5BD74
+
+
+
+=====
+
+перенос esxi с флэшки на raid
+
+1) overrideDuplicateImageDetection добавить 
+vi /bootbank/boot.cfg
+vi /altbootbank/boot.cfg
+
+
+2) удалить старый массив
+ # /opt/hp/hpssacli/bin/hpssacli ctrl slot=0 ld 2  delete  forced
+
+
+
+3) создать новый массив 24ГБ под esxi
+# /opt/hp/hpssacli/bin/hpssacli ctrl slot=0 create type=ld drives=1I:1:3,1I:1:4 raid=1 size=24576 stripsize=default ssdsmartpath=disable
+
+# /opt/hp/hpssacli/bin/hpssacli ctrl slot=0 ld 2 modify  arrayaccelerator=enable
+
+4) делаем наш новый lun загрузочным с точки зрения smart array контроллера
+~ # /opt/hp/hpssacli/bin/hpssacli ctrl slot=0 ld 2 modify  bootvolume=primary
+этого достаточно. потом в графический настройщик smart array вообще
+заходить ненужно.
+ # /opt/hp/hpssacli/bin/hpssacli ctrl slot=0 show | grep -i "primary boot volume"
+   Primary Boot Volume: logicaldrive 2 (600508B1001CE9775BB12DF23B605083)
+
+
+
+5) dd скопировать
+вначале нам надо определить название устройства под которым esxi 
+видит загрузочную флэшку
+# esxcfg-info -s | grep -A10 "Diagnostic Partition"
+получим
+mpx.vmhba32:C0:T0:L0
+
+далее надо определить название устройства под которым esxi 
+видит новый lun
+
+~ # /opt/hp/hpssacli/bin/hpssacli ctrl slot=0 ld 2 show |  grep Unique
+         Unique Identifier: 600508B1001CE9775BB12DF23B605083
+
+esxi увидит этот lun как /dev/disks/naa.600508b1001ce9775bb12df23b605083
+тут важно отметить что у hpssacli все буквы большие 
+а у esxi эти буквы маленькие. это имеет значение для esxi.
+
+
+подставляем в dd
+# dd if=/dev/disks/mpx.vmhba32:C0:T0:L0 of=/dev/disks/naa.600508b1001ce9775bb12df23b605083 bs=1M  conv=notrunc
+
+
+
+7) partedUtil корректируем таблицу GPT
+убеждаемся что на новом lun повреждена GPT таблица
+ # partedUtil getptbl /dev/disks/naa.600508b1001ce9775bb12df23b605083
+исправляем
+ # partedUtil fix /dev/disks/naa.600508b1001ce9775bb12df23b605083
+провеяем еще раз что сейчас все окей
+ # partedUtil getptbl /dev/disks/naa.600508b1001ce9775bb12df23b605083
+
+
+
+7.5) 
+~ # /opt/hp/hpssacli/bin/hpssacli ctrl slot=0 modify cacheratio=0/100
+
+7.6)
+~ # /opt/hp/hpssacli/bin/hpssacli ctrl slot=0 modify drivewritecache=enable forced
+
+
+8) грузимся чтобы окончательно проверить что с нового LUN со smart array контроллера мы успешно грузимся
+
+9) по готовности отформатировать исходную  флэшку 
+
+выяснилось. что если мы грузимся со smart array lun 
+то esxi все равно както там в процессе грузится или чтото 
+типа того с флэшки. это легко проверятеся через esxcfg-info -s | grep -A10 "Diagnostic Partition" после загрузки. возможно загрузчик какойто 
+первичный на esxi ищет опреденный gpt раздел по guid и первым попадается
+этот раздел с флэшки а не со smart array.
+вывод - если мы грузиммся с raid1 lun smart array то мы неможем
+иметь втоже время вставленную флэшку с таким же esxi загрузочным.
+
+выяснисось что на 24ГБ отведенных на LUN под esxi оно реально
+использует ~4GB места. остается ~ 20GB места на LUN
+и это место доступно для создания стораджа из под vmware c# клиента.
+пугаться ненадо. это нето место где лежит esxi это свободное 
+место на том LUN так что датастор создавать можно.
+
+
+
+===
+оказалость что есть приложение для виндовс которое позволяет пожключаться
+к ilo. это хорошо.э
+==
+
+прработать:
+если есть usb с той же gpt а мы грузиммся с smart array то все равно
+ESXI напишет что загрузился с usb
+
+disabled external usb нельзя активровать 
+ilo aplication standalone
+textcons
+
+у hp можно в биос деактивировать только внешние usb порты. 
+внутрениие нельзя. в биосе путающее меню. 
+деактивировать внешние usb называется "disable external usb ports"
+а активировать их называется "usb enable".
+
+
+походу вот еще в чем прикол. esxi блокирует запись на тот диск
+с которого она загрузилась. только чтение разрешено
+==
+в биос есть "virtual install disk" опция.
+как я понял это некий диск его бекенд мне непонятно где
+он записан на мат плате сервера. но если его активировать в биос
+то якобы на этом диске держат драйвера которые могут понадобиться
+при установке ОС на сервер. главный вопрос как эти драйвера туда записать.
+пока непонятно.
+===
+
+
 
