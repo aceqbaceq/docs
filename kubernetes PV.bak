@@ -1,0 +1,575 @@
+kubernetes persistent volume
+
+PV - persisytent volume это кусок диска который кластер имеет как ресурс
+для того чтобы его выдавать потом подам. суть этой штуки в том что 
+оно похоже на iscsi бекенд. этот бекенд еше нужно нарезать на куски и 
+выдать эти куски конкретным компам
+
+persistent volume claim это когда мы у куба заказываем конкрентный размер
+дискового пронстранства под свои конкретные нужды. типа выдели этому поду
+10ГБ диска. куб будет пытаться исполнить этот запрос отрезая от PV
+
+разница между PV и PVc. pv это параметр кластера это сколько есть у кластера
+а pvc это запрос от юзера заказ на то чтобы сколько отрезать от кластера.
+
+условно говоря pv это сколько картоки есть на складе
+а pvc это машина которпа приехала на склад и заказывает 10тонн в кузов забрать
+
+pv сколько есть на складе
+pvc сколько мы хотим забрать в этот раз
+
+
+pv можно изготовить загодя как картошку с осени.
+кластер будет обладать этими pv.
+
+когда мы заранее готовим некий набор PV's это называется статическая подготовка PV . есть еще динамическая. когда PV в система появляется незаранее
+а по запросу. это можно сравнить с тем что диски на компе могут быть предустановлены в комп.  а могут быть(предположим) появится в нем по запросу.ну по типу того что послал программный запрос и к виндовсу подключился iscsi lun.
+
+динамическое появление PV связано со сторадж клаассами . об этом потом.
+
+шарманка работает в целом так , в куб поступает запрос на то чтобы он выделил
+кусок диска от PVC. куб ищет есть ли  у него PV который удовлетворяет 
+параметрам заказа в PV. он ищет в предустановленных статических PV если там 
+нет то пытается динамически создать PV , чтобы динамически создать PV - PVC должен обратиться к storage классу
+
+походу чтобы минимально чтото заработало надо иметь сетевой сторадж
+типа NFS. так что надо собрать NFS
+
+так. значит начал я делать пробовать создать PV потом создать
+PV claim потом создать pod который бы запрашивал PV.
+
+значит вначале я попробовал создать PV тип которого hostPath
+хотя в yaml нигде не указано hostpath 
+
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: task-pv-volume
+  labels:
+    type: local
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/mnt/data"
+
+так вот с этой хренью ничего не получилось . потому что вроде как 
+в одном месте я нашел что hostpath pv можно использовать 
+только якобы на куб кластере с одной нодой.
+у меня их три.
+короче когда я пытался создать этот PV то мне куб выдавал ошибку.
+
+окей. 
+
+стало понятно что надо ставить nfs сервер. и использовать PV nfs типа.
+
+как поставит nfs сервер
+
+# chown nobody:nogroup /var/nfs
+# apt-get install nfs-kernel-server
+
+# cat /etc/exports
+/var/nfs    172.16.102.0/24(rw,sync,no_subtree_check,no_root_squash)
+
+/var/nfs = папка на сервере которую мы расшариваем
+172.16.102.0/24 = клиенты которым можно подключаться
+no_root_squash = эта опция нужна потому что при копировании файлов 
+клиент также и устанавливает пермишнс на копируемый файл. так вот 
+по дефолту на nfs сервере запрещено в расшаренной папке уставливать
+владельцем файла пользователя root. и когда мы под рутом копируем файла
+на nfs папку то клиентский линукс неможет установить владельцем файла рута.
+и вылезает ошибка. вот чтобы рут мог стаовиться владельцем файлов и папок
+в nfs папке испольщуется опция no_root_squash
+
+
+# exportfs -a
+# systemctl enable nfs-server
+# systemctl start nfs-server
+
+как посмотреть какие шары наш nfs сервер опубликовал. 
+
+первый способ
+
+# exportfs -v
+/var/nfs        172.16.102.0/24(rw,wdelay,no_root_squash,no_subtree_check,sec=sys,rw,no_root_squash,no_all_squash)
+/var/nfs2       172.16.102.0/24(rw,wdelay,no_root_squash,no_subtree_check,sec=sys,rw,no_root_squash,no_all_squash)
+
+второй способ
+
+# showmount -e localhost
+Export list for localhost:
+/var/nfs2 172.16.102.0/24
+/var/nfs  172.16.102.0/24
+
+кстати в случае nfs шары называются экспортами
+
+
+как подключаться к nfs серверу:
+на линуксе клиенте нужно поставить пакет
+
+# apt-get install nfs-common
+после этого nfs папку можно монтировать через mount 
+
+# mount -t nfs  test-nfs-01.mk.local:/var/nfs /mnt/nfs
+
+окей. сервер nfs установили настроили. в целом как маунтить эту папку
+на клиенте понятно. возвращаемся к кубернетесу
+
+надо обязательно поставить пакет nfs-common на все дата ноды
+иначе при попытке mount -t nfs будет писать ошибку. 
+
+теперь привожу Pv.yaml 
+скажу сразу что примеры из доков куба гавно. они нерабочие.
+поэтому пришлось искать примеры на стороне.
+тип бекенда прописан nfs 
+
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: portal-info-data-pv
+spec:
+  accessModes:
+    - ReadWriteMany
+  mountOptions:
+    - hard
+    - vers=4.0
+    - timeo=60
+    - retrans=10
+  capacity:
+    storage: 10Gi
+  nfs:
+    server: test-nfs-01.mk.local
+    path: "/var/nfs"
+  persistentVolumeReclaimPolicy: "Recycle"
+
+
+начнем разбирать эту мантру пока поверхностно.
+name: portal-info-data-pv    = имя PV под которым будем к нему обращаться
+
+
+mountOptions:
+    - hard
+    - vers=4.0
+    - timeo=60
+    - retrans=10
+это параметры которые куб будет использовать  в команде mount -t nfs 
+
+вот я раскопал какой mount потом использует куб для маунта нашей nfs 
+папки при создании пода
+
+mount -t nfs -o hard,nfsvers=4.0,retrans=10,timeo=60 test-nfs-01.mk.local:/var/nfs /var/lib/kubelet/pods/b78b0ac0-d65d-4807-b085-64771dbab78c/volumes/kubernetes.io~nfs/portal-info-data-pv
+
+nfs: = насколько я понял это мы указали что тип  бекенда PV это nfs сервер
+
+ server: test-nfs-01.mk.local
+    path: "/var/nfs"
+параметры nfs сервера
+
+а если бы тип PV был hostpath то вместо nfs секции(которую только 
+что разобрал) было бы 
+
+ hostPath:
+    path: "/mnt/data"
+
+устанавливаем этот PV
+
+# kubectl apply -f PV.yaml
+
+и проверяем что он успешно установился
+
+# kubectl get pv
+# kubectl get pv
+NAME                 CAPACITY    CLAIM    STATUS
+portal-info-data-pv  10Gi                 Available
+
+значит видно что pv появился  и что поле CLAIM у него пока пустое
+
+далее устанавливаем pv claim
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: portal-info-data-pvc
+spec:
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Gi
+  volumeName: "portal-info-data-pv"
+  storageClassName: ""
+
+
+name: portal-info-data-pvc   = имя клейма по которому мы будем к нему обращатся
+
+volumeName: "portal-info-data-pv"   = имя PV к которому мы обращаемся нашим клеймом
+
+(пока поверхностно анализируем yaml)
+
+навскидку про клеймы непонятно вот что - про  storage: 10Gi 
+это тот обьем который сразу резервируется у PV или что.
+если мы создадим 5 клеймов  и в каждом укажем 10Gi то что будет.
+пока пропускаем
+
+устанавливаем клейм и смотрим на него
+# kubectl apply -f claim.yaml
+# kubectl get pvclaim
+
+NAME                       STATUS    VOLUME                CAPACITY
+portal-info-data-pvc       Bound     portal-info-data-pv   10Gi            
+
+теперь смотрим как изменился статус PV
+
+# kubectl get pv
+NAME                 CAPACITY    CLAIM                          STATUS
+portal-info-data-pv  10Gi        default/portal-info-data-pvc   Bound
+
+
+еще раз подобью бабки об именах pv и клейм. ибо они длинные
+portal-info-data-pv   (pv)
+portal-info-data-pvc  (клейм)
+
+
+pod
+теперь наконец создаем под который использует pv
+цепь такая , под обращается к claim а клейм обращается к pv
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: task-pv-pod
+spec:
+  volumes:
+    - name: task-pv-storage
+      persistentVolumeClaim:
+        claimName: portal-info-data-pvc
+  containers:
+    - name: task-pv-container
+      image: nginx
+      ports:
+        - containerPort: 80
+          name: "http-server"
+      volumeMounts:
+        - mountPath: "/usr/share/nginx/html"
+          name: task-pv-storage
+		  
+
+кусочек в поде который прописывает клейм.
+volumes:
+    - name: task-pv-storage
+      persistentVolumeClaim:
+        claimName: portal-info-data-pvc
+
+насколько  я помню в докере  volumes  это хрень когда мы хотим папку в
+контейнере пробросить на фс хоста. значит как это было в докере - нужно
+было указать папку в контейнере и папку на фс хоста. значит
+на данном этапе мы указываем куда "вовне" контейнера мы будем пробрасывать
+папку контейнера. тоесть теперь когда мы видим слово вольюм в yaml 
+мы понимаем что это некий внешний по отношению к ФС контейнера обьект в который мы будем пробрасывать внутреннюю папку контейнера
+здесь мы создаем вольюм с именем task-pv-storage. но вольюм 
+это просто обьект с названием ему нужен бекенд. бекендом указывается клейм
+ portal-info-data-pvc. итак к контейнеру будет присобачен внешний 
+ volume task-pv-storage который свои бекенд получит от клейма portal-info-data-pvc
+
+ 
+далее в поде мы прописываем какую папку в поде будем пробрасывать в этот вольюм
+volumeMounts:
+        - mountPath: "/usr/share/nginx/html"
+          name: task-pv-storage
+		
+папка внутри контейнера /usr/share/nginx/html
+будет проброшена во внешний вольюм task-pv-storage
+
+как видно папка привязывается не к клейму а к вольюму.
+
+таким образом полная цепочка
+
+папка пода -> volume -> claim -> pv
+
+публикем под. и проверяем завелся ли он.
+если да то вся цепочка срослась.
+
+все сработало.
+
+теперь начинаем копаться.
+например где на диске находится этот маунт
+
+
+значит я когда неустановил на дата ноды пакет nfs-common 
+после публикации пода он незаводился а в его логе была ошибка
+
+Warning  FailedMount  11s  kubelet  MountVolume.SetUp failed for volume "portal-info-data-pv" : mount failed: exit status 32
+Mounting command: systemd-run
+Mounting arguments: --description=Kubernetes transient mount for /var/lib/kubelet/pods/b78b0ac0-d65d-4807-b085-64771dbab78c/volumes/kubernetes.io~nfs/portal-info-data-pv --scope -- mount -t nfs -o hard,nfsvers=4.0,retrans=10,timeo=60 test-nfs-01.mk.local:/var/nfs /var/lib/kubelet/pods/b78b0ac0-d65d-4807-b085-64771dbab78c/volumes/kubernetes.io~nfs/portal-info-data-pv
+Output: Running scope as unit run-r44a9aee0e2b44d809700914c5b983839.scope.
+mount: wrong fs type, bad option, bad superblock on test-nfs-01.mk.local:/var/nfs,
+       missing codepage or helper program, or other error
+       (for several filesystems (e.g. nfs, cifs) you might
+       need a /sbin/mount.<type> helper program)
+
+       In some cases useful info is found in syslog - try
+       dmesg | tail or so.
+
+что в этой ошибке можно интересного увидеть. это как кубернетес
+непосредственно монтируем nfs шару и куда он ее монтирует
+
+mount -t nfs -o hard,nfsvers=4.0,retrans=10,timeo=60 test-nfs-01.mk.local:/var/nfs /var/lib/kubelet/pods/b78b0ac0-d65d-4807-b085-64771dbab78c/volumes/kubernetes.io~nfs/portal-info-data-pv
+
+соотсвтевенно монтируем через mount -t nfs -o hard,nfsvers=4.0,retrans=10,timeo=60
+
+откуда test-nfs-01.mk.local:/var/nfs
+куда /var/lib/kubelet/pods/b78b0ac0-d65d-4807-b085-64771dbab78c/volumes/kubernetes.io~nfs/portal-info-data-pv
+
+потом я поставил пакет nfs-common на дата ноды , удалил и заново
+создал под и под завелся.
+
+
+из самого маунтинга приходят вопросы а где у нас прописана вся 
+эта специфика указанная в маунт.
+в поде ли , в клейме ли , в pv ли.
+если поднятся выше и посмотреть то вся специфика маунтинга прописывается 
+в PV.yaml
+
+как видим нигде в маунтинге неуказан никакой размер который будет окупирован
+подом. но это и логично это ведь файловая шара. какие тут лимиты.
+все место что в шаре есть все твое.
+куб я думаю вопрос поедаемого размера на шаре контролирует както подругому
+нечерез mount
+
+также видно что nfs шару куб монтирует в /var/lib/kubelet/pods/
+так как это сетевая шара то выделять под этот путь отдельный диск 
+на нодах чтоб он незабился нет смысла ибо это сетевая шара и на ноде
+она ничего по размеру незанимает.
+вспоминаем что это вообще за папка в кубе /var/lib/kubelet/pods/
+и также надо выяснить вот этот вот маунтинг куб делает на какой ноде? логично
+что ровно на той на которой крутится сам под. проверим
+также заметим что b78b0ac0-d65d-4807-b085-64771dbab78c это видимо ID
+пода. проверим.
+интересно что вот мы обьявили pv в кубе и он вроде как немонтирует его
+при этом никуда. что он его монтирует каждый раз походу в каждвый
+конкретный под. проерить.
+также надо выяснить как этот маунт найти из своств пода.
+также надо найти этот маунт уже в свойствах самих контейнеров 
+пода а не  в поде.
+да... pv вызывает много вопросов.
+
+самые интересные из них это то что при создании pv куб его никуда немонтирует
+чтобы раздавать его из одной точки. а монтирует его для каждого
+пода индивидуально. взможно так еть только для nfs потому что 
+врядли такое он делает для iscsi шар.
+
+второй момент это куда конкретно куб монтирует щару для пода. и 
+как это реализовао уже на уровне контейнера
+
+также надо разобрвтся про связь между PV и клеймами. как они делят место.
+есть ли такая штука что один клейм можно подключаить только к однму 
+поду а не к нескольким.
+вопросы вопросы..
+
+
+
+>>>
+еще вопросы
+это может ли куб иметь несколько мастеров
+чтобы была редунданси.
+как там сплит брейн решен.
+что происходит когда мастер невидит ноды и поды поому что скажем сфере
+ей насрать. виртуалки будут работать на серверах.
+>>>
+
+>>>
+ceph
+>>>
+
+клеймы позволяют указать в каком режиме будет доступ
+к куску диска который они отожрали
+ReadWriteOnce - R\W для одного хоста          (куб обозначает RWO)
+ReadWriteMany - R\W для нескольких хостов     (куб обозначает RWM)
+ReadOnlyMany - R для нескольких хостов        (куб обозначает ROM)
+
+как я понял в клейме из параетров  указывается размер диска который берется в lease у PV
+и режим доступа к этому куску.
+
+далее куб пишет что поскольку юзерам нужны диски у которых можно 
+выбрать нетолько размер и режим доступа но и скажем скорость 
+диска то клеймы это не позволяют выбирать и на помощь приходить
+storage class
+
+если PV заготавливать заранее руками это назыавется статический метод
+заготовки PV.
+тоесть скажем мы руками загоняем в куб 7 PV. и они там висят готовые 
+к труду и обороне. 
+
+как я понял в клейме мы можем указать как название PV так и storage class.
+если мы указали PV то это мы обращаемся к заранее опубликованному в кубе
+статическому PV. если в клейме мы указываем сторадж класс то куб
+через сторадж класс будет пытаться создать PV в автоматическом режиме.
+такой способ создания PV называется динамическим.
+
+при запросе статического PV клейм указывает storageClas="", и имя PV
+а при динамическом клейм делает запрос к сторадж классу с именем 
+и без PV имени.
+
+чтобы активировать в кубе фичу динамических PV надо чтобы на апи сервере
+куба была указан параметр DefaultStorageClass в опции --enable-admission-plugins.
+посмотрим указан ли такой параметр по дефолту в запущенном апм сервере
+на мастере выполняем
+# ps aux | grep kube-apiserver
+
+
+kube-apiserver 
+--advertise-address=172.16.102.31 
+--allow-privileged=true 
+--authorization-mode=Node,RBAC 
+--client-ca-file=/etc/kubernetes/pki/ca.crt 
+--enable-admission-plugins=NodeRestriction 
+--enable-bootstrap-token-auth=true 
+--etcd-cafile=/etc/kubernetes/pki/etcd/ca.crt 
+--etcd-certfile=/etc/kubernetes/pki/apiserver-etcd-client.crt 
+--etcd-keyfile=/etc/kubernetes/pki/apiserver-etcd-client.key 
+--etcd-servers=https://127.0.0.1:2379 
+--insecure-port=0 
+--kubelet-client-certificate=/etc/kubernetes/pki/apiserver-kubelet-client.crt 
+--kubelet-client-key=/etc/kubernetes/pki/apiserver-kubelet-client.key 
+--kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname 
+--proxy-client-cert-file=/etc/kubernetes/pki/front-proxy-client.crt 
+--proxy-client-key-file=/etc/kubernetes/pki/front-proxy-client.key 
+--requestheader-allowed-names=front-proxy-client 
+--requestheader-client-ca-file=/etc/kubernetes/pki/front-proxy-ca.crt 
+--requestheader-extra-headers-prefix=X-Remote-Extra- 
+--requestheader-group-headers=X-Remote-Group 
+--requestheader-username-headers=X-Remote-User 
+--secure-port=6443 
+--service-account-key-file=/etc/kubernetes/pki/sa.pub 
+--service-cluster-ip-range=10.96.0.0/12 
+--tls-cert-file=/etc/kubernetes/pki/apiserver.crt 
+--tls-private-key-file=/etc/kubernetes/pki/apiserver.key
+
+как видим в опции --enable-admission-plugins нашего параметра нет по дефолту
+
+--enable-admission-plugins=NodeRestriction
+
+далее. поды при описании volumes обращаются к клеймам.это мы уже видели.
+напомню как при описании volume в pod мы обращаемся к claim
+kind: Pod
+...
+  volumes:
+    - name: task-pv-storage
+      persistentVolumeClaim:
+        claimName: portal-info-data-pvc
+		
+если pvc используется подом то pvc нельзя удалить.
+точнее команда на удаление пройдет но pvc будет висеть неудаленный
+до тех пор пока жив под который его юзает и в свойствах pvc
+в статусе будет указано terminating и в строке finalizers будет строка kubernetes.io/pvc-protection
+
+# kubectl describe pvc hostpath
+...
+Status:        Terminating
+Finalizers:    [kubernetes.io/pvc-protection]
+
+тоже самое для pv. если дать команду удалиь pv то он будет висеть
+неудаленный пока неисчезнет pvc который его юзает.		
+
+# kubectl describe pv task-pv-volume
+...
+Finalizers:      [kubernetes.io/pv-protection]
+Status:          Terminating
+
+походу вот еще чо! к одному PV можно подключить только один pvc!
+тоесть два pvc нельзя подключить к одному PV.
+и тут вылезает вот эта проблема ! под каждый под нужен свой предварительно
+созданный PV! это же жопа! число подов динамически меняется и надо 
+либо иметь  всегда подготовыленные PV с запасом. это катстрофически неудобно.
+надо чтобы PV создавались автоматически при запросе от пода.
+так что статический метод формирования PV это абсолютнонам немодходит.
+нам походит только динаимческий метод формирования PV получается.
+
+далее написано. если мы удалили pvc то то что дальше будет с PV к которому он 
+был подсоединен зависит от  persistentVolumeReclaimPolicy:  которая прописана в PV
+пример
+
+apiVersion: v1
+kind: PersistentVolume
+...
+ persistentVolumeReclaimPolicy: "Recycle"
+
+из бывает три штуки:
+Retain
+Delete
+Recycle
+
+Retain - когда удалили pvc то pv как обьект остается в кубе, содержимое 
+этого pv остается нетронутым , статус pv = released но этот pv он недоступен 
+для автоматического повторнгого подключения к нему другого pvc.
+в целом как я понял он вообще больше недоступен для повторого использования.
+надо руками удалить этот pv, затем почемуто надо удалить те данные которые
+лежат на pv и потом заново создать этот pv.  в общем полезно если данные
+после работы пода нам нужны и иудалять их нельзя типа как база эластика.
+но какая то дурацкая система что повторно заюзать с другим pvc нельзя
+
+Delete - как я понял при удалении pvc куб автоматом удалит и pv и даже хуже
+того еще и данные удалить на этом pv
+
+Recycle - пишу что это устаревшая опция типа неюзайте ее. а юзайте
+динамичесеий провижионинг. а так типа опция работает так что она удаляет
+данные что лежат на pv и данный pv снова доступен для того чтобы его другой 
+pvc мог заюзать.
+
+теперь надо проверять на практике то что написано.
+
+далее написано что если у нас есть PV то он будет заюзан первым на очереди pvc который удовляряет ему. а если мы хотим чтобы прям конкретный pvc заюзал
+наш pv то надо в PV указать имя привилигированного pvc который только и имеет
+право заюзать pv. причем как надо и pv указать имя pvc и в pvc указать
+имя pv. но все таки главная мысль что в pv надо указать имя pvc.тоесть
+в pvc мы указываем типа что нам желательно подключиться к такому то pv.
+а вот в pv мы говорим что обязательно к этому pv может подключться только 
+такой то pvc. тоесть сам pv решает какой pvc к нему имеет право подкючиться.
+
+пример
+pvc foo-pvc желает поключиться к pv foo-pv
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: foo-pvc
+spec:
+  volumeName: foo-pv
+
+а pv  foo-pv жестко прописывает что только pvc foo-pvc имеет право к нему
+подключиться
+
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: foo-pv
+spec:
+  claimRef:
+    name: foo-pvc
+    namespace: foo
+  
+  про динамический провижиониннг. 
+  из того что я пока увидел тоже неполучается нормально решения.
+  да нам нунужно иметь созданный PV так как он создается автомтом при запросе
+  из клейма. но! для того чтобы под заработал надо иметь предварительно созданный клейм.хм.. скажем имеет мы деплоймент в котором указано
+  8 подов. так что как нам динамический указать 8 клеймов.
+  тоесть дело в том что мы же неуказываем руками 8 ямль файлов для пода 
+  который состоит в дейплойменте. так вот надо както научиться чтобы 
+  ненужно было статически предваориетльно создавать клеймы под будудущие поды.
+  чтоб также как для деполймента 1 раз указвам ямль пода а потом хоть 1000
+  подов имеем автоматом из дплоймента. также надо научиться  1 раз 
+  укзать для пода клейм а потом при размножении подов чтобы и клеймы
+  автомтом множились.
+  
+  схма динамического провижионинга
+  
+  pod -> claim -> storage class -> provisioner -> pv 
+  
+  под обращается к клейму тот к сторадж классу. класс обращается к провижионеру. провижинер создат pv.
+  
+  
+  
