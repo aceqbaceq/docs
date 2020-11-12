@@ -1,0 +1,214 @@
+ceph
+
+
+установка это поделки.
+документация хуйня полная.
+
+
+во первых придется взять ununtu попоследнее. 
+потому что хотя и заявлено что они новые релизы выкладыавют для 
+нескольких версий ubuntu это хуйня полная. поэтому если хотим
+релиз ceph попоследнее то придется использовать убунт попоследнее.
+
+я взял ubuntu 20.
+это новая жирная тупорылая версия которую сразу надо допиливать
+	надо убрать netplan -  https://disnetern.ru/disable-netplan-ubuntu/
+		sudo vim /etc/default/grub
+		GRUB_CMDLINE_LINUX="netcfg/do_not_use_netplan=true"
+		update-grub
+		apt install ifupdown
+		заполняем /etc/network/interfaces
+		rm -rf /etc/netplan/*.yml
+		
+	надо убрать модуль floppy - онзаебет его искать и тормозить систему
+	с ошибками :
+			$ sudo rmmod floppy
+			$ echo "blacklist floppy" | sudo tee /etc/modprobe.d/blacklist-floppy.conf
+			$ sudo dpkg-reconfigure initramfs-tools
+
+продолжаем ставить ceph
+
+$ sudo wget -q -O- 'https://download.ceph.com/keys/release.asc' | sudo apt-key add -
+
+
+$ sudo apt-add-repository 'deb https://download.ceph.com/debian-octopus/ focal main'
+
+где focal это кодовое имя релиза ubuntu 20
+
+
+проверяем какая версия ceph доступна
+
+$ sudo apt-cache madison ceph
+      ceph | 15.2.5-1focal | https://download.ceph.com/debian-octopus focal/main amd64 Packages
+
+
+ставим ceph, для этого достаточно поставить только пакет ceph.
+он остальное вытяент что нужно
+
+~$ sudo apt-get -y install ceph=15.2.5-1focal
+
+
+
+
+
+в процессе установки надо будет сгенерироваь UUID
+для этого в убунте юзаем 
+
+# uuidgen
+
+получим чтото типа того 
+
+badd757e-6ef9-4d70-8d8b-9f28eded1c08
+
+когда мы потом это посдунем ceph 
+он нас пошлет нафиг, и скажет что UUID неверный.
+
+оказвыается это я ошибся! и пришлось прочитать что такое uuid
+моя ошбка была в том что я скопировал uuid с экрана и потерял одну
+цфиру.
+
+так вот что такое UUID
+
+по определению
+uudi это число длинной 128 бит , если мы это число типа конвертрруем 
+в буквоцифры то полуичм 32 символа. обычно принимается что в итоге 
+мы дожны получить 36 символов. а у нас 32. значит надо вставить четыре
+минуса. обычно по таком правиалу 8-4-4-4-12. 
+
+по ходу установки могу рекомендовать вобще ни на  йоту не отходить
+от варианту установки. например неменять назвыание кластера
+на свое . пусть будет дефолтовое!!!! иначе вобще ничего незваедетсяэ!!!
+
+в доке указано без sudo и оно так неработает и еще там мудацкое
+описание а в доке от ред хат указана очень полезная опция  
+-o /var/lib/ceph/mgr/ceph-test-ceph-01/keyring
+
+так что команда в итоге будет такая
+
+	~$ sudo ceph auth get-or-create mgr.test-ceph-01 mon 'allow profile mgr' osd 'allow *' mds 'allow *' -o /var/lib/ceph/mgr/ceph-test-ceph-01/keyring
+	
+		
+		
+
+sudo -u ceph mkdir /var/lib/ceph/mgr/ceph-test-ceph-01
+		
+
+
+тесты (бекенд один и тот же ssd диск)
+
+локальный тест [r=6690,w=2280 IOPS]
+
+# fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=test --filename=test --bs=4k --iodepth=64 --size=1000M --readwrite=randrw --rwmixread=75
+test: (g=0): rw=randrw, bs=(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine=libaio, iodepth=64
+fio-3.16
+Starting 1 process
+test: Laying out IO file (1 file / 1000MiB)
+Jobs: 1 (f=1): [m(1)][100.0%][r=26.1MiB/s,w=9121KiB/s][r=6690,w=2280 IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=2145: Thu Nov  5 14:09:17 2020
+  read: IOPS=11.0k, BW=43.1MiB/s (45.2MB/s)(750MiB/17378msec)
+   bw (  KiB/s): min=23896, max=94976, per=100.00%, avg=44445.88, stdev=23771.52, samples=34
+   iops        : min= 5974, max=23744, avg=11111.47, stdev=5942.88, samples=34
+  write: IOPS=3689, BW=14.4MiB/s (15.1MB/s)(250MiB/17378msec); 0 zone resets
+   bw (  KiB/s): min= 8384, max=31608, per=100.00%, avg=14851.76, stdev=7864.41, samples=34
+   iops        : min= 2096, max= 7902, avg=3712.94, stdev=1966.10, samples=34
+  cpu          : usr=3.56%, sys=13.10%, ctx=60174, majf=0, minf=9
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.1%, 8=0.1%, 16=0.1%, 32=0.1%, >=64=100.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=191887,64113,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+   READ: bw=43.1MiB/s (45.2MB/s), 43.1MiB/s-43.1MiB/s (45.2MB/s-45.2MB/s), io=750MiB (786MB), run=17378-17378msec
+  WRITE: bw=14.4MiB/s (15.1MB/s), 14.4MiB/s-14.4MiB/s (15.1MB/s-15.1MB/s), io=250MiB (263MB), run=17378-17378msec
+
+Disk stats (read/write):
+    dm-0: ios=190453/63911, merge=0/0, ticks=854328/220184, in_queue=1074512, util=85.00%, aggrios=191133/64159, aggrmerge=760/228, aggrticks=858349/221327, aggrin_queue=621576, aggrutil=84.71%
+  sda: ios=191133/64159, merge=760/228, ticks=858349/221327, in_queue=621576, util=84.71%
+
+
+
+
+
+ceph [r=1675,w=595 IOPS]
+
+o# fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=test --filename=test --bs=4k --iodepth=64 --size=3000M --readwrite=randrw --rwmixread=75
+test: (g=0): rw=randrw, bs=(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine=libaio, iodepth=64
+fio-3.16
+Starting 1 process
+Jobs: 1 (f=1): [m(1)][100.0%][r=6702KiB/s,w=2382KiB/s][r=1675,w=595 IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=2174: Thu Nov  5 14:15:07 2020
+  read: IOPS=2484, BW=9939KiB/s (10.2MB/s)(2248MiB/231581msec)
+   bw (  KiB/s): min=   96, max=53104, per=100.00%, avg=9937.84, stdev=5869.77, samples=463
+   iops        : min=   24, max=13276, avg=2484.43, stdev=1467.45, samples=463
+  write: IOPS=831, BW=3327KiB/s (3407kB/s)(752MiB/231581msec); 0 zone resets
+   bw (  KiB/s): min=  272, max=17856, per=100.00%, avg=3333.73, stdev=1929.94, samples=462
+   iops        : min=   68, max= 4464, avg=833.41, stdev=482.49, samples=462
+  cpu          : usr=1.88%, sys=6.29%, ctx=752776, majf=0, minf=8
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.1%, 8=0.1%, 16=0.1%, 32=0.1%, >=64=100.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=575394,192606,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+   READ: bw=9939KiB/s (10.2MB/s), 9939KiB/s-9939KiB/s (10.2MB/s-10.2MB/s), io=2248MiB (2357MB), run=231581-231581msec
+  WRITE: bw=3327KiB/s (3407kB/s), 3327KiB/s-3327KiB/s (3407kB/s-3407kB/s), io=752MiB (789MB), run=231581-231581msec
+
+
+gluster [2810/975/0 iops]
+(клиент размещен на хосте где и бекенд диски)
+
+# fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=test --filename=test --bs=4k --iodepth=64 --size=1500M --readwrite=randrw --rwmixread=75
+test: (g=0): rw=randrw, bs=4K-4K/4K-4K/4K-4K, ioengine=libaio, iodepth=64
+fio-2.2.10
+Starting 1 process
+Jobs: 1 (f=1): [m(1)] [100.0% done] [11240KB/3900KB/0KB /s] [2810/975/0 iops] [eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=2712: Thu Nov  5 06:31:17 2020
+  read : io=1124.5MB, bw=14888KB/s, iops=3722, runt= 77339msec
+  write: io=384564KB, bw=4972.5KB/s, iops=1243, runt= 77339msec
+  cpu          : usr=1.89%, sys=4.39%, ctx=158501, majf=0, minf=8
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.1%, 8=0.1%, 16=0.1%, 32=0.1%, >=64=100.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued    : total=r=287859/w=96141/d=0, short=r=0/w=0/d=0, drop=r=0/w=0/d=0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+   READ: io=1124.5MB, aggrb=14888KB/s, minb=14888KB/s, maxb=14888KB/s, mint=77339msec, maxt=77339msec
+  WRITE: io=384564KB, aggrb=4972KB/s, minb=4972KB/s, maxb=4972KB/s, mint=77339msec, maxt=77339msec
+
+
+
+
+gluster [3733/1302/0 iops]
+(клиент сидит ненахосте где бекенд диски)
+
+1# fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=test --filename=test --bs=4k --iodepth=64 --size=1500M --readwrite=randrw --rwmixread=75
+test: (g=0): rw=randrw, bs=4K-4K/4K-4K/4K-4K, ioengine=libaio, iodepth=64
+fio-2.2.10
+Starting 1 process
+Jobs: 1 (f=1): [m(1)] [100.0% done] [14932KB/5208KB/0KB /s] [3733/1302/0 iops] [eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=2081: Thu Nov  5 06:47:54 2020
+  read : io=1124.5MB, bw=16712KB/s, iops=4178, runt= 68898msec
+  write: io=384564KB, bw=5581.7KB/s, iops=1395, runt= 68898msec
+  cpu          : usr=2.26%, sys=3.55%, ctx=215041, majf=0, minf=8
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.1%, 8=0.1%, 16=0.1%, 32=0.1%, >=64=100.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued    : total=r=287859/w=96141/d=0, short=r=0/w=0/d=0, drop=r=0/w=0/d=0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+   READ: io=1124.5MB, aggrb=16712KB/s, minb=16712KB/s, maxb=16712KB/s, mint=68898msec, maxt=68898msec
+  WRITE: io=384564KB, aggrb=5581KB/s, minb=5581KB/s, maxb=5581KB/s, mint=68898msec, maxt=68898msec
+root@test-gluster-03:/mnt/01#
+
+
+
+
+
+
+
+
+

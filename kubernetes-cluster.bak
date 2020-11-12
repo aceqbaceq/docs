@@ -256,17 +256,94 @@ dst mac = кластер-мак
 
 edit confs
 
+~# cat /etc/keepalived/keepalived.conf
+
+! Configuration File for keepalived
+vrrp_script check_haproxy {
+  script       "/usr/local/bin/check-haproxy.sh"
+  interval 2
+  fall 2
+  rise 2
+}
+
+vrrp_instance test_instance {
+   interface ens160
+
+   track_interface {
+     ens160
+   }
+
+   state MASTER
+   virtual_router_id 50
+   priority 255
+!   nopreempt
+
+   unicast_src_ip 172.16.102.34
+   unicast_peer {
+     172.16.102.35
+   }
+
+   virtual_ipaddress {
+      172.16.102.100/24 dev ens160
+      172.16.102.101/24 dev ens160
+   }
+
+   track_script {
+      check_haproxy
+   }
+
+   notify /usr/local/bin/keepalived.state.sh
+}
+
+кстати видно как прописать чтобы было не один а несколько кластерных
+ip адресов
+
+
+
 создаем скрипты для кипэлайвдэ
-chmod 700 на скрипты
-прмиер
+делаем на них 700 и exec perm
+
+# touch /usr/local/bin/check-haproxy.sh; chmod +x /usr/local/bin/check-haproxy.sh; chmod 700 /usr/local/bin/check-haproxy.sh
 
 
-# touch keepalived.state.sh; chmod +x keepalived.state.sh; chmod 700 /usr/local/bin/keepalived.state.sh
+# touch /usr/local/bin/keepalived.state.sh; chmod +x /usr/local/bin/keepalived.state.sh; chmod 700 /usr/local/bin/keepalived.state.sh
+
+
+
+
+
+~# cat /usr/local/bin/check-haproxy.sh
+
+#!/bin/bash
+# Check if haproxy is running, return 1 if not.
+# Used by keepalived to initiate a failover in case haproxy is down
+
+HAPROXY_STATUS=$(/bin/ps ax | grep -w [h]aproxy)
+
+if [ "$HAPROXY_STATUS" != "" ]
+then
+  exit 0
+else
+  logger "HAProxy is NOT running. Setting keepalived state to FAULT."
+  exit 1
+fi
+
+еще скрипт
+
+~# cat /usr/local/bin/keepalived.state.sh
+
+#!/bin/bash
+
+TYPE=$1
+NAME=$2
+STATE=$3
+
+echo $STATE > /var/run/keepalived.state
 
 
 # systemctl enable keepalived haproxy
 
-в хапрок юзаем такую фишку что указвыаем биндин в виде
+в хапрок юзаем такую фишку(ОЧЕНЬ ВАЖНЫЙ МОМЕНТ!) что указвыаем биндин в виде
  bind *:6443
  
  а не к вирт IP. так как если нода бэкапная то у нее на данный момент
@@ -277,7 +354,33 @@ chmod 700 на скрипты
 
 делать на трех нодах.
 
+по сути схема получатся такая.
+мы через кипэлайвдэ кластеризуем хапрокси. то есть кластерный IP
+ унас дает точку входа на хапрокси.
+ у нас становится неубиваемым хапрокси. 
+ на каждой ноде скрипт монтиорит есть ли haproxy.pid в /run каталоге
+ если есть то кипэлайвэ считает что хапрокси здоров. если 
+ там Pid нет то нода типа отключается от кластера.
+но это невсе. на хапрокси мы в бекенд прописываем все три аписервера.
+таким образом мы избегаем ситации когда у нас на ноде хапроски здоров
+а его аписервер нет. при этом хапрокси обратится к другому аписерверру.
+на хпрокси присходит хэлс чек проверка что каждый аписервер отвечает по https.
 
+схема
+кластерный ip keepalived -> haproxy (здоровли) -> три аписервера на бекенде
+с проверкой здоровья.
+
+еще разю если мы на хосте где на данный момент мастер IP вырубит 
+аписервер это нерпивдет к тому что куб станет недоступен. ибо хапрокси
+имеет еще два аписервереа проприсанных на бекенде.
+по сути можно было бы сделать вот такую схеме.
+на отдельных виртуалках etcd кластер, на отделных keepalive+haproxy
+и на отделных аписерверы. но у нас все вместе кипэлайв+харпокси+etcd+apiserver
+
+ 
+
+ 
+ 
 
 
 1. пробелма
@@ -295,5 +398,3110 @@ SECURITY VIOLATION - scripts are being executed but script_security not enabled
 теперт ставим куб контроль плейн.
 
 
+ставим первый контрол плейн
+ставим как описано в основном документе
+
+# kubeadm init --pod-network-cidr=10.253.0.0/16 --apiserver-advertise-address=172.16.102.34 --control-plane-endpoint "172.16.102.100:6440" --upload-certs
+
+далее ставим втоорой контрол плейн
+
+для этого надо на первом контрол плейне получить там всяко разно токены
+
+(первый control plane)# kubeadm token generate
+(первый control plane)# kubeadm token create <generated-token> --print-join-command --ttl=0
+
+и после это мастер нода выдаст строку вида
+
+>kubeadm join 172.16.102.31:6443 --token s59914.k4ku8hhl6ityqpj2     --discovery-token-ca-cert-hash sha256:485f93d02e587d9286b2c3a439c59fbc7277d7181644f48099a459abeb53e22f
+
+но ее нам недостаточно.
+проожаеим получать нужные токены и штуки
+
+
+на первом контрол плейне на мастере запукаем
+
+(первый control plane)# kubeadm init phase upload-certs --upload-certs
+[upload-certs] Using certificate key:
+cbec82f4e3eed8f5ac7522cfb4137baf38c1f4c2d2bd4f6b6db27714cd126fd9
+
+
+вот теперь хосте где мы собираемся установить мастера второго контрол плейна 
+запускам вот такую строку
+
+# kubeadm join 172.16.102.100:6440 --token isinbt.lecpp3t1nenpqlt3     --discovery-token-ca-cert-hash sha256:3b2a317f993d7ebeace52eb0d72de6a489133ac6180765a9e21787f1aa29ddf8 
+--control-plane --certificate-key cbec82f4e3eed8f5ac7522cfb4137baf38c1f4c2d2bd4f6b6db27714cd126fd9 \
+--apiserver-advertise-address=172.16.102.37
+
+--apiserver-advertise-address=172.16.102.37 = про эту настройку.
+во первых кубелет аписервер сидит в том же сетевом неймспейсе что и хост,
+так вот эта настройка рна типа говорит ему к какой карточке биндиться где
+создавать сокет чтобы его слушать. и типа по указанному ip находится карточка
+и на ней создается сокет. вот в чем смысл этого ip. но в чем прикол что если посмо
+треть потом на netstat -tnlp то сокет в итоге никуда небиндится создается сокет
+который слушает вообще все карточки 
+0.0.0.0:6443
+тем не менее я указвыаю на какой карте его создавать.
+если этот параметр неуказывать то куб ищет карту через которую проходит гейтвей
+и использует ее.
+
+еще очень важная деталь. если на компе был кубелет от какой то прошлой установки
+то его обязательно надо супер тщательно полностьюб вытереть из системы.
+я изза этого никак не мог установить второй контрол плейн.
+как это провряется. вот мы поставили только пакеты
+apt install -y kubelet kubeadm kubectl
+и тут ж смотрим в системе пошли ли логи от kubectl
+# journalctl -u kubectl
+если логи сразу пошли это значит что в системе сохранились страые настройки
+кубелета и это катастрофа. надо удалять пакеты и искать где кубелет сохнаранил 
+нстройки.  если система была чистая то после просто накатки пакетов кубелет 
+ни в коем случае недолжен уже работать и недожен писать логи.
+если система детйсительно чистая то установка второго контролплейна проходит
+вобще влет и без сучка и задоринки
+итак - тщетаельно проверят что следов прощшлой устновки кубелета нет в
+системе. что кубелет начисто стерт с лица земли прошлый.
+
+
+
+
+итоги дня - устанвил основной контрол плейн и запасной.
+на одном мастере стоит кипэлайвдэ+харпокси.
+на втором не стоит keepalived ни хапрокси.ю
+
+
+
+>>>>>> следующий шаг.
+на всех матсерах поставит keepalived+ha[proxy
+прибавить к этому кластеру одну дата ноду
+потом начать гасить мастера и проверять что все равбоатет
+
+>>> почему то у меня после перезагрузки сломался cni0
+и в итоге ни etcd ни apiserver поды немогли стартантуть.
+далее жопа в том чо если контейнеры этих подов удалить 
+то куб их не восстановаилвает.
+то есть эти поды + etcd базу нужно бекапить "!!!!
+
+значит далее все равзивалось так.
+когда мы удалили ноду. то ее просто так обрано не вставить.
+
+во первых оказалось что перед тем как вствлять ноду обратно 
+надо удалить руками etcd ноду (ееж уже нет) из etcd кластера.
+
+только тгда можно будет ноду куба обратно вставтиь заново.
+
+удалить ноду из etcd можно так
+
+
+# nsenter --mount=/proc/2987/ns/mnt etcdctl  --endpoints 127.0.0.1:2379 --cacert /etc/kubernetes/pki/etcd/ca.crt --cert /etc/kubernetes/pki/etcd/server.crt --key /etc/kubernetes/pki/etcd/server.key member list
+
+смотрим кто в списке
+
+удаляем
+
+# nsenter --mount=/proc/2987/ns/mnt etcdctl  --endpoints 127.0.0.1:2379 --cacert /etc/kubernetes/pki/etcd/ca.crt --cert /etc/kubernetes/pki/etcd/server.crt --key /etc/kubernetes/pki/etcd/server.key member remove 9f57ce3b11309b95
+
+еще однажопа с etcd в том что часть команд в нем достуна только в его apiv3.
+для этого его нужно вызвать чтобы в environment была переменная
+короче в баше это было бы вот так ETCDCTL_API=3 etcdctl  
+но жопа в том что в конейнере нет баша поэтому это огорный вопрос
+как эту переменну туда передать. а по дефолту etcdcrl работае в apiv2.
+это хеню надо придумать как обойти.
+
+
+но на этом прключения не закончились.
+я установил +1 ноду. 
+и на ней даже поды типа закрутились. но! cni0 вообще там не появлетсятся.
+и как его обратно установить пока непонятно.
+
+пока что удалил весь фланнель.
+kubectl delete -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+
+кстатии прикл в том что демонсеты им вобще фланнель пофиг.
+только coredns ему нужен. так что фланель нужен только контейнерам
+обычным но не демонсетами и не стат контейнерам ибо они лежат в неймспейсе хоста самого
+
+кстаи врзникает вопрос. а кластер etcd у него какой кворум один или два члена
+и инфорация как дублируется 3 раза или два или как
+
+все бльше прихожу к мысли что этсд лучше отдельно установить
+
+логи кубелета когда cni типа зазралоатло
+
+Oct 13 02:58:16 test-kub-04 kubelet[28227]: I1013 02:58:16.242298   28227 docker_service.go:256] Docker cri networking managed by cni
+Oct 13 02:58:23 test-kub-04 kubelet[28227]: I1013 02:58:23.075508   28227 reconciler.go:224] operationExecutor.VerifyControllerAttachedVolume started for volume "cni" (UniqueName: "kubernetes.io/host-path/d6d16bdb-c14f-4334-928b-60d48793dd8c-cni") pod "kube-flannel-ds-phd5v" (UID: "d6d16bdb-c14f-4334-928b-60d48793dd8c")
+
+
+выяснил одно - на мастер нодах flanel не создат сcni0 пока не 
+успешно опубликуцюися coredns поды. в цедлом я так понял что 
+дело не в этих опдах как таковых. а втом что на сервере созздатеся cni0 только
+при создании первого пода который релаьно будет юзать ip из дапазона 
+под поды. 
+
+изменить чтисло реплик налету
+kubectl scale --replicas=3 rs/coredns-5f85645d74 --namespace=kube-system
+
+передеплоить депломент
+ kubectl rollout restart -n kube-system deployment/coredns
+ 
+ посмотреть логи работающего контенйерпа
+kubectl logs -f coredns-59fbfdf9cc-4z2bd --all-containers=true -n=kube-system
+
+посмртеть логи нестартуюзего контейнера
+kubectl describe pods coredns-59fbfdf9cc-4z2bd --namespace=kube-system
+ 
+  я накатил калико. потом его удалил а он оставил свои фалы в /etc/cni/*
+  и калико уже нет но сука куб при наличии в /etc/cni нескольких файлов
+  пытветмя применить ппервый файл в алфавитном порядке. 
+  плоучается
+  calico
+  flannel
+  и куб пытается накатиит калико 
+  правла я непонимаю как если бинарника нет.
+  
+  если под застыл так и незабдеолпиившись то его полезно удалить
+  (при условии что он входит в состав деплоя а не просто одиночный а
+  то он не восстановистя)
+   # kubectl delete pods kube-flannel-ds-8j65f --namespace=kube-system
+   
+   поменять налету число репли подов в деполййменте
+   # kubectl scale deployment --replicas=3 coredns --namespace=kube-system
+   
+   возможно cni0 несоздаваться в итоге по двум причинам
+   1) на хостах было разное время. точнее разный пояс
+   на части было utc на части msk
+   2) у меня было 3 хоста. а например в coredns в деплоймнте
+   указано что там 2 реплики. поэтому на одном из хостов просто и не планирова
+   лось раскрытавь третий coredns поэтому там cni0 немог быт никак!
+   
+   значит такой момент.
+   когда  у нас с подом какоето гавно то надо посмотреть в два месиаэ
+   1) kubectl describe pod имя
+   2) залезть на хост на котром он круиитися и посмотрет в логи кубелета
+   journalctl -u kubelet | grep имя пода
+   
+   возщникает вопрос. кубелет он че делает.
+   1) знаю точно он стартует и следит чтобы работали статические поды.
+   2) про обычные поды он типа тоже следит чтобы они работали.
+   как он следит непонятно
+   
+   вобще кубелет это типа агент куба на нодах.
+   
+   так вот что непонятно какая связь между взаимодействием фланнеля 
+   и кубелета. но она точно есть. как японял когда идут сетвые изменеия 
+   для контенйреа то это делает пходу связка кубелета и фланнеля.
+   
+   итак история в целом как все сломалось и как чинилось.
+   преезагрузил мастер ноду (одну из трех)
+   после этого плохо помню вроде как часть подов невстала.
+   удалил ноду. пробую подсодвениить неполучается.
+   выяснилось что так как я удалил и инстанс etcd то после этого 
+   нужно был его убарть из конифга инстаносв etcd.
+   потом возможно разница часовго отображения влияла а м жоет и нет
+   а потом пходу фишгка что cni0создватся только с первым подом который 
+   будет юзать сеть именно под поды. на мастер нодах это только coredns
+   поды. а в его деплойменте пропсано 2 репдики. а у меня нодов три.поэтому
+   миниум на одой ноде cni0 недлолжен был создвавтьс яникак.
+   смнил число рпреплик на дейолмйоменте coredns и cni0 наконце на всех
+   матсерах создался.
+   еще попутно я сносил флннель и ставл калико. а потом снес калико 
+   и поставил фланнель но в /etc/cni/ осталвись конфиши калико 
+   и плюс фланеля. а куб берет всегда прервый по алфавтиту конфиг то етсь калико
+   ипытался его прменить хотя страно как он ъто пытался ведь бинарника
+   калико уже не было. 
+   ==
+   
+   еще  я бы посоветовал ненактывать фланнель yaml из инета
+   а скачать его на комп и в нем отредактировта параметр 
+    "Network": "10.253.0.0/16",
+чтобы он был равен ровно тйо сети что указывали в kube init 
+--pod-network-cidr=10.253.0.0/16
+
+потому что похорошему они должны совпадать. хотя куб какимто неимовеным
+макаром умудряется вт.хать настройки --pod-network-cidr вместо "Network" хотя непонятно как. но лучще сразу их сделать одинаковым.
+тогда в ~# cat /var/run/flannel/subnet.env
+FLANNEL_NETWORK=10.253.0.0/16
+FLANNEL_SUBNET=10.253.2.1/24
+FLANNEL_MTU=1450
+FLANNEL_IPMASQ=true
+
+будет красота.
+а не как у меня было до этого кгда network и subnet былы соверщенноразные.
+==
+контроль панель запращивает данные о здорьовье пдоов на ноде от кубелета
+а не нарпямую с каждого пода
+==
+
+ в конфиге haproxy дописать в секции global
+ stats socket /run/haproxy/admin.sock mode 660 level admin
+ stats timeout 30s
+
+после этого проверить коректность конфига
+
+# haproxy -c -V -f /etc/haproxy/haproxy.cfg
+	
+	ттгда мы сможем снимать стаистику с хапрокси в баш
+	
+#	watch 'echo "show stat" | nc -U /var/run/admin.sock | cut -d "," -f 1,2,5-11,18,24,27,30,36,50,37,56,57,62 | column -s, -t'
+ 
+ ==
+ я вырубил хост. и сидел неолкьо минут
+ а в контродл панели все равно покзывалось что все поды того хоста работают
+ 
+ ---
+ вырубил 2 мастер из трех и хапроски мне написал что локальный апи сервер
+ рефьюзит чек коннекшн https от хапрокси к 127ю0ю0ю1:6443 апи серверу
+ чо заприкол. когда одну ноду включил то наш локальный апи сервер
+ перестал рефьюзить.
+ непонятно
+ походу да  - походу в кластерной конфигурации контроль панели
+ она работает только если два из трех контроль панелй работает. 
+ хотя дело может быть в всего навсего в etcd кластере. что именно типа
+ он настроен что два из трех его ноды должны быть работать. тоест дело может
+ быть не в кубе контроь панели а в etcd его насйроках.
+ ==
+ надо навсех нодах в хапрокси добавиь админ сокет
+ ==
+ 
+ когда у нас в kee[palived указаны юникаст соседи то 
+ кипэлайв вообще неиспользует мультикаст mac адреса даже в vrrp 
+ мессагах. все идет только юникстное в плане маков что отлично!
+ ==
+ если вырубить мастера. а потом врубить то coredns из тог что  явидел
+ входит в crashlopback процесс. и вроде как сам из него невыходит.
+ и помгает только ручное его дуаление. а деплоймент его уже сам обратно
+ умпщно раскатывает заново. хотя может нужно пдождать подольше
+ 
+ поды которые демонсеты - он жостко привзяны к хосту.
+ а вот поды coredns это не демонстеты. и если хост один из заткнулся то
+ они начинают мигироваь на другие хоста.
+ 
+ надо прояснить
+ 
+ еще момент такйо - надо бэкаапит etcd и может даже и вест контроль панель
+ куба.
+ 
+ надо прояснить на счет мак адресов кипэлайва.
+ 
+ !!! я выяснил супер важный и приятный момент. для кластерного IP
+ кипэлайв использует не мультикастный mac. нееееееееееееет. он использует
+ юникстный мак от сетевой картчоки компа который на данный момент является
+ мастером. хорошо. тогда возникает следущий вопрос - а что будет когда текущий мастер ляжет. что будет с компами другими как они узнают куда 
+ пинговать на мастер. оказыается как я понял когда мастер ложится то как я полагаю в сеть выбрасывается широковещатный arp пакет в коттором новый мастер сообщает свой мак  и этот мак он тоже что очень круто юникстный 
+ от сетевой карточки новго мастера. таким образом компы мгновенно получают 
+ новый мак от кластерного ip. и он юникстный. и мы с мультикстом вообзе
+ не завязываемся. 
+ такая схема крадинадльно отличается от класического vrrp. 
+ где и для vrrp месаг и для кластерного IP испольщуется мультикстные маки.
+ а в чем их жопа. что касется vrrp мнессаг тов приницпе посрать подучаешь 
+ один пакет в 2с срется на все порты свича. а вот то что все лкиенты 
+ в сети если они ломятся на наш кластреный IP котррый имеет мультикстный мак
+ ( а он его имеет) то получется оплная жопа. если комп на скорости 100 Мбайт 
+ в секунду обращается на клстный ip то все порты свича будет также высирваться
+ этот бесполнезный трафик. аесли у нас 20 компов ломится на кластерны йш ip 
+ то весь этот ужас срется во все порты. в лучгем случае ели мы на свиче 
+ пропишем что скажем за тремя портами свича там где сидят мастер и два бэкапа
+ сидит наш кластер кипэлайв то сетевой поток на мастер будет также сраться и
+ на два порта бэкапа.  это жопа. поэтому то что линкус vrrp вообще неисопльщует мульиксаст макси это огроное счатсье.
+ 
+ 
+ если перезагрущть контрол панель то в итоге всеже она себя полностью
+ запустит или все же надо руками. в итоге выяснил - да. погашаннеый  а потом
+ загруежныей хост в итоге все поды страуртуют успешно.
+ 
+ сейчас начал читать про кластре куба с отдельным etcd.
+ и начал чиать про etcd вообще.
+ начал чиать про tls который этсд исползщует для шифронаия.
+ 
+ сейчас меня интерсует чтобы зайти в контейнер etcd и както запустьи etcdctl с ключаом api=v3
+ что я выяснил - во первых что современный имадж докера для etcd 
+ он содержит внутри себя помимо бинаников etcd и etcdctl еще и бинарник shell  = /bin/sh
+ девелоперы они знают что по деолфту etcdctl работает через api=v2 
+ а чтобы затсвтьи его работаь с api=v3 это просто так несделать
+ это надло чтобы при старте была уже переменная в памяи api=v3
+ и почему то ее можно запистаь в память только через шелл
+ то есть если мы примонтируем моунт неймспейс контенйера. а там только бинарник etcdctl тоо мы никак неомжем его запусттить с перменной.
+ нам бязательно надо чтобы на той фс был бинарник шелла и чтобы мы запустили
+ etcdctl через шелл. то есть вот так
+ 
+  # nsenter --mount=/proc/2424/ns/mnt /bin/sh -c 'ETCDCTL_API=3 etcdctl version'
+ 
+ 
+ то есть мы запускаем бинарник шелл а уже из него запускаем etcctl
+ также выяснилось что kubect exec и docker exec они неделают чуда.
+ они работают ровно также как и nsenter они просто запускают бинарник 
+ с фс конетйнера в маунт спейсе контенйра и все.
+ это значит что Kubectl exec и docker exec немогут завпспустить ничего 
+ кроме то го что лежит на фс контейнера. если скажем на фс контейнера нет
+ bash то они баш запустить в контейнера не смогут. чуда небудет.!
+ 
+ и стало понятно зачем вот эти флаги kubectl exec -it
+ или docker exec -it. они им говорят что к проецссу надо будет прикрепить
+ tty. то есть чобы процесс неросто болтался а имел стандртный ввод и 
+ стандартный ввывод. чтобы мы могли из ншаей сессии посылать через клавиатура
+ процессу сигналы и получать от него вывод на экран!.
+ 
+ что заметил конкрнетно у меня частенько пощды из контрол панели крашатся
+ и перезапаускаются очень даже частенько. поэтому тем более важно иметь
+ несколько панелей.
+ 
+ значит начинаем разбираться и ставить отделно etcd
+ 
+ 1-е. какие параметры имеет etcd который ставимл сам куб
+ 
+ найдес каким параметрами запущен etcd.
+ 
+ посмотрим через kubectl 
+ 
+ ~# kubectl describe  pods etcd-test-kub-04  --namespace=kube-system
+Name:   etcd-test-kub-04
+    Command:
+      etcd
+      --advertise-client-urls=https://172.16.102.34:2379
+      --cert-file=/etc/kubernetes/pki/etcd/server.crt
+      --client-cert-auth=true
+      --data-dir=/var/lib/etcd
+      --initial-advertise-peer-urls=https://172.16.102.34:2380
+      --initial-cluster=test-kub-05=https://172.16.102.35:2380,test-kub-06=https://172.16.102.37:2380,test-kub-04=https://172.16.102.34:2380
+      --initial-cluster-state=existing
+      --key-file=/etc/kubernetes/pki/etcd/server.key
+      --listen-client-urls=https://127.0.0.1:2379,https://172.16.102.34:2379
+      --listen-metrics-urls=http://127.0.0.1:2381
+      --listen-peer-urls=https://172.16.102.34:2380
+      --name=test-kub-04
+      --peer-cert-file=/etc/kubernetes/pki/etcd/peer.crt
+      --peer-client-cert-auth=true
+      --peer-key-file=/etc/kubernetes/pki/etcd/peer.key
+      --peer-trusted-ca-file=/etc/kubernetes/pki/etcd/ca.crt
+      --snapshot-count=10000
+      --trusted-ca-file=/etc/kubernetes/pki/etcd/ca.crt
+    State:          Running
+
+еще можно посмотреть через докер. для этого нужно вначале
+найти контенер.  а для этого контейнер можно найти либо через docker ps | grep либо подсмотреть номер контейнера через kubecgtl 
+
+ищем контейнер
+# docker ps | grep etcd    (один вариант)
+либо ищем его вот так
+# kubectl describe  pods etcd-test-kub-04  --namespace=kube-system
+
+в разделе containers
+
+Containers:
+  etcd:
+    Container ID:  docker://e6a7f2a9d3f0ff5e8a561fd76f932247db7368efb2282d8d223ddec5d34a85d9
+причем приколно что в описании пода неуказывается pause контейнер.
+его там неуказано
+
+так нашли контенер теперть смотрим с какимии парамтрами был запущен
+этот процесс через длокер
+
+# docker inspect e6a7f2a9d3f0ff5e8a561fd76f932247db7368efb2282d8d223ddec5d34a85d9
+
+ "Entrypoint": [
+                "etcd",
+                "--advertise-client-urls=https://172.16.102.34:2379",
+                "--cert-file=/etc/kubernetes/pki/etcd/server.crt",
+                "--client-cert-auth=true",
+                "--data-dir=/var/lib/etcd",
+                "--initial-advertise-peer-urls=https://172.16.102.34:2380",
+                "--initial-cluster=test-kub-05=https://172.16.102.35:2380,test-kub-06=https://172.16.102.37:2380,test-kub-04=https://172.16.102.34:2380",
+                "--initial-cluster-state=existing",
+                "--key-file=/etc/kubernetes/pki/etcd/server.key",
+                "--listen-client-urls=https://127.0.0.1:2379,https://172.16.102.34:2379",
+                "--listen-metrics-urls=http://127.0.0.1:2381",
+                "--listen-peer-urls=https://172.16.102.34:2380",
+                "--name=test-kub-04",
+                "--peer-cert-file=/etc/kubernetes/pki/etcd/peer.crt",
+                "--peer-client-cert-auth=true",
+                "--peer-key-file=/etc/kubernetes/pki/etcd/peer.key",
+                "--peer-trusted-ca-file=/etc/kubernetes/pki/etcd/ca.crt",
+                "--snapshot-count=10000",
+                "--trusted-ca-file=/etc/kubernetes/pki/etcd/ca.crt"
+
+
+либо щас найдем pid и посчмотрим через proc
+
+
+:~# docker inspect e6a7f2a9d3f0ff5e8a5612282d8d223ddec5d34a85d9  |grep -i pid
+            "Pid": 2424,
+           
+		   
+~# cat /proc/2424/cmdline
+etcd
+--advertise-client-urls=https://172.16.102.34:2379
+--cert-file=/etc/kubernetes/pki/etcd/server.crt
+--client-cert-auth=true
+--data-dir=/var/lib/etcd
+--initial-advertise-peer-urls=https://172.16.102.34:2380
+--initial-cluster=test-kub-05=https://172.16.102.35:2380,test-kub-06=https://172.16.102.37:2380,test-kub-04=https://172.16.102.34:2380
+--initial-cluster-state=existing
+--key-file=/etc/kubernetes/pki/etcd/server.key
+--listen-client-urls=https://127.0.0.1:2379,https://172.16.102.34:2379
+--listen-metrics-urls=http://127.0.0.1:2381
+--listen-peer-urls=https://172.16.102.34:2380
+--name=test-kub-04--peer-cert-file=/etc/kubernetes/pki/etcd/peer.crt
+--peer-client-cert-auth=true
+--peer-key-file=/etc/kubernetes/pki/etcd/peer.key
+--peer-trusted-ca-file=/etc/kubernetes/pki/etcd/ca.crt
+--snapshot-count=10000
+--trusted-ca-file=/etc/kubernetes/pki/etcd/ca.crtroot
+
+
+имеем одно и тоже.
+
+пдключимся  к контейнеру. и прежде всего научимся делать запросы через etcdctl
+к etcd чтобы смотреть всякие параметры.
+значит etcdctl может направлтяь команды в форме двух версий api.
+узнаем на какой вресии по умолчанию отправляет команды etcdctl
+
+# kubectl exec etcd-test-kub-04 --namespace=kube-system -c etcd -i -t -- etcdctl version
+etcdctl version: 3.4.13
+API version: 3.4
+
+значит отправляет они их на версии 3.
+
+если мы хотим управлять какой версии команды мы будем через etcdctl отправлять на etcd то это делается через переменную ETCDCTL_API=2\3
+которую надо задавать в шелл.
+для этого спецаильно в контейнере есть шелл /bin/sh
+
+# kubectl exec etcd-test-kub-04 --namespace=kube-system -c etcd -i -t --  /bin/sh -c "ETCDCTL_API=3   etcdctl version"
+etcdctl version: 3.4.13
+API version: 3.4
+
+# kubectl exec etcd-test-kub-04 --namespace=kube-system -c etcd -i -t --  /bin/sh -c "ETCDCTL_API=2   etcdctl --version"
+etcdctl version: 3.4.13
+API version: 2
+
+замечу что именно ключ version показывает какая версия api сейчас была
+использована командой etcdctl. замечу что в зависиомтси от тспользуемой версии
+api у нас меняется синтаксис ключей etcdctl как видно в одном случае это 
+version а в другом это --version.
+замечу что если запустить etcdctl без указантия ключа version то можно жесткого наебаться мы увидим version но это не текущий вершн который 
+был использован etcdctl а просто максимльный увроень version который 
+имеет etcd
+пример
+/# kubectl exec etcd-test-kub-04 --namespace=kube-system -c etcd -i -t --  /bin/sh -c "ETCDCTL_API=2   etcdctl "
+NAME:
+   etcdctl - A simple command line client for etcd.
+
+USAGE:
+   etcdctl [global options] command [command options] [arguments...]
+
+VERSION:
+   3.4.13
+
+
+захуя нам эти вершены. вся фишка втом что в зависимоси какую версию api
+использщует etvcdctl у него меняются ключи которые мы можем использовать
+
+ключи в api=2
+
+# kubectl exec etcd-test-kub-04 --namespace=kube-system -c etcd -i -t --  /bin/sh -c "ETCDCTL_API=2   etcdctl help"
+NAME:
+   etcdctl - A simple command line client for etcd.
+
+USAGE:
+   etcdctl [global options] command [command options] [arguments...]
+
+VERSION:
+   3.4.13
+
+COMMANDS:
+     backup          backup an etcd directory
+     cluster-health  check the health of the etcd cluster
+     mk              make a new key with a given value
+     mkdir           make a new directory
+     rm              remove a key or a directory
+     rmdir           removes the key if it is an empty directory or a key-value pair
+     get             retrieve the value of a key
+     ls              retrieve a directory
+     set             set the value of a key
+     setdir          create a new directory or update an existing directory TTL
+     update          update an existing key with a given value
+     updatedir       update an existing directory
+     watch           watch a key for changes
+     exec-watch      watch a key for changes and exec an executable
+     member          member add, remove and list subcommands
+     user            user add, grant and revoke subcommands
+     role            role add, grant and revoke subcommands
+     auth            overall auth controls
+     help, h         Shows a list of commands or help for one command
+
+
+
+
+и сосем друнгие ключи в версии api=3
+
+/# kubectl exec etcd-test-kub-04 --namespace=kube-system -c etcd -i -t --  /bin/sh -c "ETCDCTL_API=3   etcdctl help"
+NAME:
+        etcdctl - A simple command line client for etcd3.
+
+USAGE:
+        etcdctl [flags]
+
+VERSION:
+        3.4.13
+
+API VERSION:
+        3.4
+
+
+COMMANDS:
+        alarm disarm            Disarms all alarms
+        alarm list              Lists all alarms
+        auth disable            Disables authentication
+        auth enable             Enables authentication
+        check datascale         Check the memory usage of holding data for different workloads on a given server endpoint.
+        check perf              Check the performance of the etcd cluster
+        compaction              Compacts the event history in etcd
+        defrag                  Defragments the storage of the etcd members with given endpoints
+        del                     Removes the specified key or range of keys [key, range_end)
+        elect                   Observes and participates in leader election
+        endpoint hashkv         Prints the KV history hash for each endpoint in --endpoints
+        endpoint health         Checks the healthiness of endpoints specified in `--endpoints` flag
+        endpoint status         Prints out the status of endpoints specified in `--endpoints` flag
+        get                     Gets the key or a range of keys
+        help                    Help about any command
+        lease grant             Creates leases
+        lease keep-alive        Keeps leases alive (renew)
+        lease list              List all active leases
+        lease revoke            Revokes leases
+        lease timetolive        Get lease information
+        lock                    Acquires a named lock
+        make-mirror             Makes a mirror at the destination etcd cluster
+        member add              Adds a member into the cluster
+        member list             Lists all members in the cluster
+        member promote          Promotes a non-voting member in the cluster
+        member remove           Removes a member from the cluster
+        member update           Updates a member in the cluster
+        migrate                 Migrates keys in a v2 store to a mvcc store
+        move-leader             Transfers leadership to another etcd cluster member.
+        put                     Puts the given key into the store
+        role add                Adds a new role
+        role delete             Deletes a role
+        role get                Gets detailed information of a role
+        role grant-permission   Grants a key to a role
+        role list               Lists all roles
+        role revoke-permission  Revokes a key from a role
+        snapshot restore        Restores an etcd member snapshot to an etcd directory
+        snapshot save           Stores an etcd node backend snapshot to a given file
+        snapshot status         Gets backend snapshot status of a given file
+        txn                     Txn processes all the requests in one transaction
+        user add                Adds a new user
+        user delete             Deletes a user
+        user get                Gets detailed information of a user
+        user grant-role         Grants a role to a user
+        user list               Lists all users
+        user passwd             Changes password of user
+        user revoke-role        Revokes a role from a user
+        version                 Prints the version of etcdctl
+        watch                   Watches events stream on keys or prefixes
+
+
+
+соотвесвтенно если мы ошибемся с версий api то ключ от другой версии 
+просто несрабтает.
+
+далее.
+пока что мы просто игрались с etcdctl.
+но если мы попрбуем уже сделать реквест к кластеру etcdctl далее я его буду
+называть просто кластер то он откажет в коннекте потому что куб на etcd включил tcl аутентифцикацию поэтому зарпосы к кластеру должны идти с параметрами сертификатов и  будут выглядет так
+
+
+
+
+
+
+
+  kubectl exec etcd-test-kub-04 --namespace=kube-system -c etcd -i -t --  /bin/sh -c "ETCDCTL_API=3   etcdctl --endpoints=https://localhost:2379 --cacert=/etc/kubernetes/pki/etcd/ca.crt --cert=/etc/kubernetes/pki/etcd/server.crt --key=/etc/kubernetes/pki/etcd/server.key member list"
+
+ 
+запустим etcdctl и посмотрим под какой версией api
+он по дефолту работает 
+
+ура api = 3 . значит не придется мудить при вызове etcdctl с переменной ETCDCTL_API=3
+
+>>проблемы
+контенерй конрол плейна постоянно кращатся = возможно причина что почему то
+поды системные (которые сидтя втой же сети что и карты хоста 172.16.102.*) не могут друг с другом свзыаться. нет пинга. почему неопнял. они не могут
+связаться и может изза этого уходят в краш. хотя это бред. недолжно крашиться
+
+api=v2 клстер неотвечат 
+по неведомой причине когда мы укащываем api=v2 и подствлвятем флаги
+то кластер неотвечает. так что от api=v2 откзаываемся.
+оно мне мне было нужно так как в api v2 есть команда cluster-health 
+а в api v3 ее нет.  но оказалось что в apiv3 есть аналог так что все разрешилось.
+
+аналог выглядит как = endpount health
+пример
+я указал три эндпоинта
+--endpoints=
+https://localhost:2379,
+https://172.16.102.35:2379,
+https://test-kub-06:2379
+
+
+
+# kubectl exec etcd-test-kub-04 --namespace=kube-system -c etcd -i -t --  /bin/sh -c "ETCDCTL_API=3   etcdctl --endpoints=https://localhost:2379,https://172.16.102.35:2379,https://test-kub-06:2379 --cacert=/etc/kubernetes/pki/etcd/ca.crt --cert=/etc/kubernetes/pki/etcd/server.crt --key=/etc/kubernetes/pki/etcd/server.key endpoint health "
+
+https://172.16.102.35:2379 is healthy: 
+https://localhost:2379 is healthy: 
+https://test-kub-06:2379 is healthy:
+
+таким образом мы наконец научитли опрделеять все ли с кластером в порядке
+
+выгдяит это так. вначале узнаеим список нод
+
+
+/# kubectl exec etcd-test-kub-04 --namespace=kube-system -c etcd -i -t --  /bin/sh -c "ETCDCTL_API=3   etcdctl --endpoints=https://localhost:2379,https://172.16.102.35:2379,https://test-kub-06:2379 --cacert=/etc/kubernetes/pki/etcd/ca.crt --cert=/etc/kubernetes/pki/etcd/server.crt --key=/etc/kubernetes/pki/etcd/server.key member list "
+
+ test-kub-05, https://172.16.102.35:2380, https://172.16.102.35:2379,
+ test-kub-06, https://172.16.102.37:2380, https://172.16.102.37:2379,
+ test-kub-04, https://172.16.102.34:2380, https://172.16.102.34:2379, 
+
+потом спрашиваем все ли с ними вопрдяке
+
+
+замечу еще вот что. 
+как правилно указвыать эндпоинты. потому что мы используем https
+и etcdctl он проверяем валидность сертификата https
+
+
+https://172.16.102.35:2379 is healthy: 
+https://localhost:2379 is healthy: 
+https://test-kub-06:2379 is healthy:
+
+вот эти три вида указания они работают.
+
+а вот если я укажу
+https://test-kub-06.mk.local:2379
+
+
+то уже etcdctl пошлет.
+то есть видимо в серфикате указны только localhost, ip и короткое имя.
+а полное доменное имя неуказано.
+
+
+
+
+>>
+к кластеру подключаться научилисть, мемеборв смотреть науцчилилтсь. их
+здоврье всмртреть научились. далее
+
+разберем смысл параметров под которыми запускаются ноды etcd.
+
+но прежде разберем параметры под которыми мы можем приконнектиься к клатсретурру
+
+ETCDCTL_API=3   etcdctl --endpoints=https://localhost:2379,https://172.16.102.35:2379,https://test-kub-06:2379 --cacert=/etc/kubernetes/pki/etcd/ca.crt --cert=/etc/kubernetes/pki/etcd/server.crt --key=/etc/kubernetes/pki/etcd/server.key member list
+
+--endpoints=https://localhost:2379,https://172.16.102.35:2379,https://test-kub-06:2379  = понятно это члены кластера указаны
+--cacert=/etc/kubernetes/pki/etcd/ca.crt = это сертифкат корневого центра сертфикации
+--cert=/etc/kubernetes/pki/etcd/server.crt = это сертификат понка непонятно
+--key=/etc/kubernetes/pki/etcd/server.key = это ключ от сертиката
+
+в целом посдение 3 настройки это чтобы на по tls покдлючиться из 
+etcdct к etcd как клиенту.
+
+надо прояснить про tls тогда. как он работает.
+наскольько я понимаю смысл такойже как когда мы в бразуере пдклчаемся 
+по https  к сайту. и мы имеем шифрование и цуверность что подключилис
+именно к настоящей сайту. как я понял в случае etcd нам надо нетолько
+безопасно подключатиься к etcd но и etcd хочет чтобы к нему покдлю
+чалсиь невсе подряд а только выделыне клиенты. то есть аутентифация 
+идет в с обеих сторон.
+
+как я понял tls это более новая версия ssl то есть придумали новую
+версию ssl и назвали ее tls.
+
+далее надо вспомнить про ассиемтричное шифрование.
+есть открытй ключ который сообщаем всем а есть приватный ключ который 
+знаем только мы. если ктото зашифрует открытм ключом сообщение то 
+расшиваовать можем его только мы пользщуясь закрытм ключом.
+
+как работает элактронная подлспись. береттся документ. и на основе еговычисляется хэш функция просто по договоренности. то есть мы догов
+вариваемся что будем считаь md5 от присланного документа.
+так вот далее мы шифруем эту хэш функцию закрытм\приватным ключом
+и это шифрованное сообщение и есть электронаая подпись. мы ее 
+прикладыавем к исходному документу.
+
+теперь тот кто получил документ и электронную подсптись он вычисляет 
+хэш md5 от документа. получается мы имеем хэш и имеем зашироыванный хэш.
+мы беретм открытй ключ и расшифроврываем зашированный хэш.
+если расшифрованный хэш совпадает с хэшем это значит что только человек
+который обладает закрытм ключом от нашего открытого ключа мог 
+заширфовать этот хэш. то есть у отправилтетял был хэш и он его зашифровал
+закрытм ключом а мы его расшифровали откртым ключом. и мы знаем что 
+только человек обладающий закрытм ключом от нашего открыттго это мог 
+сделать. таким оброазом мы удоствовериись что исхоное сообщение
+прислал именно владаелец закрытого ключа от нашего открытого.
+если расшифрованный хэш несовпал с хэшем документа это значит 
+что либо документ липа либо подпись липа.
+
+а как нам получить открытый ключ от отправителя. мы его получаем 
+из сертификата. есть сторонний центр сертификации. которому мы доверяем.
+центр сертификации своим приватным ключом шифрует открытй ключ отправителя
+в наших браузерах есть откртый ключ центров сертификации.поэтому
+когда мы получаем сертификат от центр сертификации мы его расшифроварвыем
+публичным ключом от этого центра сертиификации и внутри будет немусор
+только если сертифкат был зашифрован тем кто имеет закрытй ключ 
+от нашего публичного ключа. если мы расшировыам сертифкат публтичным 
+ключом а там мусор значит сертифкат был зашифроавн не цетром сертфиикации.
+итак мы открылы сертифкат увидли что там немусор пояли что это реально
+сертифкат был отолсан центром сертификации. и внутри этого сертфииката
+мы читаем публичный ключ нашего исходного отпраивителя. таким мкаром
+мы достоверно получаем настоящий публичный ключ отправителя.
+
+как работает tls. 
+мы с сервера получаем сертификат который подписан центром сертификации
+мы имея откртый ключ центр сертификации читаем сертиификат  и узнаем
+открый ключ сервера. скажем в сертифате будем написано что ip=192.168.1.10
+имеет открытй ключ=2.
+предположим нам злодей пришлет поддельный сертифкат.  злоумышленник
+то присдать может но только настоящий сертифкат так как зашифровать свой
+он не сможет так как у злоумышленика нет приватного ключа цетра сертифкации. поэтому сертифкат мы получаем настоящий. потому что если он ненастоящий то когда мы его расшируем там будет мусор.
+а как узнать что там мусор. ну в мы знаем dns имя сайта куда ломимся. 
+или мы ломимся по ip. так вот в сертифкате будет внутри указан либо 
+dns либо ip. если мы знаем dns имя компа то тут все просто - мы знаем
+что ломимся на mail.ru поэтму в сертифкате обязательно дожно быть внутри mail.ru фишка втом что неможет быть двух сертифкатов выданных mail.ru
+центр сертифкации строго проверяет комму он выдал сертифкат то есть
+серт для mail.ru неомжет получить пупкин.
+и сертифкат соедржит срок годности.
+если мы знаем IP сервера то в сертифкате должен быть его IP.
+итак мы узнали открытй ключ сервера. далее мы берем случайное число
+которое знаем только мы и шифруем открытым ключоми посылаем на сервер.
+сервер его расшифровавыет потому что только он может расшифровать
+и далее сервер условно говоря начинает использовать это число 
+как ключ при широфании уже передачи данных между нами используя 
+симметричое шифрование. злоумышленние никак неомжет узнгат это число
+потому что чтобы ему узнать ему надо знать закрытй ключ сервера.
+
+не очент понимаю еси двустороняя аутентифация то что киент предоставляет
+серверу. он ему понятно предостоавляет некий сертиикат. 
+а вот что сертифкате указано типа логин пользователя ?
+тоесть скажем клиент отдает серверу сертфикат подписанный сторонним
+центром сертфикате в сертифкате указано что сертификат выдал пупкину
+а клиент ломится на сервер под логином пупкин.так что ли.
+
+еще волпс - сертифкат центра сертифкации. я так понимаю так 
+нахотся откртый ключ центра сертифкации. непонятно как он там защищен.
+
+как я прочитал сертифкат по определнию это документ в котором указан 
+владелец сертфиката и его публичный ключ. и еще в сертифкате 
+есть цифровая подпись которая принадлежит центру сертификации
+который вычислил хэш от сертификата и зашифровал этот хэш своим 
+приватным ключом. 
+таким образом мы получаем серттифка в котором наисано
+владелец = mail.ru
+его публичнй ключ  =123
+подпись 456 
+подписал центр сертификации "море возможностей".
+то есть наличие в сертифкате не мусора проверяется на на глазок
+а по эдлектронной подписи.содержимое сертифката незашифровано
+а просто к нему приложена цифровая подспись.
+
+
+мы вычиляем хэш от сертииката, далее мы берем цифроую подпись
+расшироываыем ее с помощьюб открытго ключа "море воможостей"
+и если олучаем тот же хэш то мы удовстояерились 
+что сертифкат выдан центром сертифкации и что он настоящий.
+значит ключ публичный настоящий.
+
+неочень понятно про сертифкат нового  ценра сертификации 
+как он защишен. ведь он долэен подписать себя сам. 
+а мы неможеи проверить ибо у нас нет от него проверрного
+публичного ключа.получается сертифкат центра сертифкации дожен
+к нам попадть через надежный ичточник ?
+
+перейдем к нашему случаю. мы кода ломисся на etcd мы испольузем
+
+
+--cacert=/etc/kubernetes/pki/etcd/ca.crt = это сертифкат корневого центра сертфикации
+--cert=/etc/kubernetes/pki/etcd/server.crt = это сертификат понка непонятно
+--key=/etc/kubernetes/pki/etcd/server.key = это ключ от сертиката
+
+ca.crt сертифкат центра сертифкации нам нужен чтоы мы могли 
+из него излвчеь публинчый ключ центра сертифкации и пользуя
+им проверить потом сертифкат который нам пришлет etcd 
+проверить присланый сертифкат это раз и извдечь из него публичный
+ключ сервера это два. и на основе него мы сможем безопсно  с сервеоом
+ррагнизвать шиывранльный сеанс. то есть этот файл нам нужен для того 
+чтобы мы могли сервер ааутентицифровать.
+
+а server.crt и server.key нам нужны уэе чтоы мы могли на сервере 
+себя аутентифиировать. 
+походу в этм случае сертифкат сам по себе заширован. и server.key
+это ключ чтобы расшировать сам сертифкат.
+
+
+когда сервер нам присла свой сертфикат и мы узнали публичный ключ
+сревера мы можем на него слать шфррованые сообщения которые может читаь
+тлоолько сервер. далее мы начнем на сервер аутентифцировться сами.
+мы берес ключ от сертифката sever.key применяем на server.crt
+и получаем сам сертфикат. парол на сертифкат дат то что мы можем сретифкат
+послыать по почте и никто его несможет прочитать. 
+а ключ можем по телефону сообщить получаетелю.
+так вот мы берем расшироываный через server.key сертикат но уже шифруекм
+его открытм ключом серера и посылаем ему. сервер расширывовыает своим
+закрытым ключом и может прочитаь сертфикат а злоумыщленик не может.
+на даннм этапе сервер еще незнает мы настоящий клиент или злоумышленрик
+но главное что третий человек между нами прееиску неможет прочитать.
+сервер убеждаеься что сертифкат настоящий - главное что сервер 
+должен знать что в этом сертиикате он ищет. и после этого сервер
+понимает что к нму постучался клиент а не хакер.
+взаимная ацтентифицкаия произошла.
+
+остаетс пнять что в serve.crt
+надо заглянуть внутрь его.
+
+как просмотреть сертифкат
+# openssl x509 -text -noout -in certificate.crt 
+
+
+
+
+я заглянул внутрь  /etc/kubernetes/pki/etcd/ca.crt
+чтотам есть.
+там есть что 
+сертифкат выдан кем   Issuer: CN=etcd-ca
+выдан кому  Subject: CN=etcd-ca
+есть публичный ключ  Public-Key: (2048 bit) ... большое число
+и есть подпись цифровая.тоже большое число.
+
+также как я понял там указано зачем этот публичеый ключ 
+может быть заюзан.
+ X509v3 Key Usage: critical
+                Digital Signature, Key Encipherment, Certificate Sign
+
+
+
+получается что если мы публичным ключом расширфуем подпись 
+то мы ничего. мы убедимся что у когто есть приватный ключ от этого публичного ключа.
+
+дале я заглянул в /etc/kubernetes/pki/etcd/server.crt
+там увидел 
+кто видал сертификат Issuer: CN=etcd-ca
+кому выдал  Subject: CN=test-kub-04
+получается etcd выдал сертификат на хост. хосту.
+а хост где лежит контрол плейн (один из).
+получается предьявляя этот сертификат мы говорим etcd что мы типа 
+заходим от имени хоста test-kub-04
+еще в сертифкате указаны разные альтренативные subject неймы
+ X509v3 Subject Alternative Name:
+                DNS:localhost, DNS:test-kub-04, IP Address:172.16.102.34, IP Address:127.0.0.1, IP Address:0:0:0:0:0:0:0:1
+
+
+а для этого ключа испольщование его публичного ключа 
+указано более кокнертно
+X509v3 Extended Key Usage:
+                TLS Web Server Authentication, TLS Web Client Authentication
+
+
+приколно что сертифкат это всего навсего некий subject и его публичный 
+ключ. и все.и никакой магии заумной.
+
+два вопроса
+1)странно то что содержимое сертифката незашифровано. и видно сразу.
+тогда вопрос зачем этот файл /etc/kubernetes/pki/etcd/server.key
+
+я понял в server.crt указано что у вот этому товарищу
+
+Alternative Name:
+                DNS:localhost, DNS:test-kub-04, IP Address:172.16.102.34, IP Address:127.0.0.1, IP Address:0:0:0:0:0:0:0:1
+
+
+выдан такой то публичный ключ
+
+так вот в server.key лежит приватный ключ от публичного ключа котрый
+укаан в server.crt
+вот !
+зачем походу он нужен при связи с etcd зачем мы его указываем.
+когда мы стучимся на etcd через etcdctl то когда сервер просит 
+нашу сторону аутентифицироваться то наша сторона посылает сертифкат 
+подисанный CA в котром укзаан публичнй ключ. таким мкаро etcd узнает 
+наш публичный ключ. но этот сертификат наверно его можно украсть итак далее
+поэтому его недостаточно. походу. тоесть то что он настоящий это etcd
+будет знать точно (проверив его по подписи через публичный ключ CA).
+но может этот сертификат сперли. так вот то что это дейстивтельно мы
+походу проверяется дальше так - 
+наш etcdctl чтонибудь шифриует пртиватным
+ключом (который мы дали etcdctl в настройках ) и посылает на etcd вслед
+за сертификатом исходное слово и оноже зашифрованное. etcd из сертификата
+знает публичный ключ , расшировывает наш шифр сравнивает со словом 
+и понимает что тот кто отослал слово зашифрованное обладает приватным
+ключом от публичного ключа. значит мы это мы. значит мы себя перез etcdctl
+аутентифицировали.
+
+получается серттифика подписанный CA позволяет достоверно передать другой
+стороне публичный ключ для некотрого subject.
+тоесть сервер достоверно значет что есть некий subject и 
+у негодостверно вот такой публчный ключ.
+но так как сертификат можнои украсть то этого мало.
+сереру нужно показать что у нас есть приватный ключ. в целом получается что аутентифцикация происходит по наличию у нас именно пары клюей и 
+публичного и приватного. только обоа ключа дают типа гарантию 
+достоверноти личности.
+
+еще раз посмотрим на строку связи с кластером etcd
+на параметры и их смысл
+
+ETCDCTL_API=3   etcdctl --endpoints=https://localhost:2379,https://172.16.102.35:2379,https://test-kub-06:2379 
+--cacert=/etc/kubernetes/pki/etcd/ca.crt --cert=/etc/kubernetes/pki/etcd/server.crt --key=/etc/kubernetes/pki/etcd/server.key member list
+
+
+получается вэтой строке мы указываем как я понимаю
+куда МЫ хотим достучаться и от имени КОГО мы себя будем выдавать
+
+получается вот эта строчка
+
+--endpoints=https://localhost:2379,
+https://172.16.102.35:2379,
+https://test-kub-06:2379 
+
+она говорит etcdctl куда мы хотим достучаться
+до каких типа https сайтов.
+
+важно тут то что если мы стучимся вот на такой сайт https://test-kub-06:2379  то etcdctl будет проверять у сервера
+на той стороне есть ли у него подписанный сертификат на имя test-kub-06
+услоовно говоря есди бы мы стучались на mail.ru то etcdctl проверял
+у сервера на той стороне есть ли  у него сертификат выдннаый для mail.ru
+
+то есть нам нужно убедться что мы достучались именно туда ( а то
+малоли dns неправильный или еще чего). этой строкой мы завявляем
+что нам нужно достучаться именно до сайта у которого есть сертификат
+выданный на имя test-kub-06 ну а если все ендпоинты посмотреть то 
+мы хотим досутчаться до трех сайтов
+
+https://localhost:2379
+https://172.16.102.35:2379
+https://test-kub-06:2379
+
+и хотим убедиться что кгда мы достучимся чт это именно они путемтого что
+нам предьявять сертифкиаты выданные на имена (subjects)
+
+localhost
+172.16.102.35
+test-kub-06
+
+и если мы вспомним 
+какие subjects были указаны (для примера ) в нашем клиентском сертифкате
+DNS:localhost, DNS:test-kub-04, IP Address:172.16.102.34, IP Address:127.0.0.1, IP Address:0:0:0:0:0:0:0:1
+
+мы поймем тога почему неработала связь когда я указал один из эндпоинтов
+как https://test-kub-06.mk.local:2379
+потому что в сертификате у того сервера test-kub-06 у него нет такого
+subject как test-kub-06.mk.local
+таким образом когда мы достучались до test-kub-06.mk.local и он нам пред
+ьявил свой сертификат мы увидели что в нем нет test-kub-06.mk.local
+то есть мы попали формально нетуда.  с нашей точки зрения сервер нетот
+который нам нужен он не смог перед нами успешно аутентифицивраться.
+
+итак еще раз этой строкой
+--endpoints=https://localhost:2379,https://172.16.102.35:2379,https://test-kub-06:2379 
+
+мы указыавем куда мы хотим достучаться до каких серверов.
+и просим etcdctl проверить что он достучался именно туда куда 
+мы заказали через сертификаты.
+
+вот эта строка
+--cacert=/etc/kubernetes/pki/etcd/ca.crt
+это когда мы будем проверять достоверность предьявляемых нам 
+сертификтов со стороны сервера то будем юзать публиный ключ из ca.crt
+чтобы проверить досточерность полученных сертификатов.
+
+итак первые две строчки нам помогают удостоврерться в достврности
+удаленного сервера.
+
+следущий две строчки
+--cert=/etc/kubernetes/pki/etcd/server.crt --key=/etc/kubernetes/pki/etcd/server.key
+
+они использщуюся для того чтбы уже мы удостоверили свлю личноть
+преед удаленным сервером.
+
+как я уэе сказал когда мы  как клиент аутентифицуррется перед удаленным
+сервером то нам нужно будет заюзать и публичный и приватный ключ 
+в итоге. поэтому мы их и указываем. 
+server.crt это сертификат с нашим публичным ключм и нашим subject
+а server.key это приватный ключ от нашего публичного ключа
+
+замечу что server.key хранится в файл в прямом виде. 
+насколько я помню по крайней мере в виндовс то при желании 
+можно хранить приватный ключ в зашифрованном виде.
+то есть чтобы им воспользвоатсья вначале над ввести пароль.
+таким макарм можно тогда хранить на диске приватный ключ и не боятся 
+что его подсмотрят и упрут.
+
+таким образом разобрались с парамтрами пключения к etcd.
+в целом полуается подключение с указаием куда  и аутетификацией
+через сертифкаиаты.
+
+
+теперь уже посмотрим на ключи запуска самого etcd
+
+~# cat /proc/2424/cmdline
+etcd
+--advertise-client-urls=https://172.16.102.34:2379
+--cert-file=/etc/kubernetes/pki/etcd/server.crt
+--client-cert-auth=true
+--data-dir=/var/lib/etcd
+--initial-advertise-peer-urls=https://172.16.102.34:2380
+--initial-cluster=test-kub-05=https://172.16.102.35:2380,test-kub-06=https://172.16.102.37:2380,test-kub-04=https://172.16.102.34:2380
+--initial-cluster-state=existing
+--key-file=/etc/kubernetes/pki/etcd/server.key
+--listen-client-urls=https://127.0.0.1:2379,https://172.16.102.34:2379
+--listen-metrics-urls=http://127.0.0.1:2381
+--listen-peer-urls=https://172.16.102.34:2380
+--name=test-kub-04--peer-cert-file=/etc/kubernetes/pki/etcd/peer.crt
+--peer-client-cert-auth=true
+--peer-key-file=/etc/kubernetes/pki/etcd/peer.key
+--peer-trusted-ca-file=/etc/kubernetes/pki/etcd/ca.crt
+--snapshot-count=10000
+--trusted-ca-file=/etc/kubernetes/pki/etcd/ca.crtroot
+
+из того что видно получается что каждая нода кластера etcd
+требует не тлько от клиента аутентификации по сертифкиакаам
+но и от каждого пира. таким образом каждый пир точно знает 
+что он имет связь от достверного пира а не злодея например.
+
+итак посмотрим на смысл опций
+насколько я щас понимаю у etcd каждый член он типа сам по себе незавиим
+нет мастеров итак далее. они неким хитромудрым образом общаются со 
+своими пирами но роли у них все одинаковые. все они активные. 
+то есть если скажем в эластике есть пасивные мастера и один активный 
+то в  etcd они все активные. я к чекму если нгапример мы хотим узнать 
+хоровье членов клатсера но надо делать запрос с каждому члену чтобы 
+узнать его здоврое чтобы он сам ответтил за себя. а  про других 
+он незнает. получается взаимосвязанные но типа незаивисмые члены.
+
+
+--listen-metrics-urls=http://127.0.0.1:2381 = прописвыает на какой сокете
+мы можем обратиться и получит метрики перфоманса этой ноды etcd
+
+# curl http://127.0.0.1:2381
+ 
+--listen-peer-urls=https://172.16.102.34:2380 = это прописывает сокет на котором наша нода будет принимать реквесты от пиров.  важно то что при обарщении другого пира к нашему пиру установлении сеанса связи 
+наша нода попросит сертификат у соседа (при условии что tls аутентифкация потребована с помощью другой опции котора будет дальше) и будет проверять что сосед
+имеет подписанный сертификат << вопрос а что наша нода будет искать
+вэтом сертификате ?>> наша нода на этот сокет повесит сертификат
+за это отвечает другая опция и наша нода просто отдаст свой сертификат
+так что все поятно как наша нода будет аутентифцироваться перед 
+другими. а вот что наша нода будет искать в сретификатах от других.
+если это создаие кластера с нуля. то тут по идее понятно - есть другая настройка initial-cluster в которой указано где соседи и каокй subject
+искать в ихнем сертификате. если кластер состоявшийся то тут непонятно.
+может быть сам etcd потом хранит во внутрених структурах инфо о текущих нодах? непонятно. и непонятно если мы джойнимся в существующий кластер
+то как указать соседей. куча вопросов.
+а так формально эта настрока только для трого чтобы сервис знал 
+на каком сокете начать слушать реквесты от пиров. все. 
+документация идиотская у этой программы.
+
+
+
+кстати давайте  посмотрим какой\какие subject name
+имеет сертификат который нода etcd показывает своим соседям
+вот эта настройка за это отвечает
+--peer-cert-file=/etc/kubernetes/pki/etcd/peer.crt
+
+этот сертифкат будет повешен на сокет из предыдущей настройки,
+да дело в том что сосоедям нода показвыает один сертификат а клиентам
+другой. и порты на которых общение идет с со своими соседями (2380) 
+и порты на котором идет общение с клиентами (2379) они разные.
+
+# openssl x509 -text -noout -in /etc/kubernetes/pki/etcd/peer.crt 
+кстати да текст сертикиата как видно мы просматривам не через cat 
+а через openssl ну потому что он имеет вид все таки не plaintext
+но его может прочитать любой.
+
+Subject: CN=test-kub-04
+ X509v3 Subject Alternative Name:
+                DNS:localhost, DNS:test-kub-04, IP Address:172.16.102.34, IP Address:127.0.0.1, IP Address:0:0:0:0:0:0:0:1
+
+
+так что мы можем обраться к данной ноде по tls через 
+https://test-kub-04:2380
+https://localhost:2380
+https://172.16.102.34:2380
+https://127.0.0.1:2380
+
+так я что хочу скзаать что в настройках ноды из того что я понял 
+неуказывются параметры где искать соседей ни их ip 
+ни названия нод ни названия что у них в сертификате. 
+этого я пока так иненашел. только все указывается как наша нода на каких
+портах висят ее сокеты и сертификаты которые она будет плевать в эти
+сокеты если ее попросят. поэтому вопрос поиска других нод пока открыт.
+заисключениеп случая когдамы создаем новый кластер. там это прорисыается.
+но. пока могу сказать что у нас же еще есть проесс подклюыения клиентов
+к кластеру с реквестами тот же самый etcdctl  так вот внем
+мы указываем ноду в виде https а далее мы должны указать либо ip либро 
+dns имя и вот фишка втом что нужно указывать то что есть в subjedct в
+сертифкате ноды. иначе коннект неполучится. так вот из того что в сертифкиате ноды есть все
+
+https://test-kub-04:2380
+https://localhost:2380
+https://172.16.102.34:2380
+https://127.0.0.1:2380
+
+означает что к ноде можно обращаться по https и через ip и через dns 
+имя.
+
+
+а вот это 
+--peer-key-file=/etc/kubernetes/pki/etcd/peer.key
+это как раз приватный ключ от сертифктаа peer.crt
+этот ключ нам нужен для устанолвения шифровнной связи между нами и 
+нашим пир соседом. (причем и мы должны будем преед ним аутнфтифицироваться
+и он перед нами). формально приватный ключ peer.key нужен чтобы мы
+могли расширофать сообщение от нашего пира который его зашифрует
+публичным ключом из нашего сертификата котоырый он от нас получит.
+к слову скзаать это может сделать и злодоей. то есть злодей
+постучиться на 2380 получит наш общесдотсунвый сертификат. то есть 
+мы ему подртвердим что он достусался именно до нас. он получит наш 
+публичный ключ. и сможет с помощью него зашировать свою информацю и нам
+ее послать. ново всем этом беды нет. пому что мы его потом попросим
+аутнетифцирваться соамого . а у него сретификата что он настоящий пир 
+его нет. так что все что он может это 1) узнать что наша нода настоящая
+2) послыть нам шифроавные сообщения. ну на этом и все. этоикак злодею
+непоможет выдать себя за другую пир ноду.
+
+
+
+еще раз скажу что важно различать в этих настройках какие параметры
+мы указваем что их демонтировать другим а какие параметры мы указывем
+чтобы их требовать от других
+
+ 
+--trusted-ca-file=/etc/kubernetes/pki/etcd/ca.crt
+эта настройка дает нам публичный ключ от CA
+чтобы проверять сертификаты
+но вопрос от кого. оф дока про эту настройку говорит что Trusted certificate authority и все. как я понимаю как они это сделали что
+этот CA будет использоватся чтобы проверять сертификаты от клиентов.
+когда мы будем просить клиента удостоверить себя и он нам будет показывать
+свой сертификат. то мы будем ожилать что он выдан этим CA. и мы будем
+с помощью публичногло ключа CA проверять достутверность сертифктаов
+от клиентов. при запросах на порт 2379
+
+почему я заосотрил внимание на вопросе от кого именно сертифкаты 
+мы будем проверять через --trusted-ca-file=/etc/kubernetes/pki/etcd/ca.crt
+
+потому что далее есть еще настрока
+--peer-trusted-ca-file=/etc/kubernetes/pki/etcd/ca.crt
+и как из нее видно прописывается еще один ca. ну и в описнии из доки
+оф опять же тупо сказано что это ca. ну это понятно. так в чем разница
+с предыдудшим ca тупицы.
+как я понимаю данная настройка говорит что когда мы будем принимать 
+запросы ОТ ПИРОВ на 2380 то мы будем ожидлать что их сертификаты когда мы 
+будем просить аутнфтициироваться их перед нами они выданы и подписаны
+CA указаным в этой настройке.
+
+как  вцелом видно в обоих случаях CA по факту один и тотже. но
+получается что в целом они могут быть разными.
+
+то есть что сертифкиаты выданные для клиентов они могут бытьвыданы
+одним CA а сертфикиаты для пиров они могут бывть выданы другим CA
+
+--peer-client-cert-auth=true = заставляет чтобы пиры которые к нам сту
+чаться чтобы они перед нами атунтифицировались через сертифкиаты
+
+--client-cert-auth=true = все приходящие клинетские запросы от них
+будет треброваться чтобы клиенты имели правильный сертификат. 
+если у клиента нет праивльного сетификтаа его запросы будут отвергнуты
+
+--cert-file=/etc/kubernetes/pki/etcd/server.crt = сертификат
+который наш сервер будет показывать на КЛИЕНТСКОМ СОКЕТЕ ПРИ КЛИЕНТСИКХ
+ЗАПРОСАХ КЛИЕНТАХ. то есть это как наш сервре будет себя кем выдавать
+при входящих запросах клиентов. 
+кстати без этого параметра к серверну нльзя подключиться по https.что логично. вобщем это сертифкат котоырй мы покзаываем клиентам ( а не 
+пирам) на клиентсокм порту.
+
+
+--key-file=/etc/kubernetes/pki/etcd/server.key = это приватный ключ
+от сертификтаа серверра на клиненствском порту. без него неполучится
+устанавивать шифрованоое соеднеиеие между клиентом и сервером.
+
+
+--snapshot-count=10000 = прописывает как я понял число транзакция вобщем
+данных которые etcd держит в памяти а если это число превышается то 
+он сбрасывает данные на диск. чем больше число тем больше памяти жрет 
+etcd. но типа зато какието там медленные я так понял ноды могут более
+комфортно чтото там делать.
+
+
+
+--listen-client-urls=https://127.0.0.1:2379,https://172.16.102.34:2379
+= это прописывает на каких картах и каких сокетах etcd прикрепиться
+и будет слушать входящие реквесты. здесь видно что etcd создаст 
+сокет на порту 2379 на lo интерфейсе и на той карте кооторая имеет
+ip=172.16.102.34. то есть это сокеты на которых эстдэбудет слушать 
+реквесты. это незначит что к etcd можно будет обратиться только через 
+https://172.16.102.34:2379 к примеру. к нему можно будет обраиться и 
+как https://test-kub-04:2379 тоесть как к нему обратиться зависит 
+от того что указано в subject name в сертификате который прикрелпенный 
+будет сидет на порту 2379 карты которая содержит 172.16.102.34.
+а эта настройка она просто позволяет etcd понять на какой карте 
+и с каким ip мы хотим посадить сокет нашего etcd
+
+
+--advertise-client-urls=https://172.16.102.34:2379 =
+эта настройка оличается от предыдущей. в той настройке указано 
+где по факту сидит etcd и принимает клиенсткие запросы.
+а эта настройка она указвыает какую информацию наша нода сообщит другим
+нодам о том якобы на каких сокета наша нода принимает клиенсткие реквесты.
+тем другим нодам эта информация нахер не сдалась для них самих.
+тоесть другие ноды никгда не будут делать запрос на https://172.16.102.34:2379 нашей ноды. другим нодам эта информация
+нужна только для того чтобы если клиент обратиться к ДРУГОЙ ноде
+и от нее захочет узнать на каких сокетах на НАШЕЙ ноде то та нода
+посмотритв этот параметр и сообщит клиенту.
+наши ноды хотя они и в кластере но они оченьо такие автономные и независи
+мые и грубо говоря реувесты облсуивают сами а про соседей знают 
+только то что те им сообщат и они это могут сообщить клиенту.
+понятно почему в этой настройке отсутвтует запись https://127.0.0.1:2379 из преддыдущей настройки. потому что по данному сокету внешний лкиент
+не сможет достучаться. на этот сокет можно достучаться только с самого 
+хоста. итак еще раз для работы других нод для их межнодвого взаимодейтсивя
+эта настройка нахер ненужна. она чисто информационная для клиента.
+если клиент обращается на ноду и хочет узнать на каких сокетах принимает
+реквесты дургая нода то та нода посмотрит вэту настройку которая 
+к ней прилетеле от соседа. и та нода тогда скажет клиенту что дескать
+наша нода если тебе надо принимает реквесты на тоаком то соекете.
+тоесть эат настройка для сообщения клиенту если он этого захочет про своих
+соседей.
+
+--initial-cluster-state=existing = эта настройка говори нашей ноде
+что она должна присоединиться к существующему кластеру.
+если поставить --initial-cluster-state=new то наша нода будет пытаться
+организовать новый кластер. сооственвенго --initial-cluster-state=new должно быть указано навсех нодах из которых будет состоять новый кластер.
+неочень понятно что происходит с эттим флагом когда новый кластер установился. меняетли система сама его на existing.проверить
+
+--data-dir=/var/lib/etcd = как я понимаю это папка в которой etcd хранить данные
+на диске
+
+--name=test-kub-04 = насколько я понял каждая нода должна иметь иден
+тификатор имени , имени с точки зрения etcd ноды. тоесть это никак не 
+связано с сертификатами , ip адресами итп. просто ectd где то там хранит
+в базе --name=test-kub-04 имя и както его использует в своей внутренней кухне. тоесть сертифкаты используются для установки сетевой коммнникации
+ а если от этого уже абстрагироватся то каждя нода в любом кластере
+ должна иметь некий идентицифкатор ноды некое имя. вот это имя etcd ноды
+ и задает этот ключ.
+ 
+ --initial-cluster=test-kub-05=https://172.16.102.35:2380,test-kub-06=https://172.16.102.37:2380,test-kub-04=https://172.16.102.34:2380 
+ если мы устаналиваекм кластер с нуля. то этой настройкой
+ мы соббщаем ноде обо всех пир учасниках этого нового кластера.
+ тоесть каждая нода знает какие еще участники кроме нее войдут 
+ в новый кластер. в этой настройке указаны etcd-имена нод.
+ test-kub-05
+ test-kub-06
+ test-kub-04
+ 
+ еще раз замечу что эти индикаторы несвязаны с сертификатами. 
+ необязаны. 
+ тоесть ноды могут иметь сетевой пир адрес вида https://vasya.pupkin.ru:2380 и соотвевтующий ssl сертификат.
+ и при этом нода может иметь etcd-имя test-kub-05
+ но конечно имеет смысл делать одно и тоже etcd-имя и имя в сертификате.
+ 
+ возможно каждая нода спрашивает другую через etcd запрос мол а какое
+ у тебя etcd-имя. тоесть возможно при образваии кластера они это друг 
+ друга спрашвают поэтому эти etcd-имена надо указать в конфиге.
+ 
+ и еще в этой настройке  указаны ip сокеты
+ 
+ https://172.16.102.35:2380
+ https://172.16.102.36:2380
+ https://172.16.102.34:2380
+ 
+ это собсвтенно наша нода узнает на каких сокетах сидят ее пир соседи.
+ им женужно друг с другом связаться. вот как раз через этот сокет.
+ 
+ причем важно заметить что вот что идет полсле https должно быть обязательно такое же как в subhect в сертификате.
+ тоесть  скажем наша нода имеет 172.16.102.34
+ 
+ значит 172.16.102.35 это адрес ее соседа.так вот  наша нода будет 
+ обращаться на 172.16.102.36 и спрашивать сертифкат у той ноды.
+ и та нода дожна дать ей сертикат где в subject = 172.16.102.36
+ только тгда наша нода согласиться что сосед валидный.
+ поэтому если у соседа в сертификтате нет 172.16.102.35 то надо в нашей настройке использовать то тчо есть на тех серитификтаах.
+ например
+ 
+ --initial-cluster=test-kub-05=https://test-kub-05:2380,test-kub-06=https://test-kub-06:2380,test-kub-04=https://test-kub-04:2380
  
   
+  тоест в этой настройке указано какие соседи помимо нашего буду образо
+  вывать новый кластер , где их искать по сети и какой сертиификат
+  ОНИ НАМ ДОЛЖНЫ ПРЕДОСТАВИТЬ чтобы мы поверили что это они и есть.
+ 
+ 
+ --initial-advertise-peer-urls=https://172.16.102.34:2380 =
+ значение этой настойки непонятно зачем она нужна. 
+ на нашей ногде эта настройка ничего неделает. 
+ потому что на какой сокет сесть слушат пиров опрделеяет другая
+ настройка 
+ если мы хотим сообщить другим соседям на каком сокете мы принмаем
+ реквесты от пиров задае эта настройка   listen-peer-urls=https://172.16.102.34:2380
+ если мы обрзауем новый кластер то соседи уже знают на каком сокете
+ наша ноде готова принимать рекветы соседей (это указано в предыдущей
+ настойке). 
+ единсвтенное что приходитв голову зачем эта настройка нужна это 
+ если мы хотим ноду новую присоединить к кластеру который уже
+ сущесвутет.
+ тогда мы на этой новой ноде через --initial-cluster зададим 
+ какие текуще входятв в кластер, куда нашей ноде стучаться. 
+ она туда начнет стучаться. но им то надо знать куда им стучаться в
+ ответ типа того так как уних про эту ноду вобще никакой информации
+ нет. и наша нода им сообщит что им стучаться на нашу ноду через 
+ сокет указанный в этой опции --initial-advertise-peer-urls=https://172.16.102.34:2380
+тогда поулчается наша нода знает куда стучаться. она стучться туда.
+и собщает им о себе и куда им стучаться обратно. в итоге новая нода
+добавляется в кластер.
+на мой взгляд при образовании нового кластера эта опция лишняя.
+
+таким оюразом я разобрвал смысл всех опций под которым запущена
+etcd нода самим кубернетесом.  
+
+итак приведу конфиг запуска etcd
+
+# имя непонятно зачем
+--name=test-kub-04
+
+# блок описывающий сокет обрабатыващий реквесты от пиров
+--listen-peer-urls=https://172.16.102.34:2380
+--peer-cert-file=/etc/kubernetes/pki/etcd/peer.crt
+--peer-key-file=/etc/kubernetes/pki/etcd/peer.key
+--peer-trusted-ca-file=/etc/kubernetes/pki/etcd/ca.crt
+--peer-client-cert-auth=true
+
+
+# блок описвыащий  сокет обарабатыващий реквесты от клиентов 
+--trusted-ca-file=/etc/kubernetes/pki/etcd/ca.crt
+--client-cert-auth=true
+--cert-file=/etc/kubernetes/pki/etcd/server.crt
+--key-file=/etc/kubernetes/pki/etcd/server.key
+--listen-client-urls=https://127.0.0.1:2379,https://172.16.102.34:2379
+--advertise-client-urls=https://172.16.102.34:2379
+
+
+# блок описвающий когда мы кластер создаем новый
+--initial-cluster-state=new
+--initial-cluster=test-kub-05=https://172.16.102.35:2380,test-kub-06=https://172.16.102.37:2380,test-kub-04=https://172.16.102.34:2380 
+--initial-advertise-peer-urls=https://172.16.102.34:2380
+
+# мелкие настроки финтифлющек 
+--snapshot-count=10000
+--listen-metrics-urls=http://127.0.0.1:2381
+--data-dir=/var/lib/etcd
+
+
+
+
+--
+получается что чтобы запустить etcd кластер надо изготовить сертификаты.
+и вобщем то все. дальшге надо на кжадй ноде запустить etcd с 
+кучкой ключей.
+--
+прикольно то что если мы сделаем на etcd-ноде запрос на 
+
+http://127.0.0.1:2381/health
+
+и etcd нода счиатет что с ней все в опрядке то она вернет health=ok
+и куб использует это для того чтоы регулярно туда запрашивать и проверять
+и таким макаром кубелет проверят и на api-server передает 
+и куб знает жив под или сломался.
+
+вот в свойствах пода прописано 
+
+# kubectl describe pods etcd-test-kub-04  --namespace=kube-system
+...
+ Liveness:       http-get http://127.0.0.1:2381/health delay=10s timeout=15s period=10s #success=1 #failure=8
+--
+
+вопросы после прочтения:
+
+
+
+>вопрос-1> надо проверить дата дир --data-dir=/var/lib/etcd 
+она проброшена на фс хоста или нет. 
+
+проверяем:
+в свойствах пода для контейнера etcd я вижу
+
+# kubectl describe pods etcd-test-kub-04  --namespace=kube-system
+
+Mounts:
+      /etc/kubernetes/pki/etcd from etcd-certs (rw)
+      /var/lib/etcd from etcd-data (rw)
+
+как я понимюа тут укзаано какие папки\файлы нашей фс которые пробррошены
+внуьрь контейнера . но непонятно в контейнере они куда проброшены.
+
+посморим свойства конейнера
+# docker inspect YT876iy98769
+....
+  "Mounts": [
+            {
+                "Type": "bind",
+                "Source": "/var/lib/etcd",
+                "Destination": "/var/lib/etcd",
+                "Mode": "",
+                "RW": true,
+                "Propagation": "rprivate"
+
+
+и видим что с фс хоста /var/lib/etcd проброшено внутрть контейнера --->
+в /var/lib/etcd
+
+кстати можно тамже увидеть что нетолько вот эти две шутки
+/etc/kubernetes/pki/etcd from etcd-certs (rw)
+/var/lib/etcd from etcd-data (rw)
+
+проброщены в конейнера с фс хоста но другие. но почемуто в 
+свойствах пода об этом не указано.
+
+ну да ладно. найден ответ на глвавный вопрос. о том что 
+папка в которой etcd контейнер хранииь данные она проброена
+на фс хоста. так что если под убить то данные его никуда не исчезнуь
+и можно преерсоздать под и к нему пдкючить эту дата папку.
+и это хорошо .
+
+ну я посмотреть внутрь /var/lib/etcd ну там какие то файлики с бинарным
+составом.
+
+
+
+
+>вопрос-2> можно ли под server.crt зайти не из хоста test-kub-04
+а с любого главное чтоб сертифкат был.
+
+ответ - можно. можно с любого хоста зайти получить данные из кластера
+через etcdctl пользуясь сертификатами которые можно взять с любого
+хоста где размещен etcd в папке /etc/kub*/pki/etc/*
+
+>вопрос-3> разницйа межудлу портами 2379 2380 4001
+так я понял у него 2379 это для запросов от клиентов.
+2380 это для общения членов кластера друг с другом.
+про 4001 насколько я понял старые вресии etcd имели для клинетских 
+запросов порт 4001. тоесть 2379 это новый порт для клинетсикх запросов
+а 4001 это старый порт. насколько я понимаю на любой версии api 
+можно обращаться и на 2379 и на 4001.везде прокатит. на любой клиентски порт
+etcd примет люлой клиентский запросов любой вресии api.
+
+//
+полезная инфо из доков etcd - неделать ничего с выводом нод из кластера
+если при этом останется членов меньше чем кворум. может быть жопа.//
+
+>>>>>>>>>>>>>>>>>>>остановился здесь !!!!!!!!!!!!
+
+>вопрос-3.5> на следущем шаге надо научиться ставиить кластер etcd 
+вначле через команную строку.
+что однозначно понятно что можно хоть 100 etcd нод ставить на одной
+виртуалке главное каждый etcd сажать на свою индивидуальную пару
+, типа первый etcd (2379,2380) , второй etcd (2381,2382) итп.
+закончил на том что на ноды надо выписать новые сертифкаты а то у меня
+нода имеет один ip а сертификат имеет другой ip.
+надо перевыпускать сертификаты.
+
+
+
+
+генерация сертификатов
+
+срздание приватного ключа
+# openssl genrsa ...
+
+создание зпроса на сертфикат
+# openssl req -new -key etcd01-private-key.pem  -out etcd01-csr.csr
+
+
+созание доп конф файла
+# cat etcd01.cnf
+[ req ]
+default_bits       = 2048
+default_md         = sha256
+distinguished_name = req_distinguished_name
+req_extensions     = v3_req
+[ req_distinguished_name ]
+countryName            = CN                     # C=
+stateOrProvinceName    = Shanghai               # ST=
+localityName           = Shanghai               # L=
+#postalCode             = 200000                 # L/postalcode=
+#streetAddress          = "My Address"           # L/street=
+organizationName       = My Corporation         # O=
+organizationalUnitName = My Department          # OU=
+commonName             = myname.mysoftware.mycorporation.com # CN=
+emailAddress           = myname@example.com     # CN/emailAddress=
+[ v3_req ]
+subjectAltName = @alt_names
+[ alt_names ]
+DNS.1   = myname.mysoftware.mycorporation.com
+#DNS.2   = other2.com
+#DNS.3   = other3.com
+IP.0 = 172.16.102.19
+
+этот файл нужен чтобы мы его подсунули в слелудующую команду
+чтобы в сертифкате появилось доп поле
+
+X509v3 Subject Alternative Name:
+                DNS:myname.mysoftware.mycorporation.com, IP Address:172.16.102.19
+    
+Дело в том что если мы ломимся на https по ip то вся эта TLS\SSL
+хрень она в сертификате тогда ищет не CN из subject ! нееееееет !
+она ищет в subject alternate name поле вида IP Address:
+
+поэтому без секции Subject Alternative Name у нас нихера незарабтает
+связь между пирами.
+
+
+# openssl x509 -req -days 365 -in etcd01-csr.csr -CA CA.crt  -CAkey CA-private-key.pem  -out etcd01.crt  -set_serial 1004 -extfile ./san.cnf  -extensions v3_req
+
+# openssl x509 -text -noout -in etcd01.crt
+
+
+а при создании сертифкиат для аутентицкации клиента тоже нужно в
+сертфикате иметь доп поле
+
+X509v3 Extended Key Usage:
+                TLS Web Server Authentication, TLS Web Client Authentication, Code Signing, E-mail Protection
+
+
+чтобы оно пояивлилось нужен текст файл
+
+
+# cat client.cnf
+[ v3_req ]
+extendedKeyUsage = serverAuth, clientAuth, codeSigning, emailProtection
+basicConstraints = CA:FALSE
+keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+
+тода генераация серта клиента выглядит как
+
+# openssl genrsa -out etcd-client.key   2048
+# openssl req -new -key etcd-client.key  -out etcd-client.csr
+#  openssl x509 -req -days 365 -in client.csr -CA CA.crt  -CAkey CA.key  -out client.crt  -set_serial 1006 -extfile ./client.cnf  -extensions v3_req
+  
+
+остановился на том что при поптыке подключатся через etcdctl 
+в логах серверра пищшет
+
+(error "remote error: tls: bad certificate", ServerName "localhost")
+
+в логах клиенгета пишет
+ \"transport: authentication handshake failed: x509: certificate is valid for myname.mysoftware.mycorporation.com, not localhost\""}
+
+
+
+на моем клиенстком сертифкате прописано
+
+X509v3 extensions:
+            X509v3 Key Usage:
+                Digital Signature, Key Encipherment
+            X509v3 Extended Key Usage:
+                TLS Web Client Authentication
+
+
+
+на правиьлььном клиентом сертификате прописанро
+
+ X509v3 extensions:
+            X509v3 Key Usage: critical
+                Digital Signature, Key Encipherment
+            X509v3 Extended Key Usage:
+                TLS Web Client Authentication
+            X509v3 Authority Key Identifier:
+                keyid:D0:4A:2D:FF:B6:84:58:84:45:78:6A:FD:04:71:26:A1:1E:56:65:A1
+
+
+остановился на сертифктаах и их полях.
+оказываетс чтобы сертифкат проавишльно работал мало только в нем
+cn и открытого ключа нужно чтобы в нем еще были правильные доп поля.
+
+
+при правильнымх сертифкататх на нодах
+и правильносс сертифктате для клиента уже невжано с какого хоста
+ты заумскаешь клиент. гллавное на него скопрватиь клиетский сертфкикат.
+
+в клиентсомк сертфикате вот такие поля
+
+ Subject: C=AU, ST=Some-State, O=Internet Widgits Pty Ltd, CN=test-linux-02
+
+
+X509v3 extensions:
+            X509v3 Key Usage:
+                Digital Signature, Key Encipherment
+            X509v3 Extended Key Usage:
+                TLS Web Client Authentication
+            X509v3 Authority Key Identifier:
+                keyid:86:2E:81:5C:3C:25:6E:81:F4:02:74:F5:70:50:7D:70:D4:24:79:0D
+
+и в сертфикатет CN=test-linux-02 никак не связано ни с какиим м
+параетрамти на хосте где запускаем клиент
+
+
+
+генерация сертфикиатртов
+
+# openssl req -new -key client.key  -out etcd-client.csr 
+
+# openssl x509 -req -days 365 -in etcd01.csr -CA CA.crt  -CAkey CA.key  -out etcd01.crt  -set_serial 1006 -extfile ./etcd01.cnf  -extensions v3_req
+# openssl x509 -text -noout -in etcd01.crt
+
+
+/usr/local/bin/etcd/3.4.13/etcd \
+--name=test-ansible \
+--listen-peer-urls=https://172.16.102.19:2390 \
+--peer-cert-file=/home/mkadm/RSA/etcd01.crt \
+--peer-key-file=/home/mkadm/RSA/etcd01.key \
+--peer-trusted-ca-file=/home/mkadm/RSA/CA.crt \
+--peer-client-cert-auth=true \
+--trusted-ca-file=/home/mkadm/RSA/CA.crt \
+--client-cert-auth=true \
+--cert-file=/home/mkadm/RSA/etcd01.crt \
+--key-file=/home/mkadm/RSA/etcd01.key \
+--listen-client-urls=https://127.0.0.1:2389,https://172.16.102.19:2389 \
+--advertise-client-urls=https://172.16.102.19:2389 \
+--initial-cluster-state=new \
+--initial-cluster=test-ansible=https://172.16.102.19:2390,test-linux-01=https://172.16.102.20:2390  \
+--initial-advertise-peer-urls=https://172.16.102.19:2390 \
+--snapshot-count=10000 \
+--listen-metrics-urls=http://127.0.0.1:2391 \
+--data-dir=/var/lib/etcd/3.4.13
+
+
+/usr/local/bin/etcd/3.4.13/etcd \
+--name=test-linux-01 \
+--listen-peer-urls=https://172.16.102.20:2390 \
+--peer-cert-file=/home/mkadm/RSA/etcd02.crt \
+--peer-key-file=/home/mkadm/RSA/etcd02.key \
+--peer-trusted-ca-file=/home/mkadm/RSA/CA.crt \
+--peer-client-cert-auth=true \
+--trusted-ca-file=/home/mkadm/RSA/CA.crt \
+--client-cert-auth=true \
+--cert-file=/home/mkadm/RSA/etcd02.crt \
+--key-file=/home/mkadm/RSA/etcd02.key \
+--listen-client-urls=https://127.0.0.1:2389,https://172.16.102.20:2389 \
+--advertise-client-urls=https://172.16.102.20:2389 \
+--initial-cluster-state=new \
+--initial-cluster=test-ansible=https://172.16.102.19:2390,test-linux-01=https://172.16.102.20:2390  \
+--initial-advertise-peer-urls=https://172.16.102.20:2390 \
+--snapshot-count=10000 \
+--listen-metrics-urls=http://127.0.0.1:2391 \
+--data-dir=/var/lib/etcd/3.4.13
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ETCDCTL_API=3   etcdctl --endpoints=https://localhost:2389 --cacert=/home/mkadm/RSA/CA.crt --cert=/home/mkadm/RSA/client.crt --key=/home/mkadm/RSA/client.key member list
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/usr/local/bin/etcd/3.4.13/etcd \
+--name=test-ansible \
+--listen-peer-urls=https://172.16.102.19:2390 \
+--peer-cert-file=/home/mkadm/kubernetes/pki/etcd/peer.crt \
+--peer-key-file=/home/mkadm/kubernetes/pki/etcd/peer.key \
+--peer-trusted-ca-file=/home/mkadm/kubernetes/pki/etcd/ca.crt \
+--peer-client-cert-auth=true \
+--trusted-ca-file=/home/mkadm/kubernetes/pki/etcd/ca.crt \
+--client-cert-auth=true \
+--cert-file=/home/mkadm/kubernetes/pki/etcd/server.crt \
+--key-file=/home/mkadm/kubernetes/pki/etcd/server.key \
+--listen-client-urls=https://127.0.0.1:2389,https://172.16.102.19:2389 \
+--advertise-client-urls=https://172.16.102.19:2389 \
+--initial-cluster-state=new \
+--initial-cluster=test-ansible=https://172.16.102.19:2390,test-linux-01=https://172.16.102.20:2390  \
+--initial-advertise-peer-urls=https://172.16.102.19:2390 \
+--snapshot-count=10000 \
+--listen-metrics-urls=http://127.0.0.1:2391 \
+--data-dir=/var/lib/etcd/3.4.13
+
+
+
+
+
+
+/usr/local/bin/etcd/3.4.13/etcd \
+--name=test-linux-01 \
+--listen-peer-urls=https://172.16.102.20:2390 \
+--peer-cert-file=/home/mkadm/kubernetes/pki/etcd/peer.crt \
+--peer-key-file=/home/mkadm/kubernetes/pki/etcd/peer.key \
+--peer-trusted-ca-file=/home/mkadm/kubernetes/pki/etcd/ca.crt \
+--peer-client-cert-auth=true \
+--trusted-ca-file=/home/mkadm/kubernetes/pki/etcd/ca.crt \
+--client-cert-auth=true \
+--cert-file=/home/mkadm/kubernetes/pki/etcd/server.crt \
+--key-file=/home/mkadm/kubernetes/pki/etcd/server.key \
+--listen-client-urls=https://127.0.0.1:2389,https://172.16.102.20:2389 \
+--advertise-client-urls=https://172.16.102.20:2389 \
+--initial-cluster-state=new \
+--initial-cluster=test-ansible=https://172.16.102.19:2390,test-linux-01=https://172.16.102.20:2390  \
+--initial-advertise-peer-urls=https://172.16.102.20:2390 \
+--snapshot-count=10000 \
+--listen-metrics-urls=http://127.0.0.1:2391 \
+--data-dir=/var/lib/etcd/3.4.13
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+==============================
+серврены сертификаты
+
+эталон
+peer.crt
+
+ Subject: CN=test-kub-05
+
+ X509v3 extensions:
+            X509v3 Key Usage: critical
+                Digital Signature, Key Encipherment
+            X509v3 Extended Key Usage:
+                TLS Web Server Authentication, TLS Web Client Authentication
+            X509v3 Authority Key Identifier:
+                keyid:D0:4A:2D:FF:B6:84:58:84:45:78:6A:FD:04:71:26:A1:1E:56:65:A1
+
+            X509v3 Subject Alternative Name:
+                DNS:localhost, DNS:test-kub-05, IP Address:172.16.102.35, IP Address:127.0.0.1, IP Address:0:0:0:0:0:0:0:1
+
+
+первый сервер
+etcd01.crt
+
+  Subject: C=AU, ST=Some-State, O=Internet Widgits Pty Ltd, CN=test-ansible
+
+
+    X509v3 extensions:
+            X509v3 Key Usage: critical
+                Digital Signature, Key Encipherment
+            X509v3 Extended Key Usage:
+                TLS Web Server Authentication, TLS Web Client Authentication
+            X509v3 Authority Key Identifier:
+                keyid:86:2E:81:5C:3C:25:6E:81:F4:02:74:F5:70:50:7D:70:D4:24:79:0D
+
+            X509v3 Subject Alternative Name:
+                DNS:localhost, DNS:test-ansible, IP Address:172.16.102.19, IP Address:127.0.0.1, IP Address:0:0:0:0:0:0:0:1
+
+
+второй серввер
+
+ Subject: C=AU, ST=Some-State, O=Internet Widgits Pty Ltd, CN=test-linux-01
+
+ X509v3 extensions:
+            X509v3 Key Usage: critical
+                Digital Signature, Key Encipherment
+            X509v3 Extended Key Usage:
+                TLS Web Server Authentication, TLS Web Client Authentication
+            X509v3 Authority Key Identifier:
+                keyid:86:2E:81:5C:3C:25:6E:81:F4:02:74:F5:70:50:7D:70:D4:24:79:0D
+
+            X509v3 Subject Alternative Name:
+                DNS:localhost, DNS:test-linux-01, IP Address:172.16.102.20, IP Address:127.0.0.1, IP Address:0:0:0:0:0:0:0:1
+
+
+
+
+вот это поле = CN=test-linux-01 
+само поле обязательно должно присутсоватьав но значение никак неважно. может быть чем угодно,
+никак несявзано сдругим полями в сертифкиаите.
+более того никак не связано с какким либо параетрами в etcd кластере (название ноды и так далее).
+тоесть это поле носит чисто информационный характер но не должно ни с чем совпадать.
+
+далее при запуске кластера 
+# etcd ....
+мы используем опции
+
+--name=blabla12
+--initial-cluster-state=new --initial-cluster=kuku13=https://172.16.102.19:2390,blabla12=https://172.16.102.20:2390
+
+так вот --name=blabla12 значение этого параметра blabla12 оно никак не связано с параметрами в сертифкате никакими.
+тоесть между blabla12 и сертификатом нет никакой связи. и это отлично. это чисто внутри etcd егошняя название ноды.
+но к сертифкиатам оно никак не привязано.
+
+
+
+
+насколько я понимаю поля в этом параметре
+X509v3 Subject Alternative Name:
+                DNS:localhost, DNS:test-linux-01, IP Address:172.16.102.20, IP Address:127.0.0.1, IP Address:0:0:0:0:0:0:0:1
+
+они позволяют под этими DNS именами либо ip адресами обращаться клиенту К серверу.
+то есть это то как сервер может идентифицировать себя перед другими.
+то ест конкретно эти значения позволяют клиенту обращаться на сервер как 
+https://localhost
+https://test-linux-01
+https://172.16.102.20
+https://127.0.0.1
+https://0:0:0:0:0:0:0:1
+
+все приведенные поля серверных сертификатов явююсят обзательными и важными.
+иначе будут ошибки либо сервер с сервром несможет свзяаться длибо клиент к серверру несомжет подключться.
+
+
+
+
+================================
+клинески сертфикиат
+
+эталонный
+ Subject: O=system:masters, CN=kube-apiserver-etcd-client
+
+X509v3 extensions:
+            X509v3 Key Usage: critical
+                Digital Signature, Key Encipherment
+            X509v3 Extended Key Usage:
+                TLS Web Client Authentication
+            X509v3 Authority Key Identifier:
+                keyid:D0:4A:2D:FF:B6:84:58:84:45:78:6A:FD:04:71:26:A1:1E:56:65:A1
+
+
+
+
+наш ручного выпуска
+ Subject: C=AU, ST=Some-State, O=Internet Widgits Pty Ltd, CN=test-linux-02
+
+
+X509v3 extensions:
+            X509v3 Key Usage:
+                Digital Signature, Key Encipherment
+            X509v3 Extended Key Usage:
+                TLS Web Client Authentication
+            X509v3 Authority Key Identifier:
+                keyid:86:2E:81:5C:3C:25:6E:81:F4:02:74:F5:70:50:7D:70:D4:24:79:0D
+
+
+здесь тоже все поляня являюбся обяазателными.
+
+значение этой переменной CN=test-linux-02 конктено неважно.
+
+получает ято клинтсикй сертифкат гдлавное чтобы он был выпущен тем же самыым удоствернынным центром
+
+отдават его можно потом абсолюрно лоюббому хосут
+
+==========
+
+
+
+
+===
+
+etcd01.cnf
+
+A# cat etcd01.cnf
+[ req ]
+default_bits       = 2048
+default_md         = sha256
+distinguished_name = req_distinguished_name
+req_extensions     = v3_req
+[ req_distinguished_name ]
+countryName            = CN                     # C=
+stateOrProvinceName    = Shanghai               # ST=
+localityName           = Shanghai               # L=
+#postalCode             = 200000                 # L/postalcode=
+#streetAddress          = "My Address"           # L/street=
+organizationName       = My Corporation         # O=
+organizationalUnitName = My Department          # OU=
+commonName             = myname.mysoftware.mycorporation.com # CN=
+emailAddress           = myname@example.com     # CN/emailAddress=
+[ v3_req ]
+keyUsage = critical, digitalSignature, keyEncipherment
+extendedKeyUsage = serverAuth, clientAuth
+authorityKeyIdentifier = keyid,issuer
+subjectAltName = @alt_names
+[ alt_names ]
+DNS.1   = localhost
+DNS.2  = test-ansible
+IP.0 = 172.16.102.19
+IP.1 = 127.0.0.1
+IP.2 = 0:0:0:0:0:0:0:1
+
+===
+
+client.cnf
+
+# cat client.cnf
+[ v3_req ]
+keyUsage = digitalSignature, keyEncipherment
+extendedKeyUsage = clientAuth
+authorityKeyIdentifier = keyid,issuer
+
+====
+
+
+следущий шаг - это генерация одного мегасертфиката для всех
+etcd нод. чтобы негенерировать на каждую нодсу свой сертификат
+
+понять какие настройки etcd привзяаны имеют не Ip природу
+
+получается клиенстий сертьифкат можно вобще один
+сгенерироваь и все. и всем отдать один и тот же.
+
+если на эту строяк посмореть
+
+  DNS:localhost, DNS:test-linux-01, IP Address:172.16.102.20, IP Address:127.0.0.1, IP Address:0:0:0:0:0:0:0:1
+
+
+то становится понятно что все таки кжаому ноде надо делат свой
+сертфикат. потмоу что не всегда понятно какой dns namу имеет нода
+зато всегда видно какой у нее ip.
+
+
+получсется вопрос также - как готовый ca прикрутть к установке 
+куба. также вопрос каким CA подписывать серты для etcd.
+если etcd утанаилваися саимим кубом то коненчо ca от куба. 
+а если впнчале ectd устатанваолисял?
+
+походу в манифестах я вижу что куб-апсерер
+когда сраттуеи то у него прописанр
+
+  - --etcd-cafile=/etc/kubernetes/pki/etcd/ca.crt
+    - --etcd-certfile=/etc/kubernetes/pki/apiserver-etcd-client.crt
+    - --etcd-keyfile=/etc/kubernetes/pki/apiserver-etcd-client.key
+    - --etcd-servers=https://127.0.0.1:2379
+
+так что просто изговатилвае свой ca 
+копиркем в папку. создаем etcd сертфиктаы.
+а потом просто прописывем в манифетсе от куба
+причем как видно кубу подсосываем ca и кулиенсткие сертфиктаю
+поьому что он к etcd поюклчатся чисто как клиент.
+пировсие сертифктаы ему нафиг ненужны.
+а членов etcd он походу впьемсы узнает через 
+https://127.0.0.1:2379
+так что походу добавит удалить новые оды без проблем.
+он от 127.0ю0ю1 узнает обо всех других.хотя
+я как понимаю тога лучше поствить хапрокси и в нем прописать 
+точку входа на etcd с нодами etcd на бекенде.вот
+
+получается такая сехма.
+делаегт сам ca. клиенсткие и пир сертфиктаы.
+делаешь etcd ноды
+прячем их за хапрокси.
+
+отдаешь кубу ca и клиенсткие сертфиктиы,
+точкой входа на etcd тсавти хапрокси.
+
+
+
+следующая задача 
+1) описать всю установку etcd с сертификами.
+описываю.
+прежде чем ставить etcd надо выпустить комплект сертифкиатов
+для etcd. etcd позволяет указать один комплект сертификатов для того чтобы
+пиры друг с другом могли связт наладить по tls и другой комплект сертифика
+тов чтобы etcd мог себя представлять\идентифицировать перед клиентами.
+ я на данный момент изготовлю для обоих случаев один комплект сертификатов.
+
+ ( во первых - если что вот тут я очень хорошо описал про выпуск
+сертифкатов = https://aceqbaceq.blogspot.com/2016/08/openssl-z0.html )
+
+вначале нужно выпустить сертификат для CA (удостоверяющего центра
+сертификации).
+вначале нужно изготовить приватный ключ CA = ca.key
+генерируем приватный ключ 4096 байт длинной , для большей рандомности
+используем /var/log/messages и чтобы ключ не хранился в открытом base64
+виде то поверх его шифруем сиимметричым шифрованием aes128 с паролем
+
+# openssl genrsa -out ca.key -aes128 -rand /var/log/messages 4096
+
+создаем самоподписанный ca сертификат подписанный нашим приватным ca ключом
+
+# openssl req -new -x509 -days 10000 -key ./ca.key  -out ca.crt
+
+программа задаст пару вопрос но собственно что там вбивать неважно.
+можно любую хрень в каждое поле. ну единственное в поле CN я вбил CA.
+
+посмотрим что получили
+
+# openssl x509 -noout -text -in ca.crt
+
+важные поля в сертификате
+
+ Issuer: C=RU, ST=MSK, L=city, O=MK, CN=CA/emailAddress=email@email.com
+ 
+ Subject: C=RU, ST=MSK, L=city, O=MK, CN=CA/emailAddress=email@email.com
+ 
+ X509v3 extensions:
+            X509v3 Subject Key Identifier:
+               B1:9E:C6:DC:09:83:5C:2E:E0:98:ED:C2:92:23:97:9C:77:D2:E0:8B
+            X509v3 Authority Key Identifier:
+         keyid:B1:9E:C6:DC:09:83:5C:2E:E0:98:ED:C2:92:23:97:9C:77:D2:E0:8B
+            X509v3 Basic Constraints:
+                CA:TRUE
+
+видно что issuer и subject совпадает и CA:TRUE
+
+получили самопдписанный ca сертификат.
+
+
+теперь надо создать сертификат на ноду.
+для этого надо создать приватный ключ для ноды.
+сертификат будет содержать публичный ключ а приватный ключ
+содержит приватный ключ.
+притваный ключ будем создавать уже без aes128 шифрования. 
+то есть будем его хранить на диске в открытом виде. почему в открытом
+потому что приватный ключ мы будем подсовывать etcd работающей на ноде
+и она должна мочь его читать сразу без всяких паролей.
+
+# openssl genrsa -out etcd01.key -rand /var/log/messages 2048
+
+
+потом создать запрос на подпись чтобы CA подписал наш сертификат
+своим приватным ключом. насколько я понимаю это и есть сертификат
+который мы потом будем подписывать
+
+# openssl req -new -key etcd01.key  -out etcd01.csr
+
+систем задаст пару вопросов. все поля неважны кроме CN поля.
+оно орпделеяет кому выдан сертификат. но по факту etcd это поле 
+неиспользует вообще. поэтому в CN надо вбить ну чтото просто информативное для самого себя чтоб понимать для чего этот сертиификат 
+выпущен. я сделал CN=etcd01 . то есть то что этот сертификат я выписываю
+для первой ноды etcd кластера.
+
+проверить заглянуть внутрь csr файла получилось можно через 
+
+#  openssl req  -noout -text -verify -in etcd01.csr
+
+теперь берем csr запрос и непосредственно подписываем его приватным 
+ключом CA и получим сертификат. важный момент состоит в том что 
+в нашем сертификате ОБЯЗАТЕЛЬНО должны быть опреленные поля.
+если их небудет то будут проблемы либо между нода-нода либо между
+нода-клиент. привожу список тех полей которые обязательно должны
+быть в сертификате на выходе
+
+
+ Subject: C=AU, ST=Some-State, O=Internet Widgits Pty Ltd, CN=test-ansible
+
+
+    X509v3 extensions:
+            X509v3 Key Usage: critical
+                Digital Signature, Key Encipherment
+            X509v3 Extended Key Usage:
+                TLS Web Server Authentication, TLS Web Client Authentication
+            X509v3 Authority Key Identifier:
+                keyid:86:2E:81:5C:3C:25:6E:81:F4:02:74:F5:70:50:7D:70:D4:24:79:0D
+
+            X509v3 Subject Alternative Name:
+                DNS:localhost, DNS:test-ansible, IP Address:172.16.102.19, IP Address:127.0.0.1, IP Address:0:0:0:0:0:0:0:1
+
+
+комментирую. 
+должен быть subject  в котором единствнное что нас интересует это CN.
+хотя по факту etcd этот CN никак неиспользует. просто никак.
+поэтому в целом subject его поля с точки зрения etcd вообще неважны.
+они никак невлияют ни на какие параметры связи etcd.
+
+должен бьть X509v3 Key Usage : critical, Digital Signature, Key Encipherment
+
+Key  это публичный ключ сертификата. насколько я нашел critical
+значит что этот публичный ключ может быть использован только и только 
+для того что написано дальще. то есть Digital Signature, Key Encipherment
+Digital Signature = цифровая подпись.
+Key Encipherment = это значит что наш публичный ключ будет использован 
+для шифрования сеансового ключа симметричного шифрования
+
+должен быть X509v3 Extended Key Usage : TLS Web Server Authentication, TLS Web Client Authentication
+
+это насколько я понимаю значит что сертификат будет использован для
+того чтобы мы могли себя представить когда к нам обращаются как 
+к вэб серверу. и чтобы мы могли себя представить когда мы обращается 
+к другому вэб серверу как клиент.
+
+
+X509v3 Authority Key Identifier:
+                keyid:86:2E:81:5C:3C:25:6E:81:F4:02:74:F5:70:50:7D:70:D4:24:79:0D
+
+это  у нас хэш sha-1 вычисленный из публичного ключа CA который
+подписал наш сертификат. он должен совпадать с SKI CA сертификата.
+
+X509v3 Subject Alternative Name:
+                DNS:localhost, DNS:test-ansible, IP Address:172.16.102.19, IP Address:127.0.0.1, IP Address:0:0:0:0:0:0:0:1
+				
+в этом поле мы указываем все DNS имена и все IP под которым мы будем стучаться
+на наш etcd сервер по https
+
+хочу тут сразу упомянуть что в параметрах etcd есть параметр --name
+он никак не связан с полями в сертификате. этот --name никак не влияет
+на поля в сертификате и поля на него не влияют никак.
+
+таким образом в сертификате нам надо указать только все DNS и IP 
+адреса etcd сервера. это супер важно. остальные поля которые я привел
+тоже супер важны но они никак не связаны с конкретными параметрами
+etcd. они связаны с tls  в целом.
+
+тоесть важные параметры в сертиифкате они разбиватся на две группы
+одним важны с точки зрения TLS в целом , другие связаны с параметрами
+etcd ноды.
+
+далее. так вот прикол втом что дефолтовая команда которы подписывает сертификат она нам указанные поля несоздаст. нам нужно 
+создать доп конфиг файл. вот такой
+
+# cat etcd01.cnf
+
+[ req ]
+default_bits       = 2048
+default_md         = sha256
+distinguished_name = req_distinguished_name
+req_extensions     = v3_req
+
+[ req_distinguished_name ]
+countryName            = CN                     # C=
+stateOrProvinceName    = MSK	                # ST=
+localityName           = MSK                    # L=
+organizationName       = My Corporation         # O=
+organizationalUnitName = My Department          # OU=
+commonName             = etcd01				    # CN=
+emailAddress           = myname@example.com     # CN/emailAddress=
+
+[ v3_req ]
+keyUsage = critical, digitalSignature, keyEncipherment
+extendedKeyUsage = serverAuth, clientAuth
+authorityKeyIdentifier = keyid,issuer
+subjectAltName = @alt_names
+
+[ alt_names ]
+DNS.1   = localhost
+DNS.2  = test-ansible
+IP.0 = 172.16.102.19    # ip хоста
+IP.1 = 172.16.102.100   # кластерный Ip
+IP.2 = 127.0.0.1
+IP.3 = 0:0:0:0:0:0:0:1
+
+
+тут приходит мысль про два момента.
+во первых про связь между пирами etcd.
+можно ли настроить чтобы они общались на основе dns а не IP.
+и то что клиенты будут общаться с etcd через хапрокси который имеет
+кластерный IP как там с сертификатами тогда.
+думаю так как etcd это корневой кирпич в инфрастуктуре ненужно жидиться на поля в сертификате. нода должна отзываться по https на все что можно.
+лучше потом перевыпустить сертификат при изменений ip нежели чем
+неиметь связи с нодой по ip либо по dns имени какому нибудь.
+друг с другом пиры будут общаться по IP так что этого будет для
+них достаточно в сертификате.
+клиент скорей всего будет обращаться через хапрокси по кластерному IP 
+поэтому в сертификате будет достаточно указать кластерный IP
+
+итак наконец команда которая нам подпишет сертификат
+и добавит нужные поля
+
+# openssl x509 -req -days 1000 -in etcd01.csr -CA ca.crt  -CAkey ca.key  -out etcd01.crt  -set_serial 1006 -extfile ./etcd01.cnf  -extensions v3_req
+
+проверяем что получили
+что все поля на месте
+
+# openssl x509 -text -noout -in etcd01.crt
+
+
+ Issuer: C=RU, ST=MSK, L=city, O=MK, CN=CA/emailAddress=email@email.com
+ 
+ Subject: C=AU, ST=Some-State, O=Internet Widgits Pty Ltd, CN=etcd01
+ 
+ еще раз замечу что subject имеет чисто информационный характер 
+ в нашем случае и не связан ни с настройками etcd ни с tls вцелом
+ 
+  X509v3 extensions:
+            X509v3 Key Usage: critical
+                Digital Signature, Key Encipherment
+            X509v3 Extended Key Usage:
+                TLS Web Server Authentication, TLS Web Client Authentication
+            X509v3 Authority Key Identifier:
+                keyid:B1:9E:C6:DC:09:83:5C:2E:E0:98:ED:C2:92:23:97:9C:77:D2:E0:8B
+
+            X509v3 Subject Alternative Name:
+                DNS:localhost, DNS:test-ansible, IP Address:172.16.102.19, IP Address:172.16.102.100, IP Address:127.0.0.1, IP Address:0:0:0:0:0:0:0:1
+
+
+все наместе
+все в порядке
+
+keyid совпадает с тем что прописан в ca.crt
+
+замечу еще одну супеважную вещь. когда tls устаналивает 
+связь между нодами то если в https указан dns 
+https://test-ansible
+то tls ищет в сертификате строку где прописано именно поле 
+DNS:
+если в https: указан IP то tls ищет именно поле с IP Address:
+и если ненаходит то tls напишет что хост невалиден.
+а это все указвыается в поле X509v3 Subject Alternative Name: сокращенно
+SAN. если мы просто укажем скажем 172.16.102.19 в поле CN => ЭТО НИЧЕГО 
+НЕДАСТ. потому что в поле CN нет префикса IP Address:
+тоже самое если мы в CN укажем test-ansible это ничего недаст
+так как в поле CN нет префикса DNS:
+это была моя ошибка , я думал что в CN можно это прописать.
+но нет. все это прописывается только в SAN зоне.
+
+итак еще раз в серверном сертификате важно чтобы были все те 
+строчки что я указал. одни важны для TLS  в целом. 
+а другие описывают конкретику ноды на которой будет etcd.
+надо прописать все IP под которыми будет коннект к этой ноде
+и все DNS под которым к ней будут ломиться.  чем больше мы укажем
+в SAN зоне сертификата тем больше шансов что к этой ноде по https 
+можно будет полключиться всегда под любым углом.
+что важно так как etcd ложиться в самое основание куба.
+
+
+тут же укажу параметры etcd для ноды для которой мы создали сертификат
+
+/usr/local/bin/etcd/3.4.13/etcd \
+
+# секция инициализации нового кластера
+--name=test-ansible \
+--initial-cluster-state=new \
+--initial-cluster=test-ansible=https://172.16.102.19:2390,test-linux-01=https://172.16.102.20:2390  \
+--initial-advertise-peer-urls=https://172.16.102.19:2390 \
+
+
+# секция связи с пирами
+--listen-peer-urls=https://172.16.102.19:2390 \
+--peer-cert-file=/home/mkadm/RSA/etcd01.crt \
+--peer-key-file=/home/mkadm/RSA/etcd01.key \
+--peer-trusted-ca-file=/home/mkadm/RSA/CA.crt \
+--peer-client-cert-auth=true \
+
+# секция связи с клиентами
+--trusted-ca-file=/home/mkadm/RSA/CA.crt \
+--client-cert-auth=true \
+--cert-file=/home/mkadm/RSA/etcd01.crt \
+--key-file=/home/mkadm/RSA/etcd01.key \
+--listen-client-urls=https://127.0.0.1:2389,https://172.16.102.19:2389 \
+--advertise-client-urls=https://172.16.102.19:2389 \
+
+# остальные настройки
+--snapshot-count=10000 \
+--listen-metrics-urls=http://127.0.0.1:2391 \
+--data-dir=/var/lib/etcd/3.4.13
+
+
+с сертификатом эти параметры связаны только IP адресами.
+которые относятся к данному хосту.
+параметр --name=test-ansible с полями сертификата никак не связан.
+никак. еще раз никак. этот параметр имеет единственную связь
+с параметром --initial-cluster. это единственное место где --name
+повторно фигурирует. в --initial-cluster мы указываем имя ноды с точки
+зрения именно etcd и сокет на ноде для реквестов от других пиров.
+тоесть 
+--initial-cluster=test-ansible=https://172.16.102.19:2390,test-linux-01=https://172.16.102.20:2390
+эта строка говорит
+etcd имя ноды = test-ansible, ее сокет для реквестов от других пиров = https://172.16.102.19:2390
+
+etcd имя ноды = test-linux-01, ее сокет для реквестов от других пиров = https://172.16.102.20:2390
+
+
+соотсвтесеннно --initial-cluster описывает нашей ноде состав членов
+кластера в целом.
+
+а --name указывает etcd имя нашей ноды. так как в --initial-cluster 
+указана и наша нода то там фигурирует --name.
+
+так вот --name его как я понял хранится внутри базы etcd и его проверяет
+демон etcd у соседа путем etcd реквеста уже после того как https 
+связь между нодами настроена. таким образом --name это внутри etcd 
+фишка и он нигде ни в https ни в полях сертификата никак нефигурирует.
+это было важно понять где же он фигурирует.
+
+теперь когда мы знаем как создать сертифкат для ноды.
+каке там поля и от чего они зависят, когда мы знаем как запустить ноду
+etcd и куда там прописывать сертифкаты мы можем аналогично 
+создать сертификаты для других нод etcd и запустит их. 
+
+вот параметры запуска второй ноды etcd\
+
+
+/usr/local/bin/etcd/3.4.13/etcd \
+--name=test-linux-01 \
+--listen-peer-urls=https://172.16.102.20:2390 \
+--peer-cert-file=/home/mkadm/RSA/etcd02.crt \
+--peer-key-file=/home/mkadm/RSA/etcd02.key \
+--peer-trusted-ca-file=/home/mkadm/RSA/CA.crt \
+--peer-client-cert-auth=true \
+--trusted-ca-file=/home/mkadm/RSA/CA.crt \
+--client-cert-auth=true \
+--cert-file=/home/mkadm/RSA/etcd02.crt \
+--key-file=/home/mkadm/RSA/etcd02.key \
+--listen-client-urls=https://127.0.0.1:2389,https://172.16.102.20:2389 \
+--advertise-client-urls=https://172.16.102.20:2389 \
+--initial-cluster-state=new \
+--initial-cluster=test-ansible=https://172.16.102.19:2390,test-linux-01=https://172.16.102.20:2390  \
+--initial-advertise-peer-urls=https://172.16.102.20:2390 \
+--snapshot-count=10000 \
+--listen-metrics-urls=http://127.0.0.1:2391 \
+--data-dir=/var/lib/etcd/3.4.13
+
+данная нода имеет
+https://172.16.102.20:2390 = сокет для связи с другими пирами
+--listen-client-urls=https://127.0.0.1:2389,https://172.16.102.20:2389 = сокеты для приема клиенских реквестов
+--name=test-linux-01 = этсдэшное имя ноды
+
+замечу опять же что --name=test-linux-01 не имеет никакой связи с 
+DNS именем ноды. --name и DNS никак не связаны. необязаны.между 
+ними зависимости нет. никакой. --name это чисто идентификатов внутри
+etcd кластера.
+
+еще раз также подчернку про CN в сертификате
+поле = CN=test-linux-01 
+само поле обязательно должно присутсоватьав но значение никак неважно. может быть чем угодно,
+никак несявзано сдругим полями в сертифкиаите.
+более того никак не связано с какким либо параетрами в etcd кластере (название ноды и так далее).
+тоесть это поле носит чисто информационный характер но не должно ни с чем совпадать.
+
+еще раз подчеркну про --name
+--name=blabla12
+--initial-cluster-state=new --initial-cluster=kuku13=https://172.16.102.19:2390,blabla12=https://172.16.102.20:2390
+
+так вот --name=blabla12 значение этого параметра blabla12 оно никак не связано с параметрами в сертифкате никакими.
+тоесть между blabla12 и сертификатом нет никакой связи. и это отлично. это чисто внутри etcd егошняя название ноды.
+но к сертифкиатам оно никак не привязано.
+
+
+
+теперь нам только остается создать клиентский сертификат
+чтобы можно было коннектиться к etcd нодам для реквестов.
+
+привожу поля которые обяазатеьно должны быть в клиентском сертифктте
+
+ Subject: O=system:masters, CN=kube-apiserver-etcd-client
+
+X509v3 extensions:
+            X509v3 Key Usage: critical
+                Digital Signature, Key Encipherment
+            X509v3 Extended Key Usage:
+                TLS Web Client Authentication
+            X509v3 Authority Key Identifier:
+                keyid:D0:4A:2D:FF:B6:84:58:84:45:78:6A:FD:04:71:26:A1:1E:56:65:A1
+
+
+значение этой переменной CN=  неважно.
+
+главное чтобы он был выпущен тем же самым удоствернынным центром
+который на нодах указан в параметре --trusted-ca-file=/home/mkadm/RSA/CA.crt
+чтобы ноды могли проверить клинетский сертификат что он дейсивтельно выдан CA.crt
+
+имея клиенсткий сертификат можно подключится к etcd кластеру
+с любого абсолютно любого компа пользуясь одним и тем же
+сертификатом. сертификат выступает как бы как логин.
+
+этапы будут такиеже.
+создаем приватный ключ.
+создаем реквест на подпись.
+создаем доп конфиг файл.
+подписываем сертификат.
+
+создаем приватный ключ клиенсткий
+
+#  openssl genrsa -out client.key   2048
+
+создаем реквест на подпись.
+
+# openssl req -new -key client.key  -out client.csr
+
+единственное поле которое он спросит и нам интересно
+это 
+
+Common Name (e.g. server FQDN or YOUR name) []:apiserver-to-etcd
+
+оно носит чисто информационный характер. ни с каким конфигами
+не связано.
+чисто чтоб нам понимать кому и зачем мы его выписываем
+
+
+доп конфигурационный файл
+
+# cat client.cnf
+
+[ v3_req ]
+keyUsage = digitalSignature, keyEncipherment
+extendedKeyUsage = clientAuth
+authorityKeyIdentifier = keyid,issuer
+
+подписываем сертификат и добавляем нужные поля
+
+# openssl x509 -req -days 900 -in client.csr -CA ca.crt  -CAkey ca.key  -out client.crt  -set_serial 1012 -extfile ./client.cnf  -extensions v3_req
+
+
+
+на что дополнительно можно обратить внимание на срок на который я выдаю сертификаты.
+можно написать 10000 дней чтоб навсегда они были валидны.
+
+
+проверить что получилось в сертификате
+
+# openssl x509 -text -noout -in ./client.crt
+
+
+так выглядит реквест к кластеру когда сертификат клиента готов
+
+# ETCDCTL_API=3   etcdctl --endpoints=https://localhost:2389 --cacert=/home/mkadm/RSA/CA.crt --cert=/home/mkadm/RSA/client.crt --key=/home/mkadm/RSA/client.key member list
+
+мы указываем CA сертификат чтобы проверить достоверность сертификата
+который нам покажет сервер. и клиентский сертификат и приватный ключ
+от клиенского сертификата чтобы мы могли аутентифицироватся перед
+сервером и установить потом шифрованный сеанс.
+
+доп сертификаты для остальных нод etcd выпускаем по аналогии.
+
+комплект сертифкатов изготовили. теперь начинаем запускать etcd через докер на хостах.
+
+в этой строке 
+--initial-cluster=test-ansible=https://test-ansible:2390
+мы указываем для нашей ноды где ей искать пир сокеты других нод
+так что если мы указываем не IP а DNS -> https://dns-имя:port
+то надо быть уверенным что на нашей ноде есть записи в dns
+чтобы она могла разрешить эту штуку в IP
+еще раз важный момент - эта строка прописываем ДЛЯ НАШЕЙ НОДЫ 
+пир сокет ДРУГИХ НОД. наша нода будет обращаться туда.
+
+--initial-advertise-peer-urls=https://test-ansible:2390  
+эта строка у нас для других. мы сообщаем другим что наш пир 
+сокет вот такой. тут важно чтобы другие могли достучаться до него.
+если мы указали dns то надо чтобы они могли его разрешить
+
+
+запускаем etcd в конейтенере:
+
+качаем имадж etcd
+
+# docker pull quay.io/coreos/etcd:v3.3.25
+
+создаем volume и копируем туда ключи ca.crt, клиенсткий сертифкат
+и приватный ключ от клиенсткого сертификтаа
+
+# docker volume create docker-vol-01
+
+# docker inspect volume docker-vol-01
+[
+    {
+        "CreatedAt": "2020-10-22T19:31:17+03:00",
+        "Driver": "local",
+        "Labels": {},
+        "Mountpoint": "/var/lib/docker/volumes/docker-vol-01/_data",
+        "Name": "docker-vol-01",
+        "Options": {},
+        "Scope": "local"
+    }
+]
+
+# cp /папка с сертификтами /var/lib/docker/volumes/docker-vol-01/_data
+
+параметры запуска etcd на ноде
+
+/usr/local/bin/etcd \
+
+--name=test-ansible \
+--initial-cluster-state=new \
+--initial-cluster=test-ansible=https://test-ansible:2380  \
+--initial-advertise-peer-urls=https://test-ansible:2380 \
+
+--listen-peer-urls=https://0.0.0.0:2380 \
+--peer-cert-file=/etc/etcd/etcd01.crt \
+--peer-key-file=/etc/etcd/etcd01.key \
+--peer-trusted-ca-file=/etc/etcd/ca.crt \
+--peer-client-cert-auth=true \
+
+--trusted-ca-file=/etc/etcd/ca.crt \
+--client-cert-auth=true \
+--cert-file=/etc/etcd/etcd01.crt \
+--key-file=/etc/etcd/etcd01.key \
+--listen-client-urls=https://0.0.0.0:2379 \
+--advertise-client-urls=https://test-ansible:2379 \
+
+--snapshot-count=10000 \
+--listen-metrics-urls=http://127.0.0.1:2381 \
+--data-dir=/etcd-data \
+
+что выяснилось про особенностти старта etcd через докер.
+
+/usr/local/bin/etcd = путь к  бинарнику в имадже
+поскольку мы заранее незнаем IP нашего контенера 
+зато мы знаем что докер обязательно в контейнере пропишет в
+hosts связь между DNS именем контейнера и его IP.
+так что везде пихаем DNS имя компа вместо IP адреса.
+при этом выяснилось что так сделать можно не вовсех настройках.
+оказалось что вот в этих строчка etcd требует указать только 
+IP адрес и ничего другого. так что выход проставит там 0.0.0.0
+--listen-peer-urls=https://0.0.0.0:2380 \
+--listen-client-urls=https://0.0.0.0:2379 \
+
+еще выяснилось что папака под данные дефолтовая /var/lib/etcd 
+она есть в контейнере но etcd ругается что у нее неверные пермишнсы
+зато у разрабов  я посмотрел то что они используют другую папку
+
+--data-dir=/etcd-data
+
+но я потом сделал по  другому. я создал еще контейнер
+
+# docker volume create docker-vol-02
+# docker inspect volume docker-vol-02
+[
+    {
+        "CreatedAt": "2020-10-23T20:54:12+03:00",
+        "Driver": "local",
+        "Labels": null,
+        "Mountpoint": "/var/lib/docker/volumes/docker-vol-02/_data",
+        "Name": "docker-vol-02",
+        "Options": null,
+        "Scope": "local"
+    }
+]
+
+
+
+и я на него дал пермишнсы вот такие которые требует etcd
+на свою папку с данными
+
+\"-rwx------\
+
+или в числовом виде 700
+
+# chmod 700 /var/lib/docker/volumes/docker-vol-02/_data
+
+и я эту папку при старте контейнера прокидываю внурь контейнера в 
+/etcd-data.соотвественно права которые я дал этой папке в моем неймпейсе
+остаются такими же в том неймспейсе
+
+дальше при старте он напишет что лучще использовать логгер = zap
+так что я вставил еще настройку
+
+--logger=zap \
+
+что такое этот zap это логгер для приложений написанных на Go
+а прикол в том что etcd написан как раз на Go.
+
+еще при задании кластера лучше задать параметр в явном виде
+
+--"initial-cluster-token":"etcd-cluster",
+
+это типа как название кластера. чтоб с другим неспутался
+
+вот такие комментарии про особенности занчений параметров
+etcd если его запускать в контейнере
+
+собственно вот так непосдерстенно запускаем конетйнер
+
+# docker run \
+--name etcd02 \
+-d \
+--net=host \
+-h etcd02 \
+--mount source=docker-vol-01,target=/etc/etcd \
+--mount source=docker-vol-02,target=/etcd-data \
+--restart unless-stopped \
+quay.io/coreos/etcd:v3.4.13 \
+/usr/local/bin/etcd \
+--name=etcd02 \
+--initial-cluster-state=new \
+--initial-cluster-token=etcd-cluster-01 \
+--initial-cluster=etcd02=https://etcd02:2380  \
+--initial-advertise-peer-urls=https://etcd02:2380 \
+--listen-peer-urls=https://0.0.0.0:2380 \
+--peer-cert-file=/etc/etcd/etcd02.crt \
+--peer-key-file=/etc/etcd/etcd02.key \
+--peer-trusted-ca-file=/etc/etcd/ca.crt \
+--peer-client-cert-auth=true \
+--trusted-ca-file=/etc/etcd/ca.crt \
+--client-cert-auth=true \
+--cert-file=/etc/etcd/etcd02.crt \
+--key-file=/etc/etcd/etcd02.key \
+--listen-client-urls=https://0.0.0.0:2379 \
+--advertise-client-urls=https://etcd02:2379 \
+--snapshot-count=10000 \
+--listen-metrics-urls=http://127.0.0.1:2381 \
+--data-dir=/etcd-data \
+--logger=zap \
+
+поскольку мы публикуем контейнер в "сети" хоста, то есть сетевой
+неймспейс конткнера такой же как дефолтовый сетевой неймспейс то 
+нам ненужно использовать параметр -p который пробрасыавет порты
+из контейнера в хост. при этом у нас netstat будует показывать
+что на портах сидит чистый etcd а не dockerproxy процесс
+
+~# netstat -tnlp
+Proto Recv-Q Send-Q Local Address           PID/Program name
+tcp        0      0 127.0.0.1:2381          2552/etcd
+tcp6       0      0 :::2379                 2552/etcd
+tcp6       0      0 :::2380                 2552/etcd
+
+
+важный параметр --restart unless-stopped = он автоматом запустит
+контейнер после reboot хоста. также он перезапустит контейнер автомтом
+если контейнер сдох. и только если мы сами остановим контейнер то
+докер его небудет автомтом запускать.
+если забыл этот параметр установить то можно его динамически добавить
+уже после того как контейнер запущен через команду
+
+# docker container update --restart unless-stopped etcd01
+
+
+далее.что я выяснил после знака '/' обязательно сразу нужно переводить строку
+иначе потом при копировании в bash он небудет понимать что 
+ввод команды еще кончился.
+
+еще надо понимать что у контейнера hostname=etcd02 и изнутри контейнера 
+это DNS имя резолвится на внутриконтейнерный ip через hosts.
+а вот на внешнем DNS сервере я прописал что etcd02 резолвится на
+IP сервера на котором крутится контейнер.потому что другие контейнеры
+на других хостах понятия неимеют о DNS=etcd02
+
+проверяем  как там все стартануло
+
+# docker ps
+~# docker ps
+COMMAND                  PORTS                              NAMES
+"/usr/local/bin/etcd…"   0.0.0.0:2379-2380->2379-2380/tcp   test-ansible
+
+смотрим логи
+видим что там все запустилось
+
+# docker logs test-ansible
+
+пробуем приконектиться к кластеру (из одной ноды) изнутри 
+контейнера
+
+# docker exec -it test-ansible \
+             /bin/sh -c 'ETCDCTL_API=3  /usr/local/bin/etcdctl \
+             --endpoints=https://localhost:2379 \
+             --cacert=/etc/etcd/ca.crt \
+             --cert=/etc/etcd/etcd01.crt \
+             --key=/etc/etcd/etcd01.key \
+             member list'
+
+704e2900e1fdf07, started, test-ansible, https://test-ansible:2380, https://test-ansible:2379, false
+
+как видно мы можем сервеный сертиифкат использовать как клиентский.
+ну так  оно и есть. главное что он выдан ca который указан 
+в параметре 
+--trusted-ca-file=/etc/etcd/ca.crt 
+
+успех
+
+пробуем приконектиться к etcd снаружи с хоста
+
+#  CERT_PATH=/home/mkadm/RSA/second-set; \
+   ETCDCTL_API=3   \
+   /usr/local/bin/etcd/3.4.13/etcdctl \ --endpoints=https://localhost:2379 \
+   --cacert=$CERT_PATH/ca.crt \
+   --cert=$CERT_PATH/client.crt \
+   --key=$CERT_PATH/client.key \
+   member list
+
+fbc5147a223e2f8c, started, test-ansible, https://test-ansible:2380, https://test-ansible:2379, false
+
+
+следущий шаг -> 
+0) добавить volume для data папки
+
+добавил папку, только на нее надо руками поставтиь 700 пермищн
+для etcd 
+
+1)разобраться с --initial-cluster-state=new\existing
+
+что я сделал
+папка под данные прокинута с фс хоста
+я выставил параметр --initial-cluster-state=new
+я записал ключ в кластер
+я удалил контейнер 
+потом я создал новый контейнер в нем по прежнему --initial-cluster-state=new
+
+и при этом ключ записанный сохранился.
+тоесть если папка с данными непуста то нода неперетирает данные
+даже если --initial-cluster-state=new
+
+поэтому зачение этого ключа пока непонятно
+но по краней мере =new неперетирает данные в папке с данными
+
+
+2)поднять кластер из двух контейнеров на двух хостах.
+
+прежде чем запускать второй контенер надо 
+через etcdctl подкючиться к первому контейнеру и добавить
+новый член кластера загодя
+
+то есть
+
+# etcdctl ... member add etcd01 --peer-urls="https://etcd01:2380"
+
+или в полном виде со всеми причиндалами
+
+# CERT_PATH=/home/mkadm/RSA/second-set; ETCDCTL_API=3   /usr/local/bin/etcd/3.4.13/etcdctl --endpoints=https://localhost:2379 --cacert=$CERT_PATH/ca.crt --cert=$CERT_PATH/client.crt --key=$CERT_PATH/client.key  member add etcd01 --peer-urls="https://etcd01:2380"
+
+Member d75f326b69b82fd3 added to cluster 20e8e1ca7c41373b
+ETCD_NAME="etcd01"
+ETCD_INITIAL_CLUSTER="etcd02=https://etcd02:2380,etcd01=https://etcd01:2380"
+ETCD_INITIAL_ADVERTISE_PEER_URLS="https://etcd01:2380"
+ETCD_INITIAL_CLUSTER_STATE="existing"
+
+вот тока теперь можно запускат второй контейнер
+
+поднимаю второй контейнер на второй ноде и пытаюсь его подключить 
+к кластеру из контейнера на первой ноде (единсвтенное что нелогично
+на первой ноде название etcd02 а на второй ноде название etcd01)
+
+
+
+# docker run \
+--name etcd01 \
+-d \
+--net=host \
+-h etcd01 \
+--mount source=docker-vol-01,target=/etc/etcd \
+--mount source=docker-vol-02,target=/etcd-data \
+--restart unless-stopped \
+quay.io/coreos/etcd:v3.4.13 \
+/usr/local/bin/etcd \
+--name=etcd01 \
+--initial-cluster-state=existing \
+--initial-cluster-token=etcd-cluster-01 \
+--initial-cluster=etcd01=https://etcd01:2380,etcd02=https://etcd02:2380  \
+--initial-advertise-peer-urls=https://etcd01:2380 \
+--listen-peer-urls=https://0.0.0.0:2380 \
+--peer-cert-file=/etc/etcd/etcd01.crt \
+--peer-key-file=/etc/etcd/etcd01.key \
+--peer-trusted-ca-file=/etc/etcd/ca.crt \
+--peer-client-cert-auth=true \
+--trusted-ca-file=/etc/etcd/ca.crt \
+--client-cert-auth=true \
+--cert-file=/etc/etcd/etcd01.crt \
+--key-file=/etc/etcd/etcd01.key \
+--listen-client-urls=https://0.0.0.0:2379 \
+--advertise-client-urls=https://etcd01:2379 \
+--snapshot-count=10000 \
+--listen-metrics-urls=http://127.0.0.1:2381 \
+--data-dir=/etcd-data \
+--logger=zap \
+
+
+
+по сравнению с первым контейнером во втором я указал уже оба члена
+и existing:
+
+--initial-cluster-state=existing \
+--initial-cluster=etcd01=https://etcd01:2380,etcd02=https://etcd02:2380  \
+
+
+таким образом я научился динамически добавлять новых членов 
+в кластер.
+
+остается вопрос о том что кластер у нас уже existing
+а на первом контейнере ведь при запуске так и висит настройка
+что он якобы new. непонятно что делать.
+
+походу получается new имеет значение когда кластер внатуре
+еще и данных нет. потом эта настройка игнорится.
+
+кластер из 1 ноды . кворум 1 нода. безопасно поломаться может 0 нод.
+из 2 нод. кворум 2 ноды. безопасно поломка 0 нод.
+из 3 нод. кворус 2 ноды. безопасно поломка 1 нода. 30%
+из 4 нод. кворм 3 ноды. безопаснс поломка 1 нода. 25%
+из 5 нод. корум 3 ндоы. безопасна поломка 2 ноды. 40%
+из 6 нод. кворум 4 ноды. безопасна поломка 2 ноды. 33%
+из 7 нод. кворум 4 ноды. безопасна поломка 3 ноды. 42%
+из 8 нод. кворум 5 ноды. безопасна поломка 3 ноды. 37%
+из 9 нод. кворум 5 ноды. безопасна поломка 4 ноды. 44%
+
+думаю что надо из 9 нод кластер воротить для норм редунданси.
+
+
+следущий шаг -спрятать etcd за кластеризованным хапрокси.
+
+про etcd. про его сертифкаты. в сертифкате ненужно указывать никакие 
+ip кроме 127.0.0.1 итп. то есть он непривязан к ip.и это хорошо
+в этом его универасльность. в сертификате надо указать 
+dns имя etcd ноды чтобы к ней кокнетно достучаться и dns имя кластерного
+ip через который мы будем стучаться на keeplived+haproxy связку
+
+значит тут вылезла тут такая вещь связанная со связкой keepalived+haproxy+etcd, дело в том что если хапрокси будет сидеть 
+на том же хосте что и etcd нода то будет проблема вот какая.
+выясняется вот если напрямую клиент будет ломиться напрямую на etcd
+то он будет ломиться на порт 2379. а если мы перед etcd мы поставим
+хапрокси то надо же ему тоже надо давать слущать порт 2379.
+etcd  у нас сидит на 0.0.0.0:2379 и хапрокси нам надо сажать на 0.0.0.0
+потому что только там его можно включить в связку с keepalived.
+и получсется вопрос о том что они же немогут сидеть на одном порту.
+ктото один может только сидеть на одном порту.  получается либо одному
+нужно порт менять либо другому. я пришел к выводу что я нехочу менять 
+порт ни для клиентов (то есть на хапрокси) ни на etcd нехочу менять 
+если к нему захотят обратиться напрямую. не хочу менят etcd порт при его 
+публикации. поэтому я решим хапрокси иметь не наодном хосте с etcd.
+
+и тут я вспомнил что когда мы имеем кластер куба и etcd вместе 
+то есть куб+etcd+хапрокси+etcd на одном хосте то там же я тоже должен 
+был столкнуться с этой проблемой и я там вижу
+
+frontend apiserver
+    bind *:6440
+    mode tcp
+    option tcplog
+    default_backend apiserver
+
+
+backend apiserver
+    option httpchk GET /healthz
+    http-check expect status 200
+    mode tcp
+    option ssl-hello-chk
+    balance     roundrobin
+        server test-kub-04 127.0.0.1:6443 check
+        server test-kub-05 172.16.102.35:6443 check
+        server test-kub-06 172.16.102.37:6443 check
+
+
+я вижу что такое возможно только потому что порт на входе = 6440
+а порт на бекенде = 6443
+
+и такое возможно потому что когда мы инициализируем куб мы ему 
+специально говорим что у нас порт для аписервер будет кастомный
+
+# kubeadm init --control-plane-endpoint "LOAD_BALANCER_DNS:LOAD_BALANCER_PORT" --upload-certs
+
+поэтому такая связка работает что мы имеем на хапрокси (который 
+выступает балансером) порт на вход для аписервера недефолтовый.
+
+так вот я возвращаюсь к etcd кластеру через хапрокси возможно при установке куба можно указать ему что мол ломись на кастомный порт 
+для etcd. но я так нехочу делать
+
+поэтому я размещу балансер для etcd на отдельном от etcd хосте. 
+тогда и на хапрокси и на etcd будет один и тот же порт. что очень 
+хорошо.
+
+что важно про хапрокси. что там нужно открывтаь только 2379 порт
+ а порт 2380 ненужно. потому что через хапроси будут идти
+ толко клиенские запросы. а  общение пир ту пир у etcd нод будет 
+ идти напрямую без хапрокси
+ 
+ 
+ конфиг хапрокси который работает. да еще и проверку нод etcd
+ на хэлсчек делает и веб морду статсистики хапрокси делает на порт 1936
+ 
+ 
+frontend etcd-cluster
+    bind *:2379
+    mode tcp
+    option tcplog
+    default_backend etcd-backend
+
+
+
+backend etcd-backend
+    mode tcp
+    option ssl-hello-chk
+    balance     roundrobin
+        server etcd01 etcd01:2379 check
+        server etcd02 etcd02:2379 check
+
+
+
+listen stats
+    bind :1936
+    stats enable
+    stats uri /
+    stats auth guest:wtf
+
+
+замечу что хэлсчек ssl задается в бекенде строкой
+option ssl-hello-chk
+и в каждой строке где server добавляем check
+server ..... check
+
+
+
+что дает запуск etcd из конетйнера по сравннеию со стартом из systemd.
+контейнер нам дает то что мы в любом линуксе с любой версией если мы
+туда поставили докер то можем туда накатить любую версию etcd 
+лишь у нее был докер имадж в репозитории. а через systemd мы упираемся
+только в те версии которые есть в deb пакетах для данной версии
+линукс.
+
+
+
+замечу полезную опцию для etcdctl чтобы нам смотреть здовроье кластер etcd
+и при этом указать только один endpoint
+
+#  etcdctl --endpoints=https://etcd-kub-cluster-01:2379 ...
+endpoint health --cluster
+
+https://etcd01:2379 is healthy: successfully committed proposal: took = 27.004455ms
+https://etcd02:2379 is healthy: successfully committed proposal: took = 21.57358ms
+
+вот я указал только один endpoint а он мне покзаал здоровье 
+всех эндпоинтов. по умолчанию надо указывать все эндпоинты чтобы 
+увидеть их здовроье.
+
+
+//кстати
+схема за что щас виртуалки отвечают
+#первый куб
+test-kub-01
+test-kub-02
+test-kub-03
+	куб  один контрол плейн, etcd встроенные
+
+#второй куб
+test-kub-04
+test-kub-05
+test-kub-06
+	куб  несколко контрол плейнов, etcd встроенные
+
+#третий куб
+test-kub-07
+test-kub-08
+	куб несколько контрол плейн
+test-etcd01
+test-etcd02
+	etcd внешние на докер контейнерах
+test-linux-01
+test-linux-02
+	keepalived+haproxy для etcd
+
+//
+
+
+вроде бы все. мы имеем кластеризованный хапрокси с точкой входа
+за который сидит кластер etcd. также etcd контейнеры автоматом стартуют
+после перезагрузки хоста.
+теперь можно приступать прилеплять к нему куб.
+будем иметь keepalived и хапрокси в форме systemd служб, etcd в форме
+докер контейнеров, куб панель управления в форме подов.
+в целом это будет уже платформа на которую можно уже опираться и ставить
+на нее эластик.правда еще нужен отказуостойчивый сетевой сторадж.
+ну и еще по хорошему система монторинга нужна подов.
+
+
+>>>>>>>>>остановился здесь!!
+
+2) поставить etcd  отдельно и потом к нему подключить куб.
+etcd ставим на на докер контейнеры
+
+2.1) поставить etcd на кубелеты и потом к нему подключить куб
+
+2.5) описать с нуля полностью все команды которые надо ввести
+на хостах чтобы собрать keepalived+haproxy+etcd
+только команды и конфиги без длинных коментариев.
+
+2.6) надо понять может как то etcd можно присобавит к кубу в форме
+подов и при этом чтобы etcd был внешний кластер по отношению к кубу
+
+2.7) описать установку etcd через docker compose
+
+варианты установки отдельного etcd.
+можно его усатнвовить либо на основе systemd.
+либо на основе докера
+либо подвязать к kubelet.
+
+если через systemd то это непортабл конфигурация.и мы не будем видеть
+статистику по etcd в кубе.
+
+если докер то незнаю насколько он круто следит за тем что сервис
+работает и неупал. также мы неувидим стаитситику по etcd в кубе.
+также надо руками пробарсывать папки из фс хоста в контейнер.
+более портабл конфигуарция.
+
+подвязать к кубелет. засунуть  etcd в его манифесты.
+но кубелет надо подвязывать к конкретому как я понимаю apiserver
+чтобы потом через kubectl который подвязан к этому апи серверу
+можно было увидеть etcd как под. тоесть схема такая
+
+etcd подвзяваем к -> кубелет  -> апи сервер  < -- kubectl 
+
+ну этот както неудобно.
+
+ну можно сделать ту ноду на которой etcd + кубелет как дата нода типа.
+которая принадлежит не кокнретной контрол панели а кластеру вцелом.
+но дата нода подключается когда уже создана контрол панель. а контрол
+панель работает только когда она уже подключена к etcd.
+
+скорей всего я щас будут ствить etcd на основе докер
+
+3) надо узнать вот про эту настройку
+--initial-cluster-state=new \existing
+
+
+ 
+
+--
+этсдэ стартанул и написал
+ pkg/fileutil: check file permission: directory "/var/lib/etcd/3.4.13" exist, but the permission is "drwxr-xr-x". The recommended permission is "-rwx------" to prevent possible unprivileged access to the data.
+ 
+
+для etcd кластера клинетский сертфикат имеет только одно поле
+которого уже достаточно это CN=
+главное чтобы этот спертифкат был подписан CA который для etcd указан в настрйоке --trusted-ca-file=/home/mkadm/RSA/CA.crt
+
+
+
+
+
+
+>вопрос-3.6> надо понять вот что :
+при изначальном бутстрапе у нас для нашей ноды четко 
+указано какой subject должен быть в сертифкате соседа
+ --initial-cluster=test-kub-05=https://test-kub-05:2380,test-kub-06=https://test-kub-06:2380,test-kub-04=https://test-kub-04:2380
+тоесть наша нода будет требовать вот таких владельцев в сертийикате
+test-kub-05
+test-kub-04
+test-kub-06
+
+можно ли тогда чтобы названия нод которыетоже указкащы в initial-cluster
+были другие
+
+второй вопрос связан с joint к существуюдщеуму кластеру
+во первых неаонятно как указать соседей, 
+
+
+
+
+>вопрос-4> флаг --initial-cluster-state=new меняет ли его система на 
+existing после того как кластер установился
+
+
+>вопрос-5> на следущем шаге надо научиться ставиить кластер etcd 
+вначле через команную строку, потом через systemd, поотом 
+чрез докер, потом через kubelet. 
+
+>вопрос-6>потом надо пнять если я его сотрую
+повредю в кубе то его легко восстанвить?
+
+>вопросы-7> etcd - ставим кдастер, потом доавляем новых членов
+потом гасим старых . будет лти знать куб о новых членах
+
+брем из юэкапа свооовсттанваливаем ноду. 
+данные в кластере неиспортятсят ?
+
+кластер из 3 и калстер из 10 etcd. какой надежнее 
+
+нубиваемоссть или востсананливаеомсть системыных подов
+
+кластер, внений сторадж, неубиваеме сист поды, немсколко 
+контро плейнов, правильный etcd = надежный куб на 
+когторый уже можно чтото накатывать
+
+вопрос -8 > система монтиронига подов
+
+
+
+ 
+ 

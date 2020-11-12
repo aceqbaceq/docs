@@ -1,0 +1,181 @@
+берем свежую виртуалку
+
+$ sudo  apt-get -y install git
+
+узнаем где лежит git-shell
+
+$ which git-shell
+/usr/bin/git-shell
+
+
+добавляем его в /etc/shells
+
+~$ cat /etc/shells
+# /etc/shells: valid login shells
+/bin/sh
+/bin/dash
+/bin/bash
+/bin/rbash
+/usr/bin/tmux
+/usr/bin/screen
+/usr/bin/git-shell
+
+
+создаем юзера для гита
+
+~$ sudo adduser --disabled-password git
+
+входим под этим юзером и начинаем создавать папки и файлы
+
+$ sudo su git
+$ cd ~
+$ mkdir ~/.ssh && chmod 700 ~/.ssh
+$ touch ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys
+
+
+теперь нам надо добавить публичные rsa ключи тех юзеров которым
+можно будет логиниться на этот git сервер
+
+для этого идем на тот хост на котором мы сидим как простой юзер 
+и там создаем пару ключей открытый и закрвтый
+
+(some-host)$ ssh-keygen
+
+после этого читаем публичный ключ 
+
+$ cat /home/mkadm/.ssh/id_rsa.pub
+ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDXiJJPgqoGPbeU4eIbkXsTHkVx/Y0M3rR2TuHF60Ep3peBc0kJehzLLQLGbGUjW6FLDTiHLM05ujh9tltloQ3n18armrTFIv/2K+jdWWAaxm5ZQdDz/5fdFA/DMyXzrkLQMFqe0Bva6MVVLkEMLtmkt9FvDdFqT9xejKQxF6kx3J8F9N0g/1iqHIIuA65185920JAlsN58mQKmW+I4X6i383NpMzfKMs3p0iYzS/2TCJoNKaGiWgH7tb+GAiotj6P+RWinXup09PPSBlxwJdvk8Uuj7yIpgIKK5JRpHyUNnSjIeixCxoSYMZ7koiw1tJYnqS9S3qPXs2Qgb7NiDFPr mkadm@test-kub-01
+
+возвращаемся на наш гит сервер и вбиваем этот публичный ключ
+а файл 
+
+$ vim ~/.ssh/authorized_keys	
+
+меняем дефолтовый shell для git
+
+# sudo usermod -s /usr/bin/git-shell git
+
+создаем первый git репозиторий
+
+# sudo -u git -s /bin/bash
+$ cd /home/git
+$ mkdir git-repo-01.git
+$ cd git-repo-01.git/
+$ git init --bare
+
+все мы его создали и инициализировали
+
+теперь можем  к нему обратиться снаружи
+
+идес на хост где у нас клиент от которого мы публичный ключ брали
+и 
+
+$ git clone git@test-git-01:git-repo-01
+Cloning into 'git-repo-01'...
+The authenticity of host 'test-git-01 (172.16.102.57)' can't be established.
+warning: You appear to have cloned an empty repository.
+
+окей. гит сервер работает
+
+сделаем первый коммит в этот репозиторий
+
+$ touch vasya.txt
+$ git add .
+$ git commit -m "first commit"
+$ git push git@test-git-01:git-repo-01 master
+
+все сработало
+
+теперь нам надо прикрутить вэб морду к гит серверу
+
+идем на гит-сервер
+
+$ sudo apt-get -y install nginx gitweb fcgiwrap libcgi-session-perl
+$ sudo  systemctl enable fcgiwrap nginx
+$ sudo  systemctl start fcgiwrap nginx
+
+(кстати очень важно установить libcgi-session-perl без нее незаведется)
+
+
+схема работает както так 
+(кто к кому через что обращается)
+
+nginx -> fcgiwrap -> gitweb -> /var/lib/git
+
+нам надо законфигурировать nginx, fcgiwrap конфигурировать ненужно,
+gitweb его настройки лежат в /etc/gitweb.conf в основном там единственная
+насройка о том в какой папке gitweb ищет гит репозитории. фишка в том
+что по умолчанию гитвеб ищет репозитории в папке /var/lib/get но наш
+то репозитория лежит вобще в другой папке /home/git/git-repo-01
+какой выход. самый правильный выход это сделать симлинк из 
+/home/git/git-repo-01 --> /var/lib/git
+тогда нам ненужно будет ебаться с премишнсами на файлы
+потому что для gitweb нужны одним пермишнсы на файлы а для нашего гит репо
+зитория другие.
+
+так что
+
+# ln -s /home/git/git-repo-01.git /var/lib/git
+
+остается законфигурировать nginx
+
+( согласно вот этому https://gist.github.com/mcxiaoke/055af99e86f8e8d3176e )
+
+создаем файл  /etc/nginx/sites-available/gitweb
+	
+server {
+  # Git repos are browsable at http://test-git-01:80/
+  listen 80 ;   
+  server_name test-git-01;
+
+  location /index.cgi {
+    root /usr/share/gitweb/;
+    include fastcgi_params;
+    gzip off;
+    fastcgi_param SCRIPT_NAME $uri;
+    fastcgi_param GITWEB_CONFIG /etc/gitweb.conf;
+    fastcgi_pass  unix:/var/run/fcgiwrap.socket;
+  }
+
+  location / {
+    root /usr/share/gitweb/;
+    index index.cgi;
+  }
+}
+
+насколько я протестировал вот эта строка
+	  server_name test-git-01;
+не имеет никакого значения. но лучше ее поставить такой как путь
+по которому мы будем обращаться к сайту. ну тоест сайт будет открывтаься
+и по http://IP
+
+
+	
+	потом такая команда
+	# ln -s /etc/nginx/sites-available/gitweb /etc/nginx/sites-enabled/gitweb
+
+следущий шаг важно удалить файл
+
+# rm /etc/nginx/sites-enabled/default
+
+так как мы наш сайт вешаем на главную страницу на порт 80 то надо 
+удалить "дефолтовый нжинксовский сайт"
+
+еще раз важно удалить нахер этот файл а то и наш сайт будет пытаться сесть на порт 80 и дефолтовый жинксовский сайт там уже висит. и при рестарте жинкса будет ошибка
+	
+	теперь можно презапусктаь жинкс
+
+
+$ sudo  systemctl restart nginx
+
+все
+
+должно открыаться
+
+http://test-git-01 либо http://IP
+
+соотсвтевено если мы создаим +1 гит репо по адресу /home/git/*.git
+то надо будет для этой папки создать симлинк на /var/lib/git иначе
+gitweb этот новый репозиторий просто неувидит
+
+==

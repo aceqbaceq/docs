@@ -1,0 +1,2 @@
+ sudo gluster volume create testvol replica 2 thin-arbiter 1 transport tcp test-gluster-0{1..2}.glusternet:/opt/gluster-vols/vol-01  test-gluster-03.glusternet:/var/lib/glusterd/vols/thin-arbiter.vol
+volume create: testvol: success: please start the volume to access data

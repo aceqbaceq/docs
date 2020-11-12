@@ -1,0 +1,46 @@
+linux
+общее
+
+--
+ubuntu 20 
+сука в два раза жирнее по диску чем ubuntu16
+гораздо мнеее отзывчивый тяжелый
+
+стал как и весь другой софт сразу занчительно неповоротливый тяжелый.
+нахуй он такой нужен
+тяжело натужно грузится
+миллион служб. все как с другим софтом чем дальше тем хуевей
+убунту 16 просто ракета по сравению
+
+что нужно допилить напильиником в ubuntu 20:
+
+	иодитский netplan 
+	как его удалить - https://disnetern.ru/disable-netplan-ubuntu/
+	причем netplan я удалидл. ifupdown пакет поставил но при этом
+	настройки про dns из /etc/networkj/interfaces нихера не подсатыватся.
+	в итоге нужно еще поставить # apt install resolvconf
+	тогда настройки dns надо прорисывать в /etc/resolv.conf про dns
+	как и когда то одавно!
+		# cat resolv.conf
+		nameserver 172.16.101.2
+		nameserver 172.16.101.7
+		domain mk.local
+		search mk.local
+
+	нужно пояс часовой сделать москва
+	 sudo timedatectl set-timezone Europe/Moscow
+
+	удалит floppy из системы.
+	$ sudo rmmod floppy
+				$ echo "blacklist floppy" | sudo tee /etc/modprobe.d/blacklist-floppy.conf
+				$ sudo dpkg-reconfigure initramfs-tools
+				
+	
+--
+
+
+делаем чтобы можно было к нектиться к ФС
+
+ceph auth get-or-create client.cephfs mon 'allow r' osd 'allow rwx pool=cephfs_metadata,allow rwx pool=cephfs_data' -o /etc/ceph/client.cephfs.keyring
+
+ceph-authtool -p -n client.cephfs /etc/ceph/client.cephfs.keyring > /etc/ceph/client.cephfs
