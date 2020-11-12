@@ -1,0 +1,78 @@
+установка пакетов кубернетеса на хост
+
+# curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
+
+(вместо curl можно было бы использовать wget)
+
+# echo 'deb http://apt.kubernetes.io/ kubernetes-xenial main' | sudo tee /etc/apt/sources.list.d/kubernetes.list
+
+здесь мы добавили корректно репозиторий кубернетеса из сайта гугла.
+при этом видно что в этом случае мы не юзали add-apt-repository 
+а добавляли репозиторий "руками".
+
+обвнляем список пакетов
+и приустпаем к установке непостедственно кубернетеса
+
+# sudo apt update
+# sudo apt install -y kubelet kubeadm kubectl
+
+пока что пакеты установлены но ничего из этого незапущено.
+поэтому ставим дальше.
+
+поставили основные компоненты кубренетеса на мастер ноду.
+
+
+вот эти команды что выше. они делаются на всех нода и что будет мастером и что будут дата нодами.
+
+замечу ! что на каждой ноде нужен kubeadm а в доках о нем что ниже вообще ни слова нет!
+
+
+возвращаемся на мастер ноду
+
+
+я бы рекомендовал не в hosts нод происывать всех соседей. 
+а на центральном dns сервере. 
+ибо при добавлении +1 ноды через hosts придется делать изменения по всем нода кластера что пиздец. 
+а если через внешний dns то надо просто на dns добавить +1 запись
+
+далее полезно перед иницализацеий выкачать образы. это реально полезная команда потому что
+ без нее у меня иницализация кластера встала  и долго ничего не происходило
+
+$ sudo kubeadm config images pull
+
+W0924 01:23:58.546306    3862 configset.go:348] WARNING: kubeadm cannot validate component configs for API groups [kubelet.config.k8s.io kubeproxy.config.k8s.io]
+[config/images] Pulled k8s.gcr.io/kube-apiserver:v1.19.2
+[config/images] Pulled k8s.gcr.io/kube-controller-manager:v1.19.2
+[config/images] Pulled k8s.gcr.io/kube-scheduler:v1.19.2
+[config/images] Pulled k8s.gcr.io/kube-proxy:v1.19.2
+[config/images] Pulled k8s.gcr.io/pause:3.2
+[config/images] Pulled k8s.gcr.io/etcd:3.4.13-0
+[config/images] Pulled k8s.gcr.io/coredns:1.7.0
+
+при этом логично предположить что он выкачал docker имаджи.
+проверим
+
+# docker images -a
+REPOSITORY                           
+k8s.gcr.io/kube-proxy                 118MB
+k8s.gcr.io/kube-apiserver            119MB
+k8s.gcr.io/kube-controller-manager   111MB
+k8s.gcr.io/kube-scheduler            45.7MB
+k8s.gcr.io/etcd                      253MB
+k8s.gcr.io/coredns                   45.2MB
+k8s.gcr.io/pause                     683kB
+
+
+да так и есть.
+
+и логично что докер эти имаджи положил в /var/lib/docker/overlay2
+
+# df -h
+Filesystem             Size  Used Avail Use% Mounted on
+/dev/sdb1               30G  711M   28G   3% /var/lib/docker/overlay2
+
+так и есть. занято 700МБ
+
+
+заметка - при выкачивании имаджей из интернета видимо сайт на той
+стороне зависает так что если долго незаканчивает то придется стопить эту команду а потом еще раз запускать чтобы выкачать имаджи

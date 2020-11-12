@@ -294,6 +294,9 @@ https://github.com/kubernetes-sigs/sig-storage-local-static-provisioner
 	
 	 Failed to discover local volumes: failed to get ReclaimPolicy from storage class "fast-disks": storageclass.storage.k8s.io "fast-disks" not found
 
+	прямой необходимости иметь storage class при создании PV скажем руками
+	нет. но провижионер просто хочет из сторадж класса получить инфо какую же reclaimPolicy установить для PV. именно поэтому также нужен и стораджкласс чтобы провижионер мог создать PV.
+	
 	как выглядит сторадж класс fast-disks
 	
 	# Only create this for K8s 1.9+
