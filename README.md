@@ -1,12 +1,12 @@
 ﻿
-$ docs
+1. $ docs
 for different docs
 
 
 для записи в репозиторий
-$ git add .
-$ git commit -m "comment smth here"
-$ git push git@github.com:aceqbaceq/docs.git master
+2. $ git add .
+2. $ git commit -m "comment smth here"
+3. $ git push git@github.com:aceqbaceq/docs.git master
 
 если после этой команды мы получаем отлуп
 
@@ -17,7 +17,7 @@ fatal: Could not read from remote repository.
 это какойто дурацкий глюк. запускаем еще раз команду. система спросит пароль от ключа. и мы успешно запушим коммит.
 
 для загрузки с github
-$ git pull git://github.com/aceqbaceq/docs.git master
+5. $ git pull git://github.com/aceqbaceq/docs.git master
 
 
 /
