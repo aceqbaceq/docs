@@ -122,3 +122,50 @@ mail.ru --> dns сервер этого домена = 1.2.3.4
 обновление конфигов коогда он в кластере
 через consul
 
+===
+супер тема
+HTTP/HTTPS
+health check
+
+backend sbe_135_136_139
+    mode http
+    balance roundrobin
+    option httpchk GET / "HTTP/1.1\r\nHost: www.vasya.ru"
+    http-check expect status 200
+    default-server inter 3s fall 3 rise 20 slowstart 15m
+    server sweb1-135 192.168.0.135:80 weight 100 check
+    server sweb9-147 192.168.0.147:80 weight 100 check
+
+эта штука проверяет здоровье бекенд серверов
+через 
+	http://www.vasya.ru
+	
+в ответ
+	ждет HTTP 200
+	
+проверяет 
+	каждые 3 секунды
+
+заносит сервер в "упавший"
+	если 3 подряд проверки BAD
+
+возвращает сервер в "здоровые"
+	если 20 проверок подряд возвращают OK
+	
+если сервер стал из 
+	"упавшего" -> "здоровым"
+то хапрокси на него несразу бросает 100% потока а постепенно в 
+течение 15 минут поток будет выходит на 100% 
+
+круто!
+
+проверит что конфиг верный
+
+# haproxy -c -V -f /etc/haproxy/haproxy.cfg
+
+ссылки
+	https://geko.cloud/haproxy-health-checks-and-target-downtime-handling/
+	https://www.haproxy.com/documentation/aloha/latest/traffic-management/lb-layer7/health-checks/
+	
+===
+

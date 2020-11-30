@@ -1,10 +1,10 @@
 установка пакетов кубернетеса на хост
 
-# curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
+$ curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
 
 (вместо curl можно было бы использовать wget)
 
-# echo 'deb http://apt.kubernetes.io/ kubernetes-xenial main' | sudo tee /etc/apt/sources.list.d/kubernetes.list
+$ echo 'deb http://apt.kubernetes.io/ kubernetes-xenial main' | sudo tee /etc/apt/sources.list.d/kubernetes.list
 
 здесь мы добавили корректно репозиторий кубернетеса из сайта гугла.
 при этом видно что в этом случае мы не юзали add-apt-repository 
@@ -13,13 +13,13 @@
 обвнляем список пакетов
 и приустпаем к установке непостедственно кубернетеса
 
-# sudo apt update
-# sudo apt install -y kubelet kubeadm kubectl
+$ sudo apt update
+$ sudo apt install -y kubelet kubeadm kubectl
 
 пока что пакеты установлены но ничего из этого незапущено.
 поэтому ставим дальше.
 
-поставили основные компоненты кубренетеса на мастер ноду.
+поставили основные компоненты кубренетеса на  ноду.
 
 
 вот эти команды что выше. они делаются на всех нода и что будет мастером и что будут дата нодами.
@@ -27,7 +27,7 @@
 замечу ! что на каждой ноде нужен kubeadm а в доках о нем что ниже вообще ни слова нет!
 
 
-возвращаемся на мастер ноду
+возвращаемся на  ноду
 
 
 я бы рекомендовал не в hosts нод происывать всех соседей. 

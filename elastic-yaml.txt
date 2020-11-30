@@ -1,0 +1,130 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: headless
+  namespace: default
+  labels:
+    app: es-1
+spec:
+  clusterIP: None
+  selector:
+    app: es-1
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: es-1-internalclusterip
+  namespace: default
+  labels:
+    app: es-1
+spec:
+  selector:
+    app: es-1
+  ports:
+  - protocol: TCP
+    port: 9200
+    targetPort: 9200
+    name: http-elastic-client
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: es-master
+  namespace: default
+spec:
+  serviceName: headless
+  replicas: 3
+  selector:
+    matchLabels:
+      app: es-1
+  template:
+    metadata:
+      labels:
+        app: es-1
+    spec:
+      containers:
+      - name: elasticsearch
+        image: docker.elastic.co/elasticsearch/elasticsearch:7.7.1
+        resources:
+            limits:
+              cpu: 2000m
+              memory: 360Mi
+            requests:
+              cpu: 300m
+              memory: 332Mi
+        ports:
+        - containerPort: 9200
+          name: rest
+          protocol: TCP
+        - containerPort: 9300
+          name: inter-node
+          protocol: TCP
+        volumeMounts:
+        - name: data
+          mountPath: /usr/share/elasticsearch/data
+        env:
+          - name: cluster.name
+            value: es-cl-01
+          - name: node.name
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: "cluster.initial_master_nodes"
+            value: "es-master-0, es-master-1, es-master-2"
+          - name: "discovery.seed_hosts"
+            value: "headless.default.svc.cluster.local"
+          - name: "node.master"
+            value: "true"
+          - name: "node.voting_only"
+            value: "false"
+          - name: "node.data"
+            value: "true"
+          - name: "node.ingest"
+            value: "true"
+          - name: "node.ml"
+            value: "false"
+          - name: ES_JAVA_OPTS
+            value: "-Xms100m -Xmx100m"
+      initContainers:
+      - name: fix-permissions
+        image: busybox
+        resources:
+            limits:
+              cpu: 200m
+              memory: 100M
+            requests:
+              cpu: 100m
+              memory: 50M
+        command: ["sh", "-c", "chown -R 1000:1000 /usr/share/elasticsearch/data"]
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - name: data
+          mountPath: /usr/share/elasticsearch/data
+      - name: increase-vm-max-map
+        image: busybox
+        resources:
+            limits:
+              cpu: 200m
+              memory: 100M
+            requests:
+              cpu: 100m
+              memory: 50M
+        command: ["sysctl", "-w", "vm.max_map_count=262144"]
+        securityContext:
+          privileged: true
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+      labels:
+        app: es-1
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: pv-localdisks
+      resources:
+        requests:
+          storage: 800M
+
+
+
+

@@ -1,0 +1,77 @@
+elastic shard allocation awareness
+
+в реализации для стейтфуллсета на кубе
+
+нужно в стейтфуллсете в том месте где описыватся под дата нода
+раздел ENV добавить кусок
+
+
+>>>       - name: node.attr.rack_id
+>>>         valueFrom:
+>>>           fieldRef:
+>>>             fieldPath: spec.nodeName
+
+ниже я показываю куда его вставлять
+
+ env:
+          - name: cluster.name
+            value: es-cl-01
+          - name: node.name
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: "discovery.seed_hosts"
+            value: "masters-headless"
+          - name: "node.master"
+            value: "false"
+          - name: "node.voting_only"
+            value: "false"
+          - name: "node.data"
+            value: "true"
+          - name: "node.ingest"
+            value: "true"
+          - name: "node.ml"
+            value: "false"
+>>>       - name: node.attr.rack_id
+>>>         valueFrom:
+>>>           fieldRef:
+>>>             fieldPath: spec.nodeName
+          - name: ES_JAVA_OPTS
+            value: "-Xms100m -Xmx100m"
+
+и в для мастер нод добавить кусок
+
+>>>       - name: "cluster.routing.allocation.awareness.attributes"
+>>>         value: "rack_id"
+
+
+ env:
+          - name: cluster.name
+            value: es-cl-01
+          - name: node.name
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: "cluster.initial_master_nodes"
+            value: "es-master-0, es-master-1, es-master-2"
+          - name: "discovery.seed_hosts"
+            value: "masters-headless"
+          - name: "node.master"
+            value: "true"
+          - name: "node.voting_only"
+            value: "false"
+          - name: "node.data"
+            value: "false"
+          - name: "node.ingest"
+            value: "false"
+          - name: "node.ml"
+            value: "false"
+>>>       - name: "cluster.routing.allocation.awareness.attributes"
+>>>         value: "rack_id"
+          - name: ES_JAVA_OPTS
+            value: "-Xms100m -Xmx100m"
+
+все. 
+	теперь эластик будет распределять реплики\шарды по нодам учитывая
+	на каких физ серверах сидит нода. чтобы в случае гибели физ сервера с ним непогибли все копии какого нибудь шарда
+	

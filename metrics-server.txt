@@ -1,0 +1,40 @@
+kubernetes
+metrics server
+
+качаем его yaml
+	$ wget https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+
+редактируем там и вставляем опцию (она нужна если CA файл для куба он 
+	самоиздатовский , тогда под метрик сервера впадает в краш луп)
+
+--kubelet-insecure-tls
+
+вот в это место
+
+ containers:
+      - args:
+        - --cert-dir=/tmp
+        - --secure-port=4443
+        - --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname
+        - --kubelet-use-node-status-port
+        - --kubelet-insecure-tls
+
+
+все. ставим 
+
+$ kubectl apply -f .yaml
+
+проверяем что под метрик сервера завелся
+
+$ kubetctl get pods --namespace=kube-system
+
+теперь можно его юзать
+
+$ kubectl get nodes
+
+источник
+	https://github.com/kubernetes-sigs/metrics-server
+==
+
+
+

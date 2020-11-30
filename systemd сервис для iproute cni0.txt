@@ -1,0 +1,107 @@
+systemd сервис
+
+для того чтобы в таблицы маршрутизации iproute2 пропихивать
+маршруты об cni0
+
+понадобится три файла
+
+
+первый файл
+
+создаем systemd таргет
+
+просто его создаем
+
+	# cd /etc/systemd/system
+
+	# touch ./dynamic-routing-helper.target
+
+	# cat dynamic-routing-helper.target
+
+	# check_and_wait.target
+	[Unit]
+	TimeoutStartSec=infinity
+	ConditionPathExists=/var/run/flannel/subnet.env
+	ExecStart=/usr/bin/sleep 1000
+	RemainAfterExit=yes
+	root@mk-kub2-06:/etc/systemd/system#
+
+этот таргет он ждет появление на фс фланнелевского рантайм файла. пока фленнель нестартанет то и subnet.env непоявится
+
+
+второй файл
+
+это systemd сервис. и он небудет запущен пока ему таргет несообщить что все в порядке я стартанул.
+
+его создаем
+
+	# touch dynamic-routing.service
+	# cat dynamic-routing.service
+	[Unit]
+	Description=Add cni0 route to T0,1,2..  iproute2 custom route tables
+	After=sys-subsystem-net-devices-cni0.device dynamic-routing-helper.target
+	Wants=network-online.target  dynamic-routing-helper.target
+	BindsTo=sys-subsystem-net-devices-cni0.device
+
+	[Service]
+	Type=notify
+	ExecStart=/usr/local/bin/dynamic-routing.sh
+	StandardOutput=null
+	Restart=always
+	RestartSec=60
+
+	[Install]
+	WantedBy=multi-user.target
+
+и его нужно положит в спец папку dynamic-routing-helper.target.wants
+которуб создаем руками таким макарм системд понимает что наш сервис
+зависит от таргета
+
+
+	# mkdir ./dynamic-routing-helper.target.wants
+	# ln -s ./dynamic-routing.service ./dynamic-routing-helper.target.wants
+
+	# systemctl daemon-reload
+
+	# systemctl enable dynamic-routing.service
+
+третий файл
+это файл скрмпт который в итоге выполнит наш сервис
+
+	# cat /usr/local/bin/dynamic-routing.sh
+
+	# cat dynamic-routing.sh
+	#!/bin/bash
+
+	EXIST=`ip route show 10.254.0.0/16 table T0 | wc -l`
+	if [ $EXIST -eq 0 ]
+	then
+		sudo ip route add 10.254.0.0/16 dev cni0 table T0
+	fi
+
+
+	EXIST=`ip route show 10.254.0.0/16 table T1 | wc -l`
+	if [ $EXIST -eq 0 ]
+	then
+		sudo ip route add 10.254.0.0/16 dev cni0 table T1
+	fi
+
+
+	EXIST=`ip route show 10.254.0.0/16 table T7 | wc -l`
+	if [ $EXIST -eq 0 ]
+	then
+		sudo ip route add 10.254.0.0/16 dev cni0 table T7
+	fi
+
+
+
+что он делает. он проверяет есть ли маршруты в кастомных таблицах 
+маршрутизации T0 T1 T7 которые мы до этого должны создать руками (делается это 1 раз и сохраняется после перезагрузки).
+
+
+к сожадлению этот фугкциоал средстаами /etc/network/interfaces не сделать.
+
+
+
+
+

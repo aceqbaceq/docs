@@ -1,0 +1,75 @@
+lvm
+
+---
+как создать lvm раздел
+
+вначале пересканируем доступные физ разделы на линуксе (см scsi.txt)
+
+далее
+
+$ sudo fdisk -l 
+
+увидели доступные физ диски
+
+
+теперь надо создать на диске таблицу разделов GPT
+и один раздел на весь диск
+
+# parted /dev/sde
+mklabel gpt
+mkpart
+Partition name?  []?
+File system type?  [ext2]? ext4
+Start? 10M
+End? 100%
+
+(parted) set 1 lvm on
+Number  Start   End     Size    File system  Name  Flags
+ 1      10.5MB  91.3GB  91.3GB  ext4               lvm
+
+
+обращаю внимание что мы используем доп команду чтобы установить 
+доп флаг lvm. (если все верно в столбце Flags должно быть написано lvm)
+
+далее. создаем volume group
+
+$ sudo vgcreate vg01 /dev/sde1
+  Physical volume "/dev/sde1" successfully created
+  Volume group "vg01" successfully created
+
+а теперь на этом vg нарезаем столько lv и такого размера как нам надо
+
+например создаем раздел lv 10GB 
+И ТУТ ВАЖНО УТОЧНИТЬ ! - что если мы планируем потом после форматирования получить 10GB чистого свободного места то нужно отрезать LVM кусок бОльшего размера на 10%!. иначе будет не 10Gb а 9.5Gb например. потом запорешься переделывать.
+
+
+$ sudo lvcreate vg01 -L 10G
+  Logical volume "lvol0" created.
+
+тут я останвоился на стадии создания ext4 раздела и что делать с
+журналом.
+
+---
+как расширить раздел lv на LVM 
+
+обращаю внимание на установку partition 
+
+# pvcreate /dev/sde1
+
+# vgdisplay
+
+#vgextend vg01 /dev/sde1
+  Volume group "vg01" successfully extended
+
+# lvextend vg01/lvol0 -L 98G
+  Size of logical volume vg01/lvol0 changed from 14.98 GiB (3835 extents) to 98.00 GiB (25088 extents).
+  Logical volume lvol0 successfully resized.
+
+
+~# resize2fs /dev/mapper/vg01-lvol0
+resize2fs 1.42.13 (17-May-2015)
+Filesystem at /dev/mapper/vg01-lvol0 is mounted on /var/lib/docker; on-line resizing required
+old_desc_blocks = 1, new_desc_blocks = 7
+The filesystem on /dev/mapper/vg01-lvol0 is now 25690112 (4k) blocks long.
+
+--

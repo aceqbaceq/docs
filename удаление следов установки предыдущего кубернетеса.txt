@@ -29,28 +29,7 @@ c) /etc/systemd/system/kubelet.service.d
 # apt-get -y purge docker* 
 # apt-get -y purge containerd*
 
-также я заметил что это неудаляет полностью докер. 
-поэтому также полезно
 
-# rm -r /var/lib/docker
-
-
-  
-
-какие нужно доставить
-
-если мы неудаляем докер и у нас есть контейнеры 
-# docker ps -a
-
-и имаджи.
-
-их надо удалить. чтоб немешались.
-
-# docker rm `docker ps -a | awk '{print $1}' | grep -v -i container`
-# docker rmi `docker images -a | awk '{print $1}'`
-руками удалять в /var/lib/docker/overlays2 несоветую.
-потому что докер будет потом писать ошибки что мол я ищу
-и ненахожу имадж например.
 
 
 тут же скажу как узнать к какому  systemd unit относится бинарник который мы обнаружили через ps aux. берем pid бинарника и

@@ -707,3 +707,242 @@ Jun 30 14:54:19 haproxy-t2 Keepalived_vrrp[11292]: VRRP_Instance(LVS_HAP) Enteri
 или это плохо.
 также понять что про публикацию.
 ---
+
+
+////////// секция - конкретные команды как  установить куб HA кластер
+
+примечание.
+	внизу приведены конфиги при установке keepalived на контрол плейн.
+	конфиги для установки на ДАТА НОДЫ см в файле "keepalived для data нод куба.txt" а установка такая же как внизу описано только haproxy ставить ненужно.и скриптом будем проверять неналичие процесса haproxy в ps aux 
+	а будем проверять наличие процесса kube-proxy
+	если ставим на контрол плейны то надо будет запрограммировать один кластерный ip. кластерный ip будет относится к хапрокси
+	а если ставим на дата ноды то надо будет запрограммировать столько кластерных ip сколько дата нод. кластерный ip каждый это будет ip для обращения внешних клиентов на проброенные порты. и мы хотим раскидать весь сетевой трафик по всем дата нодам
+	
+
+$ sudo  apt-get install -y ipset keepalived haproxy
+$ sudo systemctl enable keepalived haproxy
+
+edit confs
+
+/etc/keepalived/keepalived.conf
+
+конфиг на первой ноде
+
+! Configuration File for keepalived
+vrrp_script check_haproxy {
+  script       "/usr/local/bin/check-haproxy.sh"
+  interval 2
+  fall 2
+  rise 2
+}
+
+vrrp_instance test_instance {
+   interface ens160
+
+   track_interface {
+     ens160
+   }
+
+   state MASTER
+   virtual_router_id 50
+   priority 255
+!   nopreempt
+
+   unicast_src_ip 172.16.102.34
+   unicast_peer {
+     172.16.102.35
+   }
+
+   virtual_ipaddress {
+      172.16.102.100/24 dev ens160
+   }
+
+   track_script {
+      check_haproxy
+   }
+
+   notify /usr/local/bin/keepalived.state.sh
+}
+
+конфиг на второй ноде
+
+! Configuration File for keepalived
+vrrp_script check_haproxy {
+  script       "/usr/local/bin/check-haproxy.sh"
+  interval 2
+  fall 2
+  rise 2
+}
+
+vrrp_instance test_instance {
+   interface ens160
+
+   track_interface {
+     ens160
+   }
+
+   state BACKUP
+   virtual_router_id 50
+   priority 240
+#   nopreempt
+
+   unicast_src_ip 172.16.102.35
+   unicast_peer {
+     172.16.102.34
+   }
+
+   virtual_ipaddress {
+        172.16.102.100/24 dev ens160
+   }
+
+   track_script {
+      check_haproxy
+   }
+
+   notify /usr/local/bin/keepalived.state.sh
+}
+
+СРАЗУ замечу что на соседней кипэлайвдэ ноде priority должен отличаться минимум на 15 очков иначе небудет надежного переключения (выяснил на опыте)
+
+
+кстати видно как прописать чтобы было не один а несколько кластерных
+ip адресов
+
+
+
+создаем скрипты для кипэлайвдэ на обоих нодах они одинаковые будут
+делаем на них 700 и exec perm 
+
+# touch /usr/local/bin/check-haproxy.sh; chmod +x /usr/local/bin/check-haproxy.sh; chmod 700 /usr/local/bin/check-haproxy.sh
+
+
+# touch /usr/local/bin/keepalived.state.sh; chmod +x /usr/local/bin/keepalived.state.sh; chmod 700 /usr/local/bin/keepalived.state.sh
+
+
+
+
+
+~# cat /usr/local/bin/check-haproxy.sh
+
+#!/bin/bash
+# Check if haproxy is running, return 1 if not.
+# Used by keepalived to initiate a failover in case haproxy is down
+
+HAPROXY_STATUS=$(/bin/ps ax | grep -w [h]aproxy)
+
+if [ "$HAPROXY_STATUS" != "" ]
+then
+  exit 0
+else
+  logger "HAProxy is NOT running. Setting keepalived state to FAULT."
+  exit 1
+fi
+
+еще скрипт
+
+~# cat /usr/local/bin/keepalived.state.sh
+
+#!/bin/bash
+
+TYPE=$1
+NAME=$2
+STATE=$3
+
+echo $STATE > /var/run/keepalived.state
+
+
+# systemctl enable keepalived haproxy
+
+важные моменты:
+virtual-router_id одинаковый на всех нодах
+priority 255 а на втором (-20) 235 можно еще меньше. я поставил на второй 250 и оба лезли в мастеры тоесть небыло надежного переключения
+nopreempt - закоментировано это значит что "мастер" нода кипэлайведэ
+когда вернется в строй заберет обратно кластерный ip
+еще важный момент
+virtual-router_id если у нас в одном вилане нахроится несколько незавиисимых кипэлавдэ кластеров то важно чтобы их id был разный. чтобы
+неполучилось что он один и тот же в разных кластерах иначе начнется
+каша
+
+
+теперь конфиг
+/etc/haproxy/haproxy.cfg
+
+
+#---------------------------------------------------------------------
+# Global settings
+#---------------------------------------------------------------------
+global
+    log /dev/log local0
+    log /dev/log local1 notice
+    daemon
+    stats socket /run/haproxy/admin.sock mode 660 level admin
+    stats timeout 30s
+#---------------------------------------------------------------------
+# common defaults that all the 'listen' and 'backend' sections will
+# use if not designated in their block
+#---------------------------------------------------------------------
+defaults
+    mode                    http
+    log                     global
+    option                  httplog
+    option                  dontlognull
+    option http-server-close
+#    option forwardfor       except 127.0.0.0/8
+    option                  redispatch
+    retries                 1
+    timeout http-request    10s
+    timeout queue           20s
+    timeout connect         5s
+    timeout client          20s
+    timeout server          20s
+    timeout http-keep-alive 10s
+    timeout check           10s
+
+#---------------------------------------------------------------------
+# apiserver frontend which proxys to the masters
+#---------------------------------------------------------------------
+frontend apiserver
+    bind *:6440
+    mode tcp
+    option tcplog
+    default_backend apiserver
+
+
+
+
+#---------------------------------------------------------------------
+# round robin balancing for apiserver
+#---------------------------------------------------------------------
+backend apiserver
+    option httpchk GET /healthz
+    http-check expect status 200
+    mode tcp
+    option ssl-hello-chk
+    balance     roundrobin
+        server test-kub-04 127.0.0.1:6443 check
+        server test-kub-05 172.16.102.35:6443 check
+        server test-kub-06 172.16.102.37:6443 check
+
+
+проверяем что конфиг валиден
+
+# haproxy -c -f /etc/haproxy/haproxy.cfg
+
+$ sudo systemctl enable haproxy
+$ sudo systemctl start haproxy
+$ sudo systemctl status haproxy
+
+когда мы его стартанем то он напишет что ни один бекенд сервер
+нероступен и это так и есть. он станет доступен только 
+после установки первой контро панели
+
+$ sudo systemctl  enable keepalived
+$ sudo systemctl  start keepalived
+$ sudo systemctl  status keepalived
+
+далее перезагружаем комп и увбеждаемся
+что haproxy+keepalived запускаются на автомате
+
+
+////////// конец секции
+

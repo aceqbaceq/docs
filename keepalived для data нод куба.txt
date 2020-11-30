@@ -1,0 +1,368 @@
+конфиги общие для всех дата нод
+
+# cat /usr/local/bin/check-kube-proxy.sh
+#!/bin/bash
+# Check if haproxy is running, return 1 if not.
+# Used by keepalived to initiate a failover in case haproxy is down
+
+KUBE-PROXY_STATUS=$(/bin/ps ax | grep -w [k]ube-proxy)
+
+if [ "$KUBE-PROXY_STATUS" != "" ]
+then
+  exit 0
+else
+  logger "kube-proxy is NOT running. Setting keepalived state to FAULT."
+  exit 1
+fi
+
+
+
+# cat /usr/local/bin/keepalived.state.sh
+#!/bin/bash
+
+TYPE=$1
+NAME=$2
+STATE=$3
+
+echo $STATE > /var/run/keepalived.state
+
+
+
+
+конфиг первой ноды
+
+# cat /etc/keepalived/keepalived.conf
+! Configuration File for keepalived
+vrrp_script check_kube-proxy {
+  script       "/usr/local/bin/check-kube-proxy.sh"
+  interval 2
+  fall 2
+  rise 2
+}
+
+vrrp_instance test_instance {
+   interface ens160
+
+   track_interface {
+     ens160
+   }
+
+   state MASTER
+   virtual_router_id 61
+   priority 255
+   preempt
+
+   unicast_src_ip 172.16.102.58
+   unicast_peer {
+     172.16.102.59
+     172.16.102.60
+   }
+
+   virtual_ipaddress {
+      172.16.102.61/24 dev ens160
+   }
+
+   track_script {
+      check_kube-proxy
+   }
+
+   notify /usr/local/bin/keepalived.state.sh
+}
+
+
+
+vrrp_instance test_instance2 {
+   interface ens160
+
+   track_interface {
+     ens160
+   }
+
+   state BACKUP
+   virtual_router_id 62
+   priority 240
+   preempt
+
+   unicast_src_ip 172.16.102.58
+   unicast_peer {
+     172.16.102.59
+     172.16.102.60
+   }
+
+   virtual_ipaddress {
+      172.16.102.62/24 dev ens160
+   }
+
+   track_script {
+      check_kube-proxy
+   }
+
+   notify /usr/local/bin/keepalived.state.sh
+}
+
+
+
+vrrp_instance test_instance3 {
+   interface ens160
+
+   track_interface {
+     ens160
+   }
+
+   state BACKUP
+   virtual_router_id 63
+   priority 240
+   preempt
+
+   unicast_src_ip 172.16.102.58
+   unicast_peer {
+     172.16.102.59
+     172.16.102.60
+   }
+
+   virtual_ipaddress {
+      172.16.102.63/24 dev ens160
+   }
+
+   track_script {
+      check_kube-proxy
+   }
+
+   notify /usr/local/bin/keepalived.state.sh
+}
+
+
+
+конфиг второй ноды
+
+# cat /etc/keepalived/keepalived.conf
+! Configuration File for keepalived
+vrrp_script check_kube-proxy {
+  script       "/usr/local/bin/check-kube-proxy.sh"
+  interval 2
+  fall 2
+  rise 2
+}
+
+vrrp_instance test_instance {
+   interface ens160
+
+   track_interface {
+     ens160
+   }
+
+   state BACKUP
+   virtual_router_id 61
+   priority 240
+   preempt
+
+   unicast_src_ip 172.16.102.59
+   unicast_peer {
+     172.16.102.58
+     172.16.102.60
+   }
+
+   virtual_ipaddress {
+      172.16.102.61/24 dev ens160
+   }
+
+   track_script {
+      check_kube-proxy
+   }
+
+   notify /usr/local/bin/keepalived.state.sh
+}
+
+
+vrrp_instance test_instance2 {
+   interface ens160
+
+   track_interface {
+     ens160
+   }
+
+   state MASTER
+   virtual_router_id 62
+   priority 255
+   preempt
+
+   unicast_src_ip 172.16.102.59
+   unicast_peer {
+     172.16.102.58
+     172.16.102.60
+   }
+
+   virtual_ipaddress {
+      172.16.102.62/24 dev ens160
+   }
+
+   track_script {
+      check_kube-proxy
+   }
+
+   notify /usr/local/bin/keepalived.state.sh
+}
+
+
+
+vrrp_instance test_instance3 {
+   interface ens160
+
+   track_interface {
+     ens160
+   }
+
+   state BACKUP
+   virtual_router_id 63
+   priority 220
+   preempt
+
+   unicast_src_ip 172.16.102.59
+   unicast_peer {
+     172.16.102.58
+     172.16.102.60
+   }
+
+   virtual_ipaddress {
+      172.16.102.63/24 dev ens160
+   }
+
+   track_script {
+      check_kube-proxy
+   }
+
+   notify /usr/local/bin/keepalived.state.sh
+}
+
+
+
+конфиг третьей ноды
+
+# cat /etc/keepalived/keepalived.conf
+! Configuration File for keepalived
+vrrp_script check_kube-proxy {
+  script       "/usr/local/bin/check-kube-proxy.sh"
+  interval 2
+  fall 2
+  rise 2
+}
+
+vrrp_instance test_instance {
+   interface ens160
+
+   track_interface {
+     ens160
+   }
+
+   state BACKUP
+   virtual_router_id 61
+   priority 220
+   preempt
+
+   unicast_src_ip 172.16.102.60
+   unicast_peer {
+     172.16.102.58
+     172.16.102.59
+   }
+
+   virtual_ipaddress {
+      172.16.102.61/24 dev ens160
+   }
+
+   track_script {
+      check_kube-proxy
+   }
+
+   notify /usr/local/bin/keepalived.state.sh
+}
+
+
+vrrp_instance test_instance2 {
+   interface ens160
+
+   track_interface {
+     ens160
+   }
+
+   state BACKUP
+   virtual_router_id 62
+   priority 220
+   preempt
+
+   unicast_src_ip 172.16.102.60
+   unicast_peer {
+     172.16.102.58
+     172.16.102.59
+   }
+
+   virtual_ipaddress {
+      172.16.102.62/24 dev ens160
+   }
+
+   track_script {
+      check_kube-proxy
+   }
+
+   notify /usr/local/bin/keepalived.state.sh
+}
+
+
+vrrp_instance test_instance3 {
+   interface ens160
+
+   track_interface {
+     ens160
+   }
+
+   state MASTER
+   virtual_router_id 63
+   priority 255
+   preempt
+
+   unicast_src_ip 172.16.102.60
+   unicast_peer {
+     172.16.102.58
+     172.16.102.59
+   }
+
+   virtual_ipaddress {
+      172.16.102.63/24 dev ens160
+   }
+
+   track_script {
+      check_kube-proxy
+   }
+
+   notify /usr/local/bin/keepalived.state.sh
+}
+
+
+
+сехма такая
+есть три ноды с IP
+	172.16.102.58
+	172.16.102.59
+	172.16.102.60
+	
+и мы им назначаем три кластерных ip
+
+	172.16.102.61  (для этого ip мастер на первой ноде)
+	172.16.102.62  (для этого ip мастер на второй ноде)
+	172.16.102.63  (для этого ip мастер на третьей ноде)
+	
+	
+	получается если нода падает то ее кластерный ip переезжает на одну из оставшихся нод
+	
+	если две ноды из трех падают то оба кластерных ip переезжает на последнюю ноду
+	
+	вот скажем как это выглядит когда выжила последняя нода
+	
+	# ip -c a s dev ens160
+: ens160: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP group default qlen 1000
+    inet 172.16.102.59/24 brd 172.16.102.255 scope global ens160
+    inet 172.16.102.62/24 scope global secondary ens160
+    inet 172.16.102.61/24 scope global secondary ens160
+    inet 172.16.102.63/24 scope global secondary ens160
+
+
+

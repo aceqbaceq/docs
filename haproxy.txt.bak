@@ -23,6 +23,9 @@ backend etcd-backend
  option ssl-hello-chk
 server ... check
 
+при этом ненужно ничего. ни задавать адрес после https://
+ни сертификат ca указывать.
+
 
 
 

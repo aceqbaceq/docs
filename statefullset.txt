@@ -1,0 +1,133 @@
+StatefullSet
+
+вот как выглядит типичный стейтфуллсет
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: es-data
+  namespace: es-cl-01
+spec:
+  serviceName: None
+  replicas: 3
+  selector:
+    matchLabels:
+      app.name: elastic
+      app.pods-role: data
+  template:
+    metadata:
+      labels:
+        app.name: elastic
+        app.pods-role: data
+    spec:
+      containers:
+      - name: elasticsearch
+        image: docker.elastic.co/elasticsearch/elasticsearch:7.7.1
+        resources:
+            limits:
+              cpu: 2000m
+              memory: 370Mi
+            requests:
+              cpu: 300m
+              memory: 340Mi
+        ports:
+        - containerPort: 9200
+          name: rest
+          protocol: TCP
+        - containerPort: 9300
+          name: inter-node
+          protocol: TCP
+        volumeMounts:
+        - name: pvc
+          mountPath: /usr/share/elasticsearch/data
+        env:
+          - name: cluster.name
+            value: es-cl-01
+          - name: node.name
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: "discovery.seed_hosts"
+            value: "masters-headless"
+          - name: "node.master"
+            value: "false"
+          - name: "node.voting_only"
+            value: "false"
+          - name: "node.data"
+            value: "true"
+          - name: "node.ingest"
+            value: "true"
+          - name: "node.ml"
+            value: "false"
+          - name: ES_JAVA_OPTS
+            value: "-Xms100m -Xmx100m"
+      initContainers:
+      - name: fix-permissions
+        image: busybox
+        resources:
+            limits:
+              cpu: 200m
+              memory: 100M
+            requests:
+              cpu: 100m
+              memory: 50M
+        command: ["sh", "-c", "chown -R 1000:1000 /usr/share/elasticsearch/data"]
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - name: pvc
+          mountPath: /usr/share/elasticsearch/data
+      - name: increase-vm-max-map
+        image: busybox
+        resources:
+            limits:
+              cpu: 200m
+              memory: 100M
+            requests:
+              cpu: 100m
+              memory: 50M
+        command: ["sysctl", "-w", "vm.max_map_count=262144"]
+        securityContext:
+          privileged: true
+  volumeClaimTemplates:
+  - metadata:
+      name: pvc
+      labels:
+        app.name: elastic
+        app.pods-role: data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: pv-localdisks
+      resources:
+        requests:
+          storage: 800M
+
+так вот я что хотел отметить
+в сттейтфуллсете есть такая строка
+
+serviceName: 
+
+она указывает какой сервис будет прикреплен к этому стейтфуллсету.
+так вот невсегда нужен service для стейтфуллсета. тоесть я хочу создать стейтфуллсет но нехочу создавать к нему сервис мне сервис ненужен.
+так вот просто так исключить эту строку нельзя из портянки yaml стейтфуллсета. 
+
+будет ошибка
+
+error: error validating "es-cl-01.yaml": error validating data: ValidationError(StatefulSet.spec): missing required field "serviceName" in io.k8s.api.apps.v1.StatefulSetSpec; if you choose to ignore these errors, turn validation off with --validate=false
+
+
+вместо этого надо указать None
+
+serviceName: None
+
+я попробовал вроде бы заработало но возникла другая ошибка
+
+statefulset-controller  create Pod es-data-0 in StatefulSet es-data failed error: Pod "es-data-0" is invalid: spec.subdomain: Invalid value: "None": a DNS-1123 label must consist of lower case alphanumeric characters or '-', and must start and end with an alphanumeric character (e.g. 'my-name',  or '123-abc', regex used for validation is '[a-z0-9]([-a-z0-9]*[a-z0-9])?')
+
+таким образом вроде бы опция servicename неоябазетльна но пофакту даже если он ненужен то надо все равно заводить service для проформы
+
+
+
+--
+

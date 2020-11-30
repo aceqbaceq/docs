@@ -1,0 +1,29 @@
+elasticsearch
+
+как задать шаблон чтобы новые индексы
+создавались с заданным числов шардов и реплик
+
+для этого используем так назвыаемые шаблоны.
+
+
+PUT _template/index-shard-replica-count
+{
+    "index_patterns" : ["*"],
+    "order" : 65000,
+    "settings" : {
+        "number_of_shards" : 10,
+        "number_of_replicas": 2
+    },
+    "version": 123
+}
+
+
+order задает порядок применения шаблона,
+вначале применяются шаблоны с низким order , последними применяются
+шаблоны с выскоим order затирая значения с низким.
+
+от версии к версии эластика синтаксис меняется ( как же этого дерьма),
+читать для версии 7.7. здесь
+
+https://www.elastic.co/guide/en/elasticsearch/reference/7.7/indices-templates.html
+

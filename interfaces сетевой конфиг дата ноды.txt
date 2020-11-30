@@ -1,0 +1,43 @@
+interfaces
+сетевой конфиг
+дата ноды
+
+
+~$ cat /etc/network/interfaces
+# This file describes the network interfaces available on your system
+# and how to activate them. For more information, see interfaces(5).
+
+source /etc/network/interfaces.d/*
+
+# The loopback network interface
+auto lo
+iface lo inet loopback
+
+# The primary network interface
+
+
+
+auto ens160
+
+iface ens160 inet static
+        address 192.168.1.56
+        netmask 255.255.255.0
+        gateway 192.168.1.1
+        dns-nameservers 192.168.1.1
+        dns-search m9.local
+        post-up ip route add 192.168.1.0/24 dev ens160 src 192.168.1.56 table reth0
+        post-up ip route add default via 192.168.1.1 dev ens160 src 192.168.1.56 table reth0
+        post-up ip rule add from 192.168.1.56 table reth0
+        post-down ip rule del from 192.168.1.0/24 table reth0
+
+
+auto ens192
+
+iface ens192 inet static
+        address 192.168.7.243
+        netmask 255.255.255.0
+
+iface ens192 inet static
+        address 192.168.0.243
+        netmask 255.255.255.0
+

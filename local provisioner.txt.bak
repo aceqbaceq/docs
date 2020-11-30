@@ -344,8 +344,301 @@ https://github.com/kubernetes-sigs/sig-storage-local-static-provisioner
 
 что за что отвечает в верхней портянке (rbac итп) я пока нетрогаю неразбираю. пока что.
 
+
+следущая мысль. вот мы развернули local provisioner.  его конкретную модификацию в которой в configmap прописано какой storage class
+использовать для создаваемых pv так вот как я понимаю в configmap
+можно прописать несколько сторадж классов каждый из которых будет применяться к своим бекенд папкам таким образом у нас один провижинер
+будет создавать несколько типов PV. типа PV для эластика , PV для еще чегото. например если папка начинается с такойого слова то будут создаваться PV с одним стораж класом, если папка начинается с другого слова
+то будет создаваться PV с другим в нем прописанным сторадж классом.
+
+остается еще вопрос. нужно ли чтобы имя сторадж класса
+совпадало с какими то полями в главной портянке
+
+когда создаем новый lv то можно прижелании указать какое имя
+будет иметь этот lv
+
+# lvcreate -L100M vg01 -n lvol14
+
+получим lvol14
+
+далее.
+	когда хотм создать lv другого размера например изначально создали кусочки по 100GB а потом хотим создать кускочки по 5ГБ то используем тот же самый локалпровижионер тот жесамый сторадж класс то есть в этом моменте НИЧЕГО менять ненужно. а просто тупо создаем lv кусочки другого размера и монтруем их в туже папку /var/lib/kubernetes-PV-folder просто можно дать им чуть более информативное название типа 
+	/var/lib/kubernetes-PV-folder/pv-XX-5GB
+	тот же самый провижионер тот же самвй сторадж класс их смонтируемт в кубе как PV только у них будет другой размер. ну и это то что нам надо. и мы можем через тот же самый сторадж класс искать кусочки друого размера просто надо в pv указать новый размер и все.
+	очень удобно. на дата ноде можно создавать lv кусочки любого размера
+	и ничего неменяя в сторадж класс и провижилонере полуать смонтироавнными эти кусочки в кубе в форме PV. очень удобно.
+
+правда есть такой момеент так как один сторадж класс будет прописан в 
+PV на кубе то может быть такая ситуация плохая. мы запрашиваем pV размером
+10ГБ они закончились их нет зато есть PV размером 100ГБ и наш сторадж
+класс одаст этот PV. поэтму получается что типа надо следить чтобы 
+число мелких PV всегда хватало чтобы неотдать 100ГБ под 10ГБ pvc.
+
+либо нужно заводит отдельный storageclass под каждый типоразмер PV
+	для pv=10Gb storage class1
+	для pv=100GB storage class2
+	
+хотя это накладно но наверно зато это более продакшн надежно.
+когда законачатся 10ГБ PV то мы случайно не получим 100ГБ PV
+
+
 === (конец про local provisioner и pv(local)
 
 теперь пользуясь storage class: fast-disks
 можно на локаьных дисках опубликовать эластик через helm
+
+--
+значит я точно выяснил что в ConfigMap запись в строке которую я выделил
+означает имя сторадж класса. то есть нужно будет создать сторадж класс
+именно с таким именем, в данном случае с именем fast-disks
+
+		data:
+		  storageClassMap: |
+>>>>		fast-disks:
+			  minResyncPeriod: "1m0s"
+			  hostDir: /mnt/fast-disks
+			  mountDir: /mnt/fast-disks
+
+--
+
+ я модифицировал изначальный local provioner чтобы он мог работать с 
+ двумя сторадж классами
+	
+	pv-localdisks-1g
+	pv-localdisks-100m
+	
+	(к сожалению куб неподдерживает в именах большие буквы поэтому 1g с маленькой)
+	
+	
+$ cat provisioner_generated.yaml
+---
+# Source: provisioner/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: local-provisioner
+  namespace: default
+  labels:
+    helm.sh/chart: provisioner-3.0.0
+    app.kubernetes.io/name: provisioner
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: local
+---
+# Source: provisioner/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: local-provisioner-config
+  namespace: default
+  labels:
+    helm.sh/chart: provisioner-3.0.0
+    app.kubernetes.io/name: provisioner
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: local
+data:
+  storageClassMap: |
+    pv-localdisks-1g:
+      minResyncPeriod: "5m0s"
+      hostDir: /var/lib/kubernetes-PV-folder/1G/
+      mountDir: /var/lib/kubernetes-PV-folder/1G/
+      blockCleanerCommand:
+        - "/scripts/shred.sh"
+        - "2"
+      volumeMode: Filesystem
+      fsType: ext4
+      namePattern: "*"
+    pv-localdisks-100m:
+      minResyncPeriod: "5m0s"
+      hostDir: /var/lib/kubernetes-PV-folder/100M/
+      mountDir: /var/lib/kubernetes-PV-folder/100M/
+      blockCleanerCommand:
+        - "/scripts/shred.sh"
+        - "2"
+      volumeMode: Filesystem
+      fsType: ext4
+      namePattern: "*"
+
+---
+# Source: provisioner/templates/rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: local-provisioner-node-clusterrole
+  labels:
+    helm.sh/chart: provisioner-3.0.0
+    app.kubernetes.io/name: provisioner
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: local
+rules:
+- apiGroups: [""]
+  resources: ["nodes"]
+  verbs: ["get"]
+---
+# Source: provisioner/templates/rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: local-provisioner-pv-binding
+  labels:
+    helm.sh/chart: provisioner-3.0.0
+    app.kubernetes.io/name: provisioner
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: local
+subjects:
+- kind: ServiceAccount
+  name: local-provisioner
+  namespace: default
+roleRef:
+  kind: ClusterRole
+  name: system:persistent-volume-provisioner
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: provisioner/templates/rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: local-provisioner-node-binding
+  labels:
+    helm.sh/chart: provisioner-3.0.0
+    app.kubernetes.io/name: provisioner
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: local
+subjects:
+- kind: ServiceAccount
+  name: local-provisioner
+  namespace: default
+roleRef:
+  kind: ClusterRole
+  name: local-provisioner-node-clusterrole
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: provisioner/templates/daemonset.yaml
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: local-provisioner
+  namespace: default
+  labels:
+    helm.sh/chart: provisioner-3.0.0
+    app.kubernetes.io/name: provisioner
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: local
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: provisioner
+      app.kubernetes.io/instance: local
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: provisioner
+        app.kubernetes.io/instance: local
+      annotations:
+        checksum/config: 10c516b3c21dfad25dbaca23150f1ae7f20a86ccf6b17d468381138c5666f6ed
+    spec:
+      serviceAccountName: local-provisioner
+      containers:
+        - name: provisioner
+          image: quay.io/external_storage/local-volume-provisioner:v2.3.4
+          securityContext:
+            privileged: true
+          env:
+          - name: MY_NODE_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: spec.nodeName
+          - name: MY_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: JOB_CONTAINER_IMAGE
+            value: quay.io/external_storage/local-volume-provisioner:v2.3.4
+          ports:
+          - name: metrics
+            containerPort: 8080
+          volumeMounts:
+            - name: provisioner-config
+              mountPath: /etc/provisioner/config
+              readOnly: true
+            - name: provisioner-dev
+              mountPath: /dev
+            - name: pv-localdisks-1g
+              mountPath: /var/lib/kubernetes-PV-folder/1G
+              mountPropagation: HostToContainer
+            - name: pv-localdisks-100m
+              mountPath: /var/lib/kubernetes-PV-folder/100M
+              mountPropagation: HostToContainer
+      volumes:
+        - name: provisioner-config
+          configMap:
+            name: local-provisioner-config
+        - name: provisioner-dev
+          hostPath:
+            path: /dev
+        - name: pv-localdisks-1g
+          hostPath:
+            path: /var/lib/kubernetes-PV-folder/1G
+        - name: pv-localdisks-100m
+          hostPath:
+            path: /var/lib/kubernetes-PV-folder/100M
+
+
+в storageClassMap прописано два сторадж класса.
+на хосте куб будет искать точки монтирования в двух папках
+	/var/lib/kubernetes-PV-folder/1G
+	/var/lib/kubernetes-PV-folder/100M
+	
+строчка 
+	namePattern: "*" 
+	означает что имена субпапок точек монтирования могут быть произвольными
+	
+помимо провижионера как уже сказал надо еще создать два сторадж 
+класса с именами
+	pv-localdisks-1g
+	pv-localdisks-100m
+	
+	
+ $ cat sc.yaml
+# Only create this for K8s 1.9+
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: pv-localdisks-1g
+provisioner: kubernetes.io/no-provisioner
+volumeBindingMode: WaitForFirstConsumer
+# Supported policies: Delete, Retain
+reclaimPolicy: Delete
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: pv-localdisks-100m
+provisioner: kubernetes.io/no-provisioner
+volumeBindingMode: WaitForFirstConsumer
+# Supported policies: Delete, Retain
+reclaimPolicy: Delete
+mkadm@test-kub-04:~/git-repo-02/local-provision
+
+когда мы опубликуем эти yaml 
+то нам останется примонтировать вольюмы в подпапки и куб создаст 
+PV
+
+вот как выглядит структура смотированыых вольюмов на одной из дата нод
+
+# df -h | grep PV | awk '{print $1 "           "  $6}'
+
+/dev/mapper/vg01-lvol12           /var/lib/kubernetes-PV-folder/100M/02
+/dev/mapper/vg01-lvol14           /var/lib/kubernetes-PV-folder/100M/04
+/dev/mapper/vg01-lvol13           /var/lib/kubernetes-PV-folder/100M/03
+/dev/mapper/vg01-lvol11           /var/lib/kubernetes-PV-folder/100M/01
+/dev/mapper/vg01-lvol1           /var/lib/kubernetes-PV-folder/1G/01
+/dev/mapper/vg01-lvol2           /var/lib/kubernetes-PV-folder/1G/02
+/dev/mapper/vg01-lvol3           /var/lib/kubernetes-PV-folder/1G/03
+/dev/mapper/vg01-lvol4           /var/lib/kubernetes-PV-folder/1G/04
+/dev/mapper/vg01-lvol5           /var/lib/kubernetes-PV-folder/1G/05
+/dev/mapper/vg01-lvol6           /var/lib/kubernetes-PV-folder/1G/06
+/dev/mapper/vg01-lvol7           /var/lib/kubernetes-PV-folder/1G/07
+/dev/mapper/vg01-lvol8           /var/lib/kubernetes-PV-folder/1G/08
+
+видна структура точек монтироавния
 

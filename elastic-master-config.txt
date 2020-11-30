@@ -1,0 +1,44 @@
+elasticsearch
+
+конфиг мастера
+
+
+~# cat /etc/elasticsearch/elasticsearch.yml
+
+path.data: /var/lib/elasticsearch
+path.logs: /var/log/elasticsearch
+
+cluster.name: escluster-2
+node.name: master02-224
+cluster.initial_master_nodes: ["master01-234", "master02-224", "master03-223", "master04-221", "master05-220"]
+
+transport.host: [ "192.168.7.224" ]
+transport.port: 9300
+http.port: 9200
+http.host: [ "192.168.0.224", "127.0.0.1" ]
+
+
+discovery.seed_hosts: ["192.168.7.234", "192.168.7.224", "192.168.7.223", "192.168.7.221", "192.168.7.220" ]
+
+node.master: true
+node.voting_only: false
+node.data: false
+node.ingest: false
+node.ml: false
+
+
+xpack.monitoring.enabled: true
+xpack.monitoring.collection.enabled: true
+xpack.monitoring.exporters.id1:
+   type: http
+   host: ["192.168.0.231:9200"]
+
+xpack.security.enabled: false
+
+для дата ноды конфиг тот же самый
+только отсутствует строка
+
+	cluster.initial_master_nodes: [ ]
+	
+-
+

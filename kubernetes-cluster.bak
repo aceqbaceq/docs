@@ -254,97 +254,10 @@ dst mac = кластер-мак
 првиести конфиги
 наппистаь пр проблемы
 
-#  apt-get install -y keepalived haproxy ipset
-# systemctl enable keepalived haproxy
-
-edit confs
-
-~# cat /etc/keepalived/keepalived.conf
-
-! Configuration File for keepalived
-vrrp_script check_haproxy {
-  script       "/usr/local/bin/check-haproxy.sh"
-  interval 2
-  fall 2
-  rise 2
-}
-
-vrrp_instance test_instance {
-   interface ens160
-
-   track_interface {
-     ens160
-   }
-
-   state MASTER
-   virtual_router_id 50
-   priority 255
-!   nopreempt
-
-   unicast_src_ip 172.16.102.34
-   unicast_peer {
-     172.16.102.35
-   }
-
-   virtual_ipaddress {
-      172.16.102.100/24 dev ens160
-      172.16.102.101/24 dev ens160
-   }
-
-   track_script {
-      check_haproxy
-   }
-
-   notify /usr/local/bin/keepalived.state.sh
-}
-
-кстати видно как прописать чтобы было не один а несколько кластерных
-ip адресов
 
 
-
-создаем скрипты для кипэлайвдэ
-делаем на них 700 и exec perm
-
-# touch /usr/local/bin/check-haproxy.sh; chmod +x /usr/local/bin/check-haproxy.sh; chmod 700 /usr/local/bin/check-haproxy.sh
-
-
-# touch /usr/local/bin/keepalived.state.sh; chmod +x /usr/local/bin/keepalived.state.sh; chmod 700 /usr/local/bin/keepalived.state.sh
-
-
-
-
-
-~# cat /usr/local/bin/check-haproxy.sh
-
-#!/bin/bash
-# Check if haproxy is running, return 1 if not.
-# Used by keepalived to initiate a failover in case haproxy is down
-
-HAPROXY_STATUS=$(/bin/ps ax | grep -w [h]aproxy)
-
-if [ "$HAPROXY_STATUS" != "" ]
-then
-  exit 0
-else
-  logger "HAProxy is NOT running. Setting keepalived state to FAULT."
-  exit 1
-fi
-
-еще скрипт
-
-~# cat /usr/local/bin/keepalived.state.sh
-
-#!/bin/bash
-
-TYPE=$1
-NAME=$2
-STATE=$3
-
-echo $STATE > /var/run/keepalived.state
-
-
-# systemctl enable keepalived haproxy
+ставим кипэлавдэ. (см. keeplaived.txt начиная со слов
+	////////// секция - конкретные команды как  установить)
 
 в хапрок юзаем такую фишку(ОЧЕНЬ ВАЖНЫЙ МОМЕНТ!) что указвыаем биндин в виде
  bind *:6443
@@ -381,11 +294,6 @@ echo $STATE > /var/run/keepalived.state
 и на отделных аписерверы. но у нас все вместе кипэлайв+харпокси+etcd+apiserver
 
  
-
- 
- 
-
-
 1. пробелма
 SECURITY VIOLATION - scripts are being executed but script_security not enabled
 
@@ -402,9 +310,16 @@ SECURITY VIOLATION - scripts are being executed but script_security not enabled
 
 
 ставим первый контрол плейн
+
+
 ставим как описано в основном документе
 
 # kubeadm init --pod-network-cidr=10.253.0.0/16 --apiserver-advertise-address=172.16.102.34 --control-plane-endpoint "172.16.102.100:6440" --upload-certs
+
+	--control-plane-endpoint "172.16.102.100:6440"  это сокет кластеризованного хапрокси
+    --pod-network-cidr=10.253.0.0/16 это оверлейная сеть под поды,
+	  мы сами выбираем ее циферки.
+
 
 далее ставим втоорой контрол плейн
 
@@ -435,7 +350,10 @@ cbec82f4e3eed8f5ac7522cfb4137baf38c1f4c2d2bd4f6b6db27714cd126fd9
 --control-plane --certificate-key cbec82f4e3eed8f5ac7522cfb4137baf38c1f4c2d2bd4f6b6db27714cd126fd9 \
 --apiserver-advertise-address=172.16.102.37
 
---apiserver-advertise-address=172.16.102.37 = про эту настройку.
+
+где 
+	172.16.102.100:6440 это сокет хапрокси
+	--apiserver-advertise-address=172.16.102.37 = про эту настройку.
 во первых кубелет аписервер сидит в том же сетевом неймспейсе что и хост,
 так вот эта настройка рна типа говорит ему к какой карточке биндиться где
 создавать сокет чтобы его слушать. и типа по указанному ip находится карточка
@@ -462,6 +380,7 @@ apt install -y kubelet kubeadm kubectl
 вобще влет и без сучка и задоринки
 итак - тщетаельно проверят что следов прощшлой устновки кубелета нет в
 системе. что кубелет начисто стерт с лица земли прошлый.
+
 
 
 

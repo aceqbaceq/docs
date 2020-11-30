@@ -266,7 +266,28 @@ kube-proxy-tch8f                 1/1     172.16.102.33
 
 так что в реале ставим flannel. этот продукт вообще работает без проблем
 
-# kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+
+# wget https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+
+далее редактируем этот файл kube-flannel.yml
+а именно секцию в нем
+
+ net-conf.json: |
+    {
+      "Network": "10.254.0.0/16",
+      "Backend": {
+        "Type": "vxlan"
+      }
+
+вбиваем ровно тот Network который мы указали в  --pod-network-cidr=10.254.0.0/16 когда вводили kubeadm init
+
+network в настройках фланнеля должен совпдаать с pod-network-cidr
+в kube init 
+иначе потом проблем необерешься
+
+
+применяем файл 
+# kubectl apply -f kube-flannel.yml
 
 
 после этого через пару минут должны автомтатом стратартунть поды coredns

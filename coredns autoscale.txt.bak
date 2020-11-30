@@ -1,0 +1,228 @@
+coredns autoscale.txt
+
+вначале публикую портянку
+
+dns-horizontal-autoscaler.yaml
+
+# Copyright 2016 The Kubernetes Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+kind: ServiceAccount
+apiVersion: v1
+metadata:
+  name: kube-dns-autoscaler
+  namespace: kube-system
+  labels:
+    addonmanager.kubernetes.io/mode: Reconcile
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: system:kube-dns-autoscaler
+  labels:
+    addonmanager.kubernetes.io/mode: Reconcile
+rules:
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["list", "watch"]
+  - apiGroups: [""]
+    resources: ["replicationcontrollers/scale"]
+    verbs: ["get", "update"]
+  - apiGroups: ["apps"]
+    resources: ["deployments/scale", "replicasets/scale"]
+    verbs: ["get", "update"]
+# Remove the configmaps rule once below issue is fixed:
+# kubernetes-incubator/cluster-proportional-autoscaler#16
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "create"]
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: system:kube-dns-autoscaler
+  labels:
+    addonmanager.kubernetes.io/mode: Reconcile
+subjects:
+  - kind: ServiceAccount
+    name: kube-dns-autoscaler
+    namespace: kube-system
+roleRef:
+  kind: ClusterRole
+  name: system:kube-dns-autoscaler
+  apiGroup: rbac.authorization.k8s.io
+
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: kube-dns-autoscaler
+  namespace: default
+data:
+  linear: |-
+    {
+      "coresPerReplica": 256,
+      "nodesPerReplica": 1,
+      "preventSinglePointFailure": true
+    }
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kube-dns-autoscaler
+  namespace: kube-system
+  labels:
+    k8s-app: kube-dns-autoscaler
+    kubernetes.io/cluster-service: "true"
+    addonmanager.kubernetes.io/mode: Reconcile
+spec:
+  selector:
+    matchLabels:
+      k8s-app: kube-dns-autoscaler
+  template:
+    metadata:
+      labels:
+        k8s-app: kube-dns-autoscaler
+    spec:
+      priorityClassName: system-cluster-critical
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+        supplementalGroups: [ 65534 ]
+        fsGroup: 65534
+      nodeSelector:
+        kubernetes.io/os: linux
+      containers:
+      - name: autoscaler
+        image: k8s.gcr.io/cluster-proportional-autoscaler-amd64:1.8.1
+        resources:
+            requests:
+                cpu: "20m"
+                memory: "10Mi"
+        command:
+          - /cluster-proportional-autoscaler
+          - --namespace=kube-system
+          - --configmap=kube-dns-autoscaler
+          # Should keep target in sync with cluster/addons/dns/kube-dns.yaml.base
+          - --target=deployment/coredns
+          # When cluster is using large nodes(with more cores), "coresPerReplica" should dominate.
+          # If using small nodes, "nodesPerReplica" should dominate.
+          - --default-params={"linear":{"coresPerReplica":256,"nodesPerReplica":1,"preventSinglePointFailure":true,"includeUnschedulableNodes":true}}
+          - --logtostderr=true
+          - --v=2
+      tolerations:
+      - key: "CriticalAddonsOnly"
+        operator: "Exists"
+      serviceAccountName: kube-dns-autoscaler
+
+
+теперь обьяснение,
+возможно появится желание поменять число подов coredns от дефолтового 2
+на чтото другое.
+
+ с одной стороны по идее острой необходимости нет. хотя поды coredns
+обычно сидят на одном физ сервере контролпанели и если этот сервер упадет то как поды умрут. но бекендом
+для подов coredns является не папка на диске а etcd. поэтому 
+деплоймент который управляет подами coredns он просто поднимет эти два
+пода на другом сервер контрол панели а данные считает с etcd поэтому 
+катастрофы нет. 
+ едиснтвенное что будет некоторое прерывание в сервисе dns пока 
+деплоймент будет подымать эти поды на другом хосте.но это будет коротко
+нестрашно. еще момент что ресурсы пода по цпу ограничены в спеке и наверно
+когда миллион подов то поды coredns могут типа "лечь" под нагрузкой.
+ в общем можно немножко сделать получше тем что настроить чтобы число подов coredns было больше чем дефолтовое два и чтобы их число масштабировалось автоматом с ростом числа хостов либо ядер в кластере.
+ 
+значит как настроить автоскейлинг:
+есть оф дока -
+	1)https://kubernetes.io/docs/tasks/administer-cluster/dns-horizontal-autoscaling/
+
+она говорит надо  раскатать деплоймент на основе имаджа 
+	image: k8s.gcr.io/cluster-proportional-autoscaler-amd64:1.6.0
+
+в этом деплойменте есть параметр который описывает поды которые мы хотим автоскейлить, 
+- --target=<SCALE_TARGET>
+
+прописвыаем в виде 
+	--target=deployment/имя_деплоймента
+	--target=replicationcontroller/имя_контроллера
+	--target=replicaset/имя_репликисет
+
+конкретно для coredns подов это будет
+	--target=deployment/coredns
+
+и есть еще один параметр который нам интересен
+--default-params={"linear":{"coresPerReplica":256,"nodesPerReplica":16,"min":1}}
+
+он определяет когда нужно увеличивать число подов.
+coresPerReplica = это обозначает число ядер на одну реплику
+nodesPerReplica = это означает число нод на одну реплику
+
+эти числа мы сами задаем как параметр,
+тогда число подов определяется формулой
+
+replicas = max( ceil( cores × 1/coresPerReplica ) , ceil( nodes × 1/nodesPerReplica ) )
+
+ceil - это округление до целого вверх
+max - это максимум 
+
+получается что число подов в деплойменте будет целое, максмум из двух 
+скобок. 
+
+если в кластере хосты на которых много ядер то надо больше придавать значение параметру coresPerReplica, если в кластере хосты с мелким числом
+ядер то нужно больше внимание придавать параметру nodesPerReplica.
+
+пример. у меня в кластере 4 хоста х 7 ядер
+я задаю
+coresPerReplica = 256
+nodesPerReplica =1 
+
+тогда replicas = 4
+
+получается берем yaml деплоймент который указан в официальной доке
+прописываем в нем параметры публикуем на кластере и все работает.
+так вот ложь. ничего незаработает.
+
+ потому что под этого деплоймента будет писать что он неможет
+прочитать параметры кластера ибо у него нет доступа. 
+ чтобы этот деплой из оф доки на самом деле заработал нужно добавить еще такие обьекты как : ServiceAccount, ClusterRole, ClusterRoleBinding и вот только тогда это все заработает. пример уже реально рабочего yaml я нашел тут
+	2)https://github.com/kubernetes/kubernetes/blob/master/cluster/addons/dns-horizontal-autoscaler/dns-horizontal-autoscaler.yaml
+
+но. есть еще пара дополнений.
+во первых я описал только два параметра автоскейлера 
+а прочитать про все параметры автоскейлера можно типа на странице
+этого скейлера
+	3)https://github.com/kubernetes-sigs/cluster-proportional-autoscaler
+
+ теперь чтобы незапутаться в ссылках напише для чего каждую надо юзать.
+ 1) - для общего понимание работы скейлера
+ 2) - для yaml портянки которая реально работает на реальном кластере
+ 3) - для того чтобы знать все параметры которые можно настраивать при запуске скейлера. и для того чтобы в разделе example посмотреть как оформляется ConfigMap для скейлера. потому что в 2) обьяснения как оформить configMap нет
+
+в итоге конечный вариант портянки  которая реально работает + configMap размещен в самом верху вначале.
+
+замечу что автоскейл может скейлить нетолько coredns поды но и любые поды 
+в составе дейплоймента, репликисет итп
+
+еще замечу что деплоймент автоскейла он незаработает если в кубе у нас пока только хосты контроль панелей, нужна в кластере хотя бы одна дата нода. потому что под автоскейла может быть опубликован только на дата ноде. и вот когда он поднимется только тогда начнут скейлиться уже поды coredns
+
+==
+ 
+ 
+
+
+
+
+
+

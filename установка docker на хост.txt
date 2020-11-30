@@ -1,6 +1,9 @@
 установка docker
 на хост
 
+последняя заапрувленная кубом версия докера
+docker v19
+
 напомню значение некоторых важных папок
 
 /var/lib/docker/overlayfs2  (здесть докер хранит контейнеры и имаджи )
@@ -43,7 +46,7 @@ software-properties-common = ( штука которая добавляет ко
 
 
 
-# curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+$ curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
 
 эта команда выкачивает публичный gpg ключ от репозитория
 пакетов и добавляет его в систему.
@@ -187,7 +190,7 @@ EOF
 1 # journalctl -u kubelet | grep cgroup
 kubelet[21951]: Setting cgroupDriver to systemd
 
-2 # /var/lib/kubelet/config.yaml
+2 # cat /var/lib/kubelet/config.yaml | grep -i systemd
 cgroupDriver: systemd
 
 3. # ps aux | grep kubelet
