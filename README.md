@@ -19,3 +19,4 @@ fatal: Could not read from remote repository.
 для загрузки с github
 # git pull git://github.com/aceqbaceq/docs.git master
 
+/
