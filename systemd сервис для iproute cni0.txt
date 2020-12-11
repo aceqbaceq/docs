@@ -1,9 +1,11 @@
 systemd сервис
 
 для того чтобы в таблицы маршрутизации iproute2 пропихивать
-маршруты об cni0
+маршруты об cni0 и flannel
 
-понадобится три файла
+
+
+понадобится четыре файла
 
 
 первый файл
@@ -15,16 +17,17 @@ systemd сервис
 	# cd /etc/systemd/system
 
 	# touch ./dynamic-routing-helper.target
+	
+    # cat dynamic-routing-helper.target
 
-	# cat dynamic-routing-helper.target
+# check_and_wait.target
+[Unit]
+TimeoutStartSec=infinity
+ConditionPathExists=/var/run/flannel/subnet.env
+ExecStart=/usr/bin/sleep 1000
+RemainAfterExit=yes
+root@mk-kub2-07:/etc/systemd/system#
 
-	# check_and_wait.target
-	[Unit]
-	TimeoutStartSec=infinity
-	ConditionPathExists=/var/run/flannel/subnet.env
-	ExecStart=/usr/bin/sleep 1000
-	RemainAfterExit=yes
-	root@mk-kub2-06:/etc/systemd/system#
 
 этот таргет он ждет появление на фс фланнелевского рантайм файла. пока фленнель нестартанет то и subnet.env непоявится
 
@@ -37,21 +40,22 @@ systemd сервис
 
 	# touch dynamic-routing.service
 	# cat dynamic-routing.service
-	[Unit]
-	Description=Add cni0 route to T0,1,2..  iproute2 custom route tables
-	After=sys-subsystem-net-devices-cni0.device dynamic-routing-helper.target
-	Wants=network-online.target  dynamic-routing-helper.target
-	BindsTo=sys-subsystem-net-devices-cni0.device
+[Unit]
+Description=Add cni0 route to T0,1,2..  iproute2 custom route tables
+After=sys-subsystem-net-devices-cni0.device dynamic-routing-helper.target
+Wants=network-online.target  dynamic-routing-helper.target
+BindsTo=sys-subsystem-net-devices-cni0.device
 
-	[Service]
-	Type=notify
-	ExecStart=/usr/local/bin/dynamic-routing.sh
-	StandardOutput=null
-	Restart=always
-	RestartSec=60
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/dynamic-routing.sh
+StandardOutput=null
 
-	[Install]
-	WantedBy=multi-user.target
+[Install]
+WantedBy=multi-user.target
+
+root@mk-kub2-07:/etc/systemd/system#
+
 
 и его нужно положит в спец папку dynamic-routing-helper.target.wants
 которуб создаем руками таким макарм системд понимает что наш сервис
@@ -64,42 +68,80 @@ systemd сервис
 	# systemctl daemon-reload
 
 	# systemctl enable dynamic-routing.service
+	
+еще нужно создать вспомогательный таймер. который будет каждые 60с
+запускат таск повторно
 
-третий файл
+# cat dynamic-routing.timer
+[Unit]
+Description=Execute dynamic-routing every 60sec
+
+[Timer]
+OnCalendar=*-*-* *:*:00
+Unit=dynamic-routing.service
+
+[Install]
+WantedBy=multi-user.target
+
+$ sudo systemctl enable dynamic-routing.timer
+$ sudo systemctl start dynamic-routing.timer
+$ sudo systemctl list-timers --all
+
+четвертый файл
 это файл скрмпт который в итоге выполнит наш сервис
 
 	# cat /usr/local/bin/dynamic-routing.sh
 
 	# cat dynamic-routing.sh
-	#!/bin/bash
+#!/bin/bash
 
-	EXIST=`ip route show 10.254.0.0/16 table T0 | wc -l`
-	if [ $EXIST -eq 0 ]
-	then
-		sudo ip route add 10.254.0.0/16 dev cni0 table T0
-	fi
+tabls="T0 T1 T7"
+
+for t in  ${tabls[*]}
+ do
+
+        readarray GREPPED < <(ip route sh | egrep "flannel|cni0" )
+
+        for item in  ${!GREPPED[*]}
+         do
+           a=`(echo "${GREPPED[$item]}"  | tr -d '\012\015')`
+           EXIST=`ip route show table "$t" | grep "$a" | wc -l`
+
+           if [ $EXIST -eq 0 ]
+            then
+              ip route add $a  table "$t"
+            fi
+         done
+
+ done
 
 
-	EXIST=`ip route show 10.254.0.0/16 table T1 | wc -l`
-	if [ $EXIST -eq 0 ]
-	then
-		sudo ip route add 10.254.0.0/16 dev cni0 table T1
-	fi
+
+что он делает. он берет деволтовую таблицу маршрутизации
+сканирует в ней все линии по слову flannel или cni0
+затем он берет кастомную таблицу T0\T1\T7
+и смотрит есть эта строка роутинга в ней или нет.
+если нет он добавляет.
+
+вот в итоге что он добавляет
 
 
-	EXIST=`ip route show 10.254.0.0/16 table T7 | wc -l`
-	if [ $EXIST -eq 0 ]
-	then
-		sudo ip route add 10.254.0.0/16 dev cni0 table T7
-	fi
-
-
-
-что он делает. он проверяет есть ли маршруты в кастомных таблицах 
-маршрутизации T0 T1 T7 которые мы до этого должны создать руками (делается это 1 раз и сохраняется после перезагрузки).
-
+# ip r s t T1
+10.254.0.0/24 via 10.254.0.0 dev flannel.1 onlink
+10.254.1.0/24 via 10.254.1.0 dev flannel.1 onlink
+10.254.2.0/24 via 10.254.2.0 dev flannel.1 onlink
+10.254.3.0/24 via 10.254.3.0 dev flannel.1 onlink
+10.254.4.0/24 via 10.254.4.0 dev flannel.1 onlink
+10.254.5.0/24 via 10.254.5.0 dev flannel.1 onlink
+10.254.6.0/24 dev cni0  proto kernel  scope link  src 10.254.6.1
+default via 192.168.1.1 dev ens160
+192.168.1.0/24 dev ens160  scope link
 
 к сожадлению этот фугкциоал средстаами /etc/network/interfaces не сделать.
+
+две последние строки добавляет неон а скрипт в /etc/netwotk/interfaces
+
+==
 
 
 

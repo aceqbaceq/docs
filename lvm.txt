@@ -33,21 +33,35 @@ Number  Start   End     Size    File system  Name  Flags
 
 далее. создаем volume group
 
-$ sudo vgcreate vg01 /dev/sde1
+$ sudo vgcreate vg02 /dev/sde1
   Physical volume "/dev/sde1" successfully created
-  Volume group "vg01" successfully created
+  Volume group "vg02" successfully created
 
 а теперь на этом vg нарезаем столько lv и такого размера как нам надо
 
-например создаем раздел lv 10GB 
+например создаем раздел lv 10GB
+ 
 И ТУТ ВАЖНО УТОЧНИТЬ ! - что если мы планируем потом после форматирования получить 10GB чистого свободного места то нужно отрезать LVM кусок бОльшего размера на 10%!. иначе будет не 10Gb а 9.5Gb например. потом запорешься переделывать.
 
+ДОБАВЬ 10% !!
 
-$ sudo lvcreate vg01 -L 10G
+$ sudo lvcreate vg02 -L 11G
   Logical volume "lvol0" created.
 
 тут я останвоился на стадии создания ext4 раздела и что делать с
 журналом.
+
+форматируем раздела
+
+$ sudo mkfs.ext4 /dev/mapper/vg02-lvol0
+
+добавляем lv в /etc/fstab
+
+/dev/mapper/vg02-lvol0          /var/lib/kubernetes-PV-folder/100G/00           ext4    errors=remount-ro,data=journal  0       2
+/dev/mapper/vg02-lvol1          /var/lib/kubernetes-PV-folder/100G/01           ext4    errors=remount-ro,data=journal  0       2
+/dev/mapper/vg02-lvol2          /var/lib/kubernetes-PV-folder/100G/02           ext4    errors=remount-ro,data=journal  0       2
+
+
 
 ---
 как расширить раздел lv на LVM 

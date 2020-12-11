@@ -10,7 +10,10 @@ https://support.hpe.com/hpesc/public/docDisplay?docId=mmr_kc-0100588
 
 HP StorageWorks 8/80 SAN Switch эквивалентен 	Brocade 5300
 
-втом же документе прописано какие трансиверы этот свич поддерживает:
+в этом документе
+ https://h20195.www2.hpe.com/v2/getpdf.aspx/c04123373.pdf?ver=7
+
+прописано какие трансиверы этот свич поддерживает:
 
 нас интересует вот этот:
 HP 8Gb Shortwave B-series Fibre Channel 1 Pack SFP+ Transceiver = AJ716B
