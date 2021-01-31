@@ -1,0 +1,67 @@
+mount /dev/mapper/...   /mnt/overlay1/lower
+mount /dev/mapper/...   /mnt/overlay1/upper+workdir
+mkdir /mnt/overlay1/upper+workdir/upper
+mkdir /mnt/overlay1/upper+workdir/workdir
+
+
+...
+...
+
+# скрипт
+service smbd stop
+umount /samba_folder
+
+
+определяем LV устройства отвечающие за lower и upper 
+	L1=$(mount | grep "/mnt/overlay1/lower" | awk '{print $1}')
+	U1=$(mount | grep "/mnt/overlay1/upper+workdir/upper" | awk '{print $1}')
+
+sudo umount /mnt/overlay1/merged
+sudo umount /mnt/overlay1/lower
+sudo umount /mnt/overlay1/upper+workdir
+
+mkfs.ext4 L1
+
+mv /mnt/overlay1/lower /mnt/overlay1/lower-old
+mv /mnt/overlay1/upper+workdir /mnt/overlay1/upper+workdir-old
+mv /mnt/overlay1/lower-old /mnt/overlay1/upper+workdir
+mv /mnt/overlay1/upper+workdir-old /mnt/overlay1/lower
+
+
+mount U1 /mnt/overlay1/lower
+mount L1 /mnt/overlay1/upper+workdir
+mkdir /mnt/overlay1/upper+workdir/upper
+mkdir /mnt/overlay1/upper+workdir/workdir
+
+
+mount -t overlay -o  \
+	lowerdir=/mnt/overlay1/lower, \ upperdir=/mnt/overlay1/upper+workdir/upper,  \ workdir=/mnt/overlay1/upper+workdir/workdir \
+	none \
+	/mnt/overlay1/merged
+	
+mount  --bind .../merged  ./samba-folder
+
+service smbd start
+
+поменять запись в fstab запись для
+	/mnt/overlay1/lower
+	/mnt/overlay1/upper+workdir
+	
+=========================
+следущие шаги
+
+1. сохранять в var/lib/pagecache/setting.ini
+переменные которые прсоле ребута позволят обратно смонтирован оверлей
+
+2. написать сриптк который после перезагрузки можно 
+запутсти он считает переменные из пунтка 1 
+и и смонтрруеи оверлей
+
+====
+
+
+ 
+
+
+  
+ 

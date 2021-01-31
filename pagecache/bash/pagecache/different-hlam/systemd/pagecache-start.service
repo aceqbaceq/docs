@@ -1,0 +1,10 @@
+[Unit]
+Description=Job that starts pagecache
+
+[Service]
+ExecStart=/usr/local/bin/pagecache_start_after_reboot.sh
+Type=oneshot
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
