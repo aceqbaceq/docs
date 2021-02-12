@@ -331,6 +331,63 @@ a:
    - .....
    - .......
    
+   
+   
+ вот еще переменная a имеет вот такой вид
+ 
+ 
+
+changed: false
+
+msg: "u'All items completed'"
+
+results: 
+  - 
+    ansible_loop_var: u'item'
+    failed: false
+    item: u'localhost'
+    u'changed': false
+    u'invocation': 
+      u'module_args': 
+        u'append_privs': false
+        u'ca_cert': None
+        u'check_implicit_admin': false
+        u'client_cert': None
+        u'client_key': None
+        u'config_file': u'/root/.my.cnf'
+        u'connect_timeout': 30
+        u'encrypted': false
+        u'host': u'localhost'
+        u'host_all': false
+        u'login_host': u'localhost'
+        u'login_password': None
+        u'login_port': 3306
+        u'login_unix_socket': u'/var/run/mysqld/mysqld.sock'
+        u'login_user': None
+        u'name': u'root'
+        u'password': u'VALUE_SPECIFIED_IN_NO_LOG_PARAMETER'
+        u'priv': None
+        u'sql_log_bin': true
+        u'state': u'present'
+        u'update_password': u'always'
+        u'user': u'root'
+    u'msg': "u'User unchanged'"
+    u'user': u'root'
+
+warnings: 
+  - "u'Module did not set no_log for update_password'"
+  
+  
+  
+  
+ тогда мы можем получить доступ к ее элементам в таком виде
+ 
+ a.changed
+ a.message
+ a.results
+ a.results.0.ansible_loop_var
+ 
+ 
 ===
 
 
