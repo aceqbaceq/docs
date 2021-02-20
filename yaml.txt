@@ -331,6 +331,39 @@ vars: { ansible_python_interpreter: "/usr/bin/python3" }
 как сворачивать в строчку и растягивать в вертикальный вид
 один и тот же yaml файл.
 
+для пример поманипулируем еще одним куском из yaml файла
+
+debug:
+   msg: "hello"
+   
+ экивалент
+ 
+ debug: { msg: "hello" }
+ 
+ таким образом мы видим что вертикальное представление куска ямль 
+ уменьшает количество скобок используемых
+ чем в более вертикльный вид преобразован ямль тем меньше скобок будет в нем
+ в этом и фишка.
+ 
+ еще кусок для примера
+     
+       template: { src: templates/nginx/default, dest: /etc/nginx/sites-available/default }
+ 
+ это дикшионари у которого значением является другой дикшионари
+ 
+преобразуем
+
+       template: 
+	        src: templates/nginx/default 
+		    dest: /etc/nginx/sites-available/default 
+ 
+ причем можно и вот так
+ 
+       template: 
+	        { src: templates/nginx/default, 
+		    dest: /etc/nginx/sites-available/default } 
+ 
+ заметь помимо скобок появляется и запятая
 
 ----
 то что ниже переработать.
