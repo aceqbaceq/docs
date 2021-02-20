@@ -358,9 +358,9 @@ debug:
  
  причем можно и вот так
  
-       template: 
-	        { src: templates/nginx/default, 
-		    dest: /etc/nginx/sites-available/default } 
+    template: 
+	   { src: templates/nginx/default, 
+	   dest: /etc/nginx/sites-available/default } 
  
  заметь помимо скобок появляется и запятая
 
