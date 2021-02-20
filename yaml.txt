@@ -346,16 +346,15 @@ debug:
  в этом и фишка.
  
  еще кусок для примера
-     
-       template: { src: templates/nginx/default, dest: /etc/nginx/sites-available/default }
+    
+  template: { src: templates/nginx/default, dest: /etc/nginx/sites-available/default }
  
  это дикшионари у которого значением является другой дикшионари
  
 преобразуем
-
-       template: 
-	        src: templates/nginx/default 
-		    dest: /etc/nginx/sites-available/default 
+    template: 
+      src: templates/nginx/default 
+      dest: /etc/nginx/sites-available/default 
  
  причем можно и вот так
  
