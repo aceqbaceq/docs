@@ -730,3 +730,204 @@ EID:Slt DID State DG     Size Intf Med SED PI SeSz Model            Sp
 вот такая связь. такая разница в выводе esxi и вцентр
 
 ---
+
+есть такая задача. 
+есть esxi
+на нем стоит рейд контроллер
+и в него воткнуты ssd диски.
+надо узнать насколько износились ssd диски.
+
+значит smart данные рейд контррллер невыдает 
+поэтому smart хрень любая неработает.
+
+а что работает.
+
+в esxi можно посмотреть сколько байт было записано на lun
+с момент старта сервера.
+кога сервер будет перезагружен этот счетчик обнулится.
+
+вот как это сделать
+
+~ # esxcli storage core device stats get
+naa.6589cfc000000f658c2bd978f8e66bf8
+   Device: naa.6589cfc000000f658c2bd978f8e66bf8
+   Successful Commands: 23061155
+   Blocks Read: 248724493
+   Blocks Written: 200529452
+   Read Operations: 10296559
+   Write Operations: 3218177
+   Reserve Operations: 1
+   Reservation Conflicts: 0
+   Failed Commands: 117898
+   Failed Blocks Read: 0
+   Failed Blocks Written: 3376
+   Failed Read Operations: 26031
+   Failed Write Operations: 5244
+   Failed Reserve Operations: 0
+
+naa.600508b1001caf026adcbe0c1b91a50e
+   Device: naa.600508b1001caf026adcbe0c1b91a50e
+   Successful Commands: 10990299986
+   Blocks Read: 45460020414
+   Blocks Written: 119530291007
+   Read Operations: 4608896091
+   Write Operations: 6381012553
+   Reserve Operations: 9140
+   Reservation Conflicts: 0
+   Failed Commands: 43413
+   Failed Blocks Read: 0
+   Failed Blocks Written: 0
+   Failed Read Operations: 0
+   Failed Write Operations: 0
+   Failed Reserve Operations: 0
+
+naa.600508b1001c2bdea2adb2c2515f744e
+   Device: naa.600508b1001c2bdea2adb2c2515f744e
+   Successful Commands: 5245128586
+   Blocks Read: 65047388977
+   Blocks Written: 358643072928
+   Read Operations: 940332168
+   Write Operations: 4304397066
+   Reserve Operations: 13106
+   Reservation Conflicts: 0
+   Failed Commands: 43352
+   Failed Blocks Read: 0
+   Failed Blocks Written: 0
+   Failed Read Operations: 0
+   Failed Write Operations: 0
+   Failed Reserve Operations: 0
+
+mpx.vmhba32:C0:T0:L0
+   Device: mpx.vmhba32:C0:T0:L0
+   Successful Commands: 2684426
+   Blocks Read: 99865084
+   Blocks Written: 5771111
+   Read Operations: 2101369
+   Write Operations: 555853
+   Reserve Operations: 0
+   Reservation Conflicts: 0
+   Failed Commands: 62040
+   Failed Blocks Read: 0
+   Failed Blocks Written: 0
+   Failed Read Operations: 0
+   Failed Write Operations: 0
+   Failed Reserve Operations: 0
+
+вот видно несоклько лунов.
+
+берем лун
+naa.6589cfc000000f658c2bd978f8e66bf8
+
+нам нужен параметр
+
+Blocks Written: 200529452
+
+согласно вот этой статье https://docs.vmware.com/en/VMware-vSphere/6.7/com.vmware.vsphere.storage.doc/GUID-BB3B40D3-82D4-44D8-BD38-155129800B13.html
+один блок = 512 байт.
+
+поэтому умножаем Blocks Written: 200529452 на 512 байт 
+и узнаем сколько байт было записано на lun  с момента старта сервера
+
+в данном случае 95 ГБ.
+
+аптайм этого сервера 534 дня.
+
+таким образом можно оценить запиленность ssd дисков  штатными средствами
+
+экспериментальным путем было выяснено
+для конкретных серверов что 
+
+sql база данных на raid10 из 4-ех дисков запиливает 1 ssd диск в год на 215 TB
+
+флешка на которую установлен esxi и при этом логи льются не нафлэшку
+а на другой лун , так вот такая флэшка в год запиливается на 2 GB\год
+
+флэшку в списке лунов легко идентифицировать как чтото выглядящее как
+mpx.vmhba32:C0:T0:L0
+
+массив raid10 из 10 дисков на который постоянно пишутся картинки 
+в нем 1 ssd диск в год запиливается на 35TB
+
+для примера вот таблица endurance (tbw) дисков samsung
+
+https://www.samsung.com/semiconductor/minisite/ssd/support/warranty/
+
+860 pro 1TB имеет 1200 TBW
+
+еще примеры endurance ssd дисков
+
+
+SSDSC2KB96 (стали делать в 17 году это intel s4500 series)  = 1904 TBW
+
+samsung 850 pro 1TB = 300 TBW входят в гарантию 
+
+sSDSC2KG019T701 (серия s4600) = 11100 TBW = 37 730 ₽ 
+
+SSDSC2KG019T801 (серия D3-S4610) = 9625 TBW = 38 850p
+
+SDSC2KB019T801 (серия D3-S4510) = 6656 TBW = 29 370p
+
+SEDC500M/1920G = 4555 TBW = 24 343p
+
+XA1920LE10063 = 3500 TBW = 22 720p
+
+SSDSC2KB019T701 (серия S4500) = 3348 TBW= 35 070 ₽
+
+--
+
+ssd Диски делаются на основе типпов ячеек
+SLC, MLC, TLC, QLC
+
+чем левее тем чип дороже быстрее и endurance больше.
+чем правее то все гавнянее но дешевле.
+
+еще эти ячейки они могут типа располагаться в 2D компоновке
+и 3D компоновке. это влияет на endurance такого чипа.
+
+то есть есть 2D MLC а есть 3D MLC.
+
+зачем нам знать эту всю фигню. 
+если производитель не привел сколько tbw для диска
+то зная из каких ячеек сделан диск можно прикинуть вручную
+сколько у него tbw.
+
+вот здесь указано какие ячейки сколько циклов перезаписи выдерживают
+https://searchstorage.techtarget.com/definition/TLC-flash-triple-level-cell-flash
+
+вот еще табличка про количество циклов перезаписи ячеек
+https://www.ni.com/ru-ru/support/documentation/supplemental/12/understanding-life-expectancy-of-flash-storage.html
+
+но в целом ручной расчет endurance на основе типа ячеек лучше неделат
+так как можно легко промахнуться а смотреть в spec у производителя
+например 
+
+sSDSC2KG019T701 (серия s4600) согласно спеку имеет 11100 TBW
+согласно тому же спеку он сделан из 3D NAND TLC и должен 
+иметь существенно меньший ресурс
+
+
+еще пример 
+
+sasmung 840 evo 1TB  для него непонятно какой tbw самсунг 
+только дает что 3 года гарантия
+https://www.samsung.com/semiconductor/minisite/ssd/support/warranty/
+
+но мызнаем что он сделан на основе TLC как я понял просто TLC а не 3d TLC
+
+для этих ячеек примерно они выдерживают 300 - 1000 циклов.
+значит примерно samsung 840 evo 1TB  должен выдержать 500 tbw
+
+
+еще пример.
+
+вот пример берем диск SEDC500M/1920G = 4555 TBW
+согласно спеку https://www.kingston.com/datasheets/dc500r-m_us.pdf 
+он сделан из 3d TLC nand который типа имеет 3000 циклов перезаписи.
+получается в теоррии его ресурс ~ 6000 tbw. 
+однако согласно тому же спеку он равен 4555 tbw 
+
+
+
+ 
+
+
