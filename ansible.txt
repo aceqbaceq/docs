@@ -390,4 +390,52 @@ warnings:
  
 ===
 
+подлянки ansible
+
+модуль unarchive
+
+- name: Extract  
+  unarchive:
+    src: 1.tar.gz
+    dest: /var/lib/vasya
+	
+если dest папка несуществует тогда модуль несможет разархивировать
+и будет выдавать такую тупую ошибку
+
+
+"/bin/gtar\" could not handle archive. 
+Command \"/usr/bin/unzip\" could not handle archive."
+
+
+еще раз скажу причина совсем вдругом. несуществует dest папки.  а
+без этого модуль неможет.
+нужно создать dest папку и все сразу станет отлично
+
+==
+
+модуль file
+
+- name: create nginx directory
+  file:
+    path:  "{{ wp_docroot }}"
+    state: directory
+    owner: "{{ wp_owner }}"
+    group: "{{ wp_group }}"
+    mode: 0775
+
+если переменная wp_docroot имеет такой вид:
+
+doc_root: " /1/2/3 "
+
+то есть в ней есть пробел  в конце и вначале
+то модуль file напишет что он все сделал но по указанному 
+пути папку НЕСОЗДАСТ.
+
+как исправить. надо исправить переменную , убрать пробелы
+
+doc_root: "/1/2/3"
+
+вот теперь модуль file отработает нормально
+
+==
 
