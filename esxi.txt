@@ -927,7 +927,236 @@ https://www.samsung.com/semiconductor/minisite/ssd/support/warranty/
 однако согласно тому же спеку он равен 4555 tbw 
 
 
+=======
+
+esxi
+vmware
+iscsi
+freenas
+iops
+satp
+
+ есть такая проблема
+ вот мы поставили freenas и через iscsi стали отдавать на esxi LUN.
+ и еще мы отдаем по iscsi через multipath по round robin через несколько карточек.
+ в чем проблема. по дефолту esxi забирает через карточку 1000 iops и только потом 
+ переключается на следующую карточку на следующую 1000 iops.
+ если мы хотим иметь много iops с низким лейтенси то такая схема гавно.
+ гораздо лучше будет если esxi будет через карточку забирать 1 iops а следущий iops
+ забирать через следующую карточку. замечу что такая схема это невина стораджа freenas 
+ это вина клиента esxi
+ 
+ вот этого и надо добиться. в интернете широко указано решение когда мы этого добиваемся
+ но только для тех LUN которые уже подключены к esxi. такое решение гавно потому что 
+ каждый раз когда мы будем подлкючать +1 новый LUN то для него нужно будет опять руками 
+ запускать эту операцию.
+ 
+ 
+ нам надо сделать чтобы для всех старых и новых LUN автоматом устанавливалась системе iops=1
+ путем однократной настройки.
+ 
+ 
+ во первых проверим через сколько iops на данный момент esxi переключается на следущую карточку
+ 
+  # esxcli storage nmp  device list
+  
+  naa.6589cfc0000001b2475dddbe6c9464f8
+   Device Display Name: FreeNAS iSCSI Disk (naa.6589cfc0000001b2475dddbe6c9464f8)
+   Storage Array Type: VMW_SATP_ALUA
+   Storage Array Type Device Config: {implicit_support=on;explicit_support=off; explicit_allow=on;alua_followover=on; action_OnRetryErrors=off; {TPG_id=1,TPG_state=AO}}
+   Path Selection Policy: VMW_PSP_RR
+   Path Selection Policy Device Config: {policy=rr,iops=1000,bytes=10485760,useANO=0; lastPathIndex=3: NumIOsPending=0,numBytesPending=0}
+   Path Selection Policy Device Custom Config:
+   Working Paths: vmhba34:C13:T1:L2, vmhba34:C1:T1:L2, vmhba34:C19:T1:L2, vmhba34:C7:T1:L2
+   Is Local SAS Device: false
+   Is USB: false
+   Is Boot USB Device: false
+
+  из вывод нам интересно вот это :
+  
+  {policy=rr,iops=1000,
+  
+  как видно автоматом esxi выставил iops=1000
+  
+  также для справки :
+
+nmp = VMware Native Multipath Plugin (NMP). This is the VMware default implementation of the Pluggable Storage Architecture. 
+
+satp = storage Array Type Plugins
 
  
+ как же решить проблему. ответ - надо создать правило которое автоматом будет создавать уже нужный iops=1
+ 
+ вот это правило:
+ 
+ # esxcli storage nmp satp rule add -s "VMW_SATP_ALUA" -V "FreeNAS" -M "iSCSI Disk" -P "VMW_PSP_RR" -O "iops=1"
+ 
+ здесь нужно знать что прописывать в параметрах
+ 
+ -s
+ -V
+ -M
+ -P
+ 
+ узнаем что в них прописывать из вывода
+ 
+   # esxcli storage nmp  device list
+ 
+ 
+ 
+ -s  узнаем из строки  Storage Array Type:  
+   
+   Storage Array Type: VMW_SATP_ALUA
+      
+   поэтому -s = "VMW_SATP_ALUA"
+   
 
+ -P узнаем  из строки Path Selection Policy:
+
+   Path Selection Policy: VMW_PSP_RR
+   
+   поэтому -P "VMW_PSP_RR"
+   
+   
+ остается -V и -M. в целом оба эти параметра вместе прописаны в строке Device Display Name:
+ ну а нам же надо их узнать по отдельности. для этого идем в с# клиент сферы - тыкаем сервер - 
+ - configuration - storage adapters - rescan all
+ потом заходим на сервер по ssh и ищем в логах
+ 
+ # dmesg | grep -i freenas
+ 
+ или 
+ 
+ # cat /var/log/vmkernel.log | grep -i scsiscan | grep -i vendor
+ 
+ в итоге мы увидим вот такие строки
+ 
+ cpu4:33467)ScsiScan: 976: Path 'vmhba32:C0:T0:L0': Vendor: 'FreeNAS '  Model: 'iSCSI Disk      '  Rev: '0123'
+ 
+ из которых мы узнаем что 
+ 
+ 
+ Vendor: 'FreeNAS '  
+ Model: 'iSCSI Disk      '
+ 
+ 
+ из чего мы узнаем что 
+ 
+ -V "FreeNAS" -M "iSCSI Disk"
+ 
+ 
+ тут очередной прикол. невсегда пересканирование адаптеров и лунов дает нам строчки в логах.
+ то дает то недает. поэтому возможный второй путь это вручную определять из строки
+ 
+ Device Display Name: FreeNAS iSCSI Disk (naa.6589cfc0000001b2475dddbe6c9464f8)
+ 
+ когда узнаю почему в логах невсегда можно найти Vendor и Model то напишу.
+ 
+ 
+ далее еще один прикол и очень очень важный, я обжегся и потом нашел в инете то что несмотря на то что в логе названия идут с пробелами
+ в командную строку эти проблемы вставлять категорически нельзя.
+ 
+ поэтому правильно для подставновку в команду именно 
+ 
+ -V "FreeNAS" -M "iSCSI Disk"
+ 
+ без всяких лишних пробелов.
+ 
+ единственная причина если в итоге правило несрабатывает это на практике только потому что Vendor
+ и Model были указаны неправильно. и чаще всего изза лишних пробелов.
+ итак я описал все ловушки.
+ 
+  
+ итого еще раз финальная строка
+ 
+ 
+  
+ # esxcli storage nmp satp rule add -s "VMW_SATP_ALUA" -V "FreeNAS" -M "iSCSI Disk" -P "VMW_PSP_RR" -O "iops=1"
+ 
+ данное правило нужно вбивать на каждом хосте. 
+ 
+ правило вступит в силу только после перезагрузки всего сервера.
+ есть конешно теоритеический путь якобы как можно обойтись без перезагрузки esxi но 
+ на практикето работает то нет. поэтому дальше надо перезагружать сервер.
+ 
+ 
+ перезагрузились и запускаем 
+ 
+ 
+ # esxcli storage nmp  device list
+ 
+ 
+ и смотрим сколько там iops= указано для iscsi LUN-ов
+ 
+ если все сработало то полуим вот такое
+ 
+ 
+ naa.6589cfc0000001b2475dddbe6c9464f8
+   Device Display Name: FreeNAS iSCSI Disk (naa.6589cfc0000001b2475dddbe6c9464f8)
+   Storage Array Type: VMW_SATP_ALUA
+   Storage Array Type Device Config: {implicit_support=on;explicit_support=off; explicit_allow=on;alua_followover=on;{TPG_id=1,TPG_state=AO}}
+   Path Selection Policy: VMW_PSP_RR
+   Path Selection Policy Device Config: {policy=rr,iops=1,bytes=10485760,useANO=0; lastPathIndex=2: NumIOsPending=0,numBytesPending=0}
+   Path Selection Policy Device Custom Config:
+   Working Paths: vmhba32:C8:T1:L2, vmhba32:C4:T1:L2, vmhba32:C0:T1:L2
+   Is Local SAS Device: false
+   Is Boot USB Device: false
+
+нас интересует кусок
+
+{policy=rr,iops=1
+
+если мы перегрузились а вся эта шарманка несработала. 
+то в каком то из параметров мы указали неверно. 
+
+-s "VMW_SATP_ALUA"
+-V "FreeNAS"
+-M "iSCSI Disk" 
+-P "VMW_PSP_RR"
+
+чаще всего это -V и -M.
+
+тогда чтобы это правило измениьт надо прежде всего удалить текущее правило.
+без удаления новое правило недаст система вбить
+
+удаляется оно вот так
+
+# esxcli storage nmp satp rule remove -s "VMW_SATP_ALUA" -V "FreeNAS" -M "iSCSI Disk" -P "VMW_PSP_RR" -O "iops=1"
+
+
+и после этого опять вбиваем новое правило, перегружаемся и проверяем сработало ли.
+
+если все сработало то на этом все.
+
+если нет то ,
+далее чуть больше деталей.
+
+
+как посмотреть наще правило и вообще какие правила уже есть на хосте.
+
+
+~ # esxcli storage  nmp   satp rule list | grep -i freenas
+
+VMW_SATP_ALUA      FreeNAS  iSCSI Disk     user          VMW_PSP_RR   iops=1            
+
+
+
+физически правила хранятся на хосте в конфиге 
+  
+ /etc/vmware/esx.conf
+ 
+ в каком то такое виде
+ 
+ /storage/plugin/NMP/config[VMW_SATP_ALUA]/rules[0000]/psp = "VMW_PSP_RR"
+/storage/plugin/NMP/config[VMW_SATP_ALUA]/rules[0000]/pspOptions = "iops=1"
+/storage/plugin/NMP/config[VMW_SATP_ALUA]/rules[0000]/vendor = "FreeNAS"
+/storage/plugin/NMP/config[VMW_SATP_ALUA]/rules[0000]/model = "iSCSI Disk"
+/storage/plugin/NMP/config[VMW_SATP_ALUA]/rules[0000]/ruleGroup = "user"
+/storage/plugin/NMP/device[naa.6589cfc0000001b2475dddbe6c9464f8]/psp = "VMW_PSP_RR"
+/storage/plugin/NMP/device[naa.6589cfc00000084e913aa61f9f14882d]/psp = "VMW_PSP_RR"
+/storage/lun[naa.600508b1001c061702ee87cd7ffade8a]/fromUser = "false"
+/storage/lun[naa.600508b1001c061702ee87cd7ffade8a]/displayName = "HP Serial Attached SCSI Disk (naa.600508b1001c061702ee87cd7ffade8a)"
+
+
+============
 

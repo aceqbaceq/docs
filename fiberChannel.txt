@@ -151,5 +151,24 @@ qlogic QLE2562
 		здесь пишут какие модели Brocade лежат внутри некоторых железок HP
 
 			https://www8.hp.com/cn/zh/pdf/HP-RG-160-12_A4_SpreadsMar13_tcm_185_1431155.pdf
-		
-		
+	
+	
+	
+
+==============================
+
+
+установка
+
+качеаем http://ldriver.qlogic.com/firmware/ql2500_fw.bin
+пересобираем initramfs 
+ update-initramfs -u
+ 
+ 
+ проверянм стату реэима раоты карты инициаотор или таргер
+ cat /sys/module/qla2xxx/parameters/qlini_mode
+ 
+ /sys/class/fc_host/host4/port_state = показывает вообще кабель то воткнуть есть ли сигнал на уровне L1
+ 
+ =====
+ 
