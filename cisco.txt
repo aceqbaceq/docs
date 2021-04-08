@@ -1,0 +1,154 @@
+﻿cisco 
+
+Easyvpn
+
+на эту тему много конфигов кооторые совершенно неработают.
+и только в одном месте я нашел конфиг который реально работает
+
+https://ker-laeda.livejournal.com/2274.html
+
+значит конфиг со страницы
+
+aaa new-model
+
+aaa authentication login vpn_xauth_1 local
+aaa authorization network vpn_group_1 local
+
+crypto isakmp policy 1
+ encr 3des
+ authentication pre-share
+ group 2
+
+crypto isakmp client configuration group remote-clients
+ key megakey123
+ dns 192.168.1.10
+ domain domain.local
+ pool POOL_1
+ acl 100
+
+access-list 100 permit ip 192.168.0.0 0.0.255.255 any
+ip local pool POOL_1 192.168.7.1 192.168.7.100
+
+
+crypto isakmp profile ike-profile-1
+   match identity group remote-clients
+   client authentication list vpn_xauth_1
+   isakmp authorization list vpn_group_1
+   client configuration address respond
+   virtual-template 1
+
+crypto ipsec transform-set transform-1 esp-3des esp-sha-hmac
+
+crypto ipsec profile Cisco_Profile1
+ set transform-set transform-1
+ set isakmp-profile ike-profile-1
+
+interface Virtual-Template1 type tunnel
+ ip unnumbered GigabitEthernet0/1
+ tunnel mode ipsec ipv4
+ tunnel protection ipsec profile Cisco_Profile1
+
+
+
+
+теперь привожу уже свой рабочий конфиг на cisco 1811
+
+aaa new-model
+
+aaa authentication login vpn_xauth_1 local
+aaa authorization network vpn_group_1 local
+
+crypto isakmp policy 1
+ encr 3des
+ authentication pre-share
+ group 2
+
+
+crypto isakmp client configuration group remote-clients
+ key megakey123
+ pool POOL_1
+ acl 100
+
+ip local pool POOL_1 172.16.30.10 172.16.30.200
+access-list 100 permit ip 172.16.30.0 0.0.0.255 192.168.0.0 0.0.255.255
+
+
+crypto isakmp profile ike-profile-1
+   match identity group remote-clients
+   client authentication list vpn_xauth_1
+   isakmp authorization list vpn_group_1
+   client configuration address respond
+   virtual-template 1
+
+
+crypto ipsec transform-set transform-1 esp-3des esp-sha-hmac
+
+crypto ipsec profile Cisco_Profile1
+ set transform-set transform-1
+ set isakmp-profile ike-profile-1
+
+
+interface Virtual-Template1 type tunnel
+ ip unnumbered FastEthernet0
+ tunnel mode ipsec ipv4
+ tunnel protection ipsec profile Cisco_Profile1
+
+
+также надо сказать что если на WAN интерфейсе применен какойто acceess list
+то для того чтобы заработал ipsec vpn надо на этом access листе открыть
+
+isakmp port = UDP 500
+non500-isakmp port = UDP 4500
+
+и еще надо разрешить esp
+
+permit esp any any
+
+если же на WAN интерфейсе нет никаких acl то и париться ненужно.
+
+
+тут еще настройки shrew должны были быть
+
+циско умеет работать только с диффи хельман 2 ( group 2) для ipsec\l2tp это его такой баг.
+
+в shrew в строке  "key id string " надо указать то что прописано в 
+
+crypto isakmp client configuration group remote-clients
+
+то есть в данном случае
+
+ "key id string " = remote-clients
+
+без этого параметра шрью незаработает это просто невозможно.
+это такой же неотебмлимый параметр как shared key.
+
+Тажке есть еще один очень важный нюанс. Сопряжение NAT и vpn.
+дело в том что если на циске есть нат и также мы настроили впн
+то при подключении клиента сам клиент успешно подключится но пинговать
+никакие сети в локалке за циско мы несможем. почему. потому что 
+обратный трафик летящий от компа из локальной сети за циско будет 
+попадать под NAT правило и у него насколько я помню будет заменяться 
+src ip (на WAN IP) а далее пакет уже доходит до таблицы маршрутизации
+и успешно улетает в интернет а не в впн интерфейс.
+поэтому надо запретить натить трафик из локалки в впн сеть.
+например  если 
+  сеть локалки это 192.168.10\24 
+  а впн сеть это 172.16.30.0.24
+  
+  то на циско надо создать правило
+  
+ ip access-list extended nat
+ deny   ip 192.168.10.0 0.0.0.255 172.16.30.0 0.0.0.255
+ permit ip 192.168.10.0 0.0.0.255 any
+ 
+ соотвественно когда мы будем конфигурировать NAT 
+ то мы будем юзать вот такое правило
+ 
+ ip nat inside source list nat pool NAT-POOL overload
+ 
+ в котором как раз указан наш access-list nat
+ который говорит что надо натить весь трафик кроме того который
+ течет между локалкой и впн сетью.
+ 
+ 
+
