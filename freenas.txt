@@ -1,0 +1,15 @@
+﻿freenas
+
+список карт 10Г которые подходят
+
+https://forums.freebsd.org/threads/10gb-ethernet-nic-pcie-recommendation.76442/
+https://www.servethehome.com/buyers-guides/top-hardware-components-freenas-nas-servers/top-picks-freenas-nics-networking/
+
+
+в итоге остановтлся пока на вот этой
+
+Intel X520-SR2
+
+у интела хорошго что модули легко искать для карт
+
+просто в гугле вбиваешь intel X520-sr2 трансиверы и попадаешь
