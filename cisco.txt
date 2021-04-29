@@ -45,8 +45,10 @@ crypto isakmp client configuration group remote-clients
  key megakey123
  dns 192.168.1.10
  domain domain.local
+ split-dns domain.local
  pool POOL_1
  acl 100
+ 
 
 access-list 100 permit ip 192.168.7.0 0.0.0.255 any
 ip local pool POOL_1 192.168.7.1 192.168.7.100
@@ -77,7 +79,128 @@ interface Virtual-Template1 type tunnel
 	access-list 100 permit ip 192.168.7.0 0.255.255.255 any
 
 
- 	
+ 
+!!!! 
+а вот еще один конфиг сервера как настроить eazyvpn но 
+через криптом мапы
+
+
+aaa session-id common
+aaa authorization console
+aaa authentication login default local
+aaa authentication login vpn_xauth_1 local
+aaa authorization network vpn_group_1 local
+aaa authorization exec default local
+
+
+crypto isakmp policy 1
+ encr 3des
+ authentication pre-share
+ group 2
+
+crypto isakmp client configuration group remote-clients
+ key qwe45y!-190!
+ dns 192.168.20.5
+ domain m9.local
+ split-dns domain.local
+ pool POOL_1
+ acl 100
+ split-dns m9.local
+ 
+ip local pool POOL_1 10.16.16.10 10.16.16.200
+
+access-list 100 permit ip 192.168.9.0 0.0.0.255 10.16.16.0 0.0.0.255
+access-list 100 permit ip 192.168.1.0 0.0.0.255 10.16.16.0 0.0.0.255
+access-list 100 permit ip 192.168.0.0 0.0.0.255 10.16.16.0 0.0.0.255
+
+
+crypto isakmp profile easyvpn-ike-profile-1
+   match identity group remote-clients
+   client authentication list vpn_xauth_1
+   isakmp authorization list vpn_group_1
+   client configuration address respond
+
+crypto ipsec transform-set transform-1 esp-3des esp-sha-hmac
+ mode transport
+
+
+crypto dynamic-map DYNAMIC 10
+ set transform-set transform-1
+ set isakmp-profile easyvpn-ike-profile-1
+ reverse-route
+
+crypto map outside_map 65535 ipsec-isakmp dynamic DYNAMIC
+
+
+interface FastEthernet0
+...
+ crypto map outside_map
+
+!!!!
+ 
+
+
+клиент получает адрес из диапазона 10.16.16.10 10.16.16.200
+
+обращаю внимание на очень тонкий и важный момент:
+acl 100 который мы прописали в crypto isakmp client он задает
+к каким локальным сетям разрешен доступ от клиента в корпоративную
+локалку. а точнее чтобы быть более точным (как я понимаю) этот acl 
+задает ответный пакет от каких локальных сетей можно засовывать в 
+крипто тоннель и посылть впн клиенту. потому что acl имеет очень непривы
+чный вид. 
+
+access-list 100 permit ip 192.168.9.0 0.0.0.255 10.16.16.0 0.0.0.255
+
+как можно заметить src ip это локалка внутри офиса а dest ip это сеть
+впн которую получит впн клиент. тоесть в acl указывается некуда нам 
+можно стучать а кому оттуда нам можно отвечать! вот как хитро!
+если перепутать местами то работать небудет система нипеталь.
+
+но есть еще одна поразительная вещь. в конфиге присутствует опция reverse-route она дает то что на виндовсе (автоматом!!!) изи впн клиент
+пропишет маршруты в таблице маршрутизации которые указаны в acl 100
+и виндовс будет автоматом знать что в локальные корпоративные сети надо 
+лезть через впн интерфейс.  тоесть это есть тот самый сплит-тунель 
+через прописывание стат маршрутов на клиенте. таким образом на самом изи впн клиенте на виндовсе руками никакие маршруты в LAN офиса прописывать 
+непридется. клиент автомтом засосет данные с циски и автомтом пропишет
+во время подключения их  таблицу мрашрутизации виндовса. это очень круто!
+единственно что еще раз хочу подчеркнуть эта офигенская штука сработает 
+только если acl оформлен правильно. тоесть сети офиса в нем должны стоять 
+на позиции src ip. самая частая ошибька которую я делаю это перепутыываю
+местами src и dest сети в этом ip. потому что интуитивно хочется 
+на первое место ставить сеть впн клиента а на dest сеть ставить сеть офиса. а для этого acl Это категорически неправильно. и в итоге впн клиент
+небудет прописывать эти маршруты на компе винды.
+
+на клиенте изи впн на примере shrew клиента чтобы эта шарманка работала
+надо чтобы в policy стояла галочка " obtain topology automatically or tunnel all"
+
+
+ очень важно помнить что в итоге крипто мап надо обязательно 
+наложить на WAN интерфейс. незабыть. 
+а то все запрограмируешь а применить криптомап к интерфейсу забудешь.
+
+
+в конфиге это сделано:
+
+!!!
+interface FastEthernet0
+...
+ crypto map outside_map
+!!!
+
+по мне изивпн лучше настраивать через криптомапы метод потому что
+если мы хотим на одной циске включить однровременно несклько видов 
+vpn серверов то лучше всего они сосуществуют когда они все подключаться
+через криптомапы. они тогда друг другу немешают.
+
+
+всплыл правда один вопрос. а что если в офисе локалка имеет такую же 
+сеть как локалка дома. то есть скжаем дома 192.168.1.0\24
+ и в офисе. и надо с дома туда по впн попадать. надо об этом потом почитать.
+ 
+
+
+
 
 теперь привожу уже свой рабочий конфиг на cisco 1811
 
@@ -756,18 +879,6 @@ ipsec может:
 а для полтьзователей например можно подсмотреть ниже 
 в случае l2tp\ipsec
 
-план на офис:
-	- поменять WAN IP на 95
-	- поменять wan acl in
-	- выключить текущиее рабочее циско
-	- воткнуть эту циску в свич 1910 в порты. 
-	- попробовать зайти под vasya local
-    - попробовать из под впн пингануть 172.16.101.2
-	- переключиться на RADIUS, зайти под AD акаунтом
-	- убрать username vasya
-	- наклейить наклейки. вроде все.
-	
-
 
 
 
@@ -779,6 +890,11 @@ ipsec может:
 	
 L2TP
 
+одна из самых главных подстав этого впн в том что если сервер
+стоит за NAT в локалке то вы получите огромные проблемы с тем что
+клиенты будут иметь огромные проблемы подключиться к нему.
+надо будет много всего руками допиливать. поэтому лучше 
+сервер чтобы стоят напрямуб смотрел в интернет.
 
 
 данный vpn имеет целую кучу подлянок и подьебок.
@@ -818,7 +934,8 @@ password и дальге чтотио там про неверный логин 
 кусок конфига отвечающий за l2tp\ipsec который 
 реально работает.
 аутентифкикация из локальной базы.
-
+конфиг сделан через крипто-мап. это хорошо потому что с криптомаапами
+можно на циско совмещать сразу несолько видов впн серверов.
 
 
 !
@@ -972,6 +1089,51 @@ permit ip 192.167.47.0 0.0.0.255 any
 
 конфиг взят отсюда - https://khomenko.org/?p=468
 
+как видно в конфиге укаазано два трансформ сета. хотя в конфиге 
+только один 
+
+crypto dynamic-map dyn-map 10
+set nat demux
+set transform-set L2TP-Set2 L2TP-Set
+
+так что можно изменить на 
+crypto dynamic-map dyn-map 10
+set nat demux
+set transform-set L2TP-Set2
+
+
+
+
+далее я привожу дополнительно живой конфиг с рабочей системы.
+кусок который отвечает за ipssec часть. как бы он повторяет то что
+написано выше 
+
+crypto isakmp policy 1
+ encr 3des
+ authentication pre-share
+ group 2
+
+crypto isakmp key КЛЮЧ address 0.0.0.0 0.0.0.0
+
+
+crypto ipsec transform-set L2TP-Set2 esp-3des esp-sha-hmac
+ mode transport
+
+
+crypto dynamic-map dyn-map 10
+ set nat demux
+ set transform-set L2TP-Set2
+
+
+crypto map outside_map 65535 ipsec-isakmp dynamic dyn-map
+
+int fa0
+ crypto map outside_map
+
+
+
+
+
 еще подьебка:
 оказалось что данный конфиг неполучится вбиить в
 ios версии  12.4(24)T3 а а получится только в версии Version 15.1(2)T1
@@ -987,28 +1149,46 @@ ppp authentication ms-chap-v2 VPDN_AUTH
 они там просто отсутствуют.
 
 далее.
+итак возможно два случая. l2tip\ipsec сервер сидит глядит напрямую 
+в интернет или он установлен в локальной сети и выходит 
+в интернет через nat. это две кардинально разные ситуации.
+
+
+L2TP\IPSEC СМОТРИТТ НАПРЯМУЮ В ИНТЕРНЕТ.
 какие же порты и протоколы нужно разрешить на WAN интерфейсе
 если на него навешен acl in. в инете куча брехни на этот счет.
 я проверил на практике достаточно открыть вот это
 
-500 UDP
-протокол ESP
-
-ВСЕ!
-
-вот как на практике выглядит acl на циско
-
 Extended IP access list wan-in-acl-ver2
-    10 permit icmp any any
-    19 permit esp any host 85.85.85.114
-    20 permit udp any host 85.85.85.114 eq isakmp 
-    50 deny ip any any
+    10 
+    20 permit udp any host 5.16.1.110 eq isakmp
+    30 permit udp any host 5.16.1.110 eq non500-isakmp
+    40 deny ip any any
+
+тоесть 
+
+UDP 500
+UDP 4500
+
+все!
+никаких ESP, Ah ненужно.
+никакой 1701 UDP тоже ненужен !
+это проверено неоднократно на практике. 
+когда сервер стоит напрямую в инет то этого достаточно.
+единственное что может быть еще понодобится добавить это 
+вот такое правило
+
+ permit udp any range 1 1023 any gt 1023
+
+
+также! - когда l2tp\ipsec от циско смотрит прямо в интернет.
+то на виндовсе (который клиент) никаких доп настроек в реестре с ключом  AssumeUDPEncapsulationContextOnSendRule делать ненужно!
 
 
 
 
-а вот если l2tp\ipsec сервер смотрит не в интернет а сидит в LAn
-то на гейтвее надо пробросить порты
+L2TP\IPSEC СЕРВЕР СИДИТ В LAN И ВЫХОДИТ В ИНЕТ ЧЕРЕЗ NAT
+тогда на гейтвее надо пробросить порты
 
 500 UDP
 4500 UDP
@@ -1022,8 +1202,931 @@ Extended IP access list wan-in-acl-ver2
 единственное добавлю что случай когда l2tp\ipsec сидит в LAN  я тестировал
 на примере когда vpn сервер сделан на ubuntu а не нациско.
 может быть если бы l2tp\ipsec сервер был сделан на циско портов нужно
-было бы меньше. незнаю.
+было бы меньше. незнаю
+
+и самая главная жопа ( повторю ) что если впн сервер сидит в локалке
+то клиент на виндлвсе по дефолту к такому сервер НЕ СМОЖЕТ подключиться.
+нужно править реестр на клиенте.
+надо в реесте вбивать
+
+HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\PolicyAgent
+AssumeUDPEncapsulationContextOnSendRule = 2 (тип dword32)
+
+и перегружать виндовс.
+
+
+все.
+далее детали.
+
+коода мы подкючлились. товот  как выглядят полезные строчки
+
+
+#sh crypto isakmp sa detail
+
+C-id  Local           Remote          I-VRF    Status Encr Hash Auth DH
+
+2001  5.16.1.5  3.3.3.10                 ACTIVE 3des sha  psk  2  
+
+
+это указвыает что фаза 1 прошла успешно.
+
+как удалить фазу 1.
+
+# clear crypto isakmp 2001
+
+как увидеть детали фазы 2 успешной
+
+#sh crypto ipsec sa
+
+interface: FastEthernet0
+    Crypto map tag: outside_map, local addr 5.16.1.15
+
+   protected vrf: (none)
+   local  ident (addr/mask/prot/port): (5.16.1.5/255.255.255.255/17/1701)
+   remote ident (addr/mask/prot/port): (3.3.3.10/255.255.255.255/17/4500)
+   current_peer 3.3.3.10 port 4500
+     PERMIT, flags={}
+    #pkts encaps: 571, #pkts encrypt: 571, #pkts digest: 571
+    #pkts decaps: 820, #pkts decrypt: 820, #pkts verify: 820
+    #pkts compressed: 0, #pkts decompressed: 0
+    #pkts not compressed: 0, #pkts compr. failed: 0
+    #pkts not decompressed: 0, #pkts decompress failed: 0
+    #send errors 0, #recv errors 0
+   Translating: Inside Remote Port 4500 Outside Remote Port 1701
+
+     local crypto endpt.: 5.16.1.5, remote crypto endpt.: 3.3.3.10
+     path mtu 1500, ip mtu 1500, ip mtu idb FastEthernet0
+     current outbound spi: 0x72F16DEE(1928424942)
+     PFS (Y/N): N, DH group: none
+
+     inbound esp sas:
+      spi: 0xD546D73C(3578189628)
+        transform: esp-3des esp-sha-hmac ,
+        in use settings ={Transport UDP-Encaps, }
+        conn id: 1, flow_id: Onboard VPN:1, sibling_flags 80000006, crypto map: outside_map
+        sa timing: remaining key lifetime (k/sec): (239644/3039)
+        IV size: 8 bytes
+        replay detection support: Y
+        Status: ACTIVE
+
+     inbound ah sas:
+
+     inbound pcp sas:
+
+     outbound esp sas:
+      spi: 0x72F16DEE(1928424942)
+        transform: esp-3des esp-sha-hmac ,
+        in use settings ={Transport UDP-Encaps, }
+        conn id: 2, flow_id: Onboard VPN:2, sibling_flags 80000006, crypto map: outside_map
+        sa timing: remaining key lifetime (k/sec): (239682/3039)
+        IV size: 8 bytes
+        replay detection support: Y
+        Status: ACTIVE
+
+     outbound ah sas:
+
+     outbound pcp sas:
+
+
+
+итак самая важная фигня во всей это истории в том что в зависимости от того сервер сидит за натом
+или напряую в интернет  то от этого зависит надо ли на клиенте виднвс
+делать правки и какие порты\протоколы открывать на WAN интерфейсе  либо пробрасывать через NAT.
+
+
+
+
+
+
+===
+как на 1811 
+протесировачть что аутентификация через радиус серер 
+идет успешно.  в плане того что между циско и виндовс радиусом
+на первый взгляд все настроено верно
+
+#test aaa group radius server 172.16.101.2 auth-port 1812 acct-port 1813 test@mk.local 1qaz2wsx legacy
+Attempting authentication test to server-group radius using radius
+User was successfully authenticated.
+
+
 
 
 
 =======
+про память RAM 
+в циско.
+
+
+как я понял из экспериментов 
+циско свич он может использовать столько памяти сколько у него
+прописано в boostrap или ROMMON я точно непонимаю есть ли между
+ними разница.
+
+главная суть в том что если просто добавить оперативки в циско
+то опять же как я понял он ее небудет всю использовать
+а только тот обьем который у него прописан в ROMMON.
+
+как я понял этот обьем захардкожен в каждой конретной версии ROMMON.
+то есть руками его изменить нельзя. 
+надо искать соотвествующую версию ROMMON.
+
+также как я понял взавсимости сколько RAM прописано в ROMMON столько 
+фич в IOS будет активировано.
+
+скажем если RAM прописан как 128МБ то в виртуал темплейт там не будет 
+опций peer, поэтому про l2tp\ipsec сервер можно забыть.
+
+а вот когда 256 MB прописано в в ROMMON то уже оно появляется.
+версия ios одна и таже.
+
+
+вот пример 
+
+на циско в ROMMON прописано 256МБ.
+
+версия rommon такая = ROM: System Bootstrap, Version 12.3(8r)YH13, RELEASE SOFTWARE (fc1)
+
+это всегда можно увидеть через 
+
+# sh ver
+
+
+Cisco 1811W (MPC8500) processor (revision 0x400) with 236544K/25600K bytes of memory.
+Processor board ID FHK132471YR, with hardware revision 0000
+
+ROM: System Bootstrap, Version 12.3(8r)YH13, RELEASE SOFTWARE (fc1)
+
+
+но по факту внутри стоит планка на 128МБ.
+соотвсвтенно еще раз становится понятно что sh ver непоказыает солько 
+реально памяти стоит в циске. оно показывает сколтько памяти МАКСИМАЛЬНО
+можно засунуть в нее.
+
+а чтобы узнать сколько памяти реально стоит в циске надо смотреть в 
+# sh memory
+
+office-cisco1811-01# sh memory
+                Head    Total(b)    
+Processor   84099958   174483112    
+
+отсюда и видно что в циске стоит планка 128МБ. я так понял что 64МБ 
+это впаянная встроенаая в мат плату память.
+
+так как реально вскрытие корпуска показыает что стоит планка 128МБ.
+
+
+а вот еще пример друная циско.
+
+в ней стоит другой роммон.
+в нем прописано 512МБ.
+и  в ней реально стоит планка 512МБ
+
+cisco-msk-11b#sh ver
+Cisco IOS Software, C181X Software (C181X-ADVENTERPRISEK9-M), Version 12.4(24)T3, RELEASE SOFTWARE (fc2)
+
+Cisco 1811W (MPC8500) processor (revision 0x400) with 589824K/65536K bytes of memory.
+Processor board ID FHK104410J2, with hardware revision 0000
+
+
+#sh memory
+                Head    Total(b)   
+Processor   84099958   536241832 
+
+итак важно понять то что не так то просто сходу понять скоьбко памяти стоит внутри железки.
+
+также понимать что макс обьем который она может юзать зависит не от планки
+а от версии ROMMON.
+
+в зависимости от памяти циско активирует фичи IOS.
+
+
+============
+походу пьесы в терминах циско
+
+compact flash карта которая у него проходит как flash:
+она же в его терминах является NVRAM
+
+compact flash = flash: = NVRAM
+
+=====
+
+походу конфиг из файла лучше ненакатывать в startrup-config
+как то оно плохо срастаетеся.
+лучше накатывать из файла вначале в running-conf
+а уже после этого делать 
+
+# wr
+
+чтобы он стал startup-conf 
+
+====
+
+access list in для WAN интерфейса.
+
+как он выглядит
+
+
+interface FastEthernet0
+ ip access-group wan-in-acl-ver2 in
+
+
+
+потому что циско он автоматом обратные пакеты непускает.
+поэтому чтото надо прописывать все равно на аксеесс листе.
+
+
+
+# sh ip access-lists wan-in-acl-ver2
+Extended IP access list wan-in-acl-ver2
+    50 deny ip 127.0.0.0 0.255.255.255 any
+    60 deny ip host 255.255.255.255 any
+    70 deny ip host 0.0.0.0 any
+    80 deny ip 10.0.0.0 0.255.255.255 any
+    90 deny ip 172.16.0.0 0.15.255.255 any
+    100 deny ip 192.168.0.0 0.0.255.255 any
+    110 permit icmp any any echo (126 matches)
+    120 permit icmp any any echo-reply
+    130 permit icmp any any unreachable (19 matches)
+    140 permit icmp any any time-exceeded
+    150 deny icmp any any
+    160 permit tcp any any established (5376 matches)
+    170 permit udp any eq domain any gt 1023 (88 matches)
+    180 permit udp any range 1 1023 any gt 1023 (1536 matches)
+    190 deny udp any any eq domain
+    200 deny tcp any any eq domain
+    210 permit udp any any eq isakmp (2 matches)
+    220 permit udp any any eq non500-isakmp (1710 matches)
+    230 deny tcp any any eq 22 (2 matches)
+    500 deny ip any any (253 matches)
+
+===============
+походу пьемы
+
+l2tp\ipsec
+
+вначлае устанавливектся ipsec канал
+через preshared key + лгин пароль 
+
+то что для установки ipsed канала нужен еще и логин проаль
+говорит вот эжта строка
+
+crypto isakmp key КЛЮЧ address 0.0.0.0 0.0.0.0
+
+еслиы бы было достаочно нам толкь прешаред кей то на конце было бы
+no-xauth
+
+crypto isakmp key КЛЮЧ address 0.0.0.0 0.0.0.0 no-xauth
+
+а так как этого нет тоо циске считает что еще должен быт бь
+логин и парль.
+
+xauth по пнятимциско это логин\пароль аутентификация.
+
+когда ipsec канал устанолвен то поервхе него 
+устанвлаиется l2ytp канадл уэже без всязки
+ 
+ ==
+ если в в циско для ipsec фаза 1 был примене профиль то 
+ будлет это видно
+ 
+ office-cisco1811-01# sh crypto isakmp sa
+IPv4 Crypto ISAKMP SA
+dst             src             state          conn-id status
+5.16.1.4  178.176.77.58   MM_NO_STATE       2012 ACTIVE (deleted) ike-profile-1
+
+
+если названия профиля невидно ike-profile-1 то значтит он не применятеся
+на стадии фазы1 и значит идут какито дефолтовые астройки.!!!
+===
+
+можно иметь нЕСКОЛЬКО ключей.
+
+оддин дефолтовый 
+
+crypto isakmp key 123456! address 0.0.0.0 0.0.0.0
+
+а второй указать в профиле
+
+crypto isakmp client configuration group remote-clients
+ key megakey123
+ dns 172.17.101.2
+ domain mk.local
+ pool POOL_1
+ acl izi2
+
+
+и они она будут существоать однровременно.
+
+первый скжаем для l2tp\psec сервера
+а второй для изивпн сервера 
+
+====
+изивпн 
+замечу что трансформ сет исопльзщуется в реэиме тунеля
+
+crypto ipsec transform-set transform-1 esp-3des esp-sha-hmac
+
+а вот l2tp\ipsec траснфор сеть исплтзуется вреэжиме трансопорта
+
+crypto ipsec transform-set L2TP-Set2 esp-3des esp-sha-hmac
+ mode transport
+ 
+ хотя оба предназчанены для динамического vpn 
+ когда незивестено адрес той стороны
+ 
+ ====
+ импеем l2tp\ipsec на роут мапе
+ потом доавбиили eayvpn на virtual template.
+ 
+ оно заработало да щее на своем собсвтвенном прешаред кей.
+ 
+ потом была проблема что неблоы пинов в сети офиса.
+ 
+ как решил - во певвырх надо пиговат настройчиво с ключм 
+ ping -t 
+ потому что пинги завоодятся не сраз унемгновенно.
+ 
+ во вторых если в шрьюб добавил марршрут руками в лан сеть 
+ то лучше полностью закоыть \открыть шрью и проверить что этот мрраршнут там ест.
+ 
+ шрьб как я все таки понл ненадо запускать под правами админа 
+ на компе . ему хватит и так прав добавить марщшрутт в таблицк
+ маршрутиазациии.
+ 
+ самая главня проблема режима изивпн через virtual templatre 
+ это то что на клиенте надо на кажом руками вбивать лоальные сети офиса.
+ автомтом он их не подсамсывать на клиент.
+ 
+ для этого нужен reverse-roue который в динамик мап исопльзутеся!!
+
+так что связка l2top\iupsec + easyvpn заработала. 
+но малополщезна.
+маршурты на клиетах руками писать это отсоой
+
+ в общем после прорписывания маршрпутам на шрью надо закрыть отикрыть клиент.
+ 
+ 
+ и потом еще пинги то выклюто вклю и оно еле еле вроде начинает наконец 
+ пинговать. 
+ 
+ 
+ 
+ ====
+ одна из ваных вещей
+ изивпн в ерэжиме VTI трансфорсм сет идет в ржеиме тунеля
+ извпн в ерэжимер роут ман трансфор сет идет в реэжиме трнасопортата
+ 
+ !!!
+ 
+ 
+ ==
+ 
+ izivpn 
+ если юзааем reverse-route
+ но марщшрут на клмпе юезра непоявлсят.
+  
+  значит 100% неавильно оформлен сам acl в нем ошибка.
+  
+  acl который пропсан вот тут
+  
+  crypto isakmp client configuration group remote-clients
+ key megakey123
+ dns 192.168.1.10
+ domain domain.local
+ split-dns domain.local
+ pool POOL_1
+ acl 100
+ 
+ 100000% что ошибк аименно в acl 100
+ 
+ например неверно написене обраная маска
+ 
+ office-cisco1811-01#sh ip access-lists izi2
+Extended IP access list izi2
+    20 permit ip 172.16.0.0 0.0.255.25 any
+	
+	на конце всесто 255 проставлено 25.
+	
+!!!!! очень важная тема
+
+воможно изза этого в изи впн + vti мррущгур не подсавыаться
+====
+shrew 
+клиент рабтает только через агресивный режим.
+незнаю в чем прикол. но только так.
+	
+=====
+
+кофигурация для 
+site-to-site
+тонеля между двумя рутерами у которых есть белый IP
+
+crypto isakmp policy 1
+ encr 3des
+ authentication pre-share
+ group 2
+
+crypto isakmp key v123 address 1.177.1.2 no-xauth
+
+crypto ipsec transform-set office-m9 esp-aes esp-md5-hmac
+ mode transport
+
+crypto ipsec profile m9
+ set transform-set office-m9
+
+interface Tunnel0
+ ip address 10.2.2.1 255.255.255.0
+ tunnel source 5.16.1.4
+ tunnel destination 1.177.1.2
+ tunnel mode ipsec ipv4
+ tunnel protection ipsec profile m9
+ 
+ 
+ ====
+ 
+ оказлось что easyvpn невхлодид через радиус AD потому что
+ либо на циске либо на радиуесе было сломан вход.
+ 
+ оказалось что даже неработал входв в консолль циски через радиус
+ (котоыйр был сделан ранее).
+ 
+ поэтому как толоько непонятный усилиями я оратно починил вход 
+ в консоь циски через радиуес. тот тут же заработал вход в изи впн
+ через радиус!!!
+ 
+ поэтому если нербтает вход в идзи впн через радиус то
+ первым делао надо попробвать настроить или если уже ранее
+ было настрено то проверить вход в консоль через радиус.
+ 
+ скорей всего вход в косноь тоже небдуте работат. так что
+ ндадо это чинить то гда и вход в изи впн заработате через радис3с
+ 
+ ==============
+ если перклюыиться с одного впн на другой
+ то вход на только вхожденный компьюер рдп будет невозможнен.
+ 
+ я так понимаю что это изаа mac адресов  на лклаьном компе.
+ 
+
+ 
+  172.16.101.10         bb-bb-bb-bb-bb-00     dynamic
+ 172.16.101.20         bb-bb-bb-bb-bb-00     dynamic
+ 
+ лчение
+ 
+ > ipconfig /flushdns
+ 
+ на локлаьном компе
+ 
+ ===
+ когда впн полюключил то
+ надо пинги запускать сразу моного чрез ключ -t
+ 
+ ping -t LAN_IP
+ 
+ потому что впн между офисами по впн она просирвается несразу.
+ вначале куча пингов никак неможет начаться.
+ 
+ поэтому большая ошимбка запустить один пинг 
+ он непройдет и думать что впн нерабоатет
+ 
+ нет !!!! надо просто запусттиь 20 пингов. и только с 10 пинга впн канал
+ просрется.
+ 
+ я на этом реаллно  пострадал.
+ 
+ 
+ ===
+ поленые команды
+ 
+ как вычелнить из всего конфига только то что к шифрованию относися
+ 
+ cisco-msk-11b#sh run | sec crypto
+
+===
+gre tunnerk via ipsec поднялся
+но пинги непроохродили
+причина как я шас понимаю в том что 
+на WAN интерефейсе на его acl нужно разрешать протокол GRE
+а у меня он был запрещшен
+
+ кстати я пока так и неопнял сколько раз покет проходит WAN acl
+типа точно первый раз перед расшифровкой. и 
+вроде на старых ios второй раз после расшировки. а щас мол только один 
+раз. надо уточнять. насколкьо я понимаю щас из практики что на 12.4.24
+один раз. пперед расшифровокой
+ 
+==
+
+ipsec tunnel
+надо чтобы на обих концах были разные сети
+
+offis-A
+
+Lo1
+10.17,17.1
+
+
+offis-B
+10.18.18.1
+
+нельзя чтобы в одной сети силеи
+потому что тогда покеты никак в WAN интерфейс непролетяи
+
+====
+
+писали что на страых ios для например gre+ipsec пакета
+acl на wan интерфейсе пробегался два раза.
+пперед расшифровкой и после.
+
+в новых ios якобы только 1 раз.
+
+====
+
+acl для ip потока
+
+esp на ACL WAN нужен!
+
+анализ какой vpn какой режим транспорт\туннель юзает для трансформ-сет ?
+
+==
+ipsec main mode vs aggressive mode ?
+
+===
+ 
+ 
+ l2tp\ipsec + eazyvpn + static site-to-site
+ 
+ office-cisco1811-01#sh run | sec crypto
+crypto isakmp policy 1
+ encr 3des
+ authentication pre-share
+ group 2
+crypto isakmp key v123 address 1.177.1.2 no-xauth
+crypto isakmp key Big123456! address 0.0.0.0 0.0.0.0
+crypto isakmp keepalive 10 periodic
+crypto isakmp client configuration group office-remote-users
+ key 117
+ dns 172.16.101.2 172.16.101.7
+ domain mk.local
+ pool POOL_1
+ acl izi2
+ split-dns mk.local
+crypto isakmp profile ike-profile-1
+   match identity group office-remote-users
+   client authentication list easyvpn
+   isakmp authorization list easyvpn
+   client configuration address respond
+crypto ipsec transform-set L2TP-Set2 esp-3des esp-sha-hmac
+ mode transport
+crypto ipsec transform-set transform-1 esp-3des esp-sha-hmac
+ mode transport
+crypto ipsec transform-set office-m9 esp-3des esp-md5-hmac
+crypto ipsec profile Cisco_Profile1
+ set transform-set transform-1
+ set isakmp-profile ike-profile-1
+crypto ipsec profile m9
+ set transform-set office-m9
+crypto dynamic-map dyn-map 10
+ set nat demux
+ set transform-set L2TP-Set2
+crypto dynamic-map vasya 10
+ set transform-set transform-1
+ set isakmp-profile ike-profile-1
+ reverse-route
+crypto map outside_map 1000 ipsec-isakmp
+ set peer 1.177.1.2
+ set transform-set office-m9
+ match address office-m9-acl
+crypto map outside_map 10000 ipsec-isakmp dynamic vasya
+crypto map outside_map 65535 ipsec-isakmp dynamic dyn-map
+ crypto map outside_map
+office-cisco1811-01#
+
+====
+
+ipsec site-to-site
+
+какая выяснилась тонксоть.
+во первых трансформ сет должен быть использован в режиме
+тоннель а не транспорт !!
+
+оказалось что если transform set использщуется в режиме
+тоннель  то на WAN интерфейсе обязательно нужно разрешить
+ESP протокол на вхождение !!!
+
+(ну и AH если мы его используем что врятли)
+
+ну и то что чтобы пакеты ходили в тонеле  надо чтобы на обоих сторонах
+была разная сеть. 
+
+тоесть на одном рутере
+
+loopback 0
+ip address 10.17.17.1
+
+на втором рутере
+
+loopback 0
+ip address 10.18.18.1
+
+
+и тогда когда мы с 10.17.17.1 будем пинговать 10.18.18.1
+то пакет по деолфтному руту будет поппадать на WAN интерфейс рутера
+и тогда его подхвается криптом мап и пихает в тонель
+
+а я вначале пытался завести систему такую когда
+
+
+ на одном рутере
+
+loopback 0
+ip address 10.17.17.1
+
+на втором рутере
+
+loopback 0
+ip address 10.17.17.2
+
+
+соотсвтенно когда мы нап перовм рутере будем с 10.17.17.1 пинговать 10.17.17.2
+
+то ничего не вйдет .потому что со=гласно таблице маршрутиазации 
+пакет никогда непопадет на WAN инетерфейс на котором криптом мап установлен. и ничего рабоатать небудет
+
+!!!!
+
+
+конфиг site-to-site ipsec 
+
+
+crypto isakmp policy 1
+ encr 3des
+ authentication pre-share
+ group 2
+ 
+crypto isakmp key v123 address 23.23.23.23  no-xauth
+crypto isakmp keepalive 10 periodic
+
+\23.23.23.23 = wan ip рутера на той стороне\
+
+crypto ipsec transform-set office-m9-transform-set esp-3des esp-md5-hmac
+
+\трансформ сет устновлен в режим тоннель\
+
+crypto map outside_map 1000 ipsec-isakmp
+ set peer 23.23.23.23
+ set transform-set office-m9-transform-set
+ match address acl-ipsec-m9-to-office
+
+
+Extended IP access list acl-ipsec-m9-to-office
+    10 permit ip host 10.17.17.1 host 10.18.18.1 
+	
+\ 10.17.17.1 = это адрес локалки на нашей стороне\
+\ 10.18.18.1 = это адрес локалки на той стоороне \
+\ чем меньше номер у криптом мап тем он обрабатвыается циско первее \
+\23.23.23.23 = wan ip рутера на той стороне\
+
+Extended IP access list nat
+    13 deny ip host 10.17.17.1 host 10.18.18.1 (365 matches)
+
+\ это acl для ната. в которм мы исключаем трафик тонеля с нашей 
+сороны туда из нат преообразвания. иначе трафик будет броаться не втонел
+а тупо напровайдера \
+
+crypto map outside_map 65535 ipsec-isakmp dynamic DYNAMIC
+
+int Fa0
+ acl WAN_acl_in  in
+ crypto map outside_map
+
+
+Extended IP access list WAN_acl_in
+ permit esp any any 
+ permit udp any any eq isakmp 
+ permit udp any any eq non500-isakmp 
+ 
+ 
+ видно что на wan интерфейсе применен acl и криптом мап
+ на wan acl разерешен esp, udp 500, udp 4500
+ 
+ супер важно что esp обяазетлтно нужен открывать 
+ когда мы используем трансформ сет в режиму тоннель.
+ 
+ есл мы посмротрим на трансоформ сет. то там ненаписано нинде
+ что он рабоате в режиме тонеля. это питуочто что если в режиме 
+ тонеля то это никак необозначается. а если бы он работал в режиме 
+ транспорта то трансформ сет выгдяедел бы так (к примеру)
+ 
+ crypto ipsec transform-set transform-1 esp-3des esp-sha-hmac
+ mode transport
+
+вот видно что указано mode transport. я считаю что это дебилизм что
+циско неуказывает для туннеля режим mode tunnel. 
+такой режиме у трнасформ сета по умолчанию.
+
+флаг no-xauth означает что мы неиползуем логин парль для доп аутенти
+фикации. только обходимся прешаред ключом
+
+если тоннель поднялся то есть
+
+sh crypto isakmp sa
+sh crypto ipsec sa 
+
+все показыает , но пинги неидует значит на WAN интерйейсей неразрешен 
+esp протокол. (это была моя причина почему у меня нерабоали пинги
+при поднятом тоннеле).
+
+еще может бть прична пому пинги неидет. потмоу что надо 
+исключить lan ip из nat acl
+
+как удобно дебажить пинги тонеля. вот как - включить дебаг 
+для isakmp для ipsec и создать acl который будет содрежтаь lan ip 
+с двух сторон. и включит дебаг именно для этого acl
+тогда рутер неляжет от дебага и все будет видно в логах.
+
+пример
+
+на рутере А 
+
+lo 
+ip = 10.17.17.1
+
+на рутере B
+lo
+ip = 10.18.18.1
+
+создаем acl
+
+ip acc l extended 115
+permit ip host 10.17.17.1 host 10.18.18.1
+permit ip host 10.18.18.1 host 10.17.17.1
+
+причем этот acl его ненужно чтобы он был вставлен в криптом.
+нето. просто сам по себе больающийся в воздуже acl
+
+после этог
+
+# debug cr isakmp
+# denbug cr ipsec
+# denug ip packet 115 detail
+
+и можно будет видеть в 
+
+# sh  logg
+
+о том что доходят недохдодят пинги через тонель..
+очень очень очень удобно!
+
+==
+если тонель поднялся isakmp sa 
+но пинги непрроходят то значит что на wan интерфейса не его acl 
+запещешен какойто протокол анпример esp как быдло у меня
+или acl самого тонеля некоретнный.
+
+=======
+pfsense
+
+выяниснилось что если делать тонель между циско и пфсенс то
+
+1) пфсенс раздел файрволл раздел ipsec там почемуто вобще правила неиграют никакой роли
+
+2) на пфсенс можно делать сраз унеслоько сетей (называется фаза 2 на пфсенс) в рамках одного тонеля. но пчемуто циско такой фигни непонимает.
+так что на пфсенс надо ограничитмс только одной сетьюб
+
+====
+циско вещь в себе
+загрузился с другого роммона так у нее в sh ver исчез
+криптом модуль который устанолвен там точно.
+
+роммон игтает какую то огромную роль у циски. типа биоса.
+захотел выключил фичи захотел вкюлчил
+
+====
+
+проблема с входом на циско
+а аутентификацийи авторизацией.
+
+делаб вторую циско. железка такая же. ios версия такая же.
+
+по идее делаю конфиг на второй как на первой.
+однако почемуто вход работает по другому.
+
+на первой циско вход по локальному акаунту дает 
+вход на уровне привилегий 1. и далее надо вводит
+
+# en 15
+
+и вводим secret пароль
+
+на второй циске тоже самое приводит к тому что вход сразу проходит 
+на уровне 15 и 
+
+# en 15
+
+вводить ненужно.
+
+вход через радиус дает то что вводим логин , получаем права уровня 1
+и вводим enable 15
+
+на второй циско  после ввода en 15 пишет authenticatoin error.
+непонятно причем здесь афентикейшн когда мы уже авторизейшн делаем.
+
+в итоге пришлось на второй циско делат доп команды.
+
+итак на первой циско конфиг такой
+
+aaa authentication login default local group office-ad-servers
+aaa authorization console
+aaa authorization exec default local if-authenticated
+
+enable secret ...
+
+
+на второй циско чтобы enable 15 работал для радиус входа конфиг 
+такой 
+
+aaa authentication login default local group office-ad-servers
+aaa authorization console
+aaa authorization exec default local if-authenticated
+aaa authentication enable default enable
+!
+=====
+
+столкнулся с дебильнейшим ( как я понял циско сейчас вобще нето что
+было рантше) багом в связке ipsec eazyvpn cisco + shrew client
+
+условия получить проблему:
+1) мы на циско в acl разрешенных к доступу через впн 
+сетей пропишем хост с маской \32 
+2) в профиле впн указваем split tonnel
+3)  также укажем в свойствах впн чтобы циско пушила стат маршруты 
+на клиента через reverse-route опцию 
+4)  подключимся через клиент shrew 
+
+то  у нас связи с разрешенным хостам небудет.
+
+а в логах циско будет идти ошибка 
+
+cisco IPSEC(epa_des_crypt): decrypted packet failed SA identity check
+
+обьяснение нашел здесь - https://lists.shrew.net/pipermail/vpn-help/2011-July/013299.html
+
+собственно оно и обьясняет что прикол происходит 
+ровно при вышеописанных условиях
+
+
+
+итак пример.
+
+на циско поднимаем loopback
+
+loopback 0
+ip address 10.19.19.1 255.255.255.255
+
+далее в isakmp группе прописываем acl
+
+crypto isakmp client configuration group office-remote-users
+ key 123
+ pool POOL_1
+ acl izi2
+ split-dns mk.local
+
+и в этом acl мы указываем хост с маской \32
+
+20 permit ip 10.19.19.1 0.0.0.0 any
+
+далее мы через шрью поключаемся к циске. 
+клиент циски автоматом прописывает в виндовс маршрут.
+все хорошо. но пинги непроходят
+
+на циске в логах 
+# debug cr isa
+# debug cr ips
+
+мы видим ошибку
+
+cisco IPSEC(epa_des_crypt): decrypted packet failed SA identity check
+
+и в свойствах тунеля мы видим
+
+# sh cr ips sa peer 12.234.45.23
+что у параметра  recv errors  большие значения.
+
+Значит как это решить.
+надо избавиться от маски 32 в маршруте разрещенном.
+
+
+надо изменить ACL на вот такой например
+
+Extended IP access list eazyvpn-admin-users-acl
+    20 permit ip 10.19.19.0 0.0.0.3 any
+	
+тоесть взять маску 255.255.255.252
+
+это просто ужас какое циско стало.
+тоесть мы разрешаем доступ кнебольшой подсети.
+
+==================
+

@@ -1159,4 +1159,29 @@ VMW_SATP_ALUA      FreeNAS  iSCSI Disk     user          VMW_PSP_RR   iops=1
 
 
 ============
+storcli
 
+как создать raid10
+
+ # /opt/lsi/storcli/storcli  /c0  add vd type=raid10 name=SSD-R1-2xssd drives=62:4,62:5,62:6,62:7 pdcache=on wt nora strip=64 pdperarray=2
+
+Controller = 0
+Status = Success
+Description = Add VD Succeeded
+
+ в чем была прикол. начал создавать этот массив.
+ а оно пишет ошибку
+ 
+ Controller = 0
+Status = Failure
+Description = operation not possible for current RAID level, Invalid RAID level
+
+
+оказалос что сторкли небудет создавать raid10 если неуказать параметр 
+
+	pdperarray=
+	
+ради этого эта запись и сделана
+
+
+======================
