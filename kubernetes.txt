@@ -14720,5 +14720,12 @@ kube-dns   ClusterIP   10.96.0.10   <none>       53/UDP,53/TCP,9153/TCP
 
  пока все таки остановимся на варианте без fluxcd
  просто все изменения публикаций в куб идут через yaml которые публикуются в git
+ ====
  
+ как в кубе посмотреть спмсок подов на ноде
  
+  kubectl get pod -o=custom-columns=NODE:.spec.nodeName,NAME:.metadata.name --all-namespaces -n elastic-prod | grep kub2-06
+  
+  ===========
+  
+  
