@@ -2149,3 +2149,18 @@ https://community.cisco.com/legacyfs/online/legacy/1/8/6/78681-white_paper_c11_5
 
 ==
 
+nexus
+если мы имеем провод cisco console - com - usb переходник
+
+то win2012 не имеет дров для такого провода по дефолту
+в диспетчере устройств будет устройство вида 
+
+usb2.0-ser 
+
+дрова для него качаем отсюда
+
+устройство CH340G
+
+https://www.arduined.eu/ch340g-converter-windows-7-driver-download/
+
+============
