@@ -259,7 +259,34 @@ lrwxrwxrwx 1 root root 0 May 15 10:52 host2 -> ../../devices/pci0000:00/0000:00:
 
 ==
 
+ targetcli
  
+ создание LUN на основе RAMDISK
+ 
+ # targetcli
+ >  cd backstores/
+ 
+ > create name=rd_backend size=40GB
+Generating a wwn serial.
+Created rd_mcp ramdisk rd_backend with size 40GB.
+
+
+> cd /qla2xxx/50:01:43:80:18:6a:02:e8/luns/
+
+> create /backstores/rd_mcp/rd_backend
+Selected LUN 1.
+Successfully created LUN 1.
+Created mapped LUN 1 in node ACL 50:01:43:80:18:6a:04:44
+
+готово
+
+
+на клиенте надо перезапустить скан лунов
+
+клиент #  rescan-scsi-bus.sh
+после fdisk сразу должен показать новый lun
+
+
  
  ===
  
