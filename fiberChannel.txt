@@ -201,7 +201,56 @@ qlogic QLE2562
  тогда буквы N не будет в статусе скрости поартов
  
  ====
+ brocade
+ 
+ default passwords
+ 
+ root:fibranne
+ admin:password
+ user:password
+ 
+ =======
+ brocade
+ без заебов не обошлось
+ все для людей.
+ 
+ значит в завимиости от версии FOS его веб морда работает т
+ только с определенной версией jre
+ 
+ https://downloads.hpe.com/pub/softlib2/software1/pubsw-windows/p199020807/v143212/FOS7.4.1d_RN.pdf
+ 
+ страница 45
+ 
+ это пишут люди и это написано в руководстве.
+ 
+ например 
+ 
+ FOS v7.4.0 is qualified and supported with Oracle Java version 7 update 76 and Java version 8 update 66.
+ 
+ у меня конкретно работает такая связка:
+ 
+ FOS v7.4.1d + jre8u66(64bit)
+ FOS v7.4.1d + jre8u251(32bit)
+ 
+ далее надо зайти в контрол панель в виндовсе в java и там
+ в закладе security добавить путь к свичу как безопасный
+ например 
+ http://10.15.0.10
+ 
+ и также суперважно что запускать веб морду надо не вбраузере там вобще ноль на массе 
+ а в командной строке:
+ 
+ "c:\Program Files\Java\jre1.8.0_66\bin\javaws.exe" http://10.15.0.10/switchExplorer_installed.html
+ 
+  
  
  
  ===
+ brocade
+ 
+ настроить через cli адрес веб морды
+ 
+ > ipaddrset
+ 
+ ====
  
