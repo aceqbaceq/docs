@@ -1185,3 +1185,16 @@ Description = operation not possible for current RAID level, Invalid RAID level
 
 
 ======================
+esxi 
+версия = VMware-VMvisor-Installer-5.5.0-1331820.x86_64.iso 
+
+на этой версии  при Vmotion сфера выпадала в пураурный экран смерти
+
+а на версии VMware-VMvisor-Installer-5.5.0.update03-3568722.x86_64-Dell_Customized-A06.iso 
+
+такой проблемы нет
+
+===
+
+
+===
