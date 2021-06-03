@@ -543,6 +543,10 @@ become:no
 
 mysql_root_pass: '123'
 
+и наконец ссылка на полный плейбук
+
+https://github.com/aceqbaceq/ansible/tree/master/mysql
+
 
 ============================================
 
