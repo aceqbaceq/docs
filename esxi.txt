@@ -1227,3 +1227,13 @@ APPLICATION UPGRADE REQUIRED: This controller has been configured with
 
 
 ===
+пытаемся отформатировать LUN в esxi datastor
+а он выдает ошибку
+
+esxi dd '/dev/disks/naa function not implemented
+
+решение надо на конце dd добавить conv=notrunc
+
+# dd if=/dev/zero of=/vmfs/devices/disks/naa..  bs=1M count=10 conv=notrunc
+
+===
