@@ -309,6 +309,9 @@ lrwxrwxrwx 1 root root 0 May 15 10:52 host2 -> ../../devices/pci0000:00/0000:00:
  создание LUN на основе RAMDISK
  
  # targetcli
+ 
+ идем туда где прописываются бекенд диски
+ 
  >  cd backstores/
  
  > create name=rd_backend size=40GB
@@ -316,12 +319,20 @@ Generating a wwn serial.
 Created rd_mcp ramdisk rd_backend with size 40GB.
 
 
+идем в настройки таргета в его луны чтобы создать лун который таргет
+будет экспортировать наружу на основании нашего
+бекенд диска
+
 > cd /qla2xxx/50:01:43:80:18:6a:02:e8/luns/
 
 > create /backstores/rd_mcp/rd_backend
 Selected LUN 1.
 Successfully created LUN 1.
 Created mapped LUN 1 in node ACL 50:01:43:80:18:6a:04:44
+
+сохранить конфиг
+
+>saveconfig
 
 это не все опписание. надо еще там и всякое разно сделать.
 но это просто кусок который описывает если у нас бекенд 
@@ -333,7 +344,23 @@ Created mapped LUN 1 in node ACL 50:01:43:80:18:6a:04:44
 клиент #  rescan-scsi-bus.sh
 после fdisk сразу должен показать новый lun
 
+===
+targetcli 
+как создать LUN на основе физ диска в качестве бекенда
 
+# targetcli
+
+создаем бекенд
+> cd backstores/iblock/
+> create name=ssd-200G  dev=/dev/sdc
+
+экспортируем лун
+> cd /qla2xxx/50:01:43:80:18:6a:02:e8/luns/
+> create /backstores/iblock/ssd-200G
+ 
+сохранить конфиг
+> save config
+ 
  
  ===
  brocade
