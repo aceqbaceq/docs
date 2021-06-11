@@ -634,16 +634,15 @@ esos
  4k read 100%
 20 workerov x q=1
 
-raid massiv
+raid massiv Raid1 SmartArray P840  2xSSD Samsung 840 EVO 
 61 000 iops
-250MB  thruput
 0.32 latency
 
 
-FC
+FC (данные читаются с этого же контроллер но через FC)
 41 000 iops
-170MB thruput
 0.47 latency
+
 
 загрузка cpu на сторадже esos
 esxi показывает загрузку esos VM  по cpu:  1 ядро (E5-2680v4 2.4GHz)  идет на работу самой ВМ и 0.3 ядра идет на системную службу esxi os на обслуживние IO, итого 1.3 ядра цпу.
@@ -651,6 +650,21 @@ esxi показывает загрузку esos VM  по cpu:  1 ядро (E5-26
 сам esos внутри себя показывает загрузку по cpu почему то 0.4-0.5 ядра ( а не 1 ядро как должно бы быть )
 непонятно.  
 бекенд у esos это LVM лун
+
+а вот для сравнения скорость чтения на том же режиме 
+4k read 100%
+20 workerov x q=1
+с другого контроллера  и других дисков
+raid massiv Raid10 Smart Array P440ar  4xSSD KINGSTON SEDC500 
+82 000 iops
+0.24 latency
+
+а вот еще.
+контроллера нет, одиночный диск SSD Intel 3700 372GB
+143 000 iops
+0.14 latency
+ 
+
 
 ====
 

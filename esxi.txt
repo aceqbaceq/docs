@@ -1237,3 +1237,19 @@ esxi dd '/dev/disks/naa function not implemented
 # dd if=/dev/zero of=/vmfs/devices/disks/naa..  bs=1M count=10 conv=notrunc
 
 ===
+
+столкнулся на esx 5.5 pass through
+при проброске диска nvme напрямую в вирт машину
+при попытке запуска ВМ вылезает ошибка
+
+
+Failed to register the device pciPassthru0  due to unavailable hardware or software support
+
+в HP рекомендуют применить патч на esxi
+
+побыстрому лечится тем что виртуальной машине нужно выставить меньше обьем RAM
+тогда она без проблем запустится.
+
+
+
+===
