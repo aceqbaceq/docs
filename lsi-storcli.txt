@@ -1,0 +1,31 @@
+lsi
+
+у него в настройках есть режиме
+
+cached io vs direct io
+writhe thru vs write back
+
+в чем разница?
+
+а еще есть 
+
+storcli /cx/vx set pdcache=<on|off|default>
+		This command sets the current disk cache policy on a virtual drive to on, off, or default setting.
+		Input example:
+		storcli /c0/v0 set pdcache=on
+
+
+
+вот такю кмоанду вводим и видим
+
+VD0 Properties :
+==============
+...
+Disk Cache Policy = Disk's Default
+
+
+возникает вопрос а какой фактически дефолт то у диск кэш полиси. 
+он по умолчанию активирован или задизейблен.
+
+надо прверять.
+
