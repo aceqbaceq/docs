@@ -29,3 +29,40 @@ Disk Cache Policy = Disk's Default
 
 надо прверять.
 
+======
+
+у lsi есть аналог hp smartpath называется fastpath
+чтобы его активировать нужно что 
+массив имел следущие свойства
+
+The array must not have any cache enabled
+No Read Ahead
+Write Through
+Direct I/O
+
+нашел я это здесь - https://www.broadcom.com/support/knowledgebase/1211161502310/lsi-fastpath
+
+а вот здесь - https://docs.broadcom.com/doc/12350183 я нашел то что если на массиве выставлено:
+WriteThrough
+Directio
+Noreadahead
+
+то плата автоматом активрует на этом массиве fastpath.
+
+как проерить в статусах реально ли массив имеет активированный режим для него 
+фаст пафа я ненашел. походу никак.
+
+зато вот как для массива выставить нужные опции
+
+/cx/vx set wrcache=<wt|wb|fwb>
+/cx/vx set iopolicy=<cached|direct>
+/cx/vx set rdcache=<ra|nora|adra>
+
+
+значит сам смысл. writeback это когда при записи он пишет в кэш контроллера
+writetru это когда он пишет сразу на массив а не в кэш контроллера
+direct это когда он при чтении вначале лезет сразу на ssd массив
+cached это когда он при чтении вначале лезет в кэш контроллера
+
+====
+
