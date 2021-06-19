@@ -1303,6 +1303,9 @@ reboot
 vid
 did
 
+https://kb.vmware.com/s/article/1027206
+
+
 вот это позволет увидеть какой дрвйвер обслуживаем картуочку и какой vmnic у нее
 
  # esxcli network nic list
@@ -1352,6 +1355,46 @@ did
  все ВМ и даже выключенные. и тока потом его выключай.
  щас я получил кучу ВМ которые даже непонятно как назвыаются ибо они обозначены как unknown.
  где теперь их искать на дисках.
+ 
+ =====
+ 
+ посмотреть список FC контроллеров
+ и названия их драйверов
+ 
+ # esxcli storage core adapter list
+ 
+ либо список контроллеров без названия драйверов
+ 
+ # esxcli  storage san fc list
+ 
+ 
+ например 
+
+ # esxcli storage core adapter list
+ 
+ vmhba64   qlnativefc  link-n/a    fc.50014380186a0445:50014380186a0444 
+ (0:132:0.0) QLogic Corp ISP2532-based 8Gb Fibre Channel to PCI Express HBA
+
+ 
+ значит драйвер у кулоджика qlnativefc
+ 
+ когда мы знаем название драйвера то мы можем посмотреть 
+ какие опции он предоставляет для ручного подкручивания
+ 
+
+
+ 
+ а эта команда покажет какие ручные опции подкручивания активированы 
+ на этом сервере для этого драйвера
+
+
+# esxcli system module parameters list -m qlnativefc
+
+# esxcfg-module --get-options qlnativefc
+qlnativefc enabled = 1 options = ''
+
+в данном случае видно что никакие.
+
  
  =====
  
