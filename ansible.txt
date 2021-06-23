@@ -3245,4 +3245,68 @@ max_fail_percentage: 0
 order: sorted
 
 ===
+опция 
 
+become: yes
+
+уже известна.
+
+есть к ней полезное доолнение
+
+become_user : vasya
+
+теперь ансиблю понятно в кого конкретно надо превращаться
+
+===
+sudo = хорошо
+su = плохо
+
+поэтому
+
+become_method: sudo
+
+===
+оказыается можно использовать ": " а можно  "=" 
+
+пример
+
+   - name: check apache start page http://localhost
+      uri:
+        url: http://localhost
+
+
+
+
+   - name: check apache start page http://localhost
+      uri:
+        url=http://localhost
+
+
+я говрю про строчки параметры модуля
+
+ url: http://localhost
+ url=http://localhost
+ 
+ главное что если = то нельзя пробелы совать нидо нипосле
+
+
+========
+
+еще одна полезная вещь
+
+
+- name: install db
+  hosts: "{{ var1 }}"
+
+  vars:
+    var1: db2
+
+
+тоесть можно переменную вставлять в поле hosts:
+но вопрос куда можно вставить переменную чтобы ансибль ее мог вовремя
+считать
+
+так вот оказвыается что переменная из vars считывается ансиблем
+до поля hosts
+
+===
