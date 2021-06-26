@@ -3310,3 +3310,321 @@ become_method: sudo
 до поля hosts
 
 ===
+
+скажем есть такая штука
+
+
+     - name: make mysql listen all the net interfaces
+       template:
+          src: mysql.cnf.yml
+          dest: /etc/mysql/mysql.cnf
+          owner: root
+          group: root
+          mode: 0644
+       notify: restart mysql
+
+
+значит выше я писал что ансибл если видит поле значение и это значение 
+имеет несколько строк то ансибл превращает эти несколько строк в одну а знаки 
+переноса строки энтеры он заменяет на пробелы. таким образом одно равноценно
+другому.  смотрим на код в нем ключ это template: а все что дальше до notify: это 
+значение многостроковое. таким образом если мы желаем мы можем сами 
+превратить это значение в одностроковое 
+
+- name: make mysql listen all the net interfaces
+  template: src: mysql.cnf.yml  dest: /etc/mysql/mysql.cnf   owner: root    group: root  mode: 0644
+  notify: restart mysql
+
+
+единственное то что такой код будет неработать потому что двоеточия ансибл
+херово переносит в одной строке. поэтому их можно заменить на =. ибо 
+': ' экваивалентно "="
+тогда
+
+- name: make mysql listen all the net interfaces
+  template: src=mysql.cnf.yml  dest=/etc/mysql/mysql.cnf  owner=root   group=root  mode=0644
+  notify: restart mysql
+
+таким образом теперь понятно. многострочка превращается в однострочку 
+потому что ансибл так сам делает. заменяя энтеры на пробелы. поэтому мы можем
+тоже это сделать сами. также мы помнис что двоеточик и равно это эквтивалентные 
+операторы в много строчном выражении. а вот когда в одну строчку то ансибл 
+двоеточия нелюбит. 
+
+
+таким образом мы всегода можем преврашать мнрогострочку  в однострочку
+и наоборот. когда захотим.
+
+многочтроку в однострочку превращает неансибл а ямл интерпретатор который отрабатывает
+еще до ансибля.
+
+почему нельзя двоеточие оставить в однострочку. потому что это спецсимвол и ансибл
+думает что стринг имеетвнутри себя дикшонари, получатеся
+
+левая часть стринга + дикшонари + правая часть стринга
+
+а это уже типа некоректно. а вот знаки равно похеру ансиблю. поэтому
+тогда для него это все просто однострочка.
+ну как то так.
+
+====
+
+ну а если очень хочется двоеточия оставить в однострочку то пожалуйста
+
+  tasks:
+     - name: make mysql listen all the net interfaces
+       template: {src: mysql.cnf.yml, dest: /etc/mysql/mysql.cnf,  owner: root,   group: root,   mode: 0644}
+       notify: restart mysql
+
+но такая запись уженеинтересная потому что корявая. хотя и рабочая.
+===
+
+делаю плейбук
+mysql + apache + python
+
+
+конфиг апача
+
+s$ cat 000-default.conf
+<VirtualHost *:80>
+
+ <Directory /var/www/test>
+   Options +ExecCGI
+    DirectoryIndex index.py
+  AddHandler cgi-script .py .cgi
+ </Directory>
+
+
+
+        ServerAdmin webmaster@localhost
+        DocumentRoot /var/www/test
+
+
+        ErrorLog ${APACHE_LOG_DIR}/error.log
+        CustomLog ${APACHE_LOG_DIR}/access.log combined
+
+</VirtualHost>
+
+
+
+конфиг питона
+
+$ cat index.py
+#!/usr/bin/python
+
+import pymysql
+
+# Print necessary headers.
+#Chapter 2 ansible playbooks64
+print("Content-Type: text/html")
+print "" #use this double quote print statement to add a blank line in the script
+print()
+
+# Connect to the database.
+conn = pymysql.connect(
+db='testdb',
+user='root',
+passwd='{{ mysql_root_pass }}',
+host='localhost')
+c = conn.cursor()
+
+# Print the contents of the table.
+c.execute("SELECT * FROM test;")
+for i in c:
+ print(i)
+
+
+подчеркну вот эту строчку
+
+print "" #use this double quote print statement to add a blank line in the script
+
+она очень важна 
+потому что надо оставить пустую строку между  "Content-Type: text/html" 
+и остальным текстом 
+иначе апач будет писать  ошибку
+
+malformed header from script 'index.py': Bad header: ()
+
+=====
+
+чтобы содеинить несколько плейбуков мы можем использовать include а можем 
+import_playbook  .
+
+- include: play1.yml
+
+или
+
+- import_playbook: play1.yml
+
+
+ в чем разница.
+ 
+когда мы запускаем плейбук на исполненеие то как я понял идет две фазы.
+на первой фазе yaml интерпретатор анализирует текст. фишка еще в том что 
+ямл интепретатор на этой фазе анализирует полностью весь текст вобще всего - всех вложенных
+плейбуков и ролей. весь текст за исключеием тех плейбуков которые указаны через include.
+
+на второй фазе уже ансибл запускает таски. ансибл запускает таски один за одним по очереди
+по мере того как закончит с одним и потом прееходит к другому. таким образом ансибл проанали
+зирует и увидит все плейбукт входящие в состав нашего влейбука тока в самом конце
+когда увидит последнгий таск.
+
+таким образом ямл видит обарабтывает весь текст целиком.
+а ансибл видит текст кода только по шагам шаг за шагом.
+
+
+так вот если мы используем import_playbook 
+то этот плейбук будет проверен ямл интерпертатором на первой стадии.
+
+а если используем include то ямл интепретатор его проверять на первой стадии небудет. он его пропустит
+а проверять этот плейбук будет уже ансибл когда дойдет до исполнения этого плейбука.
+
+несколько противорчиво описано. но както так.
+
+сам ансибл рекомендует неиспользовать include а использовать import_playbook
+====
+
+как выполнить mysql query 
+
+надо поставить коммьюнити пакет
+
+# ansible-galaxy collection install community.mysql
+
+и потом вот такой код
+
+ - name: check if dump sql is already imported
+       community.mysql.mysql_query:
+           login_db: testdb
+           query: select * from test where message='Ansible is fun'
+           login_unix_socket: /run/mysqld/mysqld.sock
+       register: temp
+
+=========================
+тэг в итоге назначается таску.
+можно назначть тэг один за одним каждой таске.
+а еще можно назначить роли. тогда автомтом все таски 
+это роли получат тэг.
+вобщем важно понимать что в конечном итоге тэг прикрепляется к таске или таскам.
+хотя мы его скажем лепим формально к роли.
+
+========
+есть плейбук main.yml 
+который импортирует другие плейбуки
+
+
+
+- name: db install play
+  import_playbook: db-play.yml
+
+- name: apache+python install play
+  import_playbook: web-play.yml
+
+
+- name: django install play
+  import_playbook: django-play.yml
+
+
+мы запускаем main.yml с тэгом --tags=vasya
+
+так вот даже если в db-play.yml либо в  web-play.yml либо в django-play.yml
+нет тасков с тэгом вася то все равно эти плейбуки будут запущены 
+с модулем setup. тоесть ансибль соберет факты со всех хостов всех плебуков 
+внезваисимости есть там таски с нужным тэгом или нет.
+
+=====
+
+на счет как ориентировтися в выводе на экран.
+
+прежде всего ансибл пишет что начал выподнять такой то плей
+
+PLAY [dc-play.yml]
+
+поэтому удобно поле -name в плее называть также как файл в который он записан.
+тогда будет четко понятно какой плей щас выполняется из какого файла.
+
+вот пример моего плея
+
+- name: dc-play.yml
+
+тоесть я в описании плея указал название файла. 
+
+далее кактока ансибл указа какой плей он выполняет он тогда
+пишет название роли если она из этого плея вызывается и название таска этой роли.
+
+вот пример
+
+PLAY [web-play.yml]  ( вначале название плея)
+
+TASK [web_server.local : print temp_dir var]  (дальше название роли и названия таска
+из этой роли)
+
+таким образом ткперь можно леегко ориентироваться какой файл на данный момент
+исполнял ансибл.
+
+как тока он закончит плей и начнет другой то он напишет имя нового плея.
+
+вот пример
+
+TASK [webserver installation status] ************************************************************************************************************************
+
+PLAY [django-play.yml db part]
+
+тоесь закончил таск из текущего плея. и перешел к следующему плею.
+таким ообразом говорю что легко тогда понимать как ансбиль движется от плея к плею
+от файла к файлу поэтому выводу на экран.
+
+поскольку имя роли нам ничего не гвоорит из какого файла она вызывана то надо искать 
+глазами наверх имя плея. а если имя плея содержит имя файла в котором этот плей то 
+тогда сразу понятно из какого файла вызывается эта роль.
+
+потому что наша задча исходная это из вываода на экран понимать в каком файле
+мы сейчас находимся
+
+еще пример
+
+PLAY [web-play.yml]
+
+TASK [web_server.local : print temp_dir var]
+
+TASK [web_server.local : install pymysql]
+
+TASK [webserver installation status]
+
+из этого куска вывода можно понять 
+что роль web_server.local вызывется из web-play.yml
+
+===
+пишут что тэг always гарантирует что такой то таск будет выполнен всегда
+
+===
+одна из самых важных вещей что надо делать в ансибль проекте
+это все переменные публиковать в одном файле. и чтобы все плейбуки и роли
+забирали их оттуда. это централизует все настройки в однодм месте.
+и этот файл также можно зашифровать
+забирать вот так
+
+ vars:
+    rails_pass:   "{{ lookup('ini', 'rails_pass type=properties file=./vars/vars.yml') }}"
+    rails_user:   "{{ lookup('ini', 'rails_user type=properties file=./vars/vars.yml') }}"
+    appservers_ip: "{{ lookup('ini', 'appservers_ip type=properties file=./vars/vars.yml') }}"
+
+
+===
+как указать файл с паролем у ansible vault 
+=> 
+--vault-password-file
+
+$ ansible-playbook --vault-password-file ~/vault/pass.txt  -i ./inventory/ main.ym
+
+====
+
+чтобы поменять тот редактор который вызывается при команде
+
+$ ansible-vault edit
+
+то надо в ~/.bashrc вставить в конце
+
+export EDITOR=/usr/bin/mcedit
+
+====
+
