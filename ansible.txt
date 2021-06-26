@@ -3628,3 +3628,10 @@ export EDITOR=/usr/bin/mcedit
 
 ====
 
+установить роль с сайта galaxy
+в определенную свою папку
+
+$ ansible-galaxy install elasticsearch --roles-path ~/roles
+
+
+=====
