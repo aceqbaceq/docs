@@ -2172,3 +2172,12 @@ usb2.0-ser
 https://www.arduined.eu/ch340g-converter-windows-7-driver-download/
 
 ============
+
+
+nexus
+
+узнать модель железки
+
+# show version | begin Hardware
+
+=============
