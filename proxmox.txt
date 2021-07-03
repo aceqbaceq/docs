@@ -1,0 +1,112 @@
+﻿----
+что нужно настроить после установки iso proxmox
+
+разделы если в ext4 то полное журналирование
+
+менеждмент интерфейс прокинуть через тэгированный vlan
+вот такой конфиг для этого достаточно
+/etc/network/interfaces
+auto lo
+iface lo inet loopback
+
+iface enp5s0f0 inet manual
+
+iface enp5s0f1 inet manual
+
+iface enp7s0f0 inet manual
+
+iface enp7s0f1 inet manual
+
+iface enp7s0f2 inet manual
+
+iface enp7s0f3 inet manual
+
+
+auto vmbr1
+iface vmbr1 inet manual
+        bridge-ports enp5s0f1
+        bridge-stp off
+        bridge-fd 0
+        bridge-vlan-aware yes
+        bridge-vids 2-4094
+
+auto vmbr1.110
+iface vmbr1.110 inet static
+        address 172.16.110.24/24
+        gateway 172.16.110.1
+
+это vlan aware linux bridge. тогда как в vnmware можно внутри VM просто давать IP
+а уже сам линукс берет на себя работу с vlan
+
+
+
+
+устаноить пакет ifupdown2
+nmon
+mc
+
+из apt убрать paid subsription repo и добавить non-sunbscription repo
+deb http://ftp.debian.org/debian buster main contrib
+deb http://ftp.debian.org/debian buster-updates main contrib
+
+# PVE pve-no-subscription repository provided by proxmox.com,
+# NOT recommended for production use
+deb http://download.proxmox.com/debian/pve buster pve-no-subscription
+
+# security updates
+deb http://security.debian.org/debian-security buster/updates main contrib
+
+
+поставить hp smart array cli
+wget http://downloads.linux.hpe.com/SDR/repo/mcp/debian/pool/non-free/hpssacli-2.10-14.0_amd64.deb
+
+
+
+
+----
+первая ебала это настроить тэгированный вилан
+
+вторая это то что http морда она долго стартует и начинает работать далеко несразу
+поэтому типа после загрузки proxmox тыкаешь в браузере и ниче непросиходит  инихуя неопнятно в чем проблема.
+
+а нужно просто тупо ждать пока морда там внутри кишок прокмокс заведется
+
+===
+нету там netstat 
+надо его отдельно ставить
+==
+проблемы
+непонятная разбивка диска на сервер где стоит проксмокс
+
+===
+
+как получить доступ к стораджу так чтобы в него можно было записать через морду
+iso ФАЙЛ.  для этого 
+
+датацентр - хост - раскрываем хост и слева видын стораджи .
+тыкаем на название стораджа и справа видна кнопка iso images - гоча!
+==
+
+нужен пакет ifupdown2
+без которого такой дебилизм сетевые изменнеия на сервере без его
+полной перезагрузки невозможны!
+
+продакшн еты!
+
+====
+это пиздец называется энтерпразй штука.
+по дефолту сеть без перехзагзуки хоста непоменять. это блядь просто энтепралайрайз
+
+========
+тестирование проксмокс как nested vm в vmware.
+когда ставим виндовс на VM от проксмокс
+то надо выбирпать тип диска = ide
+тогда его инсталлер увидит.
+а если выбрать диск тип virtio block
+то у вин2012 нет под него дров. а если инсталлеру подсунуть
+proxmox tools то установка просто зависнет.
+
+
+===
+
+==
