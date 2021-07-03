@@ -4,11 +4,24 @@ linux
 
 пересканироват scsi bus
 
+нужно  поставить пакет
+
+$ sudo  apt-get install -i scsitools
+
+тогда все это можно тоже самое проделать через команду
+
+$ sudo  rescan-scsi-bus
+
+круто
+
+а можно проделать руками:
+
 #echo "- - -" > /sys/class/scsi_host/hostX/scan
 
 какой именно hostX надо зайти туда и посмотреть.
 
 после этого fdisk увидит новый диск
+
 
 ===
 
