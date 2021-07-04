@@ -3419,3 +3419,234 @@ shards disk.indices disk.used disk.avail disk.total disk.percent host         ip
 $ curl -XGET "http://localhost:31000/_nodes?pretty&filter_path=nodes.*.settings.path.data"
 
 ====================
+удобная программа для того чтобы набить эластик рандомными данными
+
+
+установка
+
+качаеем в папку
+$ wget https://github.com/oliver006/elasticsearch-test-data/archive/refs/heads/master.zip
+
+распаковыаем
+
+ставим python3 на комп
+
+$ sudo apt-get update
+$ sudo apt-get install python3
+
+ставим pip3
+
+$ sudo apt-get install python3-pip
+
+ставим все что требует торнадо
+
+$ pip3 install -r requirements.txt
+
+$ python3 es_test_data.py --index_name=index-2 --es_url=http://test-kub-15:31000 --count=10000000 --batch_size=100000 --set_refresh=-1 --http_upload_timeout=8
+
+значения параметров
+
+es_test_data.py = это файлик в папке проекта что мы скачали
+--index_name=index-2 = название индекса в который будем писать данные
+--es_url=http://test-kub-15:31000 = интерфейсная нода эластика
+--count=100000 = сколько всего суммарно документов программа засунет в эластик
+--batch_size=100 = по скольку штук за раз программа будет пихать документов вэластик
+--set_refresh=-1 = чтобы эластик лишний раз индекс необновлял, как я понимаю
+это помогает как можно быстрее закачиваь данные. а все структуры будут обновлены
+потом а не прям сразу вторичные
+--http_upload_timeout=15 = таймаут в секундах сколько ждать ответ что данные забраны
+	че он делает если таймайт превышен кроме того что об этом на экране
+	пише незнаю. наверное повторяет последнюю транзакцию
+
+вообще значения этих парамтеров смотри в самом файле es_test_data.py
+
+====
+
+в эластике можно указывать несколко папок 
+в которых он будет хранить индекс.
+
+ в конфиге это указывается через настройку
+ 
+  path.data: /usr/share/elasticsearch/data,/usr/share/elasticsearch/data2
+    
+  эластик сам решает в какой мере использовать каждую папку.
+  
+  например у меня было что 
+  data - размер 1G
+  data2 - размер 2G
+  
+  в итоге после заливки данных в индекс они использовались так:
+Filesystem                         Size  Used Avail Use% Mounted on
+/dev/mapper/vg01-2g--3             2.0G  904M  931M  50% /usr/share/elasticsearch/data2
+/dev/mapper/vg01-lvol8             976M  450M  460M  50% /usr/share/elasticsearch/data
+
+как видно эластик так залил данные что обе папки заняты на 50%
+хотя размер у них разный.
+
+
+детали как это выглядит если эластик развернут в кубернетесе.
+в стейтфул сете для дата нод в том месте где 
+мы прописываем что внутрь контейнера монтируется папка мы туда дописвыаем
+еще одну монтируемую папку
+
+было:
+        volumeMounts:
+        - name: pvc
+          mountPath: /usr/share/elasticsearch/data
+
+стало:
+        volumeMounts:
+        - name: pvc
+          mountPath: /usr/share/elasticsearch/data
+        - name: pvc2
+          mountPath: /usr/share/elasticsearch/data2
+
+в разделе env: там где указаны переменные эластика добавляем
+
+было:
+          - name: ES_JAVA_OPTS
+            value: "-Xms3000m -Xmx3000m"
+
+
+стало:
+          - name: ES_JAVA_OPTS
+            value: "-Xms3000m -Xmx3000m"
+          - name: path.data
+            value: "/usr/share/elasticsearch/data,/usr/share/elasticsearch/data2"
+
+и еще в разделе volumeclaimtemplates
+
+было:
+  volumeClaimTemplates:
+  - metadata:
+      name: pvc
+      labels:
+        app.name: elastic
+        app.pods-role: data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: pv-localdisks-1g
+      resources:
+        requests:
+          storage: 970Mi
+
+
+
+
+стало:
+
+  volumeClaimTemplates:
+  - metadata:
+      name: pvc
+      labels:
+        app.name: elastic
+        app.pods-role: data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: pv-localdisks-1g
+      resources:
+        requests:
+          storage: 970Mi
+
+  - metadata:
+      name: pvc2
+      labels:
+        app.name: elastic
+        app.pods-role: data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: pv-localdisks-2g
+      resources:
+        requests:
+          storage: 1940Mi
+
+еще надо отредактировать пермишнс на обе папки
+было:
+command: ["sh", "-c", "chown -R 1000:1000 /usr/share/elasticsearch/data"]
+
+стало:
+command: ["sh", "-c", "chown -R 1000:1000 /usr/share/elasticsearch/data; mkdir -p /usr/share/elasticsearch/data2 && chown -R 1000:1000 /usr/share/elasticsearch/data2 "]
+
+
+на этом редактирование стейтфул сета закончено.
+
+далее подлянка куба в том что когда мы запустили стейтфул сет 
+то у него уже нельзя менять настройки монтируемых папок.никак.
+
+поэтому единственный способ это удалить текущий запущеный стейтфул сет.(что полный 
+отстой). и запустить его из отредактрованного манифеста заново.
+
+причем подчеркну кубу пофиг ты добавил новый диск в стейтфул сет 
+или ты заменил один на другой. в любому случае он такой обновленный манифест 
+не пропустит для обновления. никодга и низачто. 
+единственный путь удалить роботающий стейтфул сет. 
+и запустить заново из манифеста отредактироавнного.
+
+когда мы заново запустили SS то хорошо бы проверить что
+внутри пода в контейнере дейтсивтельно теперь примонтировано две папки.
+
+для этого надо посмотреть описание пода который создал SS через describe
+
+$  kubectl describe   pods/es-data-2 --namespace=es-cl-04
+...
+Containers:
+  elasticsearch:
+  ...
+      ES_JAVA_OPTS:          -Xms3000m -Xmx3000m
+      path.data:             /usr/share/elasticsearch/data,/usr/share/elasticsearch/data2
+    Mounts:
+      /usr/share/elasticsearch/data from pvc (rw)
+      /var/run/secrets/kubernetes.io/serviceaccount from default-token-cwfwn (ro)
+	  
+как видим и path.data правильный
+и обе папки примонтированы.
+
+но на этом лучше не успокаиваться
+а зайти в сам контейнер и еще раз 
+убедиться через kubectl exec
+
+
+$ kubectl exec -i -t pod/es-data-0 -n es-cl-04  --container elasticsearch -- /bin/bash
+[root@es-data-0 elasticsearch]# df -h
+Filesystem                         Size  Used Avail Use% Mounted on
+...
+/dev/mapper/vg01-2g--3             2.0G  904M  931M  50% /usr/share/elasticsearch/data2
+/dev/mapper/vg01-lvol8             976M  450M  460M  50% /usr/share/elasticsearch/data
+
+
+как видно действительно внутри контейнера примонтировано две папки.
+
+также там же надо убедиться что пермишнс на папки который 
+мы задавали выше через  "sh", "-c" выставился верный
+
+[root@es-data-0 elasticsearch]# ls -1al /usr/share/elasticsearch/
+...
+drwxrwxr-x  1 elasticsearch root            4096 Jul  4 12:34 config
+drwxr-xr-x  3 elasticsearch elasticsearch   4096 Jul  3 23:42 data
+drwxr-xr-x  4 elasticsearch elasticsearch   4096 Jul  4 12:34 data2
+
+видим что elasticsearch.elasticsearch  владелец что верно.
+
+получается если мы зашли внутрь контейнера то мы можем оценить
+сколько свобродного места есть у эластика под индекс через df -h
+
+а из api самого эластика мы можем это увидеть через 
+
+$ curl test-kub-14:31000/_cat/allocation/?v
+shards disk.indices disk.used disk.avail disk.total disk.percent host         ip           node
+     6        1.3gb     1.5gb      1.3gb      2.8gb           52 10.253.0.185 10.253.0.185 es-data-7
+     6        1.3gb     1.5gb      1.3gb      2.8gb           52 10.253.0.184 10.253.0.184 es-data-4
+     6        1.3gb     1.5gb      1.3gb      2.8gb           52 10.253.5.164 10.253.5.164 es-data-1
+     6        1.3gb     1.5gb      1.3gb      2.8gb           52 10.253.0.183 10.253.0.183 es-data-0
+     6        1.3gb     1.5gb      1.3gb      2.8gb           52 10.253.5.166 10.253.5.166 es-data-8
+     6        1.3gb     1.5gb      1.3gb      2.8gb           52 10.253.5.165 10.253.5.165 es-data-5
+     6        1.3gb     1.5gb      1.3gb      2.8gb           52 10.253.4.177 10.253.4.177 es-data-3
+     6        1.3gb     1.5gb      1.3gb      2.8gb           52 10.253.4.178 10.253.4.178 es-data-6
+
+что интересно что эластик действительно показывает через api 
+сколько свободно место именно сумма свободного места 
+в тех папках которые прописаны в data.path
+
+========================================================
+
+

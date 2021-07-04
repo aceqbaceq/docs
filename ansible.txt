@@ -3679,3 +3679,38 @@ $ cat ansible.cfg
 [defaults]
 stdout_callback = yaml
 ======
+
+удобная программа для того чтобы набить эластик рандомными данными
+
+
+установка
+
+качаеем в папку
+$ wget https://github.com/oliver006/elasticsearch-test-data/archive/refs/heads/master.zip
+
+распаковыаем
+
+ставим python3 на комп
+
+$ sudo apt-get update
+$ sudo apt-get install python3
+
+ставим pip3
+
+$ sudo apt-get install python3-pip
+
+ставим все что требует торнадо
+
+$ pip3 install -r requirements.txt
+
+$ python3 es_test_data.py --index_name=index-2 --es_url=http://test-kub-15:31000 --count=100000 --batch_size=100
+
+значения параметров
+
+es_test_data.py = это файлик в папке проекта что мы скачали
+--index_name=index-2 = название индекса в который будем писать данные
+--es_url=http://test-kub-15:31000 = интерфейсная нода эластика
+--count=100000 = сколько всего суммарно документов программа засунет в эластик
+--batch_size=100 = по скольку штук за раз программа будет пихать документов вэластик
+
+====
