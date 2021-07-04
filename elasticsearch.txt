@@ -3393,4 +3393,29 @@ elastic master нода сколко ей нужно ресурсов
 
 		 
 
+=====================
+супер удобная вещь
+как посмтреть сколько места занято\свободно на нодах
 
+
+$ curl localhost:31000/_cat/allocation?v
+
+shards disk.indices disk.used disk.avail disk.total disk.percent host         ip           node
+     5          1kb     2.6gb      7.9gb     10.6gb           25 10.253.0.144 10.253.0.144 es-data-7
+     6        1.2kb       2gb      8.6gb     10.6gb           19 10.253.5.123 10.253.5.123 es-data-5
+     6        1.2kb     2.6gb      7.9gb     10.6gb           25 10.253.0.146 10.253.0.146 es-data-0
+     5          1kb     1.7gb      8.9gb     10.6gb           16 10.253.4.133 10.253.4.133 es-data-3
+     5          1kb     2.6gb      7.9gb     10.6gb           25 10.253.0.145 10.253.0.145 es-data-4
+     5          1kb       2gb      8.6gb     10.6gb           19 10.253.5.122 10.253.5.122 es-data-8
+     5          1kb     1.7gb      8.9gb     10.6gb           16 10.253.4.134 10.253.4.134 es-data-2
+     5          1kb     1.7gb      8.9gb     10.6gb           16 10.253.4.132 10.253.4.132 es-data-6
+     6        1.2kb       2gb      8.6gb     10.6gb           19 10.253.5.124 10.253.5.124 es-data-1
+
+=============================
+как посмотреть путь к дата папкам на фс.
+тоемть путь там где нода хранит индексы
+
+
+$ curl -XGET "http://localhost:31000/_nodes?pretty&filter_path=nodes.*.settings.path.data"
+
+====================
