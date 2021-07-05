@@ -1362,10 +1362,120 @@ antiAffinity: "soft"
 менять бесполезно.
 
 =======================
+важное дополненеи!
+
+вот есть у нас SS (statefull set) в котором прописано естсетвенно
+параметры будущего пода.
+
+и мы там прописали что хотим подключить внутрь пода диск , то есть PV
+
+и скажем этот PV относится к сторадж классу  pv-localdisks-100
+
+и мы это делаем как ? вот так:
+
+ containers:
+      - name: elasticsearch
+	  ...
+	  
+	volumeMounts:
+        - name: data
+          mountPath: /usr/share/elasticsearch/data
+
+...
+
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+      labels:
+        app: es-5
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName:  pv-localdisks-100g
+      resources:
+        requests:
+          storage: 100Gi
 
 
 
->>>>>>>>>>>>>> остановился здесь!
+тоесть у нас есть шаблон  'data' который ищет PV который относятся к сторадж классу
+pv-localdisks-100g
+
+и к8 на основе шаблона data находит PV и пробросит его внутрь пода 
+в папку /usr/share/elasticsearch/data
+
+далльше самое интересное.
+мы хотим внутрь пода пробрросить еще +1PV который относится к тому же самому 
+storage class -> pv-localdisks-100g
+
+моя идея была как это сделать вот такая:
+приведу тот кусочек который я поменял
+
+
+	volumeMounts:
+        - name: data
+          mountPath: /usr/share/elasticsearch/data
+        - name: data
+          mountPath: /usr/share/elasticsearch/data2
+		  
+		  
+потому что  я считал что то что прописано в секции volumeClaimTemplates:
+это шаблон для поиска. а раз у нас +1 PV относится к тому же самому сторадж классу
+то достатоноч будет указать доп папку для монтирования и все.
+
+ОДНАКО! я был неправ. по факту к8 пытался примонтироавть один и тот же PV сразу
+в две папки одновременно.
+
+таким образом я был неправ на счет секции volumeClaimTemplates:
+она задает нешаблон для поиска, она задает сразу параметр конкретного PV.
+так что если мы хотим поключить 2 PV то в секции volumeClaimTemplates: 
+должно быть два вхождения и посрать к однму они относятся сторадж классу или нет.
+
+таким образом работающий вариант выгляди так
+
+
+ containers:
+      - name: elasticsearch
+	  ...
+	  
+	volumeMounts:
+        - name: data
+          mountPath: /usr/share/elasticsearch/data
+        - name: data2
+          mountPath: /usr/share/elasticsearch/data2
+
+...
+
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+      labels:
+        app: es-5
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName:  pv-localdisks-100g
+      resources:
+        requests:
+          storage: 100Gi
+
+  - metadata:
+      name: data2
+      labels:
+        app: es-5
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName:  pv-localdisks-100g
+      resources:
+        requests:
+          storage: 100Gi
+
+
+соответвенно если мы заходим пробрсить внутрь пода 10 PV 
+то в секции volumeClaimTemplates: 
+должно быть 10 вхождений.
+
+
+
+============================================
 
 
   
