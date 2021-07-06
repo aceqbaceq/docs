@@ -3680,37 +3680,60 @@ $ cat ansible.cfg
 stdout_callback = yaml
 ======
 
-удобная программа для того чтобы набить эластик рандомными данными
+когда мы юзаем delegate_to то мы на тот удаленный хост 
+заходим все под тем же ansible_ssh_user
+
+тоесть не под рутом.
 
 
-установка
+===
+очередная залупа в ансибль.
 
-качаеем в папку
-$ wget https://github.com/oliver006/elasticsearch-test-data/archive/refs/heads/master.zip
+если у нас есть некоторый lookup (коих дохера)
+например такой
 
-распаковыаем
+lookup('community.general.random_string', length=12, base64=True)
 
-ставим python3 на комп
 
-$ sudo apt-get update
-$ sudo apt-get install python3
+напечатать его значение можно так
 
-ставим pip3
+debug:
+  var: lookup('community.general.random_string', length=12, base64=True)
+  
+ 
+ так вот чтобы его И ВОБЩЕ ЛЮБОЙ lookup засунуть в переменную то
+надо этот lookup обернуть в "{{        }}" 
 
-$ sudo apt-get install python3-pip
+пример
 
-ставим все что требует торнадо
+  vars:
+    - rand_num: "{{ lookup('community.general.random_string', length=12, base64=True) }}"
 
-$ pip3 install -r requirements.txt
+если небудет "{{ }}" вокруг лукапа то будут проблемы
 
-$ python3 es_test_data.py --index_name=index-2 --es_url=http://test-kub-15:31000 --count=100000 --batch_size=100
+=====
+fetch модуль 
 
-значения параметров
+тут тоже залупа.
 
-es_test_data.py = это файлик в папке проекта что мы скачали
---index_name=index-2 = название индекса в который будем писать данные
---es_url=http://test-kub-15:31000 = интерфейсная нода эластика
---count=100000 = сколько всего суммарно документов программа засунет в эластик
---batch_size=100 = по скольку штук за раз программа будет пихать документов вэластик
+если dest папка сущетсвует то этот дебил вылетит с ошибкой. 
+
+он напишет 
+
+fatal: [test-ansible]: FAILED! =>
+  msg: 'Unable to create local directories(/tmp/k8IS0TBA/test-ansible/etc/kubernetes):
+  [Errno 13] Permission denied: ''/tmp/k8IS0TBA/test-ansible'''
+
+так вот дело не впермишнасах! а втом что этот дебил неумеет копировать в существующюю
+папку.
+
+он не умеет копировать впапку которая уже есть.
+БЛЯДЬ!
+
+он умеет только эту dest папку создавать с нуля.
+
+поэтому с помощью fetch нельзя копировать в папку которая уже есть.
+толтько в несуществубщую папку!
 
 ====
+
