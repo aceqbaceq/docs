@@ -100,5 +100,55 @@ ilo100
 зачастую при этом сама загрузка уходит хер куда далеко вееред.
 
 ===
+proliant 160 G9.
+riser board
+их там несколько
+
+позволяет втыкать pci-e платы. 
+без райзер боарда никак
+
+a) Primary PCIe riser board
+779098-001
+Mandatory 1
+b) Secondary PCIe riser board assembly
+779106-001
+Mandatory 1
+c) FlexibleLOM riser board
+785786-001
+Optional
+
+====
+
+на контроллере hp smart array 840ar
+словил ошибку такую - когоа сервер грузится то пояявляется надпись
+
+error 1716
+This logical drive has Unrecoverable Media Errors Detected on Drives
+during previous Rebuild or Background Surface Analysis (ARM) scan.
+ Errors will be fixed automatically when the sector(s) are overwritten.
+ Backup and Restore are recommended.
+
+
+что предлагает на этотслучай вот эта статья от hp
+https://support.hpe.com/hpesc/public/docDisplay?docId=a00104843en_us&docLocale=en_US
+
+она предлагает забэкапить данные.
+убить массив. 
+создать заново.
+прогнать erase по всему массиву.
+и если все будет окей то пользовать его дальше.
+
+теперь по сути ошибки что она значит
+
+вот эта статья от hp 
+https://techlibrary.hpe.com/docs/iss/shared/gen9/error/Advanced/Content/242703.htm
+
+говориить что такая ошика происходит тогда когда мы читаем с диска
+и неможем ибо ошибка. тогда контроллер пытвается читать тот же сектор с 
+его миррор собрата. и там тоже ошибка. 
+получается проблем . ибо мы имеем нечитаемый сектор на всем массиве.
+
+=============
+
 
 

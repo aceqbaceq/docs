@@ -2562,13 +2562,13 @@ WID     CID    World Name            		GID  	Command
 
 опишем типы этих процессов:
 
-vmm
-vmast
-vmx 
+vmm  = как я понял это эмулятор ядра цпу . работает в кернел спейсе
+vmast = это непонятно что делает процесс
+vmx  = это непонятно. только я заметил что при сетевой нагрузке на виртуалку этот процесс заружен по цпу причем в %SYS
 vmx-vthread  = это непонятно что такое
-vmx-mks		 = 
-vmx-svga
-vmx-vcpu
+vmx-mks		 = отвечает за эмуляцию mouse\keyboard  а вот с поледним непонятно это screen. что за скрин и чем отличется от mks-svga
+vmx-svga  = вроде бы эта штука эмулирует видеокарту как железку
+vmx-vcpu = насколько  я понял это юзерский процесс по одному на каждый vCPU виртуалки который служит как бы прокси для уже ядерых модулей vmm
 
 
 vmm = насколько я понимаю это либо модули ядра. либо код работающий
@@ -2587,4 +2587,294 @@ vmm переводится как virtual machine monitor.
 от ВМ. на видео от интел они рисуют что VMM это делает. 
 
 =====================
+есть утилита 
+ssaducli
 
+раньше она называлась SmartSSD Wear Gaug
+
+которая может показать статус изнощености ssd на smart array контроллере
+но она на esxi неустановить.толтко виндовс и линукс.
+
+там же утилиита управлением смарт эрреем уже третий раз менятеся.
+была hpacucli потом hpssacli теперь ssacli
+
+так вот в другом месте я нашел что  в hpssacli уже мол и ненадо пользоваться
+ssaducli мол теперь достаточно написать
+
+# ssacli controller slot=3  show config detail
+
+и это мол и есть тот самый отчет
+
+у хп нашел вот что
+
+To take advantage of SMARTSSD Wear Gauge™, 
+Smart Array Firmware version 5.0 or greater is required
+
+========================
+
+hp smart array 
+контрроллер.
+
+если посмотреть на свойства ld
+то увидим такую хрень как MirrorGroup
+
+
+ # /opt/smartstorageadmin/ssacli/bin/ssacli controller slot=3  ld 1 show
+
+Smart Array P840 in Slot 3
+
+   Array A
+
+      Logical Drive: 1
+         Size: 16.00 GB
+         Fault Tolerance: 1+0
+         Heads: 255
+         Sectors Per Track: 32
+         Cylinders: 4112
+         Strip Size: 256 KB
+         Full Stripe Size: 1024 KB
+         Status: OK
+         Unrecoverable Media Errors: None
+         MultiDomain Status: OK
+         Caching:  Enabled
+         Unique Identifier: 600508B1001C5D7A9B3A15FDDD59AA72
+         Boot Volume: Primary
+         Logical Drive Label: ESXI
+         Mirror Group 1:
+            physicaldrive 1I:1:5 (port 1I:box 1:bay 5, SATA HDD, 3 TB, OK)
+            physicaldrive 1I:1:6 (port 1I:box 1:bay 6, SATA HDD, 2 TB, OK)
+            physicaldrive 1I:1:8 (port 1I:box 1:bay 8, SATA HDD, 1.5 TB, OK)
+            physicaldrive 1I:1:1 (port 1I:box 1:bay 1, SATA HDD, 2 TB, OK)
+         Mirror Group 2:
+            physicaldrive 1I:1:2 (port 1I:box 1:bay 2, SATA HDD, 2 TB, OK)
+            physicaldrive 1I:1:3 (port 1I:box 1:bay 3, SATA HDD, 2 TB, OK)
+            physicaldrive 1I:1:4 (port 1I:box 1:bay 4, SATA HDD, 1.5 TB, OK)
+            physicaldrive 2I:2:1 (port 2I:box 2:bay 1, SATA HDD, 1.5 TB, OK)
+         Drive Type: Data
+         LD Acceleration Method: Controller Cache
+
+
+что обьединяет диски входящие в Mirror Group 1.
+то что это такой набор дисков на котором информация\данные
+ записаны в полном обьеме. тоесть это рейд0. а на другом Mirror Group 2 
+ находится вторая копия данных. тоемсть второй рейд0.
+ поэтому: если мы вытащим диск из миррор груп то этот рейд0 развалится и нас
+ спасает только то что у нас есть второй миррор груп.
+ с другой стороны можно вытащить за раз все диски входящие в миррор груп
+ и нам ниченго небудет потому что у нас есть полная копия информации
+ на втором миррор груп.
+ таким образом еще раз миррор груп это по факту = Raid0 наших данных.
+ 
+ таким образом хьюлет пакардовский raid10 по факту это на самом деле 
+ raid01. потому что это куча дисков собранных в рейд0. и потом от него построили 
+ зеркало.
+ 
+ для сранения raid10 это куча парочек дисков каждая пара это миррор. и эти парочки 
+ собрали в рейд0.
+ 
+ =====================
+ 
+ пока короткое описание темы
+ 
+ https 
+ certs
+ certificates
+ 
+ на хосте esxi ест сертификат котрый он пользует когда мы 
+ ломимся на хост по https
+ 
+ лежит он в файлах:
+ 
+# ls -1 /etc/vmware/ssl/
+rui.crt
+rui.key
+
+эти два файла то бишь сертификат можно пересоздать 
+и засунуть обратно на хост. перекопировать заменив.
+
+как сгенерировать по быстрому
+
+# openssl req  -nodes -new -x509  -keyout server.key -out server.cert
+
+причем это можно как я понял сделать даже на самом esxi
+
+потом просто пеерименовываем файлы в rui.crt , rui.key
+
+далее надо перезпустить вспомогательные сервисы
+
+# services.sh restart
+
+если сертификаты как то там неопнравятся esxi то максимум что будет 
+это 
+
+1) потеря связи между вцентр и хост
+2) небдует работать web https:// доступ на хост
+
+тоесть херня.
+
+===
+
+еще тема пока коротко.
+
+мы хотим с хостов esxi снятть подробный отчет о дисках которые крутсятн
+на smart array контроллере.
+
+
+на данный момент этот функционал встроен в ssacli
+но под esxi создание отчета неработает. если мы запустим команду
+создай отчет под esxi то ssacli пошлет
+
+~ # /opt/smartstorageadmin/ssacli/bin/ssacli ctrl slot=3 diag
+
+Error: An ADU report cannot be generated in VMware ESXi using the diag command
+       due to limitations of the operating system. You must use the SSADUESXI
+       utility executed from a remote machine in order to obtain the report.
+
+       Obtain and install the Smart Storage Diagnostics Utility (SSADU) CLI.
+
+       Please see the VMware Utilities User Guide for more information.
+
+
+
+значит что надо сделать.
+
+надо поставить на компе с виндовсом vmware cli
+
+конфигурация компонентов такая:
+на хостах стоит esxi 5.5
+на них стоят контроллеры:
+	p410i + ssacli-2.60.18.0-5.5.0.1391871
+	p840ar + ssacli-3.30.14.0-6.7.0.7535516
+	
+значит надо на компе с винловсом в данном случае это win2012r2
+поставить 
+	- VMware-vSphere-CLI-6.5.0-4566394.exe 
+
+и надо поставить 
+	- HPE Smart Storage Administrator Diagnostic Utility (HPE SSADU) 
+		CLI for Windows 64-bit
+		3.47.6.0 (9 сен 2019)
+		https://support.hpe.com/hpesc/public/swd/detail?swItemId=MTX_5a99cfc5a2dc4997b1b61c615f
+	
+вот с такими компонентами все срослось.
+подчеркиваю что надо ставить именно diagnostic utility а не storage administrator
+
+
+ксати найти на диске эту программу Diagnostic Utility  не так 
+просто так как ее более старые версии то водну папку их HP ставит то в другую
+конкретно эту версию на диске надо искать в папке 
+	- "c:\Program Files\Smart Storage Administrator\ssaducli\bin\ssaduesxi.exe"
+
+как вся эта шарманка работает.
+
+ssaduesxi.exe через esxcli конектится к esxi хосту . там запускает ssacli 
+и закачивает на виндовс комп отчет подробный с контроллера.
+
+поэтому здесь важные все эти версии.
+например что я словил на более старой версии ADU. она на хосте пыталась найти и 
+запустить hpacucli тоесть старую версию ssacli , ее там конечно небыло 
+поэтому ADU писало ошибку. причем тупейшую мол немогу найти esxcli.
+да софт у HP всегда был гавно конченое то еще. и тольков логах ADU 
+можно было найти причину что ей ненравится.
+поэтому если унас на esxi стоит ssacli то надо на компе с виндовсом юзать 
+современую версию ADU . чтобы она искаала на esxi хосте именно ssacli.
+
+отчет забирается на виндовс комп так:
+
+> c:\Program Files\Smart Storage Administrator\ssaducli\bin>ssaduesxi --server=10.0.0.105 
+--user=root --password=vasya123
+--file=esxi-105.zip
+
+если мы хотим сокращенный очет только о состоянии изнощенности ssd дисков так назвыаемый 
+HPE Wear Gauge то вот так
+
+> c:\Program Files\Smart Storage Administrator\ssaducli\bin>ssaduesxi --server=10.0.0.105 
+--user=root --password=vasya123
+--file=esxi-105.zip  --ssd
+
+но тут подьебка HPE Wear Gauge работает только если мы юзаем фирменные ssd диски 
+от самой HP. на колхозных обычных ssd дисках ничего неполучим. никакого 
+статуса изношенности.
+
+опять же подчеркну что на обычных дисках мы статус об изношеннсои не получим.
+а общий статус (который без ключа --ssd ) мы прекрасно получим. этот общий
+отчет очень огромный. там вчастности есть информаци сколько byte было записано
+на ssd с момента ресета сервера и  с момента рождения диска.
+
+но прежде чем мы сможем успешно запустить ssaduesxi
+нужно провести подготовитеьную работу (да ибо подьебки незакончилисб).
+
+вначале нужно убедиться что мы можем пдключатся к esxi через vmware cli = esxcli
+на винде.
+
+во первых нужно esxcli путь к ней вставить в %PATH% .
+чтобы введя в cmd esxcli система ее сразу находила. ибо именно так 
+будет ее искать ADU
+
+если ADU ненайдет esxcli то оно напишет
+
+HPADUESXI requires the use of the vSphere CLI (esxcli) client
+application. Make certain that this client has been installed
+and is available from this directory.
+
+но невсегда эта фраза значит то что на значит.
+надо всегда смотреть текстовый лог ADU где уже написана реальная правда
+что ей нравится
+лог находится в той же папке
+"c:\Program Files\Smart Storage Administrator\ssaducli\bin\esxcli.log" 
+
+
+
+
+ибо напомню еще раз цепочеку как раюбоает ADU
+
+ADU(ssaduesxi) -> windows vmware cli(esxcli) -> esxi(ssacli)
+
+когда esxcli уже находится через cmd 
+то надо проверить конект к хосту
+
+> esxcli -s 10.0.0.105
+
+оно српосит логин и пароль. а дальше выскочит подьебка
+
+Connect to 10.0.0.105 failed. Server SHA-1 thumbprint: 62:67:6F:6F:86:84:2B:23:8
+5:C5:0C:AF:65:B4:B3:4D:96:40:B8:8B (not trusted).
+
+итак esxcli ненравится thumbprint от сертификата который он получает.
+что делать. сразу скажу что бесполезно добавлять сертификат от esxi хоста
+в Trusted Authorities в mmc сертификаты. для esxcli это совершенно похеру не смотря на 
+обычную здоровую логику - мол если винда доверяет сертификату то и я доверяю.
+нет esxcli это похер. обходится это по другому
+
+идем вот сюда
+
+"c:\Program Files (x86)\VMware\VMware vSphere CLI\Perl\apps\general\credstore_admin.pl" 
+
+и нужно с помощью этой проги 
+добавить в некое безопасное хранилище escli ip сервера и его thumbprint
+которму мы будем доверять
+
+водим такую команду
+
+c:\Program Files (x86)\VMware\VMware vSphere CLI\Perl\apps\general>credstore_admin.pl 
+add --server 10.0.0.105 
+--thumbprint F2:C5:2:99:EE:DB:50:7A:2D:97:10:77:03:39:56:07:C9:18:14:0E
+New entry added successfully
+	
+
+тут правда выяснится что чтобы команда отарботала надо чтоды на винде стоял перл(очередная
+подьебка).  я поставил strawbwrry perl x64
+
+
+теперь когда мы введем esscli для 10.0.0.105 
+> esxcli -s 10.0.0.105
+
+он больше небудет ругаться что ему ненравится thumbprint
+
+когда esxcli успешно конектится к хосту esxi то 
+можно запускать ADU. теперь должно все сработать.
+
+еще раз почеркну что бесполезно сертификат от esxi хоста всатвлять в доверренные
+сертификаты виндовса. esxcli на это глубоко похер.
+
+===========================================

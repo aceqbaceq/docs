@@ -880,3 +880,87 @@ late=0,46 ms
 
 
 ====
+про DCUI
+
+DCUI - это доступ нетолько к командной строке из ilo когда нет доступа по сети
+это вообще доступ к минимальным настройкам esxi из ilo.
+
+может так случится что какойто мудак отключил DCUI.
+далее чтото нето стало с сетью и вуаля на сервер уже никак не зайти.
+
+что делать - надо обратно активировать DCUI.
+
+как сделать.
+
+надо снят флэшку с сервера. далее подмонтировать ее в линуксе.
+
+за DCUI отвечает
+
+/etc/init.d/DCUI
+
+как заставить служббу стартануть при загрузке esxi
+
+по идее это моно юыло бы изменить командной chkconfig
+но к ней мы неимеем доступа.
+в линуксе она что делает она добавляет /etc/rc.d sub-directories.
+но в esxi этого нет.
+
+поэтому что надо делать 
+
+надо добавить в файл 
+
+/etc/rc.local.d/local.sh
+
+  /etc/init.d/DCUI start
+  
+ 
+по идее должно сработать.
+
+
+============
+
+что еще интересно.
+если мы зашли на работающий esxi 
+поменяли конфиги то надо чтобы эти настройки из рамдиска
+перелетели на флэшку.
+
+для этого
+
+/sbin/auto-backup.sh
+
+или
+
+/sbin/backup.sh 1
+
+==========
+
+прикольно что на esxi есть cron
+
+которым можно делать очень даже полузные штуки
+
+вот как его настрривать
+
+https://kakpedia.org/esxi-bash-script-%D0%B4%D0%BB%D1%8F-%D0%B0%D0%B2%D1%82%D0%BE%D0%BC%D0%B0%D1%82%D0%B8%D1%87%D0%B5%D1%81%D0%BA%D0%BE%D0%B3%D0%BE-%D0%B2%D0%BA%D0%BB%D1%8E%D1%87%D0%B5%D0%BD%D0%B8%D1%8F-%D0%B2%D0%B8/
+
+===============
+приколно вынлядит inittab
+
+/tmp # cat /etc/inittab
+::sysinit:/usr/lib/vmware/init/bin/create-busybox-symlinks.sh
+::sysinit:/usr/lib/vmware/rp/bin/configRP init
+#
+::sysinit:/bin/init-launcher
+::wait:/bin/services.sh start
+::wait:/bin/apply-host-profiles
+::wait:/usr/lib/vmware/vmksummary/log-bootstop.sh boot
+::wait:/bin/vmdumper -g 'Boot Successful'
+::wait:/bin/sh ++min=0,group=host/vim/vimuser/terminal/shell /etc/rc.local
+::wait:/bin/esxcfg-init --set-boot-progress done
+::wait:/bin/vmware-autostart.sh start
+tty1::respawn:/bin/initterm.sh tty1 /bin/techsupport.sh
+tty2::respawn:-/bin/initterm.sh tty2 /bin/dcuiweasel
+::restart:/bin/init
+::shutdown:/usr/lib/vmware/vmksummary/log-bootstop.sh stop
+::shutdown:/bin/shutdown.sh
+/tmp #
+======
