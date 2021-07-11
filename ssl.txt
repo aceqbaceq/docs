@@ -295,9 +295,55 @@ tls это типа тот же ssl но каких то более послед
 
 --
 
+про сертификаты.
+
+сертификат может хранится в файле в двоичном виде и тогда это DER тип кодирования
+сертификата.
+вот выдержка с сайта
+
+DER files are digital certificates in binary format, instead of the instead 
+of the ASCII PEM format. 
+DER files may end with .der or .cer, so to differentiate between DER.cer and PEM.cer files, you may need to use a text editor to read the file.  A DER file should not have any BEGIN/END statements and will show garbled binary content. 
+Both digital certificates and private keys can be encoded in DER format.
+DER is often used with Java platforms.
 
 
+также сертификат может хранится в формате PEM этот формат хранит сертификат
+используя  ASCII символы
+
+вот пример сертификата который хранится в формате  PEM
+
+-----BEGIN CERTIFICATE-----
+MIID8DCCAtigAwIBAgIHAIt4mgEmwTANBgkqhkiG9w0BAQsFADAbMRkwFwYDVQQK
+==
+-----END CERTIFICATE-----
 
 
-
+имеет характерные строчки с BEGIN и END
  
+в самом сертификате никак не указано в каком формате он хранится. это 
+как вода которая ничего незнает о форме сосуда в котором она лежит.
+как определить -  чисто открываем текстовый редактор и смотрим что на экране.
+если BEGIN END значит это PEM это мусор какойто то DER.
+
+как посмотреть содержимое сертификата в формате PEM
+
+ $ openssl x509 -text  -inform pem -in ./rui.crt
+
+посмотреть содержимое сертифкта в формате DER
+
+$  openssl x509 -text  -inform der -in ./rui.der
+
+приватный ключ в формате PEM имеет немного другой вид чем
+сертификат
+
+-----BEGIN PRIVATE KEY-----
+...
+-----END PRIVATE KEY-----
+
+проверить что с приватным ключом все впорядке можно командой
+
+$ openssl rsa -in s1.key -check
+
+
+

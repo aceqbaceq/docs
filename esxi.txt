@@ -2689,9 +2689,14 @@ Smart Array P840 in Slot 3
 rui.crt
 rui.key
 
-эти два файла то бишь сертификат можно пересоздать 
+эти два файла то бишь сертификат и приватный ключ можно пересоздать 
 и засунуть обратно на хост. перекопировать заменив.
 
+есть два пути как это сделать.
+первый это создать сампоподписанный сертиификат. второе создать сертификат
+удостверерный центром сертификации (пусть даже и нашим домашним)
+
+рассмотрим первый способ
 как сгенерировать по быстрому
 
 # openssl req  -nodes -new -x509  -keyout server.key -out server.cert
@@ -2711,6 +2716,144 @@ rui.key
 2) небдует работать web https:// доступ на хост
 
 тоесть херня.
+
+сертификат rui.crt который мы подсовываем esxi должен быть записан в
+формате PEM (что это такое смотри ssl.txt)
+
+как посмотреть содержимое сертификата в формате PEM
+
+ $ openssl x509 -text  -inform pem -in ./rui.crt
+
+приватный ключ в формате PEM имеет немного другой вид чем
+сертификат
+
+-----BEGIN PRIVATE KEY-----
+...
+-----END PRIVATE KEY-----
+
+проверить что с приватным ключом все впорядке можно командой
+
+$ openssl rsa -in rui.key -check
+
+если мы генерируем сертификат+приватный ключ с помощью easyrsa
+то возникает проблема: easyrsa откажется генерировать сертификат если мы 
+попытаемся создать приватный ключ без пароля. откажется. в тоже время
+esxi требует чтобы приватный ключ был сохранен в pem формате без пароля.
+что делать -> генерируем с помощью easyrsa сертиификат+пртиватный ключ с паролем.
+а потом берем приватный ключ и снимаем с него пароль
+вот такой командой:
+
+чтобы убрать пароль с приватногло ключа
+
+# openssl rsa -in esxi-101.key -out esxi-101.key2
+
+
+как проверить что приватный ключ и сертификат подходят друг другу
+
+$ openssl x509 -noout -modulus -in esxi-101.crt | openssl md5
+$ openssl rsa -noout -modulus -in esxi-101.key2 | openssl md5
+
+тоесть пофакту берется modulus оттуд и оттуда и они долэжны совпадать.
+свертка md5 использщуется чтобы проще было сранвить глазами
+
+
+второй споосою - генерируем сертифкат который будет пописан нашим 
+домашним центром сертификации.
+конф файл который нужен чтобы создать CSR запрос на подписсь сертификата
+через CA
+
+
+
+# cat openssl.cnf
+[req]
+default_bits = 2048
+encrypt_key  = no # Change to encrypt the private key using des3 or similar
+default_md   = sha256
+prompt       = no
+utf8         = yes
+# Speify the DN here so we aren't prompted (along with prompt = no above).
+distinguished_name = req_distinguished_name
+# Extensions for SAN IP and SAN DNS
+req_extensions = v3_req
+# Be sure to update the subject to match your organization.
+[req_distinguished_name]
+C  = US
+ST = California
+L  = The Cloud
+O  = Demo
+CN = My Certificate
+# Allow client and server auth. You may want to only allow server auth.
+# Link to SAN names.
+[v3_req]
+basicConstraints     = CA:FALSE
+subjectKeyIdentifier = hash
+keyUsage             = digitalSignature, keyEncipherment
+extendedKeyUsage     = clientAuth, serverAuth
+subjectAltName       = @alt_names
+# Alternative names are specified as IP.# and DNS.# for IP addresses and
+# DNS accordingly.
+[alt_names]
+IP.1  = 10.0.0.101
+DNS.1 = esxi-101
+DNS.2 = esxi-101.mk.local
+
+
+мы хотим чтобы в сертификате были поля которые описывают какоq IP+DNS имя
+имеет сервер и чтобы сертификат позволял его использовать для аутентикационных 
+целей сервера (serverAuth)
+
+IP.1  = 10.0.0.101
+DNS.1 = esxi-101
+DNS.2 = esxi-101.mk.local
+extendedKeyUsage     = clientAuth, serverAuth
+
+
+формируем запрос
+# openssl req -config ./openssl.cnf  -new -key ./esxi-101.key2 -out cert-request.csr
+
+
+проверяем что запрос получился валидный
+#  openssl req -text -noout -verify -in cert-request.csr
+
+создаем наконец сертификат
+# openssl x509 -req -days 1365 -in cert-request.csr  
+-CA ca.crt -CAkey ca.key -out server-cert.pem  
+-set_serial 1002 -extensions v3_req -extfile ./openssl.cnf
+
+копируем на хъост esxi /etc/vmware/ssl 
+сам сертификат переименовыаем как  rui.crt (который в формате pem)
+пртватный ключ как rui.key ( в орфмате pem без ключа шифроания)
+
+/etc/vmware/ssl # ls -1
+rui.crt
+rui.key
+
+перезуаумкаем на esxi службу котовая отвечает за вэб-сервер
+
+/etc/init.d/rhttpproxy restart
+
+ггтово.
+да . перзпукскат ьservices.ssh ненужно. это перебор
+
+
+сертифкат должен иметь такие полян
+
+  X509v3 Key Usage:
+                Digital Signature, Key Encipherment
+            X509v3 Extended Key Usage:
+                TLS Web Client Authentication, TLS Web Server Authentication
+            X509v3 Subject Alternative Name:
+                IP Address:10.0.0.101, DNS:esxi-101, DNS:esxi-101.mk.local
+
+они прописыают какое identityt у сервера (10.0.0.101, esxi-101, esxi-101.mk.local)
+а также то что данный сертификат может исопльзоваться 
+для удостверения достовености сервера (TLS Web Server Authentication)
+
+ксттаи без этой службы и этого сертификата(есди он сломан илт потерян) 
+не может установиться связь между vcenter и хостом. хост будет нариосван
+в клиенте как потреянный что с ним нет свызи
+
+
 
 ===
 
