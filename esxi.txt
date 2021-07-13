@@ -2974,6 +2974,16 @@ ADU
 мы хотим с хостов esxi снятть подробный отчет о дисках которые крутсятн
 на smart array контроллере.
 
+в чем например фишка этого ADU отчета.
+если у нас фирмнные диски hp то можно получить степень изношенности SSD Gauge 
+фича называется.
+если диски обыкновенные то мжоно получить сколько байт на диск было записано
+since factory. точно неизвестно реально ли since factory с момента выхода с 
+завода или в другом источнике нашел что это якобы с момента как диск вставили
+в контролллер.
+и еще в ADU есть лог SCSI ошибок(например ошибки чтения) дисков, данный лог 
+больше нигде ненайти.
+
 
 на данный момент этот функционал встроен в ssacli
 (раньше для этого нужна была доп утилита)
@@ -3043,6 +3053,27 @@ ssaduesxi.exe через esxcli конектится к esxi хосту . там
 можно было найти причину что ей ненравится.
 поэтому если унас на esxi стоит ssacli то надо на компе с виндовсом юзать 
 современую версию ADU . чтобы она искаала на esxi хосте именно ssacli.
+
+еще по поводу тупости ssaduesxi.exe.  я получал ошибку
+
+
+A problem occurred when attempting to generate a report.
+
+SSADUESXI requires the use of the VMware vSphere CLI (esxcli)
+client application. Make certain that this client has been installed
+and is available from this directory. If vSphere CLI has been installed,
+check the correctness of the inputted parameters.
+
+For additional help, type 'ssaduesxi' with no parameters.
+
+
+но причина настоящая была не втом что vcli неустановлен или что связи нет.
+а то что на конечном esxi хосте небыл установлен ssacli.
+так что errror log у ssaduesxi реально дебильный. misleading.
+это прям точно. как только я поставил ssacli то сразу все зарабоатло
+
+
+
 
 отчет забирается на виндовс комп так:
 
@@ -3173,6 +3204,110 @@ credstore_admin.pl
 поговорим о самом отчете html формат.открываем в хром
 во первых - у него там все построено на ссылках. так что выбираем диск
 тыкаем на него и сразу туда перелетаем.
- 
+
+интересные поля в разделе Physical Drive Status
+Drive Model		ATA Samsung SSD 840
+Total Blocks	0x74706db0 = ( это 931GB) 
+
+Drive Firmware Revision			EXT0CB6Q
+Last Failure Reason				No Failure (0x00)
+
+Write Cache Enabled In Saved Mode Page ( о чем это непонятно )
+
+Physical Port	2I
+Physical Box	2 (0x02)
+Physical Bay	3 (0x03)
+
+Current Temperature		0x1a ( 26 С)
+Current Q Depth Limit	0x001b (dec 27)
+
+Раздел SSD Wear Gauge 
+тоже очень интересен если установлены фирменные диски от HP
+иначе эта фича просто неработает
+
+
+Раздел Monitor and Performance Statistics (Since Factory)
+тоже интересен. насколько я понял это показатели диска не с фабрики
+а с момента как его поставили в контроллер все таки
+вобщем то весь раздел целиком состоит из интересных показателей.
+
+Раздел Serial SCSI Physical Drive Error Log
+и в нем есть строка с логом scsi ошибок 
+Physical Drive Error Log Entries
+
+строчка лога выглядит вот так
+
+ErrorType	SCSI Operation Code 	SCSI Status	   CAM Status	Sense Key	ASC	        ASCQ	Block Valid	     Block          	Reference Time	  Additional Information
+0x01	    0x85	                0x02           0x04	        0x0b	    0x00	    0x00	0x00	         0x00000000	        0x000012d1	      0x0000
+
+из этой строчки нас интересуют только поля
+	Sense Key   ASC	        ASCQ
+	0x0b        0x00        0x00
+	
+еще есть поле Block на котором произошло событие
+	
+еще есть поле описвающее коогда случилось событие
+Reference Time
+0x000012d1
+
+оно состоит из четырех байт в HEX формате. 
+как я понял вроде бы в этом числе записаны секунды. в штуках.
+поэтому это время относительное. относительно какойто стартовой
+точки.
+вот онлайн коневертер из hex уже в нормаьное время = https://www.epochconverter.com/hex
+но все равно получается там какая то бессмыслица. 
+скажем указан reference time для момента с пследней перезгрузки сервера
+это скажем 22 дня судя по uptime. а reference time говрит что прошло 8 часов.
+вобщем непонятно что за время указано в ADU отчете.
+
+
+расшифровку\смысл ошибки надо искать здесь 
+https://stuff.mit.edu/afs/sipb/service/afs/a1000/packages/SUNWosau/reloc/lib/osa/raidcode.txt
+
+
+конкретно для данной ошибки имеем :
+B	00	00	Aborted Command - no additional sense code
+
+еще одна ошибка
+
+	Sense Key   ASC	        ASCQ
+	0x06        0x29        0x00
+
+обьяснение ошибки = Power On, Reset, Or Bus Device Reset Occurred
+The controller has detected one of the above conditions.
+
+еще ошибка
+
+Sense Key       ASC	    ASCQ	 	Block	      Reference Time
+0х03            0x11	0x00	    0x0266a3de	  0x00018908
+
+данная ошибка означает что 
+Unrecovered Read Error
+An unrecovered read operation to a drive occurred and the controller 
+has no redundancy to recover the error. 
+The error probably occurred in RAID 0 or Degraded RAID levels 1, 3, or 5.
+
+для этого же диска я увидел что
+Read Errors Hard	0x000003ea (dec 1002)
+
+остальные показатели впорядке
+вобще полезно промотреть весь отчет на счет наличия ненулевых Read Errors Hard
+
+ошибка произошла на блоке примерно 19ГБ его номер.
+относитльное время события +1 день 3ч:56м:56с
+(ненашел  я инфо как в ssacli установит время на контроллере)
+
+суммарно по scsi ошибкам я хочу скзаать что вот такие ошибки
+в логе
+
+Sense Key       ASC	    ASCQ
+0x00	        0x00	0x00
+
+Sense Key       ASC	    ASCQ
+0x06	        0x29	0x00
+
+неявляются чемто значимым
+их можно вобщемто спокойно игнорировать
+
 
 ===========================================
