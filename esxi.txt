@@ -3112,10 +3112,15 @@ For additional help, type 'ssaduesxi' with no parameters.
 
 
 
-отчет забирается на виндовс комп так:
+отчет из нового ADU забирается на виндовс комп так:
 
 > c:\Program Files\Smart Storage Administrator\ssaducli\bin>ssaduesxi --server=10.0.0.105
 --user=root --file="c:\temp\esxi-105.zip"
+
+а из старого ADU синтаксис немного другой
+
+> hpssaduesxi --server=192.168.1.50 --user=root --password=vasya123 esxi-50.zip
+
 
 если мы хотим сокращенный очет только о состоянии изнощенности ssd дисков так назвыаемый 
 HPE Wear Gauge то вот так (добавить ключ --ssd)
@@ -3371,9 +3376,11 @@ PMCSIERA SRC 8x6G
 
 Adu пишет что типа диска = SEP ( что это такое? )
 
+в P420 такое тоже есть
 в P840ar уже такого нет.
 
 
+ через ADU более менее удобно можно посмотреть степень изношенности  SSD
  
 
 ===========================================
