@@ -3119,7 +3119,7 @@ For additional help, type 'ssaduesxi' with no parameters.
 
 а из старого ADU синтаксис немного другой
 
-> hpssaduesxi --server=192.168.1.50 --user=root --password=vasya123 esxi-50.zip
+> hpssaduesxi --server=192.168.1.50 --user=root --password=vasya123 c:\temp\esxi-50.zip
 
 
 если мы хотим сокращенный очет только о состоянии изнощенности ssd дисков так назвыаемый 
@@ -3382,6 +3382,27 @@ Adu пишет что типа диска = SEP ( что это такое? )
 
  через ADU более менее удобно можно посмотреть степень изношенности  SSD
  
+
+толи от диска зависит толи от версии ADU 
+но быает доступна еще вот такая удобная статистика искать по слову Workload Information
+
+ 
+Power-on Hours	15982
+Total LBA Read	36421635627
+Total LBA Written	395817914595
+Workload Rating (TB/Yr)	None Available
+Month(s) of Operation	21.893151
+Total Bytes Read (TB)	18.647877
+Total Bytes Written (TB)	202.658772
+Total Combined Read/Write Bytes (TB)	221.306650
+Workload Rate (TB/Month)	10.108488
+Projected Rate (TB/Year)	121.301855
+SSD Usage Remaining (%)	Not Applicable
+
+здесь удобно то что количество TB записанных 
+уже посчитиано, и посчитиано соклько за месяц выжирается и за год.
+и показано сколько времени диск вставлен в контроллер.
+
 
 ===========================================
 
