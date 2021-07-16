@@ -22,13 +22,7 @@ nic и hba:
 
 
 
-=========
-hp smart array
-какие штуки надо обязательно делать 
-на новом массиве или новом контроллере
 
-1. отключить скан поверхности. для ssd это ненужно.
-# ssacli ctrl slot=3  modify  surfacescanmode=disable
 
 
 ==========
@@ -3306,6 +3300,8 @@ Reference Time
 расшифровку\смысл ошибки надо искать здесь 
 https://stuff.mit.edu/afs/sipb/service/afs/a1000/packages/SUNWosau/reloc/lib/osa/raidcode.txt
 
+(прикол этой ссылки кстати в том что от одних провайдеров она открыается 
+а от других нет)
 
 конкретно для данной ошибки имеем :
 B	00	00	Aborted Command - no additional sense code
