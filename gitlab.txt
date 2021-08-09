@@ -1,0 +1,48 @@
+﻿gitlab
+
+
+для его установки надо плюс минус 5 ядер цпу E5 2680-v4
+памяти 4096 GB
+
+если делать памяти меньше то там начинаются дикие операции чтения записи
+и процесс установки и без того супер долгий становится просто бесконечным
+
+гитлаб ставится очень долго. минут 15-20 наверно.
+
+
+черновой ансибл плейбук по его установке - gitlab-ansible-playbook.txt (смотри
+в ансибл проектах)
+
+когда он очень очень очень долго прекрутит и установится
+то проверить статус что все установилось вот так можно
+
+$ sudo -i gitlab-ctl status
+
+vagrant@ubuntu-xenial:~$ sudo -i gitlab-ctl status
+run: alertmanager: (pid 17248) 45s; run: log: (pid 16659) 196s
+run: gitaly: (pid 17140) 48s; run: log: (pid 16106) 357s
+run: gitlab-exporter: (pid 17132) 49s; run: log: (pid 16598) 212s
+run: gitlab-workhorse: (pid 17098) 50s; run: log: (pid 16498) 231s
+run: grafana: (pid 17267) 44s; run: log: (pid 17000) 93s
+run: logrotate: (pid 16021) 370s; run: log: (pid 16033) 367s
+run: nginx: (pid 16528) 227s; run: log: (pid 16539) 226s
+run: node-exporter: (pid 17115) 49s; run: log: (pid 16573) 220s
+run: postgres-exporter: (pid 17259) 44s; run: log: (pid 16686) 189s
+run: postgresql: (pid 16231) 347s; run: log: (pid 16245) 344s
+run: prometheus: (pid 17153) 48s; run: log: (pid 16639) 202s
+run: puma: (pid 16438) 245s; run: log: (pid 16448) 242s
+run: redis: (pid 16051) 364s; run: log: (pid 16062) 361s
+run: redis-exporter: (pid 17134) 48s; run: log: (pid 16621) 206s
+run: sidekiq: (pid 16455) 239s; run: log: (pid 16465) 238s
+vagrant@ubuntu-xenial:~$ sudo -i netstat -tnlp
+
+как видно должно работать если все в порядке куча куча куча компонентов.
+если их меньше значит чтото незавелось.
+
+после установки вэб морда будет доступна через 
+
+	http://127.0.0.1:80
+	
+
+
+
