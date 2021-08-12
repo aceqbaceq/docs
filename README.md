@@ -3,9 +3,19 @@ $ docs
 for different docs
 
 
-для записи в репозиторий
+пропишем удаленный репозиторий как дефолтовый на нашем компе
+$ git remote add origin git@github.com:aceqbaceq/docs.git
+$ git push -u origin master
+
+теперь нам ненадо прописывать полный путь к удаленному репозиторию 
+а юзать просто git push, а именно для записи в репозиторий
+
 $ git add .
 $ git commit -m "comment smth here"
+$ git push
+
+если все таки на git push оно ругается то пишем полный путь
+
 $ git push git@github.com:aceqbaceq/docs.git master
 
 если после этой команды мы получаем отлуп
