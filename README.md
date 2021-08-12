@@ -13,7 +13,9 @@ $ git push -u origin master
 а юзать просто git push, а именно для записи в репозиторий
 
 $ git add .
+
 $ git commit -m "comment smth here"
+
 $ git push
 
 если все таки на git push оно ругается то пишем полный путь
