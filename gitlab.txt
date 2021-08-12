@@ -130,4 +130,59 @@ git add .
 в следущий комить такие то файлы
 
 -----
-...
+
+типа как зафигачить удаленный репозиторий
+и чтоб было по минимуму мудоты с пушами
+
+
+$ git init
+$ git clone git@gitlab.example.com:vasya/project-01.git
+
+по дефолту гит коммитит в origin тока надо его поднастроить
+
+
+$ git remote add origin git@gitlab.example.com:vasya/project-01.git
+
+$ git add .
+$ git commit -m "first commit"
+$ git push -u origin master
+
+далее можно уже будет коммитить просто через 
+
+$ git push
+
+проверить всю эту шарманку ( то что с удаленными реопзиториями бранчами
+мудрота проведена успешно) можно через
+
+$ git branch -a
+* master
+  remotes/origin/HEAD -> origin/master
+  remotes/origin/master
+
+$ git remote
+origin
+
+
+origin это чтото вроде алиаса для удаленного чегото там
+
+посмотреть более подробную инфу по origin можно через
+
+
+$ git remote show origin
+* remote origin
+  Fetch URL: git@gitlab.example.com:vasya/project-01.git
+  Push  URL: git@gitlab.example.com:vasya/project-01.git
+  HEAD branch: master
+  Remote branch:
+    master tracked
+  Local branch configured for 'git pull':
+    master merges with remote master
+  Local ref configured for 'git push':
+    master pushes to master (up to date)
+
+
+таким образом мы убеждаеся что origin =  git@gitlab.example.com:vasya/project-01.git
+тоесть все подучилось
+-------
+
+
