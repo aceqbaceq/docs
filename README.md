@@ -6,6 +6,7 @@ for different docs
 пропишем удаленный репозиторий как дефолтовый на нашем компе
 
 $ git remote add origin git@github.com:aceqbaceq/docs.git
+
 $ git push -u origin master
 
 теперь нам ненадо прописывать полный путь к удаленному репозиторию 
