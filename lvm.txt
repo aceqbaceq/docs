@@ -87,3 +87,44 @@ old_desc_blocks = 1, new_desc_blocks = 7
 The filesystem on /dev/mapper/vg01-lvol0 is now 25690112 (4k) blocks long.
 
 --
+
+
+как расширить pv_vg+lv
+
+у нас есть диск sda
+на нем есть sda3 который используется как pv в LVM
+мы на сфере расшририли диск sda. теперь нам надо 
+расширить sda3 и все что ниже (pv,vg,lv) для того 
+чтобы в итоге на виртуалке раздел стал больше.
+
+расширяем партицию через parted
+
+# parted /dev/sda
+(parted)> resizepart 3
+(parted)> p
+(parted)> q
+
+расширяем pv
+
+# pvresize /dev/sda3
+
+
+проверяем
+
+/# pvs
+  PV         VG             Fmt  Attr PSize  PFree
+  /dev/sda3  ubuntu-uefi-vg lvm2 a--  17.41g 10.62g
+  
+vg трогать непридется 
+
+расшиярем lv
+
+# lvextend ubuntu-uefi-vg/root -L 17000MB 
+
+расшиярем уже линукс раздел (точку монтитвания)
+
+# resize2fs /dev/ubuntu-uefi-vg/root
+
+гоотово.
+
+===========
