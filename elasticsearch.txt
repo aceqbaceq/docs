@@ -973,6 +973,11 @@ GET /_cluster/allocation/explain
 
 если мы считаем что мы причину устранили то 
 команда запустить повторную попытку подхватит шарды
+
+$ curl -XPOST -H "Content-Type: application/json" localhost:31912/_cluster/reroute?retry_failed=true
+
+или 
+
 POST /_cluster/reroute?retry_failed=true
 
 
