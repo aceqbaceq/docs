@@ -2181,3 +2181,61 @@ nexus
 # show version | begin Hardware
 
 =============
+
+
+cisco 1811w
+
+хотя у нее порт WAN на 100Мбит. но 
+при таком потоке ее процессор будет уходить в 100%.
+
+
+она тянет 44 Мегабита в обе стороны чтобы при этом была загрузке 
+ее цпу 80%
+
+
+
+#sh processes cpu history
+
+    33366666777777777744444     11111
+    999555551111155555888882222255555333334444422222333333333333
+100
+ 90
+ 80              *****
+ 70    ***************
+ 60    ***************
+ 50    ********************
+ 40 ***********************
+ 30 ***********************
+ 20 ***********************     *****
+ 10 ***********************     *****
+   0....5....1....1....2....2....3....3....4....4....5....5....6
+             0    5    0    5    0    5    0    5    0    5    0
+               CPU% per second (last 60 seconds)
+
+
+
+как выглядит порезать бендвайдт на WAN интерфейсе
+режем через rate-limit
+
+
+interface FastEthernet0
+ ip address 9.9.9.9 255.255.255.248
+ ip access-group wan-in-acl-ver2 in
+ ip nat outside
+ ip virtual-reassembly
+ rate-limit input 46136000 8650752 17301504 conform-action transmit exceed-action drop
+ rate-limit output 46136000 8650752 17301504 conform-action transmit exceed-action drop
+ load-interval 30
+ duplex auto
+ speed auto
+ crypto map outside_map
+end
+
+
+цифрки в rate-limit удобно смотрет на калькуляторе специальном - https://nettools.club/ru/cisco_rlc
+
+первая то цифра  это желаемый бендвайдт в битах. а вот вторые лучше на кальку
+ляторе посчитать.
+
+===============
+

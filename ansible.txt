@@ -3685,7 +3685,7 @@ $ ansible-galaxy install elasticsearch --roles-path ~/roles
 
 $ cat ansible.cfg
 [defaults]
-stdout_callback = yaml
+stdout_callback= yaml
 ======
 
 когда мы юзаем delegate_to то мы на тот удаленный хост 

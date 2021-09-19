@@ -1,4 +1,4 @@
-lvm
+﻿lvm
 
 ---
 как создать lvm раздел
@@ -61,6 +61,8 @@ $ sudo mkfs.ext4 /dev/mapper/vg02-lvol0
 /dev/mapper/vg02-lvol1          /var/lib/kubernetes-PV-folder/100G/01           ext4    errors=remount-ro,data=journal  0       2
 /dev/mapper/vg02-lvol2          /var/lib/kubernetes-PV-folder/100G/02           ext4    errors=remount-ro,data=journal  0       2
 
+
+дале надо пермишнсы поменять на смонтированном разделе чтобы владелец был mkadm.mkadm
 
 
 ---
