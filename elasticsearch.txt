@@ -3715,8 +3715,39 @@ pvc+pv которые они имели с ними ничего небудет.
 
 ========================
 
+у elasticsearch есть такая подлянка:
+когда место на диске начинает заканчиться то начинаются приколы.
+
+
+а именно
+
+
+cluster.routing.allocation.disk.watermark.low
+
+Controls the low watermark for disk usage. It defaults to 85%, meaning that Elasticsearch will not allocate shards to nodes that have more than 85% disk used. It can also be set to an absolute byte value (like 500mb) to prevent Elasticsearch from allocating shards if less than the specified amount of space is available. This setting has no effect on the primary shards of newly-created indices but will prevent their replicas from being allocated.
+
+cluster.routing.allocation.disk.watermark.high
+
+Controls the high watermark. It defaults to 90%, meaning that Elasticsearch will attempt to relocate shards away from a node whose disk usage is above 90%. It can also be set to an absolute byte value (similarly to the low watermark) to relocate shards away from a node if it has less than the specified amount of free space. This setting affects the allocation of all shards, whether previously allocated or not.
+
+cluster.routing.allocation.disk.watermark.flood_stage
+
+Controls the flood stage watermark. It defaults to 95%, meaning that Elasticsearch enforces a read-only index block (index.blocks.read_only_allow_delete) on every index that has one or more shards allocated on the node that has at least one disk exceeding the flood stage. This is a last resort to prevent nodes from running out of disk space. The index block must be released manually once there is enough disk space available to allow indexing operations to continue.
 
 
 
+то есть когда 85% диска заюзано то новые индексы небудут создаваться
+когда 90% то эластик начнет двигать шарды с этого диска в другие места
+
+когда 95% то как я понял индексы которые  лежат на этом диске будут помечены как
+read-only причем разблокировка в read\write надо потом когда освободишь диск делать вручную.
+причем если индеекс лежит на несокькихъ хостах и хотя бы на одном хосте у нас 95% то  
+такой индекс будете помечен как read only
+
+ в логах будет идти инфо вида   high disk watermark
+ 
+ 
+
+======================
 
 
