@@ -1,1 +1,54 @@
-﻿
+﻿---
+
+
+- name: play main.yml
+  hosts: gitlab
+  roles:
+    - geerlingguy.postfix
+
+
+
+  tasks:
+
+    - name: ping check
+      ping:
+
+    - name: update apt
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: install mc iotop
+      apt:
+        name: [mc, iotop]
+        state: present
+
+
+    - name: install some packages
+      apt:
+        name: [ curl, openssh-server, ca-certificates, tzdata, perl ]
+        state: present
+
+
+
+    - name: download gitlab repo script
+      get_url:
+         url: https://packages.gitlab.com/install/repositories/gitlab/gitlab-ee/script.deb.sh
+         dest: /tmp/script.deb.sh
+         mode: 554
+
+
+    - name: execute gitlab repo script
+      command: bash /tmp/script.deb.sh
+
+
+    - name: install gitlab-ee package
+      apt:
+        name: gitlab-ee
+        state: present
+
+    - name: execute gitlab-ctl reconfigure
+      command: gitlab-ctl reconfigure
+
+
+
