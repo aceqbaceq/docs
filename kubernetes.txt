@@ -8123,6 +8123,7 @@ Command terminated by signal 2
 его тело или чтото там он вытаскивает из файла подкачки.
 
 
+
 также хотел про tlb, mmu, page table 
 пояснить
 
