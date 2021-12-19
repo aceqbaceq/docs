@@ -1,0 +1,37 @@
+windows
+
+===
+
+купил клаву. а эти ублюдки с нее убрали
+кнопки = insert, pgup,pgdown, end
+
+выход только такой - нужено сделать key remap в windows
+
+на основе этой статьи = https://www.pcmag.com/how-to/remap-your-keyboard
+
+скачиваем прогу = https://www.autohotkey.com/
+
+далее сразу идем в папку и создаем там файл = "c:\ProgramData\Microsoft\Windows\Start Menu\Programs\StartUp\New AutoHotkey Script.ahk" 
+
+в нем мы прописываем вот такое:
+
+#NoEnv  ; Recommended for performance and compatibility with future AutoHotkey releases.
+; #Warn  ; Enable warnings to assist with detecting common errors.
+SendMode Input  ; Recommended for new scripts due to its superior speed and reliability.
+SetWorkingDir %A_ScriptDir%  ; Ensures a consistent starting directory.
+RControl::Insert
+F11::PgUp
+F12::PgDn
+RShift::End
+
+
+
+далее тыкаем по файле. все готово. можно проеверять.
+этот файл делаем замену кнопок
+
+правый control как insert
+F11 будем работать как pgup
+f12 как pgdown
+правыый шифт как end
+
+=============
