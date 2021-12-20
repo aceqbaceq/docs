@@ -1,12 +1,463 @@
-﻿
+terraform
+
+установка для убунту 16
+
+$ sudo snap install terraform
+
+
+установка (для убунту >16)
+
+$ sudo apt-get update && sudo apt-get install -y gnupg software-properties-common curl
+
+$ curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo apt-key add -
+
+$ sudo apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main"
+
+$ sudo apt-get update && sudo apt-get install terraform
+
+
+
+установили
+
+проверка что он встал
+
+$ terraform -help
+
+установить автодополнение по TAB
+
+$ touch ~/.bashrc
+
+$ terraform -install-autocomplete
+
+
+
+пробный проект
+
+$ mkdir learn-terraform-docker-container
+
+$ cd learn-terraform-docker-container
+
+$  touch main.tf
+
+terraform {
+  required_providers {
+    docker = {
+      source  = "kreuzwerker/docker"
+      version = "~> 2.13.0"
+    }
+  }
+}
+
+provider "docker" {}
+
+resource "docker_image" "nginx" {
+  name         = "nginx:latest"
+  keep_locally = false
+}
+
+resource "docker_container" "nginx" {
+  image = docker_image.nginx.latest
+  name  = "tutorial"
+  ports {
+    internal = 80
+    external = 8000
+  }
+}
+
+$ terraform init
+
+$ sudo terraform init
+
+надо научится прописывать sg. и стопить машину.
+
+=
+
+как проверить коректность и запустить план 
+
+
+$ terraform fmt
+$ terraform validate
+$ terraform plan  -out plan.txt
+
+как запустить уже выполеннеие
+$ terraform apply plan.txt
+
+=
+
+создаем файл в котором прописан реурс  типа вольюм
+
+$ cat volumes.tf 
+// volumes.tf
+resource "aws_ebs_volume" "elk" {
+  availability_zone = "eu-central-1a"
+  size = 12
+  type = "gp2"
+  tags = {
+          "Name" = "elk-root_vol" 
+          "elk"  = "rootvol"
+        }
+
+
+}
+
+
+вопрос как его тераформ будет искать а амазоне.
+нууууу. ответ такой что id вольюма почемуто нельзя указать.
+но можно импортровать этот вольюм
+
+$ terraform import aws_ebs_volume.elk vol-номер_вольюма
+
+он импортрутся куда то  в кишки тераформа в файл terraform.tfstate
+ну и как то после этого терафоом понимает что вольюм указанный в volumes.tf 
+и тот который он импортровал это одно и тоже.
+а как быть если мы  с нуля слздаем вольюм на амазоне. я так понимаю что 
+почемуто в конфиге непроисать id. а он будет автоматом прописан тераформом  а файле terraform.tfstate
+если вольюм создается с нуля. не очень както прикольно.
+
+если мы хотим посмотреть что будет поменяно на амазоне не для всех обьектов а для конкретного то 
+надо юзать ключ -target
+
+$ terraform plan -target=aws_ebs_volume.elk -out plan.txt
+
+эта команда покажет план что траформ будет менять на амазоне только 
+для вольюма.
 
 ==
-установить на ubuntu
+надо научится расширять фс через тераформ
 
+==
+важная штука
 
-# curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo apt-key add -
-# sudo apt-add-repository "deb [arch=$(dpkg --print-architecture)] https://apt.releases.hashicorp.com $(lsb_release -cs) main"
-# sudo apt update
-# sudo apt install terraform
+если в модуле aws_instance
+мы указываем
+security_groups 
+то теарформ создает типа ec2 classic instance. в чем его жопа это то что 
+у него нельзя поеменять security group без его уничтожения.
+а если указать vpc_security_group_ids
+то уже все окей. натаком инстансе можно менять секуююрити группу без переуничтожения инстанса
+
+-====
+
+еще раз как накатывать плейбук
+
+$ terraform fmt
+$ terraform validate
+$ terraform plan -out plan.txt
+$ terraform apply plan.txt
 
 ===
+
+kubespray
+
+https://github.com/kubernetes-sigs/kubespray.git
+
+самый толковый гид это = https://github.com/kubernetes-sigs/kubespray/tree/master/contrib/terraform/aws
+
+скачиваем с гита
+вообще это папка с ансибль плейбуками.
+
+но у нее есть подпапка в которой лежат тераформ плейбуки
+/kubernetes-kubesparay/kubespray-master/contrib/terraform/aws
+
+идем внее.
+
+экспортируем переменные.
+
+export TF_VAR_AWS_ACCESS_KEY_ID="публичный ключ aws token"
+export TF_VAR_AWS_SECRET_ACCESS_KEY ="приватный ключ aws tokeen"
+export TF_VAR_AWS_SSH_KEY_NAME="имя ssh ключа который будет импортрован внуьрь инстансов"
+export TF_VAR_AWS_DEFAULT_REGION="имя региона"
+
+пример
+
+export TF_VAR_AWS_ACCESS_KEY_ID="AKIAXKD3DX4K234234234234"
+export TF_VAR_AWS_SECRET_ACCESS_KEY="az3yBNEjWIN4RVrGP1L523423423424323/"
+export TF_VAR_AWS_SSH_KEY_NAME="a.krivosheev"
+export TF_VAR_AWS_DEFAULT_REGION="eu-west-1"
+
+
+
+запускаем тераформ
+  $  terraform fmt
+  $  terraform validate
+  $  terraform init
+  $  terraform fmt
+  $  terraform validate
+  $  terraform plan -out plan.txt
+  $  terraform apply  plan.txt
+  
+
+вывод на экране после установки
+
+
+Outputs:
+
+aws_elb_api_fqdn = "kubernetes-elb-devtest-1645838512.eu-west-1.elb.amazonaws.com:6443"
+bastion_ip = "18.202.77.68"
+default_tags = tomap({})
+etcd = <<EOT
+10.250.202.87
+10.250.214.169
+10.250.194.80
+EOT
+inventory = <<EOT
+[all]
+ip-10-250-202-87.eu-west-1.compute.internal ansible_host=10.250.202.87
+ip-10-250-214-169.eu-west-1.compute.internal ansible_host=10.250.214.169
+ip-10-250-194-80.eu-west-1.compute.internal ansible_host=10.250.194.80
+ip-10-250-196-151.eu-west-1.compute.internal ansible_host=10.250.196.151
+ip-10-250-222-49.eu-west-1.compute.internal ansible_host=10.250.222.49
+ip-10-250-199-7.eu-west-1.compute.internal ansible_host=10.250.199.7
+ip-10-250-213-52.eu-west-1.compute.internal ansible_host=10.250.213.52
+
+bastion ansible_host=18.202.77.68
+
+[bastion]
+bastion ansible_host=18.202.77.68
+
+[kube_control_plane]
+ip-10-250-202-87.eu-west-1.compute.internal
+ip-10-250-214-169.eu-west-1.compute.internal
+ip-10-250-194-80.eu-west-1.compute.internal
+
+[kube_node]
+ip-10-250-196-151.eu-west-1.compute.internal
+ip-10-250-222-49.eu-west-1.compute.internal
+ip-10-250-199-7.eu-west-1.compute.internal
+ip-10-250-213-52.eu-west-1.compute.internal
+
+[etcd]
+ip-10-250-202-87.eu-west-1.compute.internal
+ip-10-250-214-169.eu-west-1.compute.internal
+ip-10-250-194-80.eu-west-1.compute.internal
+
+[calico_rr]
+
+[k8s_cluster:children]
+kube_node
+kube_control_plane
+calico_rr
+
+[k8s_cluster:vars]
+apiserver_loadbalancer_domain_name="kubernetes-elb-devtest-1645838512.eu-west-1.elb.amazonaws.com"
+
+EOT
+masters = <<EOT
+10.250.202.87
+10.250.214.169
+10.250.194.80
+EOT
+workers = <<EOT
+10.250.196.151
+10.250.222.49
+10.250.199.7
+10.250.213.52
+EOT
+
+
+потом автоматом запускатеся ансибль то куб неможет поставиться из за того что кэширующий 
+dns сервис systemd-resolved имеет неверный dns указанный и надо пойти  на хосты куба  в папку
+
+/etc/systemd/resolved.conf
+
+и там прописать 8.8.8.8
+
+[Resolve]
+DNS=8.8.8.8
+
+
+после того как тераформ прогонится то в папке будет создан иневентори файл hosts для ансибля
+/kubernetes-kubesparay/kubespray-master/inventory/
+
+далее надо запустить ансибль потому что мы всего навсего создали только виртуалки.
+а куба наних еще нет.
+
+делать это надо только вот так
+
+$ ansible-playbook -i ./inventory/hosts ./cluster.yml -e ansible_user=admin -b --become-user=root --flush-cache
+
+без указания -e ansible_user=admin вобще ничо несработает. будет писать что юзео ansble_user
+незадан.
+
+
+
+
+проблемы:
+- немогу войти на бастион созданный. = оказалось что ансибль кубспрея после тераформа 
+   на иснстанах ключи ssh прописывет не для юзера ubuntu а для юезра admin!!!
+   так что на инстансы надо входить как admin
+
+
+- таже вылезло что непонятно как создавать инстансы сразу в несольких регионах. это уже 
+   чисто проблема самого тераформа
+
+
+далее.
+если ансибль у нас все сделал до конца
+то в папке кубспрея в корне появится файл
+
+ssh-bastion.conf
+
+это ssh config 
+он дает то что теперь мы можем по ssh подклчитья к любому инстансу который мы поставили по ssh
+через bastion инстанс как ssh proxy.
+
+
+ssh -F ./ssh-bastion.conf user@$ip
+
+например 
+$ cat ssh-bastion.conf
+
+Host 3.250.187.184
+  Hostname 3.250.187.184
+  StrictHostKeyChecking no
+  ControlMaster auto
+  ControlPath ~/.ssh/ansible-%r@%h:%p
+  ControlPersist 5m
+
+Host  10.250.199.144 10.250.222.252 10.250.198.134 10.250.201.239 10.250.220.38 10.250.192.227 10.250.214.46
+user admin
+  ProxyCommand ssh -F /dev/null -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -W %h:%p -p 22 admin@3.250.187.184 
+krivosheeva@jurvis:~/Terraform/kubernetes-kubesparay/kubespray-master$ 
+
+
+
+тогда подключаеиися к одному из инстансов
+
+$ ssh -F ssh-bastion.conf 10.250.198.134
+
+
+далее. давайте уже наконец покдлючимся к кубу.
+
+идем по ssh на любой мастер
+
+
+
+$ ssh -F ssh-bastion.conf 10.250.198.134
+
+там становимся рутом
+
+$ sudo bash
+
+инаконец мы можем проверить состяние куба
+
+# kubectl get nodes
+
+напомню что сертификаты доступа к кубу лежат на мастерах в папке /etc/kubernetes/admin.conf"
+и также этот же файл лежит на мастерах в папке 
+/root/.kube/config
+
+
+далее.
+хотим чтобы мы могли подлкючаться к кубе прям с нашего ноутбука
+
+$ mkdir -p ~/.kube
+
+копмруем на наш комп ключ доступа от куба с мастера куба
+для этого вначале на мастере надо расширить права на чтение на файл с ключом 
+поомуто что по деолфту оно есть только у root
+
+$ ssh -F ssh-bastion.conf 10.250.199.144 'sudo chmod 644 /etc/kubernetes/admin.conf'
+
+
+10.250.199.144 = ip мастера куба
+
+копируем теперь ключ на наш комп
+$ scp -F ssh-bastion.conf admin@10.250.199.144:/etc/kubernetes/admin.conf ~/.kube/config
+
+меняем обратно на мастере пермишнсы на 600
+
+$ ssh -F ssh-bastion.conf 10.250.199.144 'sudo chmod 600 /etc/kubernetes/admin.conf'
+
+далее надо малек подкоретировать ~/.kube/config
+заменить в нем строки вида
+
+    server: https://127.0.0.1:6443
+
+на
+
+    server: https://kubernetes-elb-devtest-1645838512.eu-west-1.elb.amazonaws.com:6443
+
+
+дело в том что когда мы вывзаем kubectl то он внутри ~/.kube/config файла ищет урл 
+по которому стучаться на куб.  по дефлоту это 127.0.0.1 так что нам надо это скоректрвать
+для этого
+
+$ LB_HOST=$(cat inventory/hosts | grep apiserver_loadbalancer_domain_name | cut -d'"' -f2)
+$ sed -i "s^server:.*^server: https://$LB_HOST:6443^" ~/.kube/config
+
+
+тут надо сказать что это за хрень kubernetes-elb-devtest-1645838512.eu-west-1.elb.amazonaws.com
+откуда она взядась что это такое.
+а это тераформ на амазоне создает амазоновский лоад балансер. он создает причем  Classic Load Balancer.
+что это за хрень. это доменное имя некоторое.  котооое имеет несколько A IP адресов например
+
+$ nslookup kubernetes-elb-devtest-1645838512.eu-west-1.elb.amazonaws.com
+Name: kubernetes-elb-devtest-1645838512.eu-west-1.elb.amazonaws.com
+Address: 52.211.32.9
+Name: kubernetes-elb-devtest-1645838512.eu-west-1.elb.amazonaws.com
+Address: 3.248.96.93
+
+каждый адрес видимо в своей авайлабилити зоне.
+и далее также пробрасывается с этих внешних IP внутрь амазона порт уже на кокнетнй инстансы.
+тоесть лоадбаласер это как хапрокси который имеет внешний IP и прбосбываем порт с внешнено ip
+на бекенд сервера. AWS Classic Load Balancer (CLB) operates at Layer 4. тоесть udp\tcp . means is that the load balancer routes traffic between clients and backend servers based on IP address and TCP port.
+для сравнния у амазоне есть еще L7 балансер они его зовут как  Application Load Balancer. 
+он подходит для балансировки HTTP трафика. такая же аналогия как haproxy может работать на l4 режиме
+а может на L7 режиме.
+
+так вот тераформ куб спрея создает L4 amazon Classic Load Balancer = aws CLB и  с внешних IP пробрасывает 
+порт 6443 на мастера куба.  ( про  L4 amazon Classic Load Balancer надо еще дальше поразбираться). 
+главная суть что контролплейт куба реально прям выставляется наружу кубспреем во внешний мир.
+уж незнаю наколько это безопасно.
+
+
+что еще интересно. то что хосты кроме бастиона они создаются без внешнего IP. вопрос как тогда 
+они в инте выходят например для установки пакетов. ответ для subnet в котоой сидят инстансы  в таблице
+маршрутизации для этого subnet  добавлен марщруты вида
+
+10.250.192.0/18 local  
+0.0.0.0/0 nat-0110f39cec15f906f  
+
+первый маршрут это чисто внутри площадочный локальный. 
+а ip интернетовские - выход на них идет через nat гейтвей. их можно создать в virtual private clooud  - nat gateways. опять же тут неочень пгимаю разницу между virtual private clooud  - internet gateways и 
+virtual private clooud  - nat gateways. это тоже надо прояснять.
+
+
+но зато тпеперь понятно как иснатсны без внешнего ip умудряются выходит в интернет
+
+
+
+
+
+
+
+
+
+ это AWS Classic Load Balancer (CLB) operates at Layer 4.
+
+
+
+
+
+ключ пеертянули. тпепеерь ставим kubectl
+
+$ sudo apt-get install -y apt-transport-https ca-certificates curl
+$ sudo curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg
+
+$ echo "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt/sources.list.d/kubernetes.list
+
+$  sudo apt-get update
+$ sudo apt-get install -y kubectl
+
+
+
+
+
+
+====
+====
+
+
+
+
