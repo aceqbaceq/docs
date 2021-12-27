@@ -1,0 +1,104 @@
+kubespray+ansible
+
+установка ансибля для kubespray
+
+
+все начаось с точго что есть проект kubespray 
+в котором мы разворачиваем виртуалки скажем через тераформ таким образом создаем инфраструктуру.
+а потом мы накатываем на эти вм куб через ансибль.  так вот нужно же вначале установить этот 
+самый ансибль. в readme.md создатели пишут что для установки ансибля надо
+          $ sudo pip3 install -r requiements.txt
+так вот я сейчас считаю что эта команда нехорошая. вместо нее надо исполльзовать другую команду.
+надо заюзать venv + pip3 запущенный с локльными правами чтобы установка ансибля была сугубо 
+локальная тлоько для нашего юзера и чтобы мы ничегоне сломали на компе в плане питоне модулей.
+что интересно. это то что через pip3 можно поставить непросто последнюю версию пакета 
+а прям конкретную версию. приведу файл  requiements.txt
+
+$ cat requirements.txt 
+   ansible==3.4.0
+   ansible-base==2.10.15
+   cryptography==2.8
+   jinja2==2.11.3
+   netaddr==0.7.19
+   pbr==5.4.4
+   jmespath==0.9.5
+   ruamel.yaml==0.16.10
+   ruamel.yaml.clib==0.2.4
+   MarkupSafe==1.1.1
+
+как видна такая хрень нам позволяет гарантировать что для кубспрея будет поставлены прям 
+конкретные проверенные версии модулей питона. отлично.
+
+поставим  ansible на venv
+ставим вначале модуль питона virtualenv
+$ sudo apt-get -y install python3-venv
+(есть еще пакет python3-virtualenv это нето)
+
+создаем папку куда будем ставить ansible
+$ mkdir -p  ~/python3/ansible
+$ cd ~/python3/ansible/
+
+создаем в этой папке новую виртуальную среду
+$ python3 -m venv env
+
+по факту создается папка env внутри которой как бы маленькая копия автономного питона
+
+далее активируем входим в данный виртуальную среду
+
+$ source ./env/bin/activate
+
+при  этом приглашение в командной строке меняется на (env)
+(env) $
+
+все виртуальный питон актививровали. переходим в папку с кубспреем
+и запускаем установку ansible
+
+(env) $ cd ~/kubespray
+(env0 $ python3 -m pip install -r requirements.txt
+
+в процессе установки вылезут ошибки вида: failed building wheel for ansible
+но вроде бы это ни на что не влияет.
+
+
+
+теперь сраниваем какие верии мы хотели получить и какие получили
+
+
+$ cat requirements.txt 
+   ansible==3.4.0
+   ansible-base==2.10.15
+   cryptography==2.8
+   jinja2==2.11.3
+   netaddr==0.7.19
+   pbr==5.4.4
+   jmespath==0.9.5
+   ruamel.yaml==0.16.10
+   ruamel.yaml.clib==0.2.4
+   MarkupSafe==1.1.1
+
+$ python3 -m pip list --format=columns
+Package          Version      
+---------------- -------------
+ansible          3.4.0        
+ansible-base     2.10.15      
+cffi             1.15.0       
+cryptography     2.8          
+Jinja2           2.11.3       
+jmespath         0.9.5        
+kubespray        2.17.1.dev194
+MarkupSafe       1.1.1        
+netaddr          0.7.19       
+packaging        21.3         
+pbr              5.4.4        
+pip              9.0.1        
+pkg-resources    0.0.0        
+pycparser        2.21         
+pyparsing        3.0.6        
+PyYAML           6.0          
+ruamel.yaml      0.16.10      
+ruamel.yaml.clib 0.2.4        
+setuptools       39.0.1       
+six              1.16.0       
+wheel            0.37.1       
+
+полное совпдаение!

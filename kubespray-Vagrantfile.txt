@@ -1,0 +1,68 @@
+Vagrantfile
+для kubespray
+
+
+Vagrant.configure("2") do |config|
+  config.ssh.insert_key = false
+  config.ssh.forward_agent = true
+
+ 
+
+  config.vm.define "kmaster" do |kmaster|
+    kmaster.vm.box_download_insecure = true
+    kmaster.vm.box = "hashicorp/bionic64"
+    kmaster.vm.network "private_network", ip: "100.0.0.3"
+    kmaster.vm.hostname = "kmaster"
+    kmaster.vm.provider "virtualbox" do |v|
+      v.name = "kmaster"
+      v.memory = 1550
+      v.cpus = 2
+    end
+  end
+
+  config.vm.define "kmaster2" do |kworker|
+    kworker.vm.box_download_insecure = true
+    kworker.vm.box = "hashicorp/bionic64"
+    kworker.vm.network "private_network", ip: "100.0.0.4"
+    kworker.vm.hostname = "kmaster2"
+    kworker.vm.provider "virtualbox" do |v|
+      v.name = "kmaster2"
+      v.memory = 1550
+      v.cpus = 2
+    end
+  end
+
+
+
+
+
+  config.vm.define "kworker2" do |kworker|
+    kworker.vm.box_download_insecure = true
+    kworker.vm.box = "hashicorp/bionic64"
+    kworker.vm.network "private_network", ip: "100.0.0.9"
+    kworker.vm.hostname = "kworker2"
+    kworker.vm.provider "virtualbox" do |v|
+      v.name = "kworker2"
+      v.memory = 1550
+      v.cpus = 2
+    end
+  end
+
+
+
+  config.vm.define "kworker3" do |kworker|
+    kworker.vm.box_download_insecure = true
+    kworker.vm.box = "hashicorp/bionic64"
+    kworker.vm.network "private_network", ip: "100.0.0.10"
+    kworker.vm.hostname = "kworker3"
+    kworker.vm.provider "virtualbox" do |v|
+      v.name = "kworker3"
+      v.memory = 1550
+      v.cpus = 2
+    end
+  end
+
+
+
+
+end
