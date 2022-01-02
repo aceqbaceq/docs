@@ -87,4 +87,106 @@ end
 тут ниже я хочу дать пояснения на счет кусков из Vagrantfile. 
 что они значат
 
- 
+
+
+синтаксис Vagrantfile почти целиком такой же как у языка Ruby.
+однако несовсем понятны его какието блоки. 
+
+в самом начале файла идет всегда конструкция
+
+Vagrant.configure("2") do |config|
+...
+end
+
+
+ее смысл с точки зрения конструкций Ruby непонятен.
+просто двигаем дальше.
+цифра 2 означает версию синтаксиса внутри файла.
+
+
+
+далее
+
+config.ssh.insert_key = false
+config.ssh.forward_agent = true
+
+означает что ненужно в каждую виртулаку пихать свой индивидульный ssh ключ
+а что надо на всех виртуалках юзать один ssh ключ дефолтовый который надо 
+брать из папки
+
+~/.vagrant.d/insecure_private_key
+
+
+далее обьявляем переменные
+
+INSTANCE_NAME_PREFIX = "k8s"
+NUM_INSTANCES = 5
+KUBE_MASTER_INSTANCES = 2
+INVENTORY_FOLDER = "inventory/sample"
+ETCD_INSTANCES ||= NUM_INSTANCES
+host_vars = {}
+
+
+первая это как будет выглядеть начало имени виртуалки
+вторая это общее число виртуалок
+третья это сколько из общего числа юзать под мастер ноды. соотвественно если всего 5
+а под мастер ноды 2 то под дата ноды останется 3 виртуалки. 
+INVENTORY_FOLDER это откуда будут браться group_vars. щас про это поговорим.
+ETCD_INSTANCES обозначает сколко вм заюзать под etcd
+host_vars это мы инициализируем пустой dictionary только в руби он зовется хэшем. инициализация
+обазятельна потому что без нее если мы потом чтото начинаем пихать в этот хэш то руби выдаст 
+ошибку.
+
+насчет INVENTORY_FOLDER ... в этой переменой мы прописываем в какой папке искать group_vars ансибля.
+вагрант работает так. если мы в vagrantfile прописываем provisioner ансибля то по дефолту 
+вагрант сам автоматом создает файл инвентаря для ансибля и кладет его в файл 
+
+          папка_с_кубспрей/.vagrant/provisioners/ansible/inventory/vagrant_ansible_inventory
+
+и вагрант по дефолту натравит ансибль именно на этот инвентори файл. так вот тут возникает 
+проблема в том что инвентори файл мы имеем а вот папки с group_vars мы при этом неимеем
+в папке папка_с_кубспрей/.vagrant/provisioners/ansible/inventory/. возникает вопрос как нам
+подсунуть group_vars из папки inventory/sample в папку папка_с_кубспрей/.vagrant/provisioners/ansible/inventory/ где лежит файл с инвентори. либо как нам файл с инвентори подсунуть 
+в папку с group_vars. дело в том что в vagrantfile можно указать кастомную папку 
+в которой находится инвентори файл, но в таком случае в той папке должен лежать приготолвенный 
+кем-то инвентори файл а сам вагрант уже небудет создавать инвентори файл так что эта опция 
+отпадает. поэтому я пошел по другому пути - папку для инвентори файла мы оставляем дефолтовую
+
+          папка_с_кубспрей/.vagrant/provisioners/ansible/inventory/
+
+чтобы вагрант туда автоматом создал и положил инвентори файл, но мы эту папку создадим в форме 
+симлинка из папки inventory/sample
+
+         inventory/sample -> папка_с_кубспрей/.vagrant/provisioners/ansible/inventory/
+
+таким образом папка папка_с_кубспрей/.../inventory будем перенаправлена в inventory/sample
+таким образом вагрант сам того незная будет писать инвентори файл в inventory/sample
+и также получается что в inventory/sample лежит group_vars так что мы успешно срастили group_vars 
+и автогенерируемый ансибль инвентарь файл. проброс папки в vagrantfile присходит в блоке:
+
+# делаем симлинк с group_vars ансибля в папку вагранта куда он по умолчанию создает файл инвентаря
+  require 'fileutils'
+  VAGRANT_ANSIBLE   = File.join(File.dirname(__FILE__), ".vagrant", "provisioners", "ansible")
+  VAGRANT_INVENTORY = File.join(VAGRANT_ANSIBLE,"inventory")
+if ! File.directory?(VAGRANT_INVENTORY)
+  FileUtils.mkdir_p(VAGRANT_ANSIBLE)
+  FileUtils.ln_s(File.absolute_path(INVENTORY_FOLDER), VAGRANT_INVENTORY)
+end
+
+
+прокоментирую. это все команды языка ruby
+require 'fileutils'  = необходимая строка чтобы ниже заюзать команды FileUtils.* иначе выдаст ошибку
+__FILE__             = имя файла в котором был запущен ruby скрипт ( в нашем случае это Vagrantfile)
+File.dirname(__FILE__) =  выдает полный путь к папке в которой лежит файл с ruby скриптом
+File.join              = обьединяет аргументы через знак слэш "/"
+File.join(File.dirname(__FILE__), ".vagrant", "provisioners", "ansible")  = выдаст вот такую папку
+/home/vasya/git/kubespray/.vagrant/provisioners/ansible
+
+File.join(VAGRANT_ANSIBLE,"inventory") = выдаст папку вида /home/vasya/git/kubespray/.vagrant/provisioners/ansible/inventory
+
+if ! File.directory?(VAGRANT_INVENTORY)  = проверяет отсутствие папки
+FileUtils.mkdir_p(VAGRANT_ANSIBLE)       = создает папку с подпапками
+FileUtils.ln_s(File.absolute_path(INVENTORY_FOLDER), VAGRANT_INVENTORY) = создает символическую 
+ссылку
+
+
