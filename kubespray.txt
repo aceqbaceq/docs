@@ -524,7 +524,245 @@ $ source ~/python3/ansible/env/bin/activate
 примерно через 20 минут мы получим установленный куб
 
 
+далее.
+хотим чтобы мы могли подлкючаться к кубу с нашего ноутбука
+создаем папку для ключа от куба.
+
+$ mkdir -p ~/.kube
+
+копируем на наш комп ключ доступа от куба с мастера куба
+для этого вначале на мастере надо расширить права на чтение на файл с ключом 
+поомуто что по деолфту оно есть только у root
+
+$ ssh -l vagrant -i ~/.vagrant.d/insecure_private_key 100.0.0.3 'sudo chmod 644 /etc/kubernetes/admin.conf'
+
+
+100.0.0.3 = ip мастера куба
+
+копируем теперь ключ на наш комп
+$ scp -i ~/.vagrant.d/insecure_private_key    vagrant@100.0.0.3:/etc/kubernetes/admin.conf ~/.kube/config
+
+меняем обратно на мастере пермишнсы на 600
+
+$ ssh -l vagrant -i ~/.vagrant.d/insecure_private_key 100.0.0.3 'sudo chmod 600 /etc/kubernetes/admin.conf'
+
+далее надо малек подкоретировать ~/.kube/config
+заменить в нем строки вида
+
+    server: https://127.0.0.1:6443
+
+на
+
+    server: https://100.0.0.3:6443
+
+
+дело в том что когда мы вызываем kubectl то он внутри ~/.kube/config файла ищет урл 
+по которому стучаться на куб.  по дефлоту это 127.0.0.1 так что нам надо это скоректрвать
+для этого.
+
+ключ пеертянули. тпепеерь ставим kubectl
+
+$ sudo apt-get install -y apt-transport-https ca-certificates curl
+$ sudo curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg
+
+$ echo "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt/sources.list.d/kubernetes.list
+
+$ sudo apt-get update
+$ sudo apt-get install -y kubectl
+
+ну все. можно проверить что мы видим кластер куба
+
+$ kubectl get nodes
+NAME    STATUS   ROLES                  AGE   VERSION
+node1   Ready    control-plane,master   18h   v1.22.5
+node2   Ready    control-plane,master   18h   v1.22.5
+node3   Ready    <none>                 18h   v1.22.5
+node4   Ready    <none>                 18h   v1.22.5
+
 ====
+следущий этап.
+делаем тоже самое что делали на предыдущем этапе - тоесть 
+разворот куба через кубспрей на вагранте но апгреженный вариант тоесть 
+делаем тоже самое но с еще более минимальным ручным участием. чтобы 
+это было по максимуму автоматизированный процесс чтобы руками прилось
+делать меньше чем в предыдущем варианте.
+
+качаем кубспрей.
+
+$ git clone https://github.com/kubernetes-sigs/kubespray.git
+
+заменяем файл Vagrantfile в папке на kubespray-Vagrantfile2.txt (более продвинутый вагрантфайл
+чем в предыдущем случае)
+
+устанавливаем ansible как описано в kubespray-ansible.txt
+
+заходим из под виртуального питона в котором установлен ансибль в папку с кубспреем
+и запускаем разворот виртуалок на вагранте. вагрант нетолько  создаст
+виртуалки но и сам запустит разворот куба на вирталках через ансибль
+
+(env) vagrant up
+
+важно запускать разворот вагранта из под виртуального питона на котором установлена
+нужная версия ансибля для кубспрея потому что вагрант будет запускать ансибль который
+именно на хосте и если версия ансибля нета что надо то вагрант напишет про проблемы
+с ансиблем и разворота плейбука непроизойдет. я пробовал запускать разворот 
+вагранта без нужной версии ансибля на хосте и вагрант вылетал с ошибкой о несовместимости
+с версией ансибля. поэтому еще раз подчеркну что чтобы вагрант мог успешно сам запустить ансибль
+ и начать разворачивать куб на виртуалках важно чтобы на хосте стоял именно тот ансибль который 
+ прописан в requirements.txt, эту версию ансибля можно поставит как общесистемно(чтобы он был доступен всем юзерам хоста) через sudo pip3 ... , а можно локально через виртуальную среду питона(чтобы этот ансибль был доступен только текущему юзеру).
+
+
+когда все отработает мы получим созданные виртуалки и развернутый на них куб.
+
+остается только руками скопировать ключ с мастер ноды  и поставить kubectl на ноутбуке.
+
+далее.
+хотим чтобы мы могли подлкючаться к кубу с нашего ноутбука
+создаем папку для ключа от куба.
+
+$ mkdir -p ~/.kube
+
+копируем на наш комп ключ доступа от куба с мастера куба
+для этого вначале на мастере надо расширить права на чтение на файл с ключом 
+поомуто что по деолфту оно есть только у root
+
+$ ssh -l vagrant -i ~/.vagrant.d/insecure_private_key 100.0.0.3 'sudo chmod 644 /etc/kubernetes/admin.conf'
+
+
+100.0.0.3 = ip мастера куба
+
+копируем теперь ключ на наш комп
+$ scp -i ~/.vagrant.d/insecure_private_key    vagrant@100.0.0.3:/etc/kubernetes/admin.conf ~/.kube/config
+
+меняем обратно на мастере пермишнсы на 600
+
+$ ssh -l vagrant -i ~/.vagrant.d/insecure_private_key 100.0.0.3 'sudo chmod 600 /etc/kubernetes/admin.conf'
+
+далее надо малек подкоретировать ~/.kube/config
+заменить в нем строки вида
+
+    server: https://127.0.0.1:6443
+
+на
+
+    server: https://100.0.0.3:6443
+
+
+дело в том что когда мы вызываем kubectl то он внутри ~/.kube/config файла ищет урл 
+по которому стучаться на куб.  по дефлоту это 127.0.0.1 так что нам надо это скоректрвать
+для этого.
+
+ключ пеертянули. тпепеерь ставим kubectl
+
+$ sudo apt-get install -y apt-transport-https ca-certificates curl
+$ sudo curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg
+
+$ echo "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt/sources.list.d/kubernetes.list
+
+$ sudo apt-get update
+$ sudo apt-get install -y kubectl
+
+ну все. можно проверить что мы видим кластер куба
+
+$ kubectl get nodes
+NAME    STATUS   ROLES                  AGE   VERSION
+node1   Ready    control-plane,master   18h   v1.22.5
+node2   Ready    control-plane,master   18h   v1.22.5
+node3   Ready    <none>                 18h   v1.22.5
+node4   Ready    <none> 
+
+================================================
+следущий этап - добавить описание блоков в kubespray-Vagrantfile2.txt
+следущий этап - попробоват както автоматизировать перетаскивание ключа от куба
+с мастер ноды на ноутбук и установку kubectl
+
+заапгреженный разворот к8 из вагранта.
+заапгржеенный в том сммысле что нужно еще меньше делать все руками. 
+и в вагранте число нод леко можно увеличить.
+
+
+столункулся с приколом вагранта что он делает провижн сразу после деплоя вм 
+даже если провижн указан уже после все деплоев так что нужно юзать трюк.
+
+
+
+====
+далее в проект kubespray входит свой Vagrantfile
+но он очень сложный я мало что понял оттуда. 
+и если его запустить то весь разоворот в конце концов заканчивается ошибками
+так что их ний вагрант файл неработает из коробки.
+
+Vagrantfile который идет с коробки с кубспрей там для убунту18 указан имадже вида
+generic/ubuntu18. это не имадж а гавно потому что у него есть dnsmask кэширующий dns
+сервер и он с коробки неработает поэтому из за него резолвинг dns в ip неработате
+поэтому надо в Vagrantfile заменить имя имаджа на "hashicorp/bionic64
+c этим имаджем нет никаких проблем
+
+какой прикол я обнаружил. если мы в vagramtfile пропишем запуск ансибля
+то вагрант сам создаст инвентори файл для ансибля что очень круто.
+создаст он его в папке     папка_где_лежит_Vagrantfile/.vagrant/provisioners/ansible/inventory/vagrant_ansible_inventory    и при этом ансибль провижинеру в Vagrantfile ненужно руками 
+указывать на этот инвентори файл вагрант сам его по дефолту и начнет юзать.
+и тут есть одна огромная проблема - в ансибле нам нужен нетолько файл с инвентори но и 
+group_vars папка. как ее подсунуть ансибль провижинеру в vagrantfile? говоря в целом
+на первый взгляд никак. 
+
+absible_ssh_host deprecreate вместо него ansible_host и он ознаает ip по которому ансибль
+дож=лжен стучаться на виртуалку
+
+переменная acess_ip это несистемная перпеменная аснибля а кастомная переменная плейбука.
+ообонает ip по которому другие ноы дожжны стучаться на эту ноду.
+
+ip: в invemtory ---> etcd_metrics_address в плейбуках
+
+vagrantfilr сильно осрован на ruby.
+дикшонари или как его зовут еще hash обозначаетя в ruby как
+
+ vasya = { "one" => "eins", "two" => "zwei", "three" => "drei" }
+
+ещенадо добаить ip, access_ip в конфиг вагранта в hosts_vars
+если сравнить инвентарь гененируемый питоном и инвентарь генеируремыый вагрантом
+то станет видно что в вагрнет инвертатрере нехаватвтает acccess_ip и ip (который ничто иное как
+etcd_metrics_address)
+
+значит после скачки кубсперя нужна символическя ссылка на инветнарь. и поправить 
+вагрантафайл с ip, access_ip
+
+допилить чтобы ненужно было руками скачивать сертификат от к8 на ноутбук
+
+\\ вспомогательный скрипт
+emp$ cat 3.rb 
+#!/usr/bin/ruby
+
+require 'fileutils'
+
+# Variables
+INSTANCE_NAME_PREFIX = "k8s"
+NUM_INSTANCES = 5
+KUBE_MASTER_INSTANCES = 2
+INVENTORY_FOLDER = "inventory/sample"
+ETCD_INSTANCES ||= NUM_INSTANCES
+host_vars = {}
+
+
+# делаем симлинк с group_vars ансибля в папку вагранта куда он по умолчанию создает файл инвентаря
+  VAGRANT_ANSIBLE   = File.join(File.dirname(__FILE__), ".vagrant", "provisioners", "ansible")
+  VAGRANT_INVENTORY = File.join(VAGRANT_ANSIBLE,"inventory")
+if ! File.directory?(VAGRANT_INVENTORY)
+  FileUtils.mkdir_p(VAGRANT_ANSIBLE)
+  FileUtils.ln_s(File.absolute_path(INVENTORY_FOLDER), VAGRANT_INVENTORY)
+end
+\\ конец = вспомогательный скрипт 
+
+
+вагрант конфиг написан на ruby.
+тоесть поддерживает его синтакс
+
+
+===
+
+следущий этап - понять как на вагранте развернуть бастион
+
+
 
 
 
