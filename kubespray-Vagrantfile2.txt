@@ -190,3 +190,238 @@ FileUtils.ln_s(File.absolute_path(INVENTORY_FOLDER), VAGRANT_INVENTORY) = соз
 ссылку
 
 
+далее
+(1..NUM_INSTANCES).each do |i|
+  ...
+end
+
+это цикл. 
+each это метод ruby
+
+(1..NUM_INSTANCES) = это массив.
+
+а 
+
+(1..NUM_INSTANCES).each do |i|
+...
+end
+
+это цикл с переменной i
+
+
+одна из дебильных засад вагранта это то что как бы мы ни изголялись по дефолту
+
+он начнет примеять ансибль к виртуалке сразу как только он ее поднял. если мы разместим 
+код разворота в одном месте вагрантфайла а код по ансиблю в другом вагранту на это насрать.
+это проблема если мы хотим вначале развернуть все виртуалки а уже только потом накатывать на них ансибль. поэтому для этого надо изьебнуться. а именно
+
+внутри цикла
+
+(1..NUM_INSTANCES).each do |i|
+
+end
+
+мы размещаем условие
+
+
+(1..NUM_INSTANCES).each do |i|
+
+   if i == NUM_INSTANCES
+   end
+
+end
+
+
+и вот внутри этого условия уже идет код который запускает ансибль.
+получается что условие выполнится только когда уже все вируталки будут запущены и только тогда 
+запустится ансибль. а если сделать вот так
+
+\\
+(1..NUM_INSTANCES).each do |i|
+
+
+end
+
+код по запуску ансибля
+
+\\
+
+то вагранту похеру. он развернет первую виртулку а потом сразу запустить на ней ансибль
+
+
+далее. 
+рассматриваем блок
+
+(1..NUM_INSTANCES).each do |i|
+  config.vm.define "#{INSTANCE_NAME_PREFIX}-#{i}" do |node|
+    node.vm.box_download_insecure = true
+    node.vm.box = "hashicorp/bionic64"
+    node.vm.network "private_network", ip: "100.0.0.#{i+2}"
+    node.vm.hostname = "#{INSTANCE_NAME_PREFIX}-#{i}"
+       node.vm.provider "virtualbox" do |v|
+         v.name = "#{INSTANCE_NAME_PREFIX}-#{i}"
+         v.memory = 1550
+         v.cpus = 2
+         v.customize ["modifyvm", :id, "--vram", "8"] # ubuntu defaults to 256 MB which is a waste of precious RAM
+         v.customize ["modifyvm", :id, "--audio", "none"]
+       end
+
+вся эта конструкция служит тому чтобы мы могли создать 100500 однотипных 
+виртуалок
+
+
+(1..NUM_INSTANCES).each do |i| = цикл с переменной i
+NUM_INSTANCES = это число виртуалок которое будет создано
+
+config.vm.define "#{INSTANCE_NAME_PREFIX}-#{i}" do |node| = эта строчка определяет создание
+виртуалки
+
+"#{INSTANCE_NAME_PREFIX}-#{i}" = имя виртуалки
+
+тут надо сказать что если у нас переменная указана в кавычках то чтобы она раскрылась 
+внутри этих кавычек (а не считалась литерой) то надо использовать вид "#{имя_переменной}"
+
+node.vm.box = "hashicorp/bionic64" = название образа который скачивается
+
+node.vm.network "private_network", ip: "100.0.0.#{i+2}"   = ip адрес. причем как видно 
+он тоже задается через переменную
+
+v.customize ["modifyvm", :id, "--vram", "8"]   = эта херня позволяет урезать память у видеокарты
+виртуалки
+
+далее рассмотрим следующий кусок
+
+ vm_name="#{INSTANCE_NAME_PREFIX}-#{i}"
+
+   host_vars[vm_name] = {
+       "ip" => "100.0.0.#{i+2}",
+       "access_ip" => "100.0.0.#{i+2}"
+   }
+
+
+
+  vm_name = просто переменная
+
+  host_vars[vm_name] = {...}      =  это мы задаем dictionary (ключ:значение) или в руби их зовут хэш. 
+  причем мы задаем не весь дикшонари целиком а только для оопределенного ключа.
+  вот пример
+
+
+$ cat 1.rb 
+#!/usr/bin/ruby
+
+vasya={}
+
+vasya["a"] = { "os" => "linux", "ip" => "1.1.1.1" }
+
+vasya["b"] = { "os" => "win", "ip" => "2.2.2.2" }
+
+puts vasya
+
+на экране получим
+
+{
+ "a"=>{"os"=>"linux", "ip"=>"1.1.1.1"},
+ "b"=>{"os"=>"win",   "ip"=>"2.2.2.2"}   
+}
+
+
+
+далее смотрим следущий кусок
+
+if i == NUM_INSTANCES
+       node.vm.provision "ansible", type: "ansible", run: "once" do |ansible|
+          ansible.playbook = "cluster.yml"
+          ansible.become = true
+          ansible.limit = "all,localhost"
+          ansible.host_key_checking = false
+          ansible.host_vars = host_vars
+          ansible.raw_arguments = ["--forks=#{NUM_INSTANCES}", "--flush-cache", "-e ansible_ssh_user=vagrant"]
+          ansible.groups = {
+            "etcd" => ["#{INSTANCE_NAME_PREFIX}-[1:#{ETCD_INSTANCES}]"],
+            "kube_control_plane" => ["#{INSTANCE_NAME_PREFIX}-[1:#{KUBE_MASTER_INSTANCES}]"],
+            "kube_node" => ["#{INSTANCE_NAME_PREFIX}-[1:#{NUM_INSTANCES}]"],
+            "k8s_cluster:children" => ["kube_control_plane", "kube_node"],
+          }
+        end
+     end
+
+
+он выполняется только когда i == NUM_INSTANCES
+тоесть когда создана последняя вируатлка.
+
+этот кусок запускает на хосте ансибль. натравливает его на плейбук  ansible.playbook = "cluster.yml"
+в качестве инвентаря используется автоматом сгенерированный файл инвентаря 
+папка_с_кубспрей/.vagrant/provisioners/ansible/inventory/vagrant_ansible_inventory
+
+node.vm.provision "ansible", type: "ansible", run: "once" do |ansible|  = эта строчка к
+как раз о пропоисывает что мы хотим на хосте запустить ансибль
+
+run: "once" = означает что мы хотим его запустить только один раз как толлько 
+были созданы виртуалки
+
+"ansible" = просто имя провижионера может быт какое угодно
+type: "ansible"  = тип провижионера которое как раз и задает что это ансибль ( бывает еще shell)
+таким макаром вагнатп понимает что надо запустить именно ансибль
+
+ansible.host_vars = host_vars     = эта херня позволяет нам к ансиблевским host vars
+на лету добавить еще какието переменные помимо тех что указаны в папке с инвентарем
+
+ansible.raw_arguments = ["--forks=#{NUM_INSTANCES}", "--flush-cache", "-e ansible_ssh_user=vagrant"] = это параметры в строке запуска ансибля. здесь мы указываем 
+что ансибль юзер = вагрант
+
+ansible.groups = {
+            "etcd" => ["#{INSTANCE_NAME_PREFIX}-[1:#{ETCD_INSTANCES}]"],
+            "kube_control_plane" => ["#{INSTANCE_NAME_PREFIX}-[1:#{KUBE_MASTER_INSTANCES}]"],
+            "kube_node" => ["#{INSTANCE_NAME_PREFIX}-[1:#{NUM_INSTANCES}]"],
+            "k8s_cluster:children" => ["kube_control_plane", "kube_node"],
+          }  
+
+
+  это очень важная херня. она влияет на гененрируемчй вагрантом файл инвентаря ансибля. эта херня позволяет туда прописать группы. "etcd" , "kube_control_plane" ,     
+          "kube_node" , "k8s_cluster:children"   = это все названия групп которые будут вставлены
+          в инвентарь. но мало того что будут вставлены названия групп их же еще надо заполнить 
+          хостами. рассмотрим пример одншой группы
+
+  "etcd" => ["#{INSTANCE_NAME_PREFIX}-[1:#{ETCD_INSTANCES}]"]
+
+
+  INSTANCE_NAME_PREFIX = k8s
+  ETCD_INSTANCES = 5
+
+
+далее привожу как будут по факту выглядеть группы в файле инвентаря которые добавит вагрант
+
+
+
+
+  получаем
+
+  "etcd" => ["k8s-[1:5]"]
+
+  в файле инвенатаря мы буквально получим
+
+  [etcd]
+  k8s-[1:5]
+
+
+далее привожу как будутв инвентаре выглядеть все группы
+
+[etcd]
+k8s-[1:5]
+
+[kube_control_plane]
+k8s-[1:2]
+
+[kube_node]
+k8s-[1:5]
+
+[k8s_cluster:children]
+kube_control_plane
+kube_node
+
+
+
+вот вроде бы и все дурацкие моменты вагрантфайла разобранные на поверхностном
+уровне
+

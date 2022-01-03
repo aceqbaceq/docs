@@ -1,0 +1,95 @@
+$ cat phase-II.yml 
+
+- name: playbook - localhost work
+  hosts: localhost
+  gather_facts: false
+  become: false
+  tasks:
+    - name: ping
+      ping:
+
+    - name: create ~/.kube
+      file: 
+          path: "/home/{{ notebook_user }}/.kube"
+          owner: "{{ notebook_user }}"
+          group: "{{ notebook_user }}"
+          mode: '777'
+          state: directory
+
+
+- name: playbook - control plane work
+  hosts: kube_control_plane[0]
+  gather_facts: false
+  become: true
+  tasks:
+    - name: ping
+      ping:
+
+    - name: chmod 644 /etc/kubernetes/admin.conf
+      file:
+        path: "/etc/kubernetes/admin.conf"
+        mode: '644'
+
+
+    - name: fetch kube key from control plane host
+      fetch:
+        src: "/etc/kubernetes/admin.conf"
+        dest: "/home/{{ notebook_user }}/.kube/config"
+        flat: yes
+
+
+    - name: chmod 600 /etc/kubernetes/admin.conf
+      file:
+        path: "/etc/kubernetes/admin.conf"
+        mode: '600'
+
+    - name: change  ~/.kube/config
+      delegate_to: 127.0.0.1
+      ansible.builtin.lineinfile:
+        path: "/home/{{ notebook_user }}/.kube/config"
+        regexp: 'server: https:\/\/127\.0\.0\.1:6443'
+        line: "    server: https://{{ access_ip }}:6443"
+        owner: "{{ notebook_user }}"
+        group: "{{ notebook_user }}"
+        mode: '0644'
+
+
+- name: playbook - localhost work
+  hosts: localhost
+  gather_facts: false
+  become: true
+  tasks:
+    - name: ping
+      ping:
+
+
+    - name: apt install some support packages
+      apt: 
+          name: [ "python3-apt", "apt-transport-https",  "ca-certificates", "curl" ]
+          state: present
+          cache_valid_time: 3600
+          update_cache: yes
+
+
+
+    - name: get gpg key from google kub repo
+      get_url:
+       url: "https://packages.cloud.google.com/apt/doc/apt-key.gpg"
+       dest: "/usr/share/keyrings/kubernetes-archive-keyring.gpg"
+       mode: '0440'
+
+
+    - name: add apt kub repo
+      ansible.builtin.apt_repository:
+        repo: "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main"
+        state: present
+        filename: "kubernetes.list"
+
+
+    - name: apt install kubectl
+      apt: 
+          name: [ "kubectl" ]
+          state: present
+          cache_valid_time: 3600
+          update_cache: yes
+
