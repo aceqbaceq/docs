@@ -1,5 +1,3 @@
-$ cat phase-II.yml 
-
 - name: playbook - localhost work
   hosts: localhost
   gather_facts: false
@@ -65,10 +63,8 @@ $ cat phase-II.yml
 
     - name: apt install some support packages
       apt: 
-          name: [ "python3-apt", "apt-transport-https",  "ca-certificates", "curl" ]
+          name: [ "apt-transport-https",  "ca-certificates", "curl" ]
           state: present
-          cache_valid_time: 3600
-          update_cache: yes
 
 
 

@@ -39,7 +39,8 @@ $ mkdir -p  ~/python3/ansible
 $ cd ~/python3/ansible/
 
 создаем в этой папке новую виртуальную среду
-$ python3 -m venv env
+$ python3 -m venv --system-site-packages ~/python3/ansible/env
+
 
 по факту создается папка env внутри которой как бы маленькая копия автономного питона
 
