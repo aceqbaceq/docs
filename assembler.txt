@@ -1,7 +1,8 @@
 assembler
 
 
-как выглядят форматы чисел
+как выглядит обьявление констант в асемблере 
+в разных системах счисления:
 
  mov     ax,200          ; decimal 
     mov     ax,0200         ; still decimal 
@@ -22,4 +23,3 @@ assembler
     mov     ax,0y1100_1000  ; same binary constant yet again
 
  =======
- 
