@@ -14845,6 +14845,7 @@ nginx-deployment-9456bbbf9-ddgjt   1/1     Terminated     1 (133m ago)    30h
 nginx-deployment-9456bbbf9-qn2wm   0/1     Completed      0               6m34s
 nginx-deployment-9456bbbf9-qwx6z   1/1     Running        2 (5m51s ago)   30h
 
+видны поды со стремным статусом: Terminated, NodeShutdown, Completed.
 
 
 
