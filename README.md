@@ -117,21 +117,35 @@ $ docs
 
 
 
+по дефолту гит вбивает чтобы связт с репозиторием шла по https. 
+это остой нам это ненадо потому что там надо вводить при коммитах логин и пароль
+и это никак не автоматизировать. вместо этого надо поменять чтобы связт с репозиторием
+при коммитах шла по ssh. и тогда мы можем использовать git-agent куда один раз вбиваем
+пароль от публичного ключа и забываем о проблеме каждый раз вводить логин пароль 
+при коммитах. для этого:
+  - входим на компе в папку с репозиторием. и проверяем какой спсооб на даннй момент
+    юзается при комитах для связи
+    $ git remote -v
+      origin  https://github.com/aceqbaceq/kubespray_vagrant.git (fetch)
+      origin  https://github.com/aceqbaceq/kubespray_vagrant.git (push)
 
-пропишем удаленный репозиторий как дефолтовый на нашем компе
+    как видно юзает метод https.
+    заменяем его на метод ssh:
+    $ git remote set-url origin git@github.com:aceqbaceq/kubespray_vagrant.git
 
-$ git remote add origin git@github.com:aceqbaceq/docs.git
+    проверяем что сработало:
+    $ git remote -v
+      origin  git@github.com:aceqbaceq/kubespray_vagrant.git (fetch)
+      origin  git@github.com:aceqbaceq/kubespray_vagrant.git (push)
 
-$ git push -u origin master
 
-теперь нам ненадо прописывать полный путь к удаленному репозиторию 
-а юзать просто git push, а именно для записи в репозиторий
+    теперь можно пушить:
 
-$ git add .
+    $ git add .
 
-$ git commit -m "comment smth here"
+    $ git commit -m "comment smth here"
 
-$ git push
+    $ git push
 
 если все таки на git push оно ругается то пишем полный путь
 
