@@ -102,20 +102,6 @@ $ docs
 
 
 
-	??- что такое процесс без tty. процесс который имеет tty это знчит что в /proc/pid/fd есть дескриптор файла который ссылается на /dev/tty? устройство.что такое tty устройство.
-		кнопки с клавы летят в ядро а ядро пихает эти кнопки на соотвествующее tty устрйоство. с которого уже процесс получает эти кнопки. если процесс пихает в tty буквы то они ядром выводятся на экран. 
-	    если кнопки нажимаются то они летят в какоето tty\pty устройство к которому уже может иметь доступ процесс. tty устрйство это устройство через которое процесс получает кнопки с клавы
-	    если же в обратнуб сторону то буквы летят в экран. чтоб проесс мог получать поток с клавы он должен иметь прикрепенный к нему tty устройство. именно в tty устройство ядро перенапрвляет буквы  с клавы.
-	    чтоб процесс мог пихать буквы на экран он должен иметь приклрелнный tty\pty устройство
-	??- переработать устаовку гитлаба на полный автомамт через poetry
-	??- добавить .vagrant папку в игнор
-
-
-
-
-
-
-
 
 по дефолту гит вбивает чтобы связт с репозиторием шла по https. 
 это остой нам это ненадо потому что там надо вводить при коммитах логин и пароль
@@ -126,17 +112,17 @@ $ docs
   - входим на компе в папку с репозиторием. и проверяем какой спсооб на даннй момент
     юзается при комитах для связи
     $ git remote -v
-      origin  https://github.com/aceqbaceq/kubespray_vagrant.git (fetch)
-      origin  https://github.com/aceqbaceq/kubespray_vagrant.git (push)
+      origin  https://github.com/aceqbaceq/docs.git (fetch)
+      origin  https://github.com/aceqbaceq/docs.git (push)
 
     как видно юзает метод https.
     заменяем его на метод ssh:
-    $ git remote set-url origin git@github.com:aceqbaceq/kubespray_vagrant.git
+    $ git remote set-url origin git@github.com:aceqbaceq/docs.git
 
     проверяем что сработало:
     $ git remote -v
-      origin  git@github.com:aceqbaceq/kubespray_vagrant.git (fetch)
-      origin  git@github.com:aceqbaceq/kubespray_vagrant.git (push)
+      origin  git@github.com:aceqbaceq/docs (fetch)
+      origin  git@github.com:aceqbaceq/docs (push)
 
 
     теперь можно пушить:
