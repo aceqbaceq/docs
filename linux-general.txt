@@ -341,3 +341,210 @@ l-wx------ 1 root root 64 мая 17 23:42 2 -> /dev/null
 вот как работает под капотом вся эта хрень с перенапраавлением ввода вывода!
 
 ===
+processes 'R' 'D' status
+kernel mode
+
+It is not 100% beatifull answer but it can give you a flavour. If you have some process that constantly in 'R' state - you can start to monitor two fields from procfs:
+
+$ awk '{print $14, $15}' /proc/$$/stat 
+you will see something like: 0 3915
+
+The first number shows 'Amount of time that this process has been scheduled in user mode, measured in clock ticks' , the second one shows 'Amount of time that this process has been scheduled in kernel mode, measured in clock ticks'. (please have a look at man proc for the details).
+
+However the point is if 3915 is growing fast and 0 is not growing it means the process is running under kernel mode right now. The more fast 3915 is growing the more we can be sure that the process is running under kerhel mode.
+
+an example:
+
+$ sudo dd if=/dev/nvme0n1p2 of=/dev/null bs=30M count=1000
+
+    $ top
+
+  PID USER      PR  NI    VIRT    RES    SHR S  %CPU %MEM     TIME+ COMMAND                                                                                                                   
+16691 root      20   0   45352  32712   2112 R  50,5  0,2   0:06.00 dd
+
+  
+$ awk '{print $14, $15}' /proc/16691/stat 
+0 467
+
+$ awk '{print $14, $15}' /proc/16691/stat 
+0 512
+
+$ awk '{print $14, $15}' /proc/16691/stat 
+0 557
+
+$ awk '{print $14, $15}' /proc/16691/stat 
+0 594
+
+$ awk '{print $14, $15}' /proc/16691/stat 
+0 630
+
+$ awk '{print $14, $15}' /proc/16691/stat 
+0 666
+
+$ awk '{print $14, $15}' /proc/16691/stat 
+0 699
+So we can say - yes, the process is running under kernel mode.
+
+As for 'D' state:
+
+As for 'D' state (correct me if i'm wrong) - it means the process in a "sleep" state. It is 'uninterruptible sleep' state anyway it is a sleep state , it means the code of the process (user space) or invoked kernel code via syscall IS NOT scheduled on cpu until some necessary data\structure is available. So i suppose the processes in 'D' state should be excluded from the review. Why? Because they just not executed on cpu at all. However there is a subtle moment. The process can switch between 'D' and 'R' states quickly so we can think the process is in 'D' state however it goes from time to time to 'R' state.
+
+Let me give explanation in details: Very often people say that if a process in 'D' state it means it waits some I\O. It is not necessarily so.
+
+Simple program in C.
+
+$ cat 30.c
+#include <sys/types.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <errno.h>
+#include <unistd.h>
+#include <sys/wait.h>
+
+int main() {
+
+    pid_t pid = vfork();
+
+    if (pid == 0) {
+    sleep(180);
+    return 0;
+    }
+
+      printf("parent: I am exiting\n");
+
+     return(0);
+}
+Compile.
+
+$ gcc -o 30.exe 30.c
+Launch.
+
+$ ./30.exe
+It uses vfork that creates a child process. The parent process will be blocked until child exits. Also the state of parent process will be 'D'.
+
+$ ps  aux | grep 30.exe
+vasya     6495  0.0  0.0  10700   964 pts/66   D+   03:30   0:00 ./30.exe
+vasya     6496  0.0  0.0  10700   964 pts/66   S+   03:30   0:00 ./30.exe
+So the parent doesnt do any i\o operations but have 'D' status.
+
+Next - Lets have a look if process with 'D' uses cpu. So lets check if it really sleepls.
+
+$ while true; do cat /proc/6495/stat | awk '{print $3, $14, $15}'; done
+D 0 0
+D 0 0
+D 0 0
+D 0 0
+D 0 0
+D 0 0
+D 0 0
+D 0 0
+D 0 0
+D 0 0
+D 0 0
+D 0 0
+D 0 0
+D 0 0
+D 0 0
+D 0 0
+D 0 0
+D 0 0
+D 0 0
+D 0 0
+D 0 0
+D 0 0
+D 0 0
+As we can see it is.
+
+Next. Very often we can see a process is in 'D' state however "top" shows it consumes CPU. How is it possible? The quick answer - the process switches between 'D' and 'R' states. It can happen very quickly. Remember "top" reads all the information from procfs. By default "top" refreshes all the data every 3 seconds so if the process switched very often to 'D' state and not so often to 'R' state it will seem to us as the process lives all the time in 'D' state. However it is false assumption.
+
+The next important point is that the state of the process is a property of instant moment. That is when we are talking about the process has "D" state we mean it is in this state at this particular time. However when we are talking about CPU consumption - it is not about property of instant moment of time. It is average value FOR SOME PERIOD OF TIME. Pls have a look at the picture:
+
+  PID USER      PR  NI    VIRT    RES    SHR S  %CPU %MEM     TIME+   COMMAND
+13416 vasya     20   0   24024   5308   2132 D  62,9  0,0   0:05.02    dd  
+
+                                                                                                                  
+We see that the state = 'D' %CPU = 62,9
+
+It means that at the moment (right now) the state = 'D' It means right now process does not consume cpu cycles , however some time before the process was NOT in 'D' state and it was consuming cpu cycles. So for the simplicity "top" calculates the average for the last three seconds. It can be like so:
+
+Now - 0%
+1 sec ago - 62,9%
+2 sec ago - 62,9%
+3 sec ago - 62,9%
+
+the average = (62,9%+62,9%+62,9%+0%)/(1+1+1) = 62,9%
+So thats why "top" shows 62.9% of cpu usage in spite of the state of the process is 'D'.
+
+To proof that 'dd' switches between 'D' and 'R' states:
+
+$ while true; do cat /proc/13416/stat | awk '{print $3, $14, $15}'; done
+R 0 745
+R 0 745
+D 0 746
+D 0 746
+D 0 746
+D 0 746
+D 0 746
+D 0 746
+R 0 746
+R 0 746
+R 0 746
+R 0 747
+R 0 747
+R 0 747
+R 0 748
+D 0 748
+D 0 748
+D 0 748
+D 0 748
+R 0 748
+R 0 748
+R 0 749
+D 0 749
+R 0 749
+R 0 749
+D 0 750
+D 0 750
+D 0 750
+D 0 750
+D 0 750
+D 0 750
+R 0 750
+R 0 751
+R 0 751
+R 0 752
+R 0 752
+R 0 752
+D 0 752
+D 0 752
+D 0 752
+D 0 752
+D 0 752
+R 0 753
+R 0 753
+D 0 753
+D 0 753
+D 0 753
+D 0 753
+R 0 754
+R 0 754
+R 0 755
+R 0 755
+D 0 756
+D 0 756
+About the meaning of $14 and %15 fields: As for "man proc":
+
+$14 = Amount of time that this process has been scheduled in user mode, measured in clock ticks (divide by sysconf(_SC_CLK_TCK)).
+$15 = Amount of time that this process has been scheduled in kernel mode, measured in clock ticks (divide by sysconf(_SC_CLK_TCK)).
+
+As you can see "dd" switches between 'R' and 'D' states. Thats why average cpu consumption is not 0%.
+
+Also you can see that while the process really in 'D' state it does not consume cpu cycles neither for user mode nor for kernel mode.
+
+As the final suggestion: if you have a process and want to know if it is running right now in user or kernel space --> start monitoring
+
+$ cat /proc/13416/stat | awk '{print $3, $14, $15}';
+If $14 is changing - it means the process in user space, if %15 is changing - it means the process is in kernel space
+
+Hope it helps
+==

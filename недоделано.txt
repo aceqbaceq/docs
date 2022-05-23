@@ -1,3 +1,7 @@
+книги по устройству ядра(которые у меня есть):
+-  operating systems three easy pieces
+
+
 xv6:
 - скачал книжку = /book-rev11.pdf (https://pdos.csail.mit.edu/6.828/2018/xv6/book-rev11.pdf)
 - unix6.pdf = это коментарий к реальному эникс6 на pdp11 который влохновил написание xv6
@@ -30,6 +34,9 @@ signals in linux (прочесь в файле c+assembler)
 
 ====
 вопросы на которых остановился:
+linux:
+ page tables. прочитать упрошенный вариант из book-rev11.pdf и unix6.pdf
+
 раздел multitasking
  щас я более подоробно смотрю на два вопроса nested interrupts 
  какой stack испльзуется
