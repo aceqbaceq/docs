@@ -1,0 +1,74 @@
+xv6.
+
+это операционная система по типу unix.
+написанная для обучения студентов для того чтобы стало понятно как писать ОС
+изнутри.
+
+
+как ее ставить:
+
+
+установка kvm:
+$ grep -Eoc '(vmx|svm)' /proc/cpuinfo
+это  проверка на то что цпу поддверживает hardware виртуализацию.
+vmx - для интел проецссора
+svm - для and процессора
+
+$ sudo apt update
+$ sudo apt install cpu-checker
+
+$ kvm-ok
+INFO: /dev/kvm exists
+KVM acceleration can be used
+
+ставим уже сам kvm
+$ sudo apt install qemu-kvm libvirt-bin bridge-utils virtinst virt-manager
+
+
+Once the packages are installed, the libvirt daemon will start automatically. You can verify it by running:
+$ sudo systemctl is-active libvirtd
+
+To be able to create and manage virtual machines, you’ll need to add your user to the “libvirt” and “kvm” groups. To do that, type in:
+
+$ sudo usermod -aG libvirt $USER
+$ sudo usermod -aG kvm $USER
+
+
+создаем папку куда будем гит проект копировать:
+$ mkdir xv6
+$ cd ./xv6
+$ git clone https://github.com/mit-pdos/xv6-public.git
+$ cd ./xv6-public
+$ cat README
+$ make
+$ make qemu
+
+при этом стартанет наконец xv6 через qemu.
+и также на экране выскочит строчка которой можно повторно запустить xv6:
+$ qemu-system-i386 -serial mon:stdio -drive file=fs.img,index=1,media=disk,format=raw -drive file=xv6.img,index=0,media=disk,format=raw -smp 2 -m 512
+
+стопим эту шарманку. 
+заменяем на x64 версию qemu = qemu-system-x86_64
+добавляем виртуализацию через kvm ( ключ -cpu host -enable-kvm)
+причем ключ -enable-kvm я нашел в отдельном топике. без него нестартует.
+
+$ sudo qemu-system-x86_64 -serial mon:stdio -drive file=fs.img,index=1,media=disk,format=raw -drive file=xv6.img,index=0,media=disk,format=raw -smp 1 -m 512 -cpu host -enable-kvm
+
+итак наконец мы можем стартовать xv6.
+
+проблемы:
+ - все ядра что мы отдадим под ВМ будут шарашить на 100%. непонял это проблема qemu или
+ 	это так xv6 написана.
+
+
+что читать после:
+- скачал книжку = /book-rev11.pdf (https://pdos.csail.mit.edu/6.828/2018/xv6/book-rev11.pdf)
+- unix6.pdf = это коментарий к реальному эникс6 на pdp11 который влохновил написание xv6
+	(https://cs3210.cc.gatech.edu/r/unix6.pdf) ("A COMMENTARY ON THE SIXTH EDITION 
+	UNIX OPERATING SYSTEM" J. Lions.)
+- мнжетсво учебного материала про xv6 = https://pdos.csail.mit.edu/6.828/2011/overview.html
+
+
+
+
+
