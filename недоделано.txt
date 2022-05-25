@@ -1,5 +1,6 @@
 книги по устройству ядра(которые у меня есть):
 -  operating systems three easy pieces
+- здесь два курса и несколько книг по устройству ос (https://www.cse.iitb.ac.in/~mythili/)
 
 
 xv6:
@@ -47,8 +48,8 @@ linux:
 про контекст свичинг. есть понятие cpu context switching а есть linux process context switching
  а есть software context switching а есть cpu hardware context swithing.
  что такое intel tss 
- ===>что такое и зачем stack alignment? и связанный  с ним вопрос - а что такое assmbly function? как это с abi связано? закончил на том что научился компилить и дизасмемблтть проги и в gdb смотреть
- и щас хочу понять как там что происходит при командах push\pop с указателем стека итп <======
+ что такое и зачем stack alignment? и связанный  с ним вопрос - а что такое assmbly function? как это с abi связано? закончил на том что научился компилить и дизасмемблтть проги и в gdb смотреть
+ и щас хочу понять как там что происходит при командах push\pop с указателем стека итп 
 
  
 
@@ -67,37 +68,77 @@ linux:
 с шедулером. как это все шедулится? еще вопрос если процесс вызывал сисколл и цпу начал работать в режиме ядра то какой статус у процесса ?
 
 
-отдельно:
-про состояние процессов 'S'и 'D'.
-хотелось понять  так юзается ли цпу когда проессы в этом состоянии ли нет. 
-выполняется ли на цпу код самой программмы а может волпняется ядерный код? а если ядерный код
-то мы увидим процессорную загрузку именно для этого процесса или она невидна?
-короткий ответ такой если у процсса состояние 'S'или 'D' то ни его юзерский код непоадает на 
-цпу никакой ядерный код тоже непоадает на цпу. а то что top рисует что процесс 'S'\'D' поребляет
-цпу например:
-
-
-  PID USER      PR  NI    VIRT    RES    SHR S  %CPU %MEM     TIME+ COMMAND                                                                                                                   
-                                                                                                                 
-11242 vasya     20   0 16,834g 496240 115508 S   5,3  3,1  18:50.20 chrome                                                                                                                    
-11286 vasya     20   0 16,501g  97576  60228 S   5,3  0,6   7:07.85 chrome   
-
-
-Так это кажущееся расхождение теории с практикой. дело в том что %CPU это не характирикстка
-про сейчас. это среднее за предыдудший промеждуток времени. это значит что за поледние 3 секунды (дефолтовое время усредение у программы top) данные процессы перклюачаист в режим 'R' и жрали цпу.
+еще вопрос:
+посмотреть какие регистры сохраняются и как там с регистрами стека при входе в int80\syscall
+что интересного открылось - мы немжем через gdb долезть до кернел функций. как только мы вызываем 
+ядерный код через syscall\int80 то туда глубже провалится нельзя. gdb недает. он возврашется 
+сразу с резултатом который дает сискол.. то есть gdb может дебагить только в юзер спейсе.
 
 
 
-что немогу понять. если процесс в 'D' state тожрет ли процессор юзер код или кернел код.
-или нет? как насчет 'w' state в цпу? = ответ нет. ни юзер код процесса ни сисколл если он его вызывал
-тоеть кернел код они все непопдают на цпу. процесс нихера нежрет цпу время. вообще. а как же так
-получается часто может но видеть в top что процесс в состоянии D однако cpu usage неноль. секрет
-в том что процесс пееключается между D и R состоянием простомы этого незамечаем потому что
-top показывает состояние процесса на момент "сейчас". у top между периодами обновления
-проходит 3 секунды. что там за эти три сенкуды просиходит с состоянием процесса мы незнаем. он может
-100 раз пеоключитя на R состоие и начать жрать цпу. а cpu колонка в top это незначение
-на сейчас а это среднее за прошедшие 3 секунды. если же процесс 100% все три секунды был только 
-в состоянии D то тогда я гарантрую что cpu usage должен быть строго 0%. если не ноль то значит 
-что гаратингванно процесс перелкючася на R состояние. я так понимаю.
+=====> закончио на том:
+linux-genral описыываю про S и D про то что процесс может туда в то состояние попатсь 
+только если он сделал сисколл. из юзер кода никак!
+
+
+вопрос: как работает tickless ядро , как оно без таймер интеррапт раотает ?
+
+====
+
+вопрос:
+
+как работает clone+ execve?
+парент через clone создает новый процесс . вопрос как после этого парент может влезть 
+в новый процесси и запутитьв нем execve ?
+===
+ответ на ворос из интернета:
+Is the process scheduler "visible" at user space? 
+No. Because scheduler is not a process.
+
+Can I see it with ps? 
+No because ps shows the list of processes.
+
+Maybe is it one of the kernel threads?
+If yes, how is it called?
+No.
+
+How can I "see" it?
+Usually we have a habit to work with processes in linux as a smallest entity. As scheduler
+is not a process you can not "see" it this way.
+
+It doesn’t exist as a separate thread, or module, it’s implemented as a function
+
+Ok, but how and where and in which way is this function run? Is there a way to track it and see it?
+It works this way ( very simplified ):
+There is a timer inside PC. From time to time it sends a signal (an interrupt) to cpu (via interrupt controller). An interrupt is the electrical signal that goes to cpu via its pin. 
+When cpu gets this interrupt it stops what he is doing, saves some registers  and starts to run ISR(Interrupt service routine). An interrupt is the event inside pc that cpu must handle. It means cpu need some piece of code to make it. ISR is the code. Where does it come from? Operating system puts the code beforehand. CPU jumps to ISR ( to be specific "timer interrapt handler") and it invokes scheduler. Scheduler makes "context switch" that is: it evicts some processes from cpu and launches some other, that is it saves all the registers of cpu to memory  (and some other stuff) of one process and loads from memory saved registers state to registers. When it is done scheduler 
+exits and the process starts to work for some time until new timer interrupt happens, new scheduler invocation happens.The current process will be evicted and new one will be launched. This is how multitasking works. Timer Interrupt happens 10ms. That is scheduler is invoked every 10ms.
+
+
+The schema:
+
+Timer Interrupt  --> ISR --> Scheduler  ---> A process switch
+
+
+фишка в том что интеррапт нам дает то что чтобы ни делал цпу он это преркашщаетделать
+потому туда навливается шедулер переталяет регистры (выдваливает старый процесс) и наваливает
+новый процесс. 
+а как дела если нескоько ядер?  как тогда срабаывает шедулер?
+срабатывает это так таймер интеррапт равномерно пуляет по всем ядрам. на какое ядро поидетел
+интеррапт на таком будет остановлено выоплнение процесса будет запущен шедулер и процесс
+будет выдадавлен.
+
+картинка распределние таймер интераптов по ядрам пример
+78279477   77848461   77413669   77695416   77680637   77029408   79250584   78635443   Local timer interrupts
+
+видно что в среднем одинаково.
+тоесть шедулер равномерно отрабабывает по всем ядрам перключая процессы.
+
+
+
+I suggest to read vx6 book = https://pdos.csail.mit.edu/6.828/2018/xv6/book-rev11.pdf
+Also to start making some programs in C and Assembly. It will help to get some fundamentals.
+
+
 
 
