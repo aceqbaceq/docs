@@ -40,6 +40,10 @@ linux:
 
 
 дописать ответы на вопросы syscall, multitasking.
+===
+understanding linux kernel
+главы: interrupts, scheduling, signals 
+===
 
 
 раздел multitasking
@@ -209,15 +213,369 @@ D статус он вызывает  W статус в top/nmon
 ======
 неигнорируемый сигнал типа -9 может ли у него быть кастомный обработчик сигнала
 или только ядерный дефолтовый хендлер
+в man signal нашел что :
+The signals SIGKILL and SIGSTOP cannot be caught or ignored.
+
 =====
 Z процесс
 гда на живой практике с нимис сталкиваются так чтобы они рождались 
 из каких то практичекиз случаев а не лабораторных симуляциях ?
 
 ====
+getconf\sysconf
+о чем это ?
+=====
+C конструкция struct
+как с ней раотать.
+разобрать на примере nanosleep
+=====
+pselect6 
+часто исполщуется в bash
+о чем он?
+=======
+разбобрать clone()
+ у него там всякие опции интересные есть. например чтобы процесс
+ имел свой стек. о чем это ?
+
+ =====
+
+restart_syscall
+почитать man
+====
+man intro
+man standards
+man signal
+man syscalls
+man wait
+=====
+ps -A  -f f
+
+разобрать вывод (иерархический вид процессов)
+и смысл ключей
+
+замечу что 
+ps -f f и ps -ff 
+это совсем разный вывод!
+===
+man exit
+прочитать потмоу что там есть инфо про зомби процессы и про то как
+работает связь между парент и чайлды
+====
+signal
+
+одноверменный прилет сигналов одного и тогоже сигнала (принимает ли ? копит ли? прерывает
+ли хендлер? )
+wait vs waitpid?
+waitpid в цикле?
+
+далее прикол втом что если мы заменим строчку 
+
+sleep(30 * kid);
+
+на 
+
+sleep(1);
+
+это будет значит что все чилдрены одновременно (более менее) закончать свою работу.
+тогда получится то что (надо обьяснить почему) часть чайлдов окажется необработанной 
+сигнал хендлером и они останутся висеть как Z. 
+чтобы этого небыло наизменить хэендлер вот с такого
+
+static void reapChild(int sig) {
+  waitpid(-1, NULL, 0);
+  NumChildrenExit++;
+}
+
+на такой (обьяснить почему это даст эффект)
+
+static void reapChild(int sig) {
+    while (1) {
+       pid_t pid = waitpid(-1, NULL, 0);
+       if (pid < 0) break;
+       NumChildrenExit++;
+    }
+}
+
+
+(обьяснить почему это даст эффект)
+
+
+причем походу когда вызывается сигнал хендлер то по любому парент процесс блочится?(статус D видимо?) или просто неисполняется типа как goto\jmp? 
+
+что дает waitpid(-1, NULL, 0) vs waitpid(-1, NULL, WNOHANG ) ?
+
+получается что wait от waitpid оличается тем что в waitpid побольше есть опций и все.
+если мы в теле программы ставим wait\waitpid то программа дальге недвинется пока неумрет
+хотя бы один чайлд wait]waitpid будет стоять и ждать. и только окгда умрет хотя бы один чайлд
+тогда будет возврат из этой функции и тело главой программы сможет двигать дальше.
+
+если поместить wait\waitpid в хендлер то возврат в главнуб прграмму произойдет мгновенно
+потому что хендлер то вызывается только тогда когда один из чайлдов точно сдох. поэтому когда
+мы помщаем wait\waitpid в хендлер а не втело пгрограммы то тогда блокировка (то есть задержка выполнения гавной программы) минимальня по времени. во время задержки как я понимаб (надо провертиь)
+ сттатус парент процесса будет R.  
+
+ поэтому если мы арзмеостоли wait\waitpuid  втеле програмы но нехотим ждать пока чайлд  сдохнет
+ то мы тогда вот используется для этого флг WNOHANG
+
+ waitpid(-1,null,WNOHANG)
+
+ этот флаг приводит к тому что waitpif неждет когда сдонет чайлд а просто делает проверку есть ли 
+ сдохший прям щас. если не то сразу возврвается в тело главной прогарммы.
+ вот зачем может понадобтся флаг WNOHANG!!!!
+
+ тогда зачем он нужен в хенделере ( втеле главной програмы понятно) ? и что будет
+ если выоплнятемся хендлер а в процесс прилетает такой же сигнал? хендлер прерывается? или что?
+
+ из man signal я вижу что если прилетел сигнал то принятие такого же сигнала блокируется (вопрос что тогда будет с прилетевшим но заблоченным сигналом)  и происходит вход в хендлер.
+ по выходе из хендлера сигнал разблокируется.
+
+при запуске прогиаммы вот  стаким сигнал хенддлером:
+ signal(SIGCHLD, reapChild);
+
+rt_sigaction(SIGCHLD, {sa_handler=0x55df72c187aa, sa_mask=[CHLD], sa_flags=SA_RESTORER|SA_RESTART, sa_restorer=0x7fbf43736040}, {sa_handler=SIG_DFL, sa_mask=[], sa_flags=0}, 8) = 0
+
+видно что были установлены флаги:SA_RESTORER|SA_RESTART и SIG_DFL
+
+согласно man 7 signal : if multiple instances of a standard signal are delivered while that signal is currently blocked, then
+           only one instance is queued.
+тоесть вот мы полувили 1 сигнал. ядро заблокиовалоп поучение нового такогоже.
+вошли в хендлер. выполняем . в это время летят таки еже сигналы. и как японял ядро сохранит в 
+статусе пендинг в очереди ровно 1 такойж сигнал которй будет доставлен после того как 
+ехендлер закончит и выйдет.
+
+
+libc signal несипольуеся керенл ссиколл signal  а исползует сисколл sigaction
+
+(прочитать статью от доков glibc о сигналах https://www.gnu.org/software/libc/manual/html_node/Handler-Returns.html)
+оттуда читаю:
+When the handler for a particular signal is invoked, that signal is automatically blocked
+until the handler returns. That means that if two signals of the same kind arrive close
+together, the second one will be held until the first has been handled. (The handler can
+explicitly unblock the signal using sigprocmask, if you want to allow more signals of this
+type to arrive; see Section 24.7.3 [Process Signal Mask], page 751.)
+
+However, your handler can still be interrupted by delivery of another kind of signal. To
+avoid this, you can use the sa_mask member of the action structure passed to sigaction
+to explicitly specify which signals should be blocked while the signal handler runs. 
+
+Portability Note: Always use sigaction to establish a handler for a signal that you
+expect to receive asynchronously, if you want your program to work properly on System
+V Unix. On this system, the handling of a signal whose handler was established with
+signal automatically sets the signal’s action back to SIG_DFL, and the handler must reestablish itself each time it runs. This practice, while inconvenient, does work when signals
+cannot arrive in succession. However, if another signal can arrive right away, it may arrive
+before the handler can re-establish itself. Then the second signal would receive the default
+handling, which could terminate the process = чего ?
+
+насколько я понял читая доки и по signal и по cpu interrupts и в том и в другом случае 
+они когда говорят asyncncronous interrupt они имеют ввиду ( хотя это дебильно по мне) то что 
+возниконовение события независит от самого кода программы, от команд программы (процесса)
+с точки зрения кода програмного кода событие может возникнуть(прилететь) абсолютно непредсказуемо
+в с точки зрения очередной команды в коде процесса. когда же они говоря что synchrounus interrupt
+то имеютт ввиду что событие абсолютно предсказуемо возникнет ибо оно завиисит от очередной 
+команды в коде процесса. ( в документации к процессаорам интел и цпу excepton\interrupt авторы 
+называют синхронные события эксшепсенасами а асинхронные интерраптами  так чисто для српавки. итак еще раз с точки зрения создатеей цпу интел  если жопное событие происходит из за очередной команды в
+коде то это эксепшн. и он является синхронным тоесть это ознчает что событие произошло из за команды в коде.  если жопное событие произошло не из за команды в коде а по какйото другой причине
+то с точки зрения интеловцев это называется интеррапт. и это событие асинхронное то есть оно произошло не иза за команды в коде программы а из за чегото внешнего как например на сетевую карту прилетел пакет. вот что  вих дебаильном понимании смысл слов синхронное асинхронное. этот же дебилный смысл синхронное асинхронное переносится и сохраняется на signal то есть на сигналы. прилетит сигнал или неприлетит зависит не от кода в процессе а от чегото внешнего. значит это асинхронное событие. какой же дебилизм они вложиили в понятия синхронный асинхронный. обычно слово синхронный означает одновременное происходждение события с чемто с чем синхронизируемся с какито 
+другим эталонный событием. здесь походу пьесы они когда говорят синхронное то связывают возникноневения события с командой в коде. тоесть если в коде есть команда скажем int n которая вызывает событие прерывания то это синхронное событие. кстати поэтому команды int n вызывает эксепшен а не интеррапт.  получается с точки зрения кода процесса появление эксепшенса полностью предсказуемо. там где есть определенный кусок кода там будет возникаить предсказумое прерывание 
+выполнения кода процесса назыаемое эксепшен. а возникновение прерыавания выполненеия кода типа интеррапт совершенно не связано с телом кода с его командами. поэтому это событие interrupt.    ).
+
+
+вот такая программа:
+$ cat 40.c
+#include <stdio.h>
+#include <stdlib.h>
+#include <signal.h>
+#include <unistd.h>
+
+int main(void)
+{
+//Register signal handler through the signal() function
+signal(SIGINT, SIG_IGN);
+
+while(1)
+{
+//simulate a delay -- as if the program is doing some other stuff
+sleep(10);
+}
+
+return 0;
+}
+
+что в ней примечательного - во первых надо знать что signal это libc функци обертка  которая 
+по факту использует сисколл rt_sigaction ( man rt_sigaction) а не сисколл signal. так вот
+второй параметр в libc signal это необязательно ссылка на тело хендлера это может быть сразу 
+некое действие. в данном случае  
+
+signal(SIGINT, SIG_IGN);
+
+поговорим о втором параметре в signal(). согласно man 2 signal
+второй парметр это : 
+   либо SIG_IGN, 
+   либо  SIG_DFL, 
+   либо the address of a programmer-defined function (a "signal handler").
+
+SIG_IGN = означает действие проигнорировать сигнал тоесть ничего неделать
+SIG_DFL = означает что ядро должно сделать дефолтовое действие в ответ на сигнал. а что 
+это за дефолтовое дейтвие? это зависит от того какой конкретно сигнал прилетел, в man 7 signal есть таблица дефолтовых действия ядра для каждого сигнала. для SIGINT дефолтовое дейтсвие это уничтожит процесс. а например для SIGCHLD дефолтовое дейтсвие это проигнорировать.
+
+также там в манах написано что libc signal() она херово переносится с платформы на платформу ( а оно вобще надо? ), они пишут что код будет переносимым только если мы во втором параметре будем использовать SIG_IGN\SIG_DFL а если ссылку на тело хендлера то нет,
+ поэтому они советуют вместо libc signal() использовать libc sigaction().
+
+
+
+как видно я в программе вторым параметром выставляю действие SIG_IGN - оно говорит что   to ignore this signal (пруф в man 2 sigaction).
+таким образом когда в процесс прилетает сигнал SIGINT то мы в ответ неделаем ничего. компилируем запускаем проверяем - начинаем тыкать Ctrl+C - в ответ программа продолжает работать.
+
+
+а вот это как выглядит сисколл который наша программа вызывает в итоге при запуске (смотрим через strace) 
+$ strace ./40.exe
+
+rt_sigaction(SIGINT, {sa_handler=SIG_IGN, sa_mask=[INT], sa_flags=SA_RESTORER|SA_RESTART, sa_restorer=0x7fb9c1415040}, {sa_handler=SIG_DFL, sa_mask=[], sa_flags=0}, 8) = 0
+
+видно что реальн испльщуется сиколл rt_sigaction с параметрами
+sa_handler=SIG_IGN,
+sa_flags=SA_RESTORER|SA_RESTART
+sa_handler=SIG_DFL == ? вот это пока непонятно почему второй sa_handler есть
+
+поэтому кстати и 
+
+$ kill -15 pid
+
+непоможет. 
+
+далее я еще чуть добавил в программе а именно игноринг сигнала SIGTERM который -15
+
+$ cat 40.c
+#include <stdio.h>
+#include <stdlib.h>
+#include <signal.h>
+#include <unistd.h>
+
+int main(void)
+{
+//Register signal handler through the signal() function
+signal(SIGINT, SIG_IGN);
+signal(SIGTERM, SIG_IGN);
+
+while(1)
+{
+//simulate a delay -- as if the program is doing some other stuff
+sleep(10);
+}
+
+return 0;
+}
+
+теперь программу и через 
+
+$ kill -15 pid
+
+незавалишь. только kill -9 потому что еще раз напоминаю (согласно man 7 signal) The signals SIGKILL and SIGSTOP cannot be caught, blocked, or ignored. поэтому на kill -9  нельзя кастомный хендлер написать. а по дефолту ядро убивает процесс на SIGKILL.
+
+а вот я подключился к нашему 40.exe 
+
+$ sudo strace -f -p 2590
+strace: Process 2590 attached
+
+и смотрю как в него прилетали сигналы
+
+--- SIGINT {si_signo=SIGINT, si_code=SI_KERNEL} ---
+restart_syscall(<... resuming interrupted nanosleep ...>) = ? ERESTART_RESTARTBLOCK (Interrupted by signal)
+
+--- SIGTERM {si_signo=SIGTERM, si_code=SI_USER, si_pid=27858, si_uid=1000} ---
+restart_syscall(<... resuming interrupted nanosleep ...>) = 0
+
++++ killed by SIGKILL +++
+
+видно что ни SIGINT ни SIGTERM немогли убить процесс.
+видно что происходил рестарт сисколла nanosleep мне кажется потому что при установке хендлера
+был выставлен флаг sa_flags=SA_RESTORER|SA_RESTART
+вопрос а зачем его рестартовать. почему просто непродолжить с того места где закончил 
+перед входом в хендлер.
+
+ну вобщем это приколтно что в signal () можно сразу указат действие а не ссылку на 
+тело большого хендлера.
+
+а щас у меня вопрос что значит reestablish handler.
 
 
 
 
 
+тут я прервался и прерквлюичился на тему цпу интерраптс:
+книга- Pentium® Processor Family
+Developer’s Manual
+Volume 3:
+Architecture and Programming Manual
 
+стр. 3-32:
+The processor has two mechanisms for interrupting program execution:
+1. Exceptions are synchronous events which are responses of the processor to certain
+conditions detected during the execution of an instruction.
+2. Interrupts are asynchronous events typically triggered by external devices needing
+attention.
+Interrupts and exceptions are alike in that both cause the processor to temporarily suspend the
+program being run in order to run a program of higher priority. The major distinction
+between these two kinds of interrupts is their origin. An exception is always reproducible by
+re-executing the program which caused the exception, while an interrupt can have a complex,
+timing-dependent relationship with programs.
+
+сhapter 14:
+Exceptions and interrupts are forced transfers of execution to a task or a procedure. The task
+or procedure is called a handler.
+Interrupts occur at random times during the execution of a
+program, in response to signals from hardware. Exceptions occur when instructions are
+executed which provoke exceptions. Usually, the servicing of interrupts and exceptions is
+performed in a manner transparent to application programs. Interrupts are used to handle
+events external to the processor, such as requests to service peripheral devices. Exceptions
+handle conditions detected by the processor in the course of executing instructions, such as
+division by zero
+
+There are two sources for interrupts and two sources for exceptions:
+1. Interrupts
+ Maskable interrupts, which are received on the CPU's INTR input pin. Maskable
+interrupts do not occur unless the interrupt-enable flag (IF) is set.
+ Nonmaskable interrupts, which are received on the NMI (Non-Maskable Interrupt)
+input of the processor. The processor does not provide a mechanism to prevent
+nonmaskable interrupts.
+2. Exceptions
+ Processor-detected exceptions. These are further classified as faults, traps, and
+aborts.
+ Programmed exceptions. The INTO, INT 3, INT n, and BOUND instructions may
+trigger exceptions. These instructions often are called "software interrupts," but the
+processor handles them as exceptions.
+This chapter explains the features of the processor which control and respond to interrupts.
+
+номер интеррапта \ эксепшена назвыается vector.
+The vectors for maskable interrupts are determined by hardware. External interrupt
+controllers (such as Intel's 8259A Programmable Interrupt Controller) put the vector on the
+processor's bus during its interrupt-acknowledge cycle. 
+
+Faults—A fault is an exception which is reported at the instruction boundary prior to the
+instruction in which the exception was detected. The fault is reported with the machine
+restored to a state which permits the instruction to be restarted. The return address for the
+fault handler points to the instruction which generated the fault, rather than the instruction
+following the faulting instruction.
+
+Traps—A trap is an exception which is reported at the instruction boundary immediately
+after the instruction in which the exception was detected. ('сюда как раз инструцция int n входит)
+
+Aborts—An abort is an exception which does not always report the location of the instruction
+causing the exception and does not allow restart of the program which caused the exception.
+Aborts are used to report severe errors, such as hardware errors and inconsistent or illegal
+values in system tables. тут говорится о том что обработчик аборта невсегда может указать 
+на какой команде произошла жопа и не всегда можно продолжить выполнеие далее. ибо аборт случается в случае тяжелых повреждений железа видимо.
+
+тут вопрос заключется в том что непонятен смысл слов синхронный vs асинхронный. 
+как я понял в это вкладывется дурацкий смысл - синхронный значит что ошибку можно повторить еси заупстит программу повторно то она на том же месте на тойже команде сгеннерирует предасказуемо
+ту же ошрбку а асинхронный означает что грубоговоря время возниконовние ошибки непредтказуеом(ибо 
+это происходит на внешнему устройстве).бредятина. также непонятно когда происходит переход на исоплнение  хенддера - до дермьмовой команды или после или когда? ( а начал я это изучать по прчиичине слов синхронный асинхронный signal . оттуда я суюда пришел!)
+
+еще раз начал читать про цпу интеррапты из за темы signals и фразы syncronoous\asyncronous
+хочу понять что это значит. а сигналы я начал читать с темы одновременного прихода несоклких
+сигналов в процесс. и комндды waitpid (-1,null,WNOHUNG) зачем его сунули в хендлер? !!!
+вот откуда я сюда пришел!
+
+
+
+так пока оставим тогда цпу интеррапты. нафик а то перегруз головы.
