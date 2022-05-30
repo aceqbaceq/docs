@@ -33,7 +33,12 @@ signals in linux (прочесь в файле c+assembler)
 это работает ? как вобе можно прервыать сисиколл. ведь в это время цпу работае в режиме ядра
 тоесть там нет никакого прцоесса. если процсс прерыать то его состояние можно срхранить
 а как можно созранить состояние выполпние сисколла в режиме ядра? тамже нет процесса никакого !
+====
+puts
+printf
 
+разница. 
+и формат что в себя включает у prinf
 ====
 вопросы на которых остановился:
 linux:
@@ -741,25 +746,220 @@ i am inside the handler SIGHUP
 i exit from the handler SIGHUP
 
 
-исходный сигнал
+еще один эксперимент. добавляемт третий сигнал.
+вот как выглядит програма при этом
+
+$ cat 41.c
+#include <stdio.h>
+#include <stdlib.h>
+#include <signal.h>
+#include <unistd.h>
+#include <sys/wait.h>
+
+ void vasya(int sig){
+      printf("  i am inside the handler SIGINT(-2+) \n");
+       sleep (30);
+      printf("  i exit from the handler SIGINT(-2-) \n");
+
+       };
+
+
+ void petya(int sig){
+      printf("i am inside the handler SIGHUP(-1+) \n");
+       sleep (30);
+      printf("i exit from the handler SIGHUP(-1-) \n");
+
+       };
+
+
+ void kolya(int sig){
+      printf("   i am inside the handler SIGUSR1(-10+) \n");
+       sleep (30);
+      printf("   i exit from the handler SIGUSR1(-10-) \n");
+
+       };
+
+
+
+
+
+
+int main(void)
+{
+//Register signal handler through the signal() function
+signal(SIGINT,  vasya);
+signal(SIGHUP,  petya);
+signal(SIGUSR1, kolya);
+
+printf("parent: parentpid=%d\n", getpid());
+
+pid_t pid_c;
+
+
+
+while(1)
+{
+//simulate a delay -- as if the program is doing some other stuff
+sleep(10);
+}
+
+return 0;
+}
+
+
+
+наш исходный сигнал:
+sigs=( -10 -1 -10 -1 -2 -10 -10 -1 -2 -10 -10 -2 -1 -2 -10 -2 -1 -10 -10 -1 -2 -1 -2 -10);
 -10 -1 -10 -1 -2 -10 -10 -1 -2 -10 -10 -2 -1 -2 -10 -2 -1 -10 -10 -1 -2 -1 -2 -10
 = урезаем -10 -10 -10 -10 -10 -10 -10 -10 -10 -10 -1  -1  -1  -1 -1  -1 -1 -2 -2 -2 -2 -2 -2 -2 
 = еще урезаем = -10 -10 -1  -1  -2 -2 = как в итоге будет -10 -1 -2 -2 -1 -10 
 
-практика
-i am inside the handler SIGUSR1   -10
-i am inside the handler SIGINT    -2
-i exit from the handler SIGINT 
-i am inside the handler SIGINT    -2
-i exit from the handler SIGINT 
-i exit from the handler SIGUSR1    
-i am inside the handler SIGUSR1   -10
-i exit from the handler SIGUSR1
-i am inside the handler SIGHUP    -1
-i exit from the handler SIGHUP    
-i am inside the handler SIGHUP    -1
-i exit from the handler SIGHUP    
+практика:
 
+запускаем тест
+$ sigs=( -10 -1 -10 -1 -2 -10 -10 -1 -2 -10 -10 -2 -1 -2 -10 -2 -1 -10 -10 -1 -2 -1 -2 -10);
+$ pid=24562; for i in ${sigs[@]}; do echo "kill $i $pid"; kill $i $pid; sleep 1; done
+тут важно что между командами kill выдерживамем паузу 1с.
+(поскольку пауза в хендлеах 30с то важно отметить что все сигналы успевают быть отосланными
+за время работы первого хенделера это тоже важно тоесть к тому моенту как первй хендлер закончить работать все сигналы уже буут в системе)
+
+результтат:
+   i am inside the handler SIGUSR1(-10+) 
+i am inside the handler SIGHUP(-1+) 
+  i am inside the handler SIGINT(-2+) 
+  i exit from the handler SIGINT(-2-) 
+  i am inside the handler SIGINT(-2+) 
+  i exit from the handler SIGINT(-2-) 
+i exit from the handler SIGHUP(-1-) 
+i am inside the handler SIGHUP(-1+) 
+i exit from the handler SIGHUP(-1-) 
+   i exit from the handler SIGUSR1(-10-) 
+   i am inside the handler SIGUSR1(-10+) 
+   i exit from the handler SIGUSR1(-10-) 
+
+
+
+тоесть 10, 1, 2, 2, 1, 10. полностьб совпало с ресчтеами.
+
+теперт запускаем тот же самый тест но без паузы 1с между команадми. тоесть все килы
+они валятся мгновенно друг за другом.
+
+$ sigs=( -10 -1 -10 -1 -2 -10 -10 -1 -2 -10 -10 -2 -1 -2 -10 -2 -1 -10 -10 -1 -2 -1 -2 -10);
+$ pid=24562; for i in ${sigs[@]}; do echo "kill $i $pid"; kill $i $pid; done
+
+резултат:
+   i am inside the handler SIGUSR1(-10+) 
+  i am inside the handler SIGINT(-2+) 
+  i exit from the handler SIGINT(-2-) 
+  i am inside the handler SIGINT(-2+) 
+  i exit from the handler SIGINT(-2-) 
+   i exit from the handler SIGUSR1(-10-) 
+   i am inside the handler SIGUSR1(-10+) 
+   i exit from the handler SIGUSR1(-10-) 
+i am inside the handler SIGHUP(-1+) 
+i exit from the handler SIGHUP(-1-) 
+i am inside the handler SIGHUP(-1+) 
+i exit from the handler SIGHUP(-1-) 
+
+
+
+тоест 10, 2, 2, 10, 1, 1
+
+запустил еще раз тот же самый тест
+pid=24562; for i in ${sigs[@]}; do echo "kill $i $pid"; kill $i $pid; done
+
+рещуалттат уже друной!
+i am inside the handler SIGHUP(-1+) 
+  i am inside the handler SIGINT(-2+) 
+  i exit from the handler SIGINT(-2-) 
+  i am inside the handler SIGINT(-2+) 
+  i exit from the handler SIGINT(-2-) 
+i exit from the handler SIGHUP(-1-) 
+i am inside the handler SIGHUP(-1+) 
+i exit from the handler SIGHUP(-1-) 
+   i am inside the handler SIGUSR1(-10+) 
+   i exit from the handler SIGUSR1(-10-) 
+   i am inside the handler SIGUSR1(-10+) 
+   i exit from the handler SIGUSR1(-10-) 
+
+
+запускаю еще раз тоже саый тест. при этом даже убираею команду echo чтобы
+килы летели еще быстрее
+pid=24562; for i in ${sigs[@]}; do kill $i $pid; done 
+
+
+резултата:
+   i am inside the handler SIGUSR1(-10+) 
+   i exit from the handler SIGUSR1(-10-) 
+   i am inside the handler SIGUSR1(-10+) 
+   i exit from the handler SIGUSR1(-10-) 
+  i am inside the handler SIGINT(-2+) 
+  i exit from the handler SIGINT(-2-) 
+  i am inside the handler SIGINT(-2+) 
+  i exit from the handler SIGINT(-2-) 
+i am inside the handler SIGHUP(-1+) 
+i exit from the handler SIGHUP(-1-) 
+i am inside the handler SIGHUP(-1+) 
+i exit from the handler SIGHUP(-1-) 
+
+
+еще раз запуска этот же тест 
+pid=24562; for i in ${sigs[@]}; do kill $i $pid; done 
+
+   i am inside the handler SIGUSR1(-10+) 
+  i am inside the handler SIGINT(-2+) 
+  i exit from the handler SIGINT(-2-) 
+  i am inside the handler SIGINT(-2+) 
+  i exit from the handler SIGINT(-2-) 
+  i exit from the handler SIGINT(-2-) 
+) 
+   i exit from the handler SIGUSR1(-10-) 
+   i am inside the handler SIGUSR1(-10+) 
+   i exit from the handler SIGUSR1(-10-) 
+i am inside the handler SIGHUP(-1+) 
+i exit from the handler SIGHUP(-1-) 
+i am inside the handler SIGHUP(-1+) 
+i exit from the handler SIGHUP(-1-) 
+
+
+выводы. последние два тесат вобще были одинаковые а рездултата разный. третий с конца
+почти такйо же как два последние. и видно что три посоедний резульатат олитчиаются.
+мой общий вывод такйо: если мы кидаем огронмую кучу килов сразу быстро за раз то ядро 
+подсоывает их процессу я бы сказал да  в рандомном порядке как это укзаано в man но при этом
+я бы еще казал что все же ядро старается их так посдоывать чтобы небыло разрыва хенделеров.вот этого нет в ман. если же сигналы прилетают быстро но не мгновенно как это было в случае когда мы
+их кидали с разницей в 1с то тогда подсосываются ядром в том порялке в котором их послали. 
+наверное бы в общем случае я для пргамирования я бы исходилиз тоого что сигналы  будут доствалены
+процессу в рандомном порядлке. 
+
+
+далее делаю еще один эскеримент
+$ pid=24562; for i in ${sigs[@]}; do kill $i $pid; done 
+$ pid=24562; for i in ${sigs[@]}; do kill $i $pid; done 
+$ pid=24562; for i in ${sigs[@]}; do kill $i $pid; done 
+
+тоесть посылаю сразу  в три раза болльше сигналов.
+цель : доказать что макмимальная длина очереди в группе всегда не более 2 сигнала.
+тоесть 1 обрабаыватется и 1 в pending состяониив очереди ссои в независииомсоти от того
+скольк ттам в куче прпилетело сигналов.
+
+резульат:
+   i am inside the handler SIGUSR1(-10+) 
+   i exit from the handler SIGUSR1(-10-) 
+   i am inside the handler SIGUSR1(-10+) 
+   i exit from the handler SIGUSR1(-10-) 
+  i am inside the handler SIGINT(-2+) 
+  i exit from the handler SIGINT(-2-) 
+  i am inside the handler SIGINT(-2+) 
+  i exit from the handler SIGINT(-2-) 
+i am inside the handler SIGHUP(-1+) 
+i exit from the handler SIGHUP(-1-) 
+i am inside the handler SIGHUP(-1+) 
+i exit from the handler SIGHUP(-1-) 
+
+
+доказали. видно что каждойго сигнаа всего два штуки. несмотря на нашу огромную тучу исходных 
+посланных сигналов.
+?????????????????????????????????????
 вывод такой. берем общую очередь , разделяем на группы - здесь было три группы: -10, -1, -2
 далее в кажой группе оставляем максимум два элемента тоесть:
 
@@ -781,79 +981,7 @@ i exit from the handler SIGHUP
 и идем дальше по спику если такой хендлер уже запущен то пропускаем а если нет то прерываем 
 текущий хендлер изапускаем следущий. итак до конца . получамм:
 
-вошли в -10
-прервали -10 и вошли в -1
--10 (пропускаем ибо уже запущен)
-прервали -1 и вошли в -2
--1 (пропускаем ибо уже запущен)
--2 (пропускаем ибо уже запущен)
-конец списка. тогда ждем чтобы выполнился последний хендлер.
--2 вышли.
-далее опять смотрим на оставииеся сигналы. тут вопрос - опять рандомно смотрим оставишхся
-или по списку? положим по списку. тогда 
--2 вошли
--2 вышли
--1 вышли
--1 вошли
--1 вышли
--10 вышли
--10 вошли 
--10 вышли
 
-итого:
--10 +
--1 +
--2 +
--2 -
--2+
--2-
--1 -
--1+
--1-
--10-
--10+
--10-
-
-
-
--10 -1 -10 -1 |
--2 -10 -10 -1 |
--2 -10 -10 -2 | 
--1 -2 -10 -2 |
- -1 -10 -10 -1 | 
- -2 -1 -2 -10 |);
-
-
- kill -10 $pid
- kill -1 $pid
- kill -10 $pid
- kill -1 $pid
-
- kill -2 $pid
- kill -10 $pid
- kill -10 $pid
- kill -1 $pid
-
- kill -2 $pid
- kill -10 $pid
- kill -10 $pid
- kill -2 $pid
-
- kill -1 $pid
- kill -2 $pid
- kill -10 $pid
- kill -2 $pid
-
- kill -1 $pid
- kill -10 $pid
- kill -10 $pid
- kill -1 $pid
-
- kill -2 $pid
- kill -1 $pid
- kill -2 $pid
- kill -10 $pid
- 
 
 
 из эксериментов у меня сложилось пока ткое впечателение:
@@ -947,3 +1075,15 @@ values in system tables. тут говорится о том что обрабо
 
 
 так пока оставим тогда цпу интеррапты. нафик а то перегруз головы.
+====
+linux-gemeral 
+статья по terminal и process
+
+открылась огромная тема линукс терминал драйвер.
+в книжке libc это глава 17. - Low level terminal
+также man termios
+потмоу что термиал в линукс это непросто черное окно. это целый железный девайс 
+который реализоован в ядре в форме кода виртуальаного устройства. а так это целый желеный
+девайс со всякими настройками
+
+
