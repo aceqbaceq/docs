@@ -10,7 +10,12 @@ xv6:
 	UNIX OPERATING SYSTEM" J. Lions.)
 - мнжетсво учебного материала про xv6 = https://pdos.csail.mit.edu/6.828/2011/overview.html
 ---
-
+man bash 
+и еще книжку по bash
+----
+основа понимания линукса
+asm, c, сисколлы, процессы, терминал, procfs
+---
 закрыл часть вкладдок в браузере от 29 мая.
 
 еще более исходный вопрос - это чем деплоймент оличаетя от реплика сет и всего остального
@@ -1076,8 +1081,305 @@ values in system tables. тут говорится о том что обрабо
 
 так пока оставим тогда цпу интеррапты. нафик а то перегруз головы.
 ====
+вопрос по функциям в C
+функция имеет параметры которые она принимает когда ее вызывают.
+сответсвтенно парамктры которые ей передали надо где то хранить.
+скажем 
+
+void vasya( int a){
+
+int b;
+b=a;
+	
+};
+
+вот переменные которые обьявляюися внутри функции они же временные 
+на период выполеннеия функции а потом они исчезнут когда она выфдет.
+так вот где  в памяти брать место под эти переменые? ответ. компилятор для этого 
+созает так код что коогда фгукция вызывается то ссылки в памяти под эти переменные идет в
+ стек. я так понимаю .  ну например. берется что b= ссылка на стек+10. а a=сылка на стек+11.
+ а когда мы выходим из стека то эти переменные либо pop все либо меняется ссылка не вершину стека.
+
+ поэтому пременные в фнукции они все локальные. видны только ей когадда она выполняется. 
+ когда она выходит они все типа сичезают. и память освбодждается.
+
+далее при таком виде обьявлени функции
+
+void vasya( int a){
+}
+
+int main (){
+	
+	int c;
+	c =1;
+	vasya (c);
+
+}
+
+при такой шарманке кооагда мы ывзаем фугнкуию из тела прогарммы то из переенной c копиртется значение (единица в данномс лучае) в локальную для фнукии переенную a. тоеть передача параметра
+поисходит через копировагние. в чем тут жопа. в том что если мы в функцию передаем некую большую 
+стрктуру например масив то коироваоть его запорешься. плюс если мы хотим обратно получить 
+измненное значение то нужно както его обратно копироват. мутор.
+
+есть другой выход когда в функиую для парамтера передается незначение методом коирования 
+а ссылку адрес поинтер на перменую в главном теле программы.
+пример
+
+void vasya( int *a){
+
+*a++;
+
+}
+
+int main (){
+	
+	int c;
+	c =1;
+	vasya (&c);
+
+}
+
+тогда насколкоо я понимаю  в функциб при запуске уже некопируется занчение и в функции несоздается
+локальная перменная а работа идет как раз с переменнйо из главного тела. что очено удобно.
+копировать ненадо и сразу есть обратная связь.
+
+
+вот пример. по поводу что если  в функцию передвать перменую по имени то коируется
+ее содержимое в функцию а исходная перменная в main теле неменяется даже если в функции перенная
+меняется. и если передаь в функцию ссылку тоесть поинтер то имзеннеие поинтера в функции мпняет
+эту же перемену и в main теле
+
+
+$ cat 45.c
+#include <stdio.h>
+#include <stdlib.h>
+
+void vasya (int x, int *z){
+
+// increase and print var x
+    x++;
+    printf("func: x=%d\n", x);
+
+    //increase and print *z
+    (*z)++;
+    (*z)++;
+    printf("func vasya: *z=%d\n", *z);
+
+
+};
+
+int main(){
+
+// определяем переменные
+
+  int a;
+  void *a_Ptr;
+  a = 1;
+  a_Ptr = &a;
+// печааем здест фишка в том что поинтер типа void хрен напечатаешь без преобразования его во чтото. 
+// в данном случае в int
+  printf("main: a=%d, *a_Ptr=%d\n",  a,  *(int*)a_Ptr  );
+
+
+
+  int *b_Ptr;
+ *b_Ptr = 2;
+// печатаем
+  printf("main: b_Ptr=%d\n",  *b_Ptr  );
+
+
+
+// вызывем фукнкцию которая меняет переменные. одну переменную передавем через копирование а вторую через поинтер.
+  vasya(a, b_Ptr);
+
+// печатаем все переменые еще раз смотрим изменилиь ли они после функции
+   puts("main: print variables after function call:");
+   printf("main: a=%d, *a_Ptr=%d\n",  a,  *(int*)a_Ptr  );
+   printf("main: b_Ptr=%d\n",  *b_Ptr  );
+
+
+return(0);
+};
+
+
+вывод на экран:
+$ ./45.exe
+main: a=1, *a_Ptr=1
+main: b_Ptr=2
+func: x=2
+func vasya: *z=4
+main: print variables after function call:
+main: a=1, *a_Ptr=1
+main: b_Ptr=4
+
+
+
+=====
+
+pointers in c 
+
+программа
+
+$ cat 45.c
+#include <stdio.h>
+#include <stdlib.h>
+
+void vasya (int a, int *c){
+
+    puts("I am inside the function");
+    printf("a=%d\n", a);
+
+};
+
+int main(){
+
+  int ma;
+  void *mb;
+  int *mc;
+
+  ma = 1;
+  mb = &ma;
+  mc = &ma;
+
+  puts ("i am inside the main before calling the function");
+  printf("ma=%d, mc=%d, mb=%d\n",  ma,  *mc, *(int*)mb );
+
+  vasya(ma, mc);
+
+
+return(0);
+};
+
+
+вопрос вызывает вот этот кусок *(int*)mb
+как его понимать. 
+====
+segmentation fault 
+что это как? откуда беертся?
+====
+C
+типы данных.
+
+size_t = зависит от архиектуры цпу. у x64 это 64 бита. 
+	обычно ее юзают когда юзают индекс в массиве. нужна переменная такого типа которая точно
+	в себе вместит все индексы элемента массива. эта переменная получается portable.
+
+====
+pointers in c
+casting
+void pointer
+*(int *)var
+вообще типы данных особенно те хитрые которые типа позоляют
+программу делать переносимой. 
+
+почемуто в C целые числа которые integer они зовут как integral.
+вобщем это все целые числа и булевые и char. их там разные подвиды целая куча.
+со знаком без знака, длинные короткие. так что если видишь integral types 
+то знай что это целые. вобще в C есть три типа данных - целые, с плавающей точкой и void.
+так что можно понять методом исключения кто такие integral types.
+
+вообще же стадарт прописан в ISO C99.
+=====
+как устроена адресация памяти в линуксе
+====
+переменные посмотреть они выровнены по четным байтам? а выровнены ли они по 64битам?
+а как же читаь и писать из нечетных байтов?
+
+Efficient approach: Since Hexadecimal numbers contain digits from 0 to 15, therefore we can simply check if the last digit is either '0', '2', '4', '6', '8', 'A'(=10), 'C'(=12) or 'E'(=14). If it is, then the given HexaDecimal number will be Even, else Odd.Ap
+
+====
+вот часто пишут на счет выровненного стека например. но прикол то в том что программа
+пишет в виртуальное адресное простанство - мы понятия неимеем в четный или нечетный адрес сконвертирует MMU наш виртуальный адрес. о каком тогда выравнивании может идти речь?
+====
+POSIX VS API VS C VS LIBC VS GLIBC VS C API?
+is website an api?
+UNIX VS POSIX?
+POSIX pdf читать
+posix это subset of unix стандарта, но в каком аспекте это сабсет?
+
+An API is a menu fronting a black box of software services that you (or someone else) has created for others to use. To use an API, you don't need to know what goes on inside the black box. Typically an API will publish information about what it does, what input it needs, and what output it provides.
+
+You can use a programming language to create an API.
+
+An API is a platform that allows different pieces of software, or applications, to communicate with one another
+====
+проверить как работает доступ к нечетным ячейка ram.
+как можно судить что доступ идет к нечетнм ячейкам если програ обращается к вируальным
+адресам и при этом хрен знает какие она вызывает физ адреса.
+проверить переменные по нечетным адресам бывают? если нет то проверить они по 64бит
+выровенны?
+===
+
+sockets
+
+непойму разницу между файлом сокетом на диске и файлом сокетом в /proc/pid/fd
+
+пример
+
+есть докер демон.
+
+# ps aux | grep docker
+root      2176  0.0  0.0 2018340 14240 ?       Ssl  мая13   6:51 /usr/bin/dockerd -H fd:// --containerd=/run/containerd/containerd.sock
+
+
+у него в /var/run есть типа файл сокет
+
+# ls -1al /run | grep docker
+srw-rw----  1 root  docker       0 мая 13 03:29 docker.sock
+
+# file  /run/docker.sock
+/run/docker.sock: socket
+
+тоесть это файл сокет.
+
+а еще в /proc/pid/fd есть типа ссылка на сокеты какието. ну понято что proc это отображение
+данных в ядре о процессе тоесть идея такая что мы гдето в юзерспейсе на диске создаем 
+файл сокет к которому могту другие процессы  конектится для IPC а потом в proc/pid/fd об этом сокете появится какая то заметка. но хотелоь бы както уметь находтся связь между заметкой в proc про сокет и этим файлом на диске в userpace.
+так вот
+
+ в /proc/pid/fd много сокетов. но как понять который из них вдет к /run/docker.sock
+
+ также непонятно как найти все сокеты на диск в юзерспесе для процесса.
+
+хотя есть lsof
+
+# lsof -p 2176
+
+вот что видно для docker.sock
+
+     FD      TYPE             DEVICE      SIZE/OFF       NODE   NAME
+     9u      unix    0xffff8b87177fd000   0t0            30618  /var/run/docker.sock type=STREAM
+
+
+итак тип файла это unix socket
+
+так а вот другие записи у этого процесса с типом unix
+
+TYPE NAME 
+unix type=STREAM 
+unix type=STREAM 
+unix /var/run/docker/metrics.sock type=STREAM
+unix @00019 type=DGRAM
+unix type=DGRAM 
+unix /var/run/docker.sock type=STREAM
+unix type=STREAM 
+unix type=STREAM 
+unix /var/run/docker/libnetwork/1725ca0371d4.sock type=STREAM
+unix /var/run/docker.sock type=STREAM
+unix /var/run/docker.sock type=STREAM
+
+так вот видно что невсе сокеты имеют на диске приземление. что за прикол? как тогда
+имим пользоватся процессам в юзерспейсе ? (разобраться)
+
+
+
+===
 linux-gemeral 
 статья по terminal и process
+пока остановился на ioctl. 
+хочу понять как баш его подкручивает при старте.
+для начала хочу понять как расечатать все termios struct члены.
+
 
 открылась огромная тема линукс терминал драйвер.
 в книжке libc это глава 17. - Low level terminal
@@ -1086,4 +1388,367 @@ linux-gemeral
 который реализоован в ядре в форме кода виртуальаного устройства. а так это целый желеный
 девайс со всякими настройками
 
+
+выдержки из posix.pdf:
+при открытии файла есть флаг  O_NONBLOCK 
+который дает то что файл могут после этого однровремнно открыать и другие (одновременное чтение)
+
+controlling terminal ?
+
+session -   A collection of process groups established for job control purposes.Поэтому в одной 
+			сессии может быть несколько процесс групп.
+			Each process group is a member of a session. A process is considered to be a member of the session of which its process group is a member.
+			получается схема такая процесс входит в группу а группа входит в сессию
+			
+			процесс --->  process group -----> session
+
+			A newly created process joins the session of its creator. A process can alter
+			its session membership; see setsid( ).
+
+
+process group? session ? захера все это ?
+а есть еще process group leader. wow?
+
+Terminal (or Terminal Device)
+A character special file that obeys the specifications of the general terminal interface.
+заметим что терминал и терминал деваайс это у посикс одно и тоже.
+
+Controlling Terminal
+A terminal that is associated with a session. Each session may have at most one controlling
+terminal associated with it, and a controlling terminal is associated with exactly one session.
+Certain input sequences from the controlling terminal cause signals to be sent to all processes in
+the foreground process group associated with the controlling terminal. == ? непонятно
+
+про сесссии:
+When a user logs out of a system, the kernel needs to terminate all the processes the user had running (otherwise, users would leave a slew of old processes sitting around waiting for input that can never arrive). To simplify this task, processes are organized into sets of sessions. 
+The session's ID is the same as the pid of the process that created the session through the setsid() system call. 
+
+сессия всегда имеет номер который равен номеру процесса который был первым у котоорого была 
+эта сессия.
+
+есть session leader = ?
+
+A process group is a collection of related processes which can all be signalled at once.
+
+A session is a collection of process groups, which are either attached to a single terminal device (known as the controlling terminal) or not attached to any terminal.
+
+
+STAT   PID TT        SESS  PGRP COMMAND
+Ss   28783 pts/37   28783 28783 bash
+S    28841 pts/37   28783 28841 bash
+R+   28877 pts/37   28783 28877 ps a -o stat,pid,tty,session,pgrp,command
+S+   28878 pts/37   28783 28877 grep --color=auto -E PID|pts/37
+
+согласно posix у сессии может быть максимум один терминал. а у терминала максимум одна сессия.
+у сессии может и небыть терминала. тоесть либо ноль терминалов либо один. процессов 
+без сессий небывает.
+
+послнный сигнал процессу в группе будет послан всем процессам в группе. походу 
+это смысл иметь группу. проверим?
+
+(что такое субшелл в баш его смысл?)
+
+а смысл сессии?
+
+bash subshell  = что это на уровне процессов и захера он нужен?
+$ ps -A  -o stat,user,pid,tty,session,pgrp,command | (sed -u 1q; grep pts/38)
+STAT USER       PID TT        SESS  PGRP COMMAND
+Ss   vasya    30060 pts/38   30060 30060 bash
+S+   vasya    30118 pts/38   30060 30118 sleep 180
+S+   vasya    30119 pts/38   30060 30118 bash
+S+   vasya    30120 pts/38   30060 30118 sleep 180
+S+   vasya    30121 pts/38   30060 30118 sleep 180
+
+
+кстати про баш. вот мы запустили в баше программу ./31.exe
+
+(окно1)$ ./31.exe
+
+а потом с другого окна послали этой программе сигнал $ kill -19(SIGSTOP) pid(31.exe)
+что тогда у нас произоудет в окне терминала? а произойдет то что  у нас управление вернется
+в наш баш со строкой:
+
+
+(окно1)[1]+  Stopped                 ./31.exe
+(окно1)$
+
+как это получается? коггда мы запускаем из под баш 31.exe то процесс баш форкает себя. получается исходный процесс с баш и дочерний.  в дочернем 
+процессе запускается 31.exe и он работает. а парент процесс в это время в состоянии sleep до момента когда чайлд выйдет ( делается через вызов wait в парент процессе). далее когда мы в в чайлд 31.exe шлем сигнал -19 то во первых ядро его стопит а во вторых ядро шел паренту ( который баш) сигнал SIGCHLD о том что состояние чайлда изменилось ну а башу даже и слать этот сигнал ненадо потому что он уже сидит в сисколле wait() так что баш выходит из состояния S из сисколла wait и его двигается в цпу дальше ну а с точки зрения пользователя мы возврашаемся в баш.
+яхочу этим подчернуть что надпись 
+
+[1]+  Stopped                 ./31.exe
+
+появяется исключительно потому что парент процессом был баш. он  принял сигнал SIGCHLD обраотал 
+его и он баш вывел на экран эту надпись а не ядро. значит еще раз подчеркну что 
+в этом случае сочетание процесов было такое:
+
+bash(parent) -> 31.exe  (child)
+
+щас рсмотрим случай когда парентом у 31.exe явяелсяте не баш а xterm.
+поскольку у xterm нетакой обработчик на сигнал SIGCHLD то в случае остановки 31.exe через сигнал SIGSTOP мы получим от xterm другое поведение.
+
+вот имеем
+$ pstree -Asp 1588
+systemd(1)---systemd(1718)---xterm(1587)---31-1.exe(1588))
+
+тоесть 
+xterm(парент)---31-1.exe(чайлд)
+
+$ kill -19 1588
+
+и в окне xterm никакого сообщения. ничего непроисходит. именно потому что в xterm другой
+обработчик сгнала SIGCHLD
+
+я запустил strace я вообще невижу чтобы xterm принимал сигналы SIGCHLD такое оущщенеи
+что он их просто поставил флаг игнориить.
+
+вот как принимает баш SIGCHLD
+[pid  1851] <... wait4 resumed> [{WIFSTOPPED(s) && WSTOPSIG(s) == SIGSTOP}], WSTOPPED|WCONTINUED, NULL) = 1892
+
+[pid  1851] --- SIGCHLD {si_signo=SIGCHLD, si_code=CLD_STOPPED, si_pid=1892, si_uid=1000, si_status=SIGSTOP, si_utime=0, si_stime=0} ---
+
+[pid  1851] wait4(-1, 0x7ffc66f4e690, WNOHANG|WSTOPPED|WCONTINUED, NULL) = 0
+
+вот видно что его wait4 он ждал событий WNOHANG|WSTOPPED|WCONTINUED
+
+и как резултат он выводит на экран строку 
+[pid  1851] write(2, "\n", 1)           = 1
+[pid  1851] write(2, "[1]+  Stopped                 ./"..., 41) = 41
+
+а уже после этого к башу прилетает SIGCHLD
+[pid  1851] --- SIGCHLD {si_signo=SIGCHLD, si_code=CLD_STOPPED, si_pid=1892, si_uid=1000, si_status=SIGSTOP, si_utime=0, si_stime=0} ---
+
+сраабатывает хендлер баша
+
+[pid  1851] wait4(-1, 0x7ffc66f4e690, WNOHANG|WSTOPPED|WCONTINUED, NULL) = 0
+
+но обрабатывать ему нечего. что видно по коду возврата 0.
+
+и код баша начинает продолжать дальше свою обычную работу - выывод на экран приглашения
+и ожидание нажатия кнопок:
+
+[pid  1851] write(2, "\33]0;vasya@vasya-Lenovo-IdeaPad-L"..., 116) = 116
+[pid  1851] pselect6(1, [0], NULL, NULL, NULL, {[], 8}
+
+
+я еще раз проверил в xterm вобще сигнал sigchld неприлетает. видимо он ставить 
+флаг его игнорировать.
+если баш запускает чайлда и далее ждет через wait
+то xterm запускает чайлда и далее сидит в сисколле :
+poll([{fd=3, events=POLLIN}, {fd=4, events=POLLIN|POLLPRI|POLLRDNORM|POLLRDBAND}], 2, 0) = 0 (Timeout)
+select(6, [3 4 5], [], NULL, NULL
+
+
+вобще как то так выглядит запуск 31.exe через xterm
+
+$ strace -e clone,fork,execve  xterm -e /home/vasya/C/31-1.exe 
+
+execve("/usr/bin/xterm", ["xterm", "-e", "/home/vasya/C/31-1.exe"], 0x7ffdd8f191b0 /* 70 vars */) = 0
+
+clone(child_stack=NULL, flags=CLONE_CHILD_CLEARTID|CLONE_CHILD_SETTID|SIGCHLD, child_tidptr=0x7f340685a390) = 2349
+
+где 2349 это pid процесса 31-1.exe
+
+мы невидим execve потому что он происходит в pid=2349 а strace у нас следит за сисколлами
+в процессе xterm. тоесть в процессе xterm просходит вызов clone() поэтому мы его и видим
+а далее уже execve происхдоит в дочернем процессе который strace нетрейсит поэтому мы его невидим.
+
+так я понял почему strace нетрейсил чайлд процесс. для этого нужно было добавит ключ -f
+итак пробуем:
+
+$ strace -f -e clone,fork,execve  xterm -e /home/vasya/C/31-1.exe
+трейс в паренте(в xterm):
+execve("/usr/bin/xterm", ["xterm", "-e", "/home/vasya/C/31-1.exe"], 0x7ffee2dbf5a8 /* 74 vars */) = 0
+clone(child_stack=NULL, flags=CLONE_CHILD_CLEARTID|CLONE_CHILD_SETTID|SIGCHLD, child_tidptr=0x7fb24e323390) = 3922
+(трейс в чайлде в 31-1.exe)
+strace: Process 3922 attached
+[pid  3922] execve("/home/vasya/C/31-1.exe", ["/home/vasya/C/31-1.exe"], 0x5631c787bed0 /* 78 vars */) = 0
+
+теперь все как в книжке. в паренте вызываем clone() а в чайлде вызываем execve()
+
+
+вот как выглядит запуск 31.exe через bash
+
+clone(child_stack=NULL, flags=CLONE_CHILD_CLEARTID|CLONE_CHILD_SETTID|SIGCHLD, child_tidptr=0x7fb8a8c78490) = 2578
+[pid  2578] execve("./31-1.exe", ["./31-1.exe"], 0x564c5b653510 /* 71 vars */) = 0
+
+
+тут чото неравнозначно я протрейсил.
+
+еще такой момент.
+увидел что когда мы жмем на кнопку "x" крестика на окне то для процесса который работает внутри 
+этого окна это выглядит так что со стороны юзера прилетел сигнал SIGHUP. ну а дефолтовое действие
+у ядра на SIGHUP это убить процесс. мы щас еще раз проверим что нажатие на крестик вызывает 
+посыл SIGHUP путем того что установим кастомный хендлер для sighup.
+
+имеет терминал и в нем bash с pid=4158
+
+а вот как на практике выглядит нажатие на крестик если внутри рабоатет bash
+
+--- SIGHUP {si_signo=SIGHUP, si_code=SI_USER, si_pid=3866, si_uid=1000} ---
+--- SIGCONT {si_signo=SIGCONT, si_code=SI_KERNEL} ---
+
+очень странно. почему то получается так что наше нажатие крестика с одной сторонвы вызывет
+посыл к башу SIGHUP у которого четко видно что заказчик сиганал юзер si_uid=1000 под которым мы сидим также виден четко и процесс который послал SIGHUP это 3866. а что это за процесс?
+
+а это:
+vasya     3866  0.4  0.5 999488 83152 ?        Ssl  мая13 131:03 /usr/lib/gnome-terminal/gnome-terminal-server
+
+ну окей. но второе непонятно. то что автоматом также уже от ядра летит SIGCONT.
+
+дальше уже сам баш посылает сигнал на свое уничтожение
+
+kill(4158, SIGHUP) 
+
+и тутже его принимает
+--- SIGHUP {si_signo=SIGHUP, si_code=SI_USER, si_pid=4158, si_uid=1000} ---
+
+видно что заказчик сигнала si_pid=4158 сам наш процесс bash
+
+
+потом баш еще раз повторяет свою попытку сам себя грохнуть
+
+kill(4158, SIGHUP)                      = 0
+--- SIGHUP {si_signo=SIGHUP, si_code=SI_USER, si_pid=4158, si_uid=1000} ---
+
+и наконец у него это удается
++++ killed by SIGHUP +++
+
+вот так интересно происходит окончание работы баш еси нажать на крестик в окне gnome-terminal
+
+щас попробуем тоже самое когда баш раобтет в окне xterm:
+bash имеет pid=4409
+
+вот деерево процессов
+
+$ pstree -Asp 4409
+systemd(1)---systemd(1718)---gnome-terminal-(3866)---bash(3665)---xterm(4408)---bash(4409)
+
+
+итак тыкаем значок крестика на окне xterm
+трейсим внутри баш процесса
+$ sudo strace -f -p 4409
+
+--- SIGHUP {si_signo=SIGHUP, si_code=SI_USER, si_pid=4408, si_uid=1000} ---
+видим что процесс xterm (4409) послал башу SIGHUP сигнал.
+
+далее видно что как я понимаю начинает отрабатвыает кастом хендле баша на SUGHUP
+
+rt_sigaction(SIGHUP, {sa_handler=0x5570f66ced30, sa_mask=[HUP INT ILL TRAP ABRT BUS FPE USR1 SEGV USR2 PIPE ALRM TERM XCPU XFSZ VTALRM SYS], sa_flags=SA_RESTORER, sa_restorer=0x7f0574d45040}, {sa_handler=0x5570f671fe80, sa_mask=[], sa_flags=SA_RESTORER, sa_restorer=0x7f0574d45040}, 8) = 0
+
+и видимо в этом хендлере уже сам баш начинает себя убивать
+
+kill(4409, SIGHUP)                      = 0
+--- SIGHUP {si_signo=SIGHUP, si_code=SI_USER, si_pid=4409, si_uid=1000} ---
+
+почемуто оно с первого раза оно несрабатыает 
+и баш второй раз заказыаем себя убивать сам и наконец срабаывает
+
+kill(4409, SIGHUP)                      = 0
+--- SIGHUP {si_signo=SIGHUP, si_code=SI_USER, si_pid=4409, si_uid=1000} ---
++++ killed by SIGHUP +++
+
+видно что у баша есть свой кастом хендлер на сигнал SIGHUP.
+также стало понято что когда у нас окно терминала обесечивалось через gnome-terminal то нажатие на крестик вызывает както там сигнал в гном-терминал а он уже направляет SIGHUP баш процессу.
+а когда у нас окно темринала обеспечивается через xterm то нажатие на краетик идет к xterm (пока незнаю через что через какой сигнал) а он уже посываелт SIGHUP башу. 
+
+итак закончил на том что запускаю bash в gnome-term и в xterm.
+жму крестик. смотрю что прилетает при этом в bash и в xterm\gnome-terminal
+всняю а как сделать невомзожным чтобы кретик отарабываел. один способу же занаю надо 
+остановить процесс внутри терминала. тогда крест наживать бесполезено.
+1)возможно. возмонжго если мы запреитим к нам SUGHUP то окно хрен закроешь. щас поробуем.
+2)также надо выяснить а что за сигнал прилетает к gnome-terminal и к xterm при нажати крестика 
+потому что оименно они первополучатели событие нажатия крестик.
+
+хммм..
+почмуто xterm имеет другой pts чем его дети
+
+$ pstree -Asp  5268
+systemd(1)---systemd(1718)---gnome-terminal-(3866)---bash(3665)---xterm(5229)---bash(5230)---bash(5240)---bash(5248)---bash(5268)
+
+$ ps -A -o pid,ppid,pgrp,sess,tty,stat,time,cmd  | grep  -E "PID|5268|5248|5240|5230|5229" | grep -vE "chrom|grep"
+  PID  PPID  PGRP  SESS TT       STAT     TIME CMD
+ 5229  3665  5229  3665 pts/71   S+   00:00:00 xterm -e bash
+ 5230  5229  5230  5230 pts/62   Ss   00:00:00 bash
+ 5240  5230  5240  5230 pts/62   S    00:00:00 bash
+ 5248  5240  5248  5230 pts/62   S    00:00:00 bash
+ 5268  5248  5268  5230 pts/62   S+   00:00:00 bash
+
+
+хотя походу я понял. pts/62 это для окна графическоого который выдает xterm.
+а pts/71 это то окно в котором баш из которого был запущен xterm.
+я проверил так и есть..
+хм.. надо еще об этом подумать и осознать
+
+значит мы щас потрейсим соазу двух зайцев 5229 xterm и 5268 bash во время нажатия крестика
+значит смотрим xterm что у него прорисходит
+
+ унего куча таких сисколлов
+
+ recvmsg(3, {msg_name=NULL, msg_namelen=0, msg_iov=[{iov_base="\t\0037\2\30\0\300\7\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", iov_len=4096}], msg_iovlen=1, msg_controllen=0, msg_flags=0}, 0) = 32
+
+ они значат. xnj это сисколл чтобы получать сообщеия с сокета.детали пока непонятны и небудем пока углубялться. но я это вижу  я так понимаю что через сокет к процессу поступает инфо о том 
+ что нажали крестик.
+ далее он получает сообщение что один из чайлдов(5230) сдох
+
+ --- SIGCHLD {si_signo=SIGCHLD, si_code=CLD_KILLED, si_pid=5230, si_uid=1000, si_status=SIGHUP, si_utime=3, si_stime=0} ---
+
+при этом странно что я неуивдел сообщеия от других чайлдов. хотя это логично - когда у нас одновременно сдыхает куча чайлдов то ядро пошлет в процесс только 1 максимум 2 сигнала об этом.
+остаьные прропадут.
+
+далее он направляет сигнал грохнуть почемуто не тот баш который прям был его чайлд
+а хер знает какой баш там внизу (надо будет еще раз это проверить)
+
+kill(-5230, SIGHUP) 
+
+и вот как xterm заканчивает работу свою. как я понял просто он вызывает сисколл exit_group
+
+
+exit_group(0)                           = ?
++++ exited with 0 +++
+
+при этом что странно что этот сисколл он для процессов у которых несколько тредов запущено 
+и вот мол мы таким макаром заставим выйти все треды. 
+так вот это странно потому что вообщето xterm он однотредовый. вот пруф
+
+$ ls -1al /proc/32173/task/
+dr-xr-xr-x 7 vasya vasya 0 июн  2 02:01 32173
+
+$ ps -L -p 32173
+  PID   LWP TTY          TIME CMD
+32173 32173 pts/50   00:00:00 xterm
+
+
+ну ладно что с texrm примерно понятно.
+
+
+что с баш присходит
+он получает sighup
+--- SIGHUP {si_signo=SIGHUP, si_code=SI_USER, si_pid=5248, si_uid=1000} ---
+
+pid=5248 это баш который его родитель. 
+
+и почемуто в этот раз баш по другому обрабатывает SIGHUP чем как мы это видел в случае 
+когда был только xterm+bash а щас у нас xerm+bash+bash+bash итп
+
+setpgid(0, 7453)                        = 0
+exit_group(0)                           = ?
++++ exited with 0 +++
+
+почемуто он выходит через сисколл exit_group.
+
+надо все таки разбоаться для чего этот exit_group что он делает.
+
+ну в любом случае общая канва понятна. щелкаем на крестик - далее  процесс который обслуживает 
+графическое окно получает через сокет сообщение. далее он посылает kill ребенку или детям
+они вырубаются через хендлер сигнала и далее головной процесс просто делает сисколл exit того
+или иного рода.
+
+
+вылезла полезняшка. в strace флаг -v который позволяет видеть всю строку ioctl целиком 
+а не обрезанную.
+
+также я знаю что если у bash ест дети то на него сигнал kill -15 недействует.
+
+продолэение сдледует
 

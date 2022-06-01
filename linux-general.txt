@@ -2187,6 +2187,11 @@ The end-of-file character is x'04'
 программа которая их непонимает. плюс puts в том что если мы незнаем будет ли у нас в переменной
 символы форматирования то безопаснее юзать puts. примерно так судя по стековерфлоу.
 
+из man puts:
+ int puts(const char *s);
+из man 3 printf:
+ int printf(const char *format, ...);
+
 еще полезняшка можно используя gcc получать нетолько .exe бинарник но и файл с ассемблером
 чтобы недизассмблировать пример
 
@@ -2194,58 +2199,127 @@ $ gcc -o printf.exe printf.c -save-temps -masm=intel
 тогда файл с кодом асемблера будет храниться в 
 $ cat ./printf.s
 
+еще момент. 
+переменные в теле функции по крайней мере часть из них она размещается в стеке.
+когда идет выход из функции то доступ к локальным переменным функции теряется. кактотак.
+потому что все что в стеке то живет дышет меняется и движется.
 
 (конец оффтопик)
 
 
 
 а вот что делает баш при старте с настройками терминала. 
-$ strace -e ioctl bash
-ioctl(0, TCGETS, {B38400 opost isig icanon echo ...}) = 0
-ioctl(2, TCGETS, {B38400 opost isig icanon echo ...}) = 0
-ioctl(255, TIOCGPGRP, [30969])          = 0
-ioctl(255, TIOCSPGRP, [30971])          = 0
-ioctl(255, TIOCGPGRP, [30971])          = 0
-ioctl(255, TCGETS, {B38400 opost isig icanon echo ...}) = 0
---- SIGCHLD {si_signo=SIGCHLD, si_code=CLD_EXITED, si_pid=30972, si_uid=1000, si_status=0, si_utime=0, si_stime=0} ---
---- SIGCHLD {si_signo=SIGCHLD, si_code=CLD_EXITED, si_pid=30977, si_uid=1000, si_status=0, si_utime=0, si_stime=0} ---
-ioctl(1, TCGETS, 0x7fffae1eb440)        = -1 ENOTTY (Inappropriate ioctl for device)
-ioctl(2, TCGETS, 0x7fffae1eb3b0)        = -1 ENOTTY (Inappropriate ioctl for device)
-ioctl(255, TCGETS, {B38400 opost isig icanon echo ...}) = 0
+я использовал в strace флаг -v и смогу увидеть ioctk строки целиком необрезанные
+
+$ strace  -v -e clone,ioctl bash
+
+ioctl(0, TCGETS, {c_iflags=0x4500, c_oflags=0x5, c_cflags=0xbf, c_lflags=0x8a3b, c_line=0, c_cc="\x03\x1c\x7f\x15\x04\x00\x01\x00\x11\x13\x1a\x00\x12\x0f\x17\x16\x00\x00\x00"}) = 0
+ioctl(2, TCGETS, {c_iflags=0x4500, c_oflags=0x5, c_cflags=0xbf, c_lflags=0x8a3b, c_line=0, c_cc="\x03\x1c\x7f\x15\x04\x00\x01\x00\x11\x13\x1a\x00\x12\x0f\x17\x16\x00\x00\x00"}) = 0
+ioctl(255, TIOCGPGRP, [8315])           = 0
+ioctl(255, TIOCSPGRP, [8317])           = 0
+ioctl(255, TIOCGPGRP, [8317])           = 0
+ioctl(255, TCGETS, {c_iflags=0x4500, c_oflags=0x5, c_cflags=0xbf, c_lflags=0x8a3b, c_line=0, c_cc="\x03\x1c\x7f\x15\x04\x00\x01\x00\x11\x13\x1a\x00\x12\x0f\x17\x16\x00\x00\x00"}) = 0
+clone(child_stack=NULL, flags=CLONE_CHILD_CLEARTID|CLONE_CHILD_SETTID|SIGCHLD, child_tidptr=0x7f07117c4490) = 8318
+--- SIGCHLD {si_signo=SIGCHLD, si_code=CLD_EXITED, si_pid=8318, si_uid=1000, si_status=0, si_utime=0, si_stime=0} ---
+clone(child_stack=NULL, flags=CLONE_CHILD_CLEARTID|CLONE_CHILD_SETTID|SIGCHLD, child_tidptr=0x7f07117c4490) = 8323
+--- SIGCHLD {si_signo=SIGCHLD, si_code=CLD_EXITED, si_pid=8323, si_uid=1000, si_status=0, si_utime=0, si_stime=0} ---
+ioctl(1, TCGETS, 0x7ffd59701040)        = -1 ENOTTY (Inappropriate ioctl for device)
+ioctl(2, TCGETS, 0x7ffd59700fb0)        = -1 ENOTTY (Inappropriate ioctl for device)
+ioctl(255, TCGETS, {c_iflags=0x4500, c_oflags=0x5, c_cflags=0xbf, c_lflags=0x8a3b, c_line=0, c_cc="\x03\x1c\x7f\x15\x04\x00\x01\x00\x11\x13\x1a\x00\x12\x0f\x17\x16\x00\x00\x00"}) = 0
 ioctl(255, TIOCGWINSZ, {ws_row=43, ws_col=190, ws_xpixel=0, ws_ypixel=0}) = 0
-ioctl(1, TCGETS, {B38400 opost isig icanon echo ...}) = 0
-ioctl(1, TCGETS, {B38400 opost isig icanon echo ...}) = 0
-ioctl(1, TCGETS, {B38400 opost isig icanon echo ...}) = 0
-ioctl(1, TCGETS, {B38400 opost isig icanon echo ...}) = 0
-ioctl(1, TCGETS, {B38400 opost isig icanon echo ...}) = 0
+ioctl(1, TCGETS, {c_iflags=0x4500, c_oflags=0x5, c_cflags=0xbf, c_lflags=0x8a3b, c_line=0, c_cc="\x03\x1c\x7f\x15\x04\x00\x01\x00\x11\x13\x1a\x00\x12\x0f\x17\x16\x00\x00\x00"}) = 0
+ioctl(1, TCGETS, {c_iflags=0x4500, c_oflags=0x5, c_cflags=0xbf, c_lflags=0x8a3b, c_line=0, c_cc="\x03\x1c\x7f\x15\x04\x00\x01\x00\x11\x13\x1a\x00\x12\x0f\x17\x16\x00\x00\x00"}) = 0
+ioctl(1, TCGETS, {c_iflags=0x4500, c_oflags=0x5, c_cflags=0xbf, c_lflags=0x8a3b, c_line=0, c_cc="\x03\x1c\x7f\x15\x04\x00\x01\x00\x11\x13\x1a\x00\x12\x0f\x17\x16\x00\x00\x00"}) = 0
+ioctl(1, TCGETS, {c_iflags=0x4500, c_oflags=0x5, c_cflags=0xbf, c_lflags=0x8a3b, c_line=0, c_cc="\x03\x1c\x7f\x15\x04\x00\x01\x00\x11\x13\x1a\x00\x12\x0f\x17\x16\x00\x00\x00"}) = 0
+ioctl(1, TCGETS, {c_iflags=0x4500, c_oflags=0x5, c_cflags=0xbf, c_lflags=0x8a3b, c_line=0, c_cc="\x03\x1c\x7f\x15\x04\x00\x01\x00\x11\x13\x1a\x00\x12\x0f\x17\x16\x00\x00\x00"}) = 0
 ioctl(1, TIOCGWINSZ, {ws_row=43, ws_col=190, ws_xpixel=0, ws_ypixel=0}) = 0
 ioctl(0, TIOCGWINSZ, {ws_row=43, ws_col=190, ws_xpixel=0, ws_ypixel=0}) = 0
-ioctl(1, TCGETS, {B38400 opost isig icanon echo ...}) = 0
-ioctl(1, TCGETS, {B38400 opost isig icanon echo ...}) = 0
+ioctl(1, TCGETS, {c_iflags=0x4500, c_oflags=0x5, c_cflags=0xbf, c_lflags=0x8a3b, c_line=0, c_cc="\x03\x1c\x7f\x15\x04\x00\x01\x00\x11\x13\x1a\x00\x12\x0f\x17\x16\x00\x00\x00"}) = 0
+ioctl(1, TCGETS, {c_iflags=0x4500, c_oflags=0x5, c_cflags=0xbf, c_lflags=0x8a3b, c_line=0, c_cc="\x03\x1c\x7f\x15\x04\x00\x01\x00\x11\x13\x1a\x00\x12\x0f\x17\x16\x00\x00\x00"}) = 0
 ioctl(1, TIOCGWINSZ, {ws_row=43, ws_col=190, ws_xpixel=0, ws_ypixel=0}) = 0
 ioctl(0, TIOCGWINSZ, {ws_row=43, ws_col=190, ws_xpixel=0, ws_ypixel=0}) = 0
 ioctl(0, TIOCSWINSZ, {ws_row=43, ws_col=190, ws_xpixel=0, ws_ypixel=0}) = 0
-ioctl(0, TCGETS, {B38400 opost isig icanon echo ...}) = 0
-ioctl(255, TIOCSPGRP, [30971])          = 0
+ioctl(0, TCGETS, {c_iflags=0x4500, c_oflags=0x5, c_cflags=0xbf, c_lflags=0x8a3b, c_line=0, c_cc="\x03\x1c\x7f\x15\x04\x00\x01\x00\x11\x13\x1a\x00\x12\x0f\x17\x16\x00\x00\x00"}) = 0
+ioctl(255, TIOCSPGRP, [8317])           = 0
 ioctl(0, TIOCGWINSZ, {ws_row=43, ws_col=190, ws_xpixel=0, ws_ypixel=0}) = 0
 ioctl(0, TIOCSWINSZ, {ws_row=43, ws_col=190, ws_xpixel=0, ws_ypixel=0}) = 0
-ioctl(0, TCGETS, {B38400 opost isig icanon echo ...}) = 0
-ioctl(0, TCGETS, {B38400 opost isig icanon echo ...}) = 0
-ioctl(0, SNDCTL_TMR_STOP or TCSETSW, {B38400 opost isig -icanon -echo ...}) = 0
-ioctl(0, TCGETS, {B38400 opost isig -icanon -echo ...}) = 0
+ioctl(0, TCGETS, {c_iflags=0x4500, c_oflags=0x5, c_cflags=0xbf, c_lflags=0x8a3b, c_line=0, c_cc="\x03\x1c\x7f\x15\x04\x00\x01\x00\x11\x13\x1a\x00\x12\x0f\x17\x16\x00\x00\x00"}) = 0
+ioctl(0, TCGETS, {c_iflags=0x4500, c_oflags=0x5, c_cflags=0xbf, c_lflags=0x8a3b, c_line=0, c_cc="\x03\x1c\x7f\x15\x04\x00\x01\x00\x11\x13\x1a\x00\x12\x0f\x17\x16\x00\x00\x00"}) = 0
+ioctl(0, SNDCTL_TMR_STOP or TCSETSW, {c_iflags=0x4400, c_oflags=0x5, c_cflags=0xbf, c_lflags=0x8a31, c_line=0, c_cc[VMIN]=1, c_cc[VTIME]=0, c_cc="\x03\x1c\x7f\x15\x04\x00\x01\x00\x11\x13\x1a\x00\x12\x0f\x17\x00\x00\x00\x00"}) = 0
+ioctl(0, TCGETS, {c_iflags=0x4400, c_oflags=0x5, c_cflags=0xbf, c_lflags=0x8a31, c_line=0, c_cc[VMIN]=1, c_cc[VTIME]=0, c_cc="\x03\x1c\x7f\x15\x04\x00\x01\x00\x11\x13\x1a\x00\x12\x0f\x17\x00\x00\x00\x00"}) = 0
 
 
+ксати видно что баш при старте еще создает парочку детей которые потом подыхают.
+
+из man ioctl_tty вижу что
+
+ TCGETS    struct termios *argp
+              Equivalent to tcgetattr(fd, argp).
+              Get the current serial port settings.
 
 
+таким образом строки с TCGETS они нас неинеретсуют  ибо нас инерсуют строки которые меняют
+дефолтовые настройки терминала.
+
+тогда остаются строки
+
+ioctl(255, TIOCGPGRP, [8463])           = 0
+ioctl(255, TIOCSPGRP, [8465])           = 0
+ioctl(255, TIOCGPGRP, [8465])           = 0
+
+ioctl(255, TIOCGWINSZ, {ws_row=43, ws_col=190, ws_xpixel=0, ws_ypixel=0}) = 0
+ioctl(1, TIOCGWINSZ, {ws_row=43, ws_col=190, ws_xpixel=0, ws_ypixel=0}) = 0
+ioctl(0, TIOCGWINSZ, {ws_row=43, ws_col=190, ws_xpixel=0, ws_ypixel=0}) = 0
+ioctl(1, TIOCGWINSZ, {ws_row=43, ws_col=190, ws_xpixel=0, ws_ypixel=0}) = 0
+ioctl(0, TIOCGWINSZ, {ws_row=43, ws_col=190, ws_xpixel=0, ws_ypixel=0}) = 0
+ioctl(0, TIOCSWINSZ, {ws_row=43, ws_col=190, ws_xpixel=0, ws_ypixel=0}) = 0
+
+ioctl(255, TIOCSPGRP, [8465])           = 0
+
+ioctl(0, TIOCGWINSZ, {ws_row=43, ws_col=190, ws_xpixel=0, ws_ypixel=0}) = 0
+ioctl(0, TIOCSWINSZ, {ws_row=43, ws_col=190, ws_xpixel=0, ws_ypixel=0}) = 0
+
+ioctl(0, SNDCTL_TMR_STOP or TCSETSW, {c_iflags=0x4400, c_oflags=0x5, c_cflags=0xbf, c_lflags=0x8a31, c_line=0, c_cc[VMIN]=1, c_cc[VTIME]=0, c_cc="\x03\x1c\x7f\x15\x04\x00\x01\x00\x11\x13\x1a\x00\x12\x0f\x17\x00\x00\x00\x00"}) = 0
 
 
+причем я думаю что реально значение имеет последняя которая с SNDCTL_TMR_STOP or TCSETSW
+
+сравним ее с теми анстройками которе есть изнаально утерминала
+
+ioctl(0, TCGETS, {c_iflags=0x4500, c_oflags=0x5, c_cflags=0xbf, c_lflags=0x8a3b, c_line=0, c_cc="\x03\x1c\x7f\x15\x04\x00\x01\x00\x11\x13\x1a\x00\x12\x0f\x17\x16\x00\x00\x00"}) = 0
+
+итак было:
+{c_iflags=0x4500, c_oflags=0x5, c_cflags=0xbf, c_lflags=0x8a3b, c_line=0, c_cc="\x03\x1c\x7f\x15\x04\x00\x01\x00\x11\x13\x1a\x00\x12\x0f\x17\x16\x00\x00\x00"}
+
+стало:
+{c_iflags=0x4400, c_oflags=0x5, c_cflags=0xbf, c_lflags=0x8a31, c_line=0, c_cc[VMIN]=1, c_cc[VTIME]=0, c_cc="\x03\x1c\x7f\x15\x04\x00\x01\x00\x11\x13\x1a\x00\x12\x0f\x17\x00\x00\x00\x00"}
+
+разница реально есть.
 
 
+сравним что делает xterm+./31-1.exe(самописная програма которая ничего неделает) при старте. видно что xterm  вызов SNDCTL_TMR_STOP or TCSETSW неиспольует (как баш)
+и в итоге у терминала настройки выглядят так:
+
+{c_iflags=0x500, c_oflags=0x5, c_cflags=0xbf, c_lflags=0x8a3b, c_line=0, c_cc="\x03\x1c\x7f\x15\x04\x00\x01\x00\x11\x13\x1a\x00\x12\x0f\x17\x16\x00\x00\x00"}
+
+сравним с дефолтовыми
+
+{c_iflags=0x4500, c_oflags=0x5, c_cflags=0xbf, c_lflags=0x8a3b, c_line=0, c_cc="\x03\x1c\x7f\x15\x04\x00\x01\x00\x11\x13\x1a\x00\x12\x0f\x17\x16\x00\x00\x00"}
+
+они почти неотличаются. только вот этим флагом - c_iflags
+
+так что я пока вот думаю что тот факт то когда мы запускаем хоть гном-терминал + 31-1.exe хоть xterm+31-1.exe потом мы ее стопим через -19 сигнал и при этом буквы на экране попрежнему можно вводить они работают.
+а вот если мы берем баш и запускаем хоть bash хоть в xterm хоть в gnome-terminal то стоит 
+нам баш застопить через -19 сигнал и уже нажатие кнопок непечатает на экране. тоесть как бутто получается что гажатие кнопок на экране обслуживает баш процесс что противорчечит тому что мы ране
+писали что нажатие нокопок и печать на экарне осуживает ядро. так вот пртирворчения нет дело в том
+что баш коода стартует он посылает в терминал (железку ) управяляющие команды которые 
+в нем чтото пееркоючюат от дефолтовых настроек и он начинает печатать буквы только если условно 
+говоря как я понимаб только при условии что баш их принял. а раз прцесс стоит то и наэаране пусто.
+
+чтобы это доказать надо расшифровать строку
 
 
-
-
-
+ioctl(0, SNDCTL_TMR_STOP or TCSETSW, {c_iflags=0x4400, c_oflags=0x5, c_cflags=0xbf, c_lflags=0x8a31, c_line=0, c_cc[VMIN]=1, c_cc[VTIME]=0, c_cc="\x03\x1c\x7f\x15\x04\x00\x01\x00\x11\x13\x1a\x00\x12\x0f\x17\x00\x00\x00\x00"}) = 0
 
 
 (надоо попробовать запустт программу в терминале.  и в ее коде закрыть
