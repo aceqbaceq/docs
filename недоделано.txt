@@ -1794,8 +1794,9 @@ dev/pts и тогда терминал его рисует. почему еще 
 вот что я думаю по поводу загадок с баш.
 
 // еще вопросы:
-
-2)поинтеры и воид поинтер
+0) вызов функции что с стэком? они один для всей юзер программы . читал что для кажой функции 
+свой стек. что за бред.
+2)поинтеры и воид 
 3)баш джобс ctrl+z
 4)программа открывает X окно
 5)ping сисколлы сетевой сокет
@@ -1842,6 +1843,391 @@ man proc ( раздел /proc/stat)
 
 также выснилось отсюда https://tanelpoder.com/posts/linux-hiding-interrupt-cpu-usage/ 
 	что  
+
+продлоллжение следует
+
+2)поинтеры и воид поинтер. (пишем эту главу).
+цепочка которая сюда привела.
+
+поинтеры -> printf --> string\literal string -> const char * vs char * const -> разница 
+в ассемблерном представлении простой переменной vs pointer --> fs регистр
+еще надо рассмотреть в каком порядке многобайтовое число пишется в память
+
+
+прежде всего зачем нужные поинтеры если у нас есть обычный способ создавать 
+переменные.
+
+я решил посмотреть в чем разница в асемблере меджу обьявлением простой переменной
+и переменной типа поинтер :
+
+
+увтвержается что локальная переменная в функции в том числе и в main() сохраняется
+в стек. проверим. кстати ответ на вопрос а почему локальные перменные сохраняются в стек
+а не например в heap. дело в том что сохранние в heap происходит в миллиард раз дольше.
+потому что: сохранение  в стек выполняетя парой ассемблерных команд. условно говоря переменная 
+сохраняется одной командой типа
+
+mov    BYTE PTR [ebp-0x1],0x1
+
+и все. это очень быстро.
+а вот чтобы в heap сохранить нужно вначале вызват сисколл malloc() который там прогонит типа тонну 
+кода чтобы выделить в физ памяти некий кусок нами запрошенный под переменную. тоесть это заведомо
+гораздо более долгая процедура (проверить на практике). поэтому компилятор сует переменнные 
+в стек. это очень просто и очень быстро. вот почему перменные хранятся в стеке.
+пишут что макс размер для одного треда юзер программы 8МБ 
+
+(как проверить?) : 
+$ $ ulimit -s
+8192
+
+это означает 8МБ.
+если программа превысит этот размер то стек начнет налезать на область памяти там где вроде как
+код хранится программы с командами. и тогда линукс ядро вызовет SEGFAULT сигнал в процесс (все это надо проверить)
+
+ (как узнать текущий
+размер стека у процесса?) :
+
+$ cat /proc/16455/maps | grep stack
+7ffe90c08000-7ffe90c29000 rw-p 00000000 00:00 0                          [stack]
+
+$ a=$(echo "7ffe90c08000-7ffe90c29000" | awk '{print toupper($0) }'); echo "obase=10;ibase=16; ($a)/400" | bc
+-132
+
+итого 132КБ занимает стек у баша.
+
+malloc() это сисколл который позволяет запросить у ядра память из heap.
+
+The only downside of stack allocation is you MUST release your stack space before you can return from your function.  This means long-lived data structures, like a user info class used for the rest of the program, need to be allocated on the heap with malloc. Это обьясняет почему в функциях может быть malloc. чтобы сохранились данные котороые надо сохранить потому что все что без malloc
+будет потеряно при выходе из функции (кроме поинтеров которые были переданы в параметрах функции)
+
+как выглядит программма и ассемблер когда мы обяьвяляем переменную классичекиим
+способом:
+
+$ cat 51.c
+#include<stdlib.h>
+#include<stdio.h>
+
+
+int main(){
+
+
+// обьявляем переменные
+
+char d = 1;
+
+return(0);
+};
+
+
+компилируем в 32bit версию машинны кодов(это важно потому что 64битной версии все будет подругому):
+
+$ gcc -m32 -o 51.exe 51.c
+дизасмбьируем и смотрим
+$ objdump -d ./51.exe -M intel
+
+000004ed <main>:
+ 4ed:	55                   	push   ebp
+ 4ee:	89 e5                	mov    ebp,esp
+ 4f0:	83 ec 10             	sub    esp,0x10
+ 4f3:	e8 10 00 00 00       	call   508 <__x86.get_pc_thunk.ax>
+ 4f8:	05 e4 1a 00 00       	add    eax,0x1ae4
+ 4fd:	c6 45 ff 01          	mov    BYTE PTR [ebp-0x1],0x1
+ 501:	b8 00 00 00 00       	mov    eax,0x0
+ 506:	c9                   	leave  
+ 507:	c3                   	ret 
+
+
+00000508 <__x86.get_pc_thunk.ax>:
+ 508:	8b 04 24             	mov    eax,DWORD PTR [esp]
+ 50b:	c3                   	ret    
+ 50c:	66 90                	xchg   ax,ax
+ 50e:	66 90                	xchg   ax,ax
+
+
+по факту мы сохарняем указатель стека esp в ebp
+потому мы сдвигаем стек (esp) на 16 байт наверх (почему на 16?)
+ebp у нас прии этом сохранил ссылку на старый указатель стека. и через вот эту команду
+
+mov    BYTE PTR [ebp-0x1],0x1
+
+мы сохарняем переменую в стеке.
+все более менее понятно.
+
+а вот эта строка
+
+mov    eax,0x0
+
+это код возврата из функции.
+
+что вызывает шок что для 64битной версии машиных кодов тот же самый 51.c текст 
+дает нечто совсем другое:
+
+$ gcc -m64 -o 51.exe 51.c
+
+00000000000005fa <main>:
+ 5fa:	55                   	push   rbp
+ 5fb:	48 89 e5             	mov    rbp,rsp
+ 5fe:	c6 45 ff 01          	mov    BYTE PTR [rbp-0x1],0x1
+ 602:	b8 00 00 00 00       	mov    eax,0x0
+ 607:	5d                   	pop    rbp
+ 608:	c3                   	ret    
+ 609:	0f 1f 80 00 00 00 00 	nop    DWORD PTR [rax+0x0]
+
+что меня шокирует это то что неменяется указатель на esp.
+как так? 
+
+оказывется дело в red zone. (рассказать о ней).
+если сказать компилятору чтобы он забил хер на эту красную зону ( флаг -mno-red-zone )
+$ gcc -g -m64 -mno-red-zone -o 51.exe 51.c
+
+то код уже выглядит как положено:
+
+00000000000005fa <main>:
+ 5fa:	55                   	push   rbp
+ 5fb:	48 89 e5             	mov    rbp,rsp
+ 5fe:	48 83 ec 10          	sub    rsp,0x10
+ 602:	c6 45 ff 01          	mov    BYTE PTR [rbp-0x1],0x1
+ 606:	b8 00 00 00 00       	mov    eax,0x0
+ 60b:	c9                   	leave  
+ 60c:	c3                   	ret    
+
+а именно наконец появилась команда
+
+sub    rsp,0x10
+
+тоесть мы двигаем верхушку стека вверх на 16 байт.
+а потому внутри стека через mov копируем переменную.
+
+что такое red zone:
+The red zone is the 128 bytes just below rsp, i.e. rsp - 128 to rsp - 1.
+
+
+
+
+есть три проблемы
+float * a_Ptr - обьявление переменной
+*a_Ptr - обращение к переменной на которую ссылается поинтер
+b_Ptr = (int*) a_Ptr - переделка поинтера одного типа в поинтер другого типа
+a_Ptr = &a - запись адреса в сам поинтер
+
+все эти вопросы конфьюзные. причина конфьюза в знаке * который морочит голову. 
+
+
+- ПЕРЕДЕЛАТЬ ЭТУ ГЛАВУ!!!!!! 
+ха! напоролся на очеердной вопрос.
+	 про printf. 
+	 написано в man 3 printf что: 
+	int printf(const char*  format, ...);
+
+	и тут очень важно понять значение строки 
+
+	const char*  format;
+
+	format - это имя переменной. понятно идем дальше,
+
+	и давайте сразу поговорим в чем разница между
+
+	const char *
+	char * const
+
+	WARNING!!! все что ниже почти верно но есть важный момент который  я нашел!
+
+	int i = 1;
+	int const * i_Ptr = &i;
+	i++;
+
+	pointer на constant int. означает что изменять int на который указывает поинтер нельзя
+	через поинтер. но! это незапрщеает это делать через другие способы! это очень важный момент!
+	другие обычно пишут что модификация ячейки наа котру ссылкается поитер запрешена. аэто лажа
+	она запрешена только через поинтер. но разрешена через всякие другие способы!
+
+
+	я напоролся на отличную обьяснялку: https://stackoverflow.com/questions/21476869/constant-pointer-vs-pointer-to-constant
+
+		
+	const char* - переводится как pointer to constant char. тоесть поинтер указывает
+	на ячейку памяти у которой тип char и value которой нельзя менять. тоесть сам поинтер 
+	можно менять а вот содержимое ячейку на которую ссылается поинтер менять нельзя. что это значит менять нельзя. это указание для компилятора. он поместит эту char хрень в ту область
+	памяти которая защищена от записи. разрешено только чтение.
+
+	пример программы которая выдаст ошибку
+	 #include<stdio.h>
+
+int main(void)
+{
+    int var1 = 0;
+    const int* ptr = &var1;
+    *ptr = 1;
+    printf("%d\n", *ptr);
+
+    return 0;
+} 
+
+
+	char *const -  оно переводится constant pointer to char. тоесть поинтер менять нельзя. и поинтер ссылается на char. содержимое char менять можно. 
+	пример
+
+	#include<stdio.h>
+
+int main(void)
+{
+    int var1 = 0, var2 = 0;
+    int *const ptr = &var1;
+    ptr = &var2;
+    printf("%d\n", *ptr);
+
+    return 0;
+} 
+
+	также пишут что
+	const char*
+	и
+	char const* 
+	это одно и тоже
+
+	еще есть
+	const char * const - переводистя как constant pointer to constant char.тоесть и поинтер 
+	менять нельзя и содержимое char на которую он указывает.
+
+	еще нашел класную табличку
+	int       *      mutable_pointer_to_mutable_int;
+	int const *      mutable_pointer_to_constant_int;
+	int       *const constant_pointer_to_mutable_int;
+	int const *const constant_pointer_to_constant_int;
+
+
+
+	mutable означает изменчивый.
+	при такой записи удобно птому что все читается четко справа налево.
+
+	тогда удобно верхний пример
+
+	const char *
+	char * const
+
+	переписать как
+
+	char const *      // mutable pointer to constant char
+	char * const 	  // constant pointer to mutable char
+
+
+	тогда спецификацию для printf  ябы переписал:
+
+	int printf(const char*  format, ...); = int printf(char const *  format, ...);
+
+ 	читается mutable pointer to constant char.
+
+
+	в любом тип данных это поинтер.
+
+	окей разобрались. 
+
+	дальше самый прикол. я определяю в программе поинтер который имеет ровно тот тип 
+	который указан в спецификации printf тоесть  const char* 
+
+	const char*      ff = "122\n";
+	printf (ff);
+
+	и при компиляции получаю 
+	warning: format not a string literal and no format arguments [-Wformat-security]
+ 	printf (ff);
+ 	^~~~~~
+
+ 	тоесть как бутто я сую в printf чтото нетого формата!
+
+ 	тогда я делаю парадоксальный ход! я делаю поинтер другого типа нетот который указан в спецификации от printf
+
+	char* const      ss = "hello\n";
+	printf (ss);
+
+	и теперь при компиляции нет никаких ошибок!
+
+	но разве const char* одно итоже с   char* const
+	на мой взгляд абсолютно нет!
+
+а еще напоролося в книге на такое :
+The keyword const doesn't turn a variable into a constant! A symbol with the const
+qualifier merely means that the symbol cannot be used for assignment. This makes the value
+re ad -onl y through that symbol; it does not prevent the value from being modified through
+some other means internal (or even external) to the program. It is pretty much useful only
+for qualifying a pointer parameter, to indicate that this function will not change the data that
+argument points to, but other functions may. This is perhaps the most common use of
+const in C and C++
+и еще
+As Ken Thompson pointed out, "The const keyword
+only confuses library interfaces with the hope of catching some rare errors." In retrospect,
+the const keyword would have been better named readonly
+
+
+
+ warning: format not a string literal and no format arguments [-Wformat-security]
+ printf (ff);
+
+	причем ман пишет что The format string is a character string.
+	что такое string в C - это :
+	In C programming, a string is a sequence of characters terminated with a null character(null character это байт у котрого все биты нули. если посылать на печать этот символ то он непечаатется. также как у нас есть символ новой строки \n так же этот символ имеет спец обозначение \0 естественно никакой ноль непечаатется это его такое обозначение. ) . на практике string задается через "" двойные кавычки.
+
+	"string"
+
+	что важно - When the compiler encounters a sequence of characters enclosed in the double quotation marks, it appends a null character \0 at the end by default.
+	тоесть мы поняли что в итоге в памяти такая строка будет хранится как s+t+r+i+n+g+\0
+	это компилятор сделает автоматом.
+	итак еще раз важные моменты 
+	1) string обозначается чеерез двойные кавычки
+
+	"vasya"
+
+	2)в памяти стринги хранятся с добавленным в их конец символом \0. это байт у которого 
+	все биты нули.(ascii 0)
+
+	3) стринги являются константами. тоесть менять их содержимое нельзя.
+
+
+	далее тонкий вопрос а как в тексте программы определяем эти string.
+	мы же не пишем в тексте просто
+
+	"vasya"
+
+	нужно же какую то переменную опреелять или что.
+
+
+	но если я в программе определеляю const char*  format и передаю его в printf то gcc 
+	ругается
+
+	const char *ss = "June 14";
+	printf (ss);
+
+	$ gcc ...
+
+	 warning: format not a string literal and no format arguments [-Wformat-security]
+	 printf (ss);
+
+	 тоесть я передаю в printf то что он требует по формату но gcc чтото ненравится!
+
+
+
+	Literal strings in C are bytes delimited with '\0' and found via their address. So When you pass "abc" to a function ,you are actually passing the address (a char * pointer) to the function as parameter.
+	Arrays are internally treated as pointers
+
+
+
+еще раз операция обьявление переменных и операция обращения к переменным это две разные 
+операции и знак "*" там имеет соверщенно разное значение! (а не одинаковое!)
+
+
+
+еще раз а  в случае обьявления перменной знак * неимеет никакого смысла самостоятельного.
+он просто литера буква  в слове.
+
+очень жалко что нельзя вот так писать в программе
+
+(int*) a_Ptr;
+*(a_Ptr);
+
+
+
+
+
 
 
 
