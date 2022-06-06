@@ -4573,6 +4573,332 @@ $ cat 51.s
 
 
 =====================
+leave
+
+очень часто вначале main идут команды
+
+    push   rbp
+    mov    rbp,rsp
+
+так вот есть команда которая делает все наоборот это LEAVE она делает:
+
+    mov  rsp,rbp
+    pop  rbp
+
+кстати первые две команды эквиваленты команде ENTER. но она гораздо дольше работает 
+чем две отдельные. в этом плане LEAVE вроде как работает достаточно быстро по сравнению с 
+ее двумя командами эквивалентами поэтому leave все таким применяют сейчас а enter нет.
+
+а в чем разница leave с ret?
+
+=====================
+push
+pop
+
+значит я проверил что реально когда мы суем push в стек
+то он сдвигается на 8 байт ( 64bit код) и 4 байта (32bit код)
+
+пример программы:
+64bit:
+
+$ cat 32.asm
+section .data
+section .text
+    global _start
+_start:
+
+    mov    rax, 0xffaaaa
+    push   rax
+    pop    rax
+
+    ; exit(0)
+    mov    rax, 60
+    mov    rdi, 0
+    syscall
+
+
+
+32bit:
+
+$ cat 32.asm
+section .data
+section .text
+    global _start
+_start:
+
+    mov    eax, 0xffaaaa
+    push   eax
+    pop    eax
+
+    ; exit(0)
+    mov    eax, 60
+    mov    edi, 0
+    int 80
+
+(замечу что в 32битном виде у цпу нет команды syscall а вместо нее только int 80)
+
+компилируем в 64bit код
+
+а вот пример как откомпилировать с debug символами (чтобы потом в gdb смотреть)
+$ nasm -g -f elf64 -l 32.lst -o 32.o 32.asm
+$ ld -o 32.exe 32.o
+
+компилируем в 32bit код
+
+а вот еще как откомпилировать с debug символами в 32bit файл
+$ nasm -g -f elf32 -l 32.lst -o 32.o 32.asm
+$ ld  -m elf_i386   -o 32.exe 32.o
+
+
+$ gdb ./32.exe
+> b _start
+(gdb) set disassembly-flavor intel
+(gdb) disassemble
+(gdb) run
+(gdb) info registers
+(gdb) nexti
+
+
+в случае 64бит код после команды push esp изменяется 
+с
+0x7fffffffdc60
+до
+0x7fffffffdc58
+
+разница 8 байт , верхушка стека движется вверх.
+
+
+
+в случае 32бит код после команды push esp изменяется 
+с
+0xffffce40
+до
+0xffffce3c
+
+разница 4 байт , верхушка стека движется вверх.
+===================
+ia32
+x86-32
+32bit  mode
+
+вобщем открыл для себя что 
+вот у нас есть 32битный код машинный. и в нем мы хотим вызывать сисколл.
+
+во первых номера сисколлов для 32 битного режима и для 64 битного они разные.
+пример для сисколла exit
+
+$ cat /usr/src/linux-headers-5.4.0-91-generic/arch/x86/include/generated/uapi/asm/unistd_64.h | grep exit
+#define __NR_exit 60
+
+$ cat /usr/src/linux-headers-5.4.0-91-generic/arch/x86/include/generated/uapi/asm/unistd_32.h | grep exit
+#define __NR_exit 1
+
+тоесть в 64битном режиме это 60-ый номер а в 32-битном режиме это номер 1.
+
+
+
+далее. если в в 64 битном режиме мы кладем:
+номер сисколла в RAX
+первый параметр сисколла в RDI
+
+то в 32 битном режиме мы кладем:
+номер сисколла в EAX
+первый параметр сисколла в EBX
+
+
+
+далее. в 32битном режиме мы неможем использовать асемблерную команду syscall для вызова
+сисколла она просто там неработает. ее там нет.  и попытка ее вызова вызовет то что 
+ядро пришлет процессу сигнал SIGILL.
+
+(я правда непонимаю 
+почему компилятор позволяет ее использовать в 32 битном коде почему не посылает с ошибкой).
+пример , вызываем сисколл exit()  в 32 битном режиме
+
+$ cat 34.asm
+section .data
+section .text
+    global _start
+_start:
+
+    mov    eax, 1    ; номер сискола exit()
+    mov    ebx, 0    ; код возврата
+    syscall
+
+$  nasm -f elf32 -o 34.o 34.asm
+$  ld  -m elf_i386   -o 34.exe 34.o
+
+$  strace ./34.exe
+execve("./34.exe", ["./34.exe"], 0x7ffd56c744b0 /* 74 vars */) = 0
+--- SIGILL {si_signo=SIGILL, si_code=ILL_ILLOPN, si_addr=0x804806a} ---
++++ killed by SIGILL (core dumped) +++
+Illegal instruction (core dumped)
+
+
+вызов сисколла через int 0x80 в 32 битном режиме работает без проблем:
+$ cat 34.asm 
+section .data
+section .text
+    global _start
+_start:
+
+    mov    eax, 1
+    mov    ebx, 0
+    int 0x80
+
+
+$ strace ./34.exe 
+execve("./34.exe", ["./34.exe"], 0x7ffc5dad7880 /* 74 vars */) = 0
+strace: [ Process PID=12424 runs in 32 bit mode. ]
+exit(0)                                 = ?
++++ exited with 0 +++
+
+
+а вот вызов сисколла в 32битном режиме через sysenter имеет реальные приколы.
+если мы заменим int 0x80 на sysenter то мы получим ошибку SEGFAULT.
+а в чем же дело? ответ нашел вот здесь - https://reverseengineering.stackexchange.com/questions/2869/how-to-use-sysenter-under-linux :
+
+the sysenter instruction expect to have the stack forged in that way:
+0x______0c  saved_eip   (ret)
+0x______08  saved_%ecx  (pop %ecx)
+0x______04  saved_%edx  (pop %edx)
+0x______00  saved_%ebp  (pop %ebp)
+
+хотя по факту судя по коду из ответа и я проверил на практике надо сделат и еще кое что.
+итого перед вызовом sysenter надо кое чего сделать дополнительно :
+
+в самом начале функции надо добавить команды
+
+        push ebp
+        mov  ebp, esp
+
+а перед вызовом sysenter надо вставить
+
+        push   $_start
+        push   ecx
+        push   edx
+        push   ebp
+        sysenter 
+
+итого скажем для вызова сисколла exit(0) в 32битном режиме через systenter надо
+
+$ cat 34.asm
+section .data
+section .text
+    global _start
+_start:
+    push ebp
+    mov  ebp, esp
+
+    mov    eax, 1
+    mov    ebx, 0
+
+    push   $_start
+    push   ecx
+    push   edx
+    push   ebp
+    sysenter
+
+
+для сравнению приведу тот же самый сисколл через int 0x80
+чтобы была видна разница сколько всего нужно добавить чтобы тотже сисколл успешно
+прошел через sysenter
+
+$ cat 37.asm
+section .data
+section .text
+    global _start
+_start:
+
+    mov    eax, 1
+    mov    ebx, 0
+
+    int 0x80
+
+
+как говорится почуствуй разницу.
+а если вот эту обвязку вокруг sysenter несделать то програма будет вылетать с ошибкой SIGFAULT.
+
+естественно сама инструкция sysenter на цпу невиновата (тоесть цпу ни причем) а виноват
+хендлер ядра линукск который обрабатывает по разному переход в сисколл в зависимости от команды
+цпу ( я так понял).
+
+общий вывод такой по сисколлам :
+для 64 битного машиноого кода - юзай syscall
+для 32 битного машинного кода - юзай int 0x80
+
+и никакой ебалы тогда небудет.
+
+sysenter якобы работает быстрее но вот с ним дополниельные заморочки нужно делать.
+
+
+также видно что в тексет асемблера используется необычная инстркция
+
+push   $_start
+
+она приводит к тому что будет в файле подставлен адрес начала функции _start.
+тоесть это делается средставами компилятора. как получить в программе адрес старта текущей
+функции я пока незнаю.
+
+вот как выглядит дизасембл код: 
+
+08048060 <_start>:
+ 8048060:   55                      push   ebp
+ 8048061:   89 e5                   mov    ebp,esp
+ 8048063:   b8 01 00 00 00          mov    eax,0x1
+ 8048068:   bb 00 00 00 00          mov    ebx,0x0
+ 804806d:   68 60 80 04 08          push   0x8048060
+ 8048072:   51                      push   ecx
+ 8048073:   52                      push   edx
+ 8048074:   55                      push   ebp
+ 8048075:   0f 34                   sysenter
+
+
+соотвтсвенно  push   0x8048060, 
+где  0x8048060 это адрес старта функции <_start>:
+
+
+========
+AT&T 
+as
+gas
+
+если у нас программа в AT&T синтаксисе то его nasm непонимает.
+
+$ cat 36.asm
+.data
+msg:
+    .ascii "Hello World!\n"
+    len = . - msg
+
+.text
+.globl _start
+_start:
+;    pushl  %ebp
+;    movl   %esp, %ebp
+
+    movl   $0, %ebx
+    movl   $1, %eax
+# Setting the stack for the systenter
+    pushl  $_start
+    pushl  %ecx
+    pushl  %edx
+    pushl  %ebp
+;    movl   %esp,%ebp
+    sysenter
+
+
+
+и его можно откомплировать тогда через as
+
+для 32битного кода это выглядит так
+
+
+
+$ as 36.asm -o 36.o --32
+$ ld  -m elf_i386   -o 36.exe 36.o
+
+=====================
 что такое и зачем stack alignment? и связанный  с ним вопрос - а что такое assmbly function? как это с abi связано?
 
 $ cat 27.asm
@@ -4599,6 +4925,15 @@ BITS 64
 компилируем
 $ nasm -f elf64 27.asm
 $ ld -s -o 27.exe 27.o
+
+а вот пример как откомпилировать с debug символами (чтобы потом в gdb смотреть)
+$ nasm -g -f elf64 -l hello.lst -o hello.o hello.asm
+$ ld -o hello.exe hello.o
+
+а вот еще как откомпилировать с debug символами в 32bit файл
+$ nasm -g -f elf32 -l 32.lst -o 32.o 32.asm
+$ ld  -m elf_i386   -o 32.exe 32.o
+
 
 
 заходим в gdb
