@@ -874,7 +874,7 @@ $ printf "\U401 \n"
 
 	-  ascii,charsets(7),  iso_8859-1(7),  iso_8859-10(7),  iso_8859-11(7),  iso_8859-13(7),    iso_8859-14(7),  iso_8859-15(7),  iso_8859-16(7),  iso_8859-2(7),  iso_8859-3(7),  iso_8859-4(7),   iso_8859-5(7), iso_8859-6(7), iso_8859-7(7), iso_8859-8(7), iso_8859-9(7), utf-8(7)
 
-я чтото непонял aSCII это энкодинг или charset ?
+	- я чтото непонял aSCII это энкодинг или charset ?
 
 	- unicode vs encoding vs charsets vs font ?
 
