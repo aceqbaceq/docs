@@ -1,0 +1,76 @@
+get network socket for id
+заиндитьсяна нсущетующий адрес
+speed порта
+опредитедть что сидим на виртуалке /c
+
+---------
+когда выполняется команда call то в EIP лежит адерс уже следуей команы
+поэтому call опомеещает в стек адерс уже следущей команды поэтому
+кода субфункция делает ret то в ei подгружается адрес уже лследуший нза call так что 
+возврааясь из функции по ret цпу пргает на уже следущйю команду после call. тоесть яхоу сказать 
+что call кладет в стек на свой адрес а уже адрес слпдущей команды. тоесть возврат идет не на
+команду вызооыва фукции calll а на следующую за не компнуду
+------------
+
+|-----------------------------------------------|
+|Signal | 	Code   |	Reason                  |
+|-------|----------|----------------------------|
+|SIGILL |          |                            |
+|		|ILL_ILLOPC| 	Illegal opcode.         |
+|		|ILL_ILLOPN| 	Illegal operand.        | 
+|		|ILL_ILLADR| 	Illegal addressing mode.|
+|		|ILL_ILLTRP| 	Illegal trap.           |
+|		|ILL_PRVOPC| 	Privileged opcode.      |
+|		|ILL_PRVREG| 	Privileged register.    |
+|		|ILL_COPROC| 	Coprocessor error.      |
+|		|ILL_BADSTK| 	Internal stack error    |
+|-----------------------------------------------|
+
+
+
+$ nasm -f elf32 -o 34.o 34.asm
+$ ld  -m elf_i386   -o 34.exe 34.o
+-----------
+
+bash как он передает переменные в детей.
+когда нужен export ?
+
+----------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: counter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: counter
+  template:
+    metadata:
+      labels:
+        app: counter
+    spec:
+      containers:
+      - name: counter
+        image: "kahootali/counter:1.1"
+        volumeMounts:
+        - name: counter
+          mountPath: /app/
+      volumes:
+      - name: counter
+        persistentVolumeClaim:
+          claimName: counter
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: counter
+spec:
+  accessModes:
+  - ReadWriteMany
+  resources:
+    requests:
+      storage: 50Mi
+  storageClassName: efs
+  ----
+  

@@ -2966,3 +2966,111 @@ $ info name
 полазить
 
 =======================================
+bash
+type
+
+полезная штука чтобы узнать та команда
+что мы вводим она встроенная или внешняя
+
+$ type -t gcc
+file
+$ type  gcc
+gcc is /usr/bin/gcc
+$ type -t env
+file
+$ type -t type
+builtin
+$ type -a type
+type is a shell builtin
+$ type -a gcc
+gcc is /usr/bin/gcc
+$ type -a printf
+printf is a shell builtin
+printf is /usr/bin/printf
+
+чтобы незапоминать ключи лучше всегд посмотреть в man bash
+
+=======
+bash
+hash
+type
+
+оказывается что каждый раз когда мы вводим команду в баше
+он ее ищет в $PATH ( и это понятно) но потом самое главное он найденный путь запоминает.
+и уже при повторном вызове.
+
+посмотреть можно через hash (bash builtin) 
+
+$ hash -l
+hash: hash table empty
+
+$ env
+
+$ hash -l
+builtin hash -p /usr/bin/env env
+
+$ gcc
+
+$ hash -l
+builtin hash -p /usr/bin/gcc gcc
+builtin hash -p /usr/bin/env env
+
+
+
+следущая задача. мы хотим понять вот у нас есть команда . мы хотим понять 
+где она лежит на диске а точнее откуда ее будет брать basр при запуске.
+If you want to see the path to your program i suggest to use "$type -p" :
+
+$ type gcc
+gcc is hashed (/usr/bin/gcc)
+$ type -p gcc
+/usr/bin/gcc
+-p key description:
+
+If the -p option is used, type either returns the name of the disk file that would be executed if name were specified as a command name, or nothing if ``type -t name'' would not return file
+
+Sometimes -p key is not enough. -a key will help:
+
+$ type -p printf
+$ type -a printf
+printf is a shell builtin
+printf is /usr/bin/printf
+
+
+далее вот у нас есть команда мы хотми понять это встроенный в баш builtin 
+или это внешнаяя команда используем type -t
+
+
+
+$ type -t echo
+builtin
+
+ключ -p показывает где на диске баш будет искать команду
+но так как echo это встроеный builtin то ключ -p покажет пустое место
+$ type -p echo
+
+а вот так как gcc это уже внешняя команда  то ключ -p покажет где ее будет брать bash
+$ type -t gcc
+file
+$ type -p gcc
+/usr/bin/gcc
+
+если мы хотим проверить то что программа является и билтином и внешней командой
+то ключ -a
+
+$ type -a echo
+echo is a shell builtin
+echo is /bin/echo
+
+
+это показывает что echo есть как в форме внешней команды 
+так и внутри в баш в форме builtin
+
+кстати. вот видно что у баш есть свой билтин echo. но это незначит что если мы напишем
+
+$ strace echo ...
+
+то будет исползован баш билтин. команда strace походу недогадывается об этом поэтому
+она запустить внешний echo. 
+
+============
