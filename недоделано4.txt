@@ -1,0 +1,16 @@
+	- надо разобраьтся с передачей переменных при clone() + env , также нахер нужен export
+а именно переаеся ли все перменные через clone().
+как env echo $vasya передает в echo перменную $vasya
+зачем нужен export ?
+
+	clone(strace: Process 2331 attached
+child_stack=NULL, flags=CLONE_CHILD_CLEARTID|CLONE_CHILD_SETTID|SIGCHLD, child_tidptr=0x7f38eb8d1490) = 2331
+
+[pid  2331] execve("/usr/bin/env", ["env", "-", "echo", "3.6.7"], ["CLUTTER_IM_MODULE=xim", "LS_COLORS=rs=0:di=01;34:ln=01;36"..., ME=ru_RU.UTF-8", "_=/usr/bin/env"]) = 0
+
+[pid  2331] execve("/bin/echo", ["echo", "3.6.7"], []) = 0
+[pid  2331] +++ exited with 0 +++
+--- SIGCHLD {si_signo=SIGCHLD, si_code=CLD_EXITED, si_pid=2331, si_uid=1000, si_status=0, si_utime=0, si_stime=0} ---
+
+здесь мне непонятно откуда в execve("/bin/echo", ["echo", "3.6.7"], []) = 0 взялся
+3.6.7

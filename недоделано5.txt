@@ -1,0 +1,260 @@
+bash 
+local variable (shell variable) vs global variable (environment variable)
+
+значит есть переменные которые видны в рамках текущего процесса bash они называются
+local variables\shell variables:
+Local variables are only available in the current shell.
+
+есть переменные global variable\environment variable они передаются дочернуму процессу 
+который запускает текущий процесс баша. тоесть еще раз они видны и нашему башу и дочернему 
+процессу. они туда передаются копируются. и далее естественно если мы меняем глобальную
+перменную в парент процессе то это никак не влияет на дочерний процесс и если дочерний
+процесс меняет переменную то она меняется только в дочернем но не меняется в парент процессе.
+
+щас с примерами разберем.
+
+посмотреть локальные переменные можно через 
+
+$ set
+
+правда она покажет и локальные и глобальные
+
+глобальные можно псмотреть через
+$ printenv
+или 
+$ env
+
+ ябы сказал что все переменные которые неглобальные они локальные. 
+ тоесть в дочерний процесс будут переданы только глоабальные перменные.
+
+ как посмотреть узнали. двигаем дальше.
+
+разбираемся как это глобальные перменные передаются в дочерний процесс.
+варианты либо через env либо через export либо через субшелл(об этом отдельно щас скажем)
+
+
+
+(шелл1)$ vasya=5
+(шелл1)$ /bin/echo $vasya
+5
+(шелл1)$ bash
+(шелл2)$ /bin/echo $vasya
+
+видно что так как vasya локальная переменная ( от обратного что она неглобальная) то дочерний
+баш невидит этой переменной.
+
+теперь сделаем ее глобальной через export:
+
+(шелл1)$ vasya=5
+(шелл1)$ export vasya;
+(шелл1)$ bash
+(шелл2)$ /bin/echo $vasya
+5
+
+видна в дочернем процессе!
+
+сделаем переменную глобальной через env:
+$ echo $$
+6798
+$ echo $kk2
+
+$ env kk2="!" /bin/bash 
+$ echo $$
+6982
+$ /bin/echo $kk2
+!
+$ set | grep kk2
+kk2='!'
+$ printenv  | grep kk2
+kk2=!
+$ bash
+$ echo $$
+7009
+$ echo $kk2
+!
+
+ теперь про субшелл.
+ $ (...)
+
+ вот так форкается парент при запуске команды $ bash
+clone(child_stack=NULL, flags=CLONE_CHILD_CLEARTID|CLONE_CHILD_SETTID|SIGCHLD, child_tidptr=0x7f1fc8b5e490) = 7212
+
+вот так форкается парент при запуске субшелла $ ( echo 1)
+clone(child_stack=NULL, flags=CLONE_CHILD_CLEARTID|CLONE_CHILD_SETTID|SIGCHLD, child_tidptr=0x7f1fc8b5e490) = 7254 
+
+из чего я делаю вывод что с точки зрения вызова сисколла clone() что запуск $ bash
+что запуск $ () это одно и тоже.
+
+
+насколко я понял флаги в clone подставляются через знак пайпа
+видимо из за того что флаги это биты в каком то байте через который переадаются флаги
+ pids[i] = clone(childFunc, stackTop,
+                    CLONE_CHILD_CLEARTID | CLONE_CHILD_SETTID | SIGCHLD, NULL);
+
+
+
+значение параметров:
+child_stack=NULL    = это насколько я понял значит то что чайлд получает копию стека парента
+SIGCHLD = это насколько понял означает что когда чайлд сдох от паренту слать именно этот сигнал.
+
+		- эти флаги непонятны
+CLONE_CHILD_CLEARTID = ?
+CLONE_CHILD_SETTID = ?
+надо сделать минимальный С прогиамму с примером clone() и посмтреть что strace покажет
+мне кажется это некие стандартные флаги по дефолту.
+я создал программу на С которая делает pid = fork();
+
+$ ./22.exe
+
+это вот как баш себя форкает при запуске моего бинарника:
+clone(child_stack=NULL, flags=CLONE_CHILD_CLEARTID|CLONE_CHILD_SETTID|SIGCHLD, child_tidptr=0x7f1fc8b5e490) = 9925
+
+это уже мой бинарник форкает себя:
+clone(child_stack=NULL, flags=CLONE_CHILD_CLEARTID|CLONE_CHILD_SETTID|SIGCHLD, child_tidptr=0x7f61ad684e50) = 9926
+
+видно что флаги clone у баша и у меня одинаковые. так что ... читаем дальше.
+я прочитал man fork и вижу что этот libc wrapper при вызове его как pid = fork() то 
+он вобщем то неделает ничего особого, память у чайлда будет точно такая же как у парента.
+
+
+это форкнутый баш запускает внутри себя мой бинарник:
+execve("./22.exe", ["./22.exe"], ["CLUTTER_IM_MODULE=xim",..., "_=./22.exe", "OLDPWD=/home/vasya/Asm"]) = 0
+
+это синтаксис из man execve:
+int execve(const char *filename, char *const argv[],
+                  char *const envp[]);
+
+а вот я запустил 22.exe с параметрами
+
+$ ./22.exe 01 02 03 04 05
+
+и получил execve
+
+execve("./22.exe", ["./22.exe", "01", "02", "03", "04", "05"], 
+
+видно что 
+const char *filename = "./22.exe" ; ссылка на стринг в котором путь к бинарнику
+
+char *const argv[]   = ["./22.exe", "01", "02", "03", "04", "05"] ; ссылка на массив параметров которые нужно будет передать бинарнику
+
+char *const envp[]  = ["CLUTTER_IM_MODULE=xim",..., "_=./22.exe",...]
+ envp is an array of strings, conventionally of the form key=value, which are passed as environment to the new program.   The  argv  and  envp  arrays  must  each
+       include a null pointer at the end of the array
+
+а вот вроде нашел ответ на вопрос - как же программа которую запускают может 
+всосать в себя эти параметры с которыми ее запускают ? 
+The argument vector and environment can be accessed by the called program's main function, when it is defined as:
+
+           int main(int argc, char *argv[], char *envp[])
+
+    - фунадметанлаьльный вопрос , центральная проблема написано что программа которую запускают может в себя принять переменные окружения если в ее main функии прописан char *envp[]
+    int main(int argc, char *argv[], char *envp[])
+    ну тогда примерно понятно как программу которую запускают черех execve получаеь переенные окружения. 
+    но далее написано что в posix такого не предустмотрено поэтому лучше так неделать в вызываемой прошрамме а вместо этого   использвать environ. и это я немогу понять.
+
+пока что полагаю вот что - мы вызываем сисколл 
+execve("./22.exe", ["./22.exe"], ["CLUTTER_IM_MODULE=xim",..., "_=./22.exe", "OLDPWD=/home/vasya/Asm"]) = 0
+
+для сисколла мы полгтоваливаем ряд переменных.
+вызвали сисколл. процесс остановился а ядро заработало.
+сисколл создает новый процесс то есть в памяти он для него выделяет вирт пространство
+и как я понимаю он туда видимо в стек процесса сует вот эти вот данные
+"./22.exe"
+["./22.exe"]
+["CLUTTER_IM_MODULE=xim",..., "_=./22.exe", "OLDPWD=/home/vasya/Asm"]
+
+мехагнизм такой же как при вызове функции из тела в рамках одного процесса.
+когда мы ее выызаем то в простом случае у новой функции в стеке будет кучка
+переменных.
+
+и еси мы рассмотрим нашу в новом процессе прогармму ее фукцнию main
+int main(int argc, char *argv[], char *envp[])
+
+то получаетя в ее стеке она ожидает увидеть три переменные
+argc
+argv
+envp
+
+так что я думаю ядерный код сисколла он качает данные перменные окружения которые ему передали
+чрез третий параметр
+execve("./22.exe", ["./22.exe"], ["CLUTTER_IM_MODULE=xim",..., "_=./22.exe", "OLDPWD=/home/vasya/Asm"]) = 0
+
+и сует их в стек в новом процессе.
+таким образом при старте main  в новом процессе  у нее вс теке.
+
+а что если наша ызваемая main функция ового процесса несождержит третий паараметр 
+и наш exec ve тоженесодрежит третий параетре
+
+
+
+execve("./22.exe", ["./22.exe"])
+
+int main(int argc, char *argv[])
+
+это значит что этот механизм уже неработает.
+
+и туту вступает в строй волшебная переенная
+
+extern char **environ
+
+$ cat 58.c
+#include <stdio.h>
+#include <stdlib.h>
+  
+extern char **environ;
+ 
+int main(void)
+
+я ночень понимаю но  я так понимаю что execve автоматом создать в новом процессе environ
+и накачает туда данные об переменных оркружения автомтом.
+
+ я нашел вменяемое оьяснение в man 3 environ у freebsd
+
+ The exec family of functions shall replace the current process image with a new process image. The new image shall be constructed from a regular, executable file called the new process image file. There shall be no return from a successful exec, because the calling process image is overlaid by the new process image.
+
+When a C-language program is executed as a result of this call, it shall be entered as a C-language function call as follows:
+
+int main (int argc, char *argv[]);
+where argc is the argument count and argv is an array of character pointers to the arguments themselves. In addition, the following variable:
+
+extern char **environ;
+
+is initialized as a pointer to an array of character pointers to the environment strings. The argv and environ arrays are each terminated by a null pointer. The null pointer terminating the argv array is not counted in argc. 
+
+твак что ясчитаю что exec аавтоматом внутри новго процесса создает эту переменную.
+и наполняет ее перменнцыми окружения. чтобы нам ее заюзать  надо вначале взываемой программы
+име просто ее обьявление
+#include <stdio.h>
+#include <stdlib.h>
+  
+extern char **environ;
+
+и тогда сисколл он туда запишет поинтер на массив.
+вот у меня в моей проге этой видна как мне кажется обьявленная эта переменная
+$ readelf -s  ./58.exe | grep -i environ
+     8: 0000000000201010     8 OBJECT  WEAK   DEFAULT   24 _environ@GLIBC_2.2.5 (2)
+     9: 0000000000201010     8 OBJECT  WEAK   DEFAULT   24 environ@GLIBC_2.2.5 (2)
+    10: 0000000000201010     8 OBJECT  GLOBAL DEFAULT   24 __environ@GLIBC_2.2.5 (2)
+    53: 0000000000201010     8 OBJECT  WEAK   DEFAULT   24 environ@@GLIBC_2.2.5
+    61: 0000000000201010     8 OBJECT  GLOBAL DEFAULT   24 __environ@@GLIBC_2.2.5
+
+    надо будет понять на какую секцию в памяти (text bss итп) указывает поинтер environ.
+    тоесть куда сисколл пишет все эти перменные окрухежения когда он создает процесс.
+
+    
+
+
+
+	- надо понять про execve он стирает всю память от прошлой программы?
+	- разобрать субшелл то что через него все лолкальные передаются
+	- разобрать разницу в clone() при запуске субшелл и запуске bash
+	 я думаю именно во флагах разница которая приводит к тому что субшелл видит все
+	 переменные что были в родителе а bash ничего невидит.
+	- как так /bin/echo внешнаяя программа умеет искать переменные баша в памяти?
+	- вот мы сделали export vasya=5. как в дочернем процессе псмотреть эту переменную 
+	не через /bin/echo ?
+	- посмотреть через strace как передается множество переменных дочернему процессу.
+	- man fork, man clone. проработать плотно все тамошнюю инфо.
+	- что то я непойму как работает вот это => extern char **environ;
+	- system() в C - разобраться man system
+
