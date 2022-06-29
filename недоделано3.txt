@@ -52,6 +52,8 @@ shift trap unset
 работать а вот если вылезла ошибка при выполнении special builtin то скрипт остановится. 
 вот и вся разница.
 
+
+	- передача переменных окружения из текущего процесса bash в дочерний процесс. и как потом дочерний процесс может прочитать распознать эту переменную
 	- посмотреть что все эти комнды делают : . : break continue eval exec exit export readonly return set shift  times trap unset
 
 	- посмотреть про все башевские builtin
@@ -73,4 +75,3 @@ standardized by POSIX 1003.1-2004.
 	- bash guide for beginners
 	- bash getopts
 
-	
