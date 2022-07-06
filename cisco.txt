@@ -2333,3 +2333,47 @@ ip неменяется.
 то на циске надо поднять loopback с ip = 10.250.250.1
 
 ==========================
+
+cisco
+
+- у циско есть несколько памятей.
+есть card flash
+есть nvram
+есть ddr планка
+есть ddr системная
+
+
+была задача - нужно было на циско накатить конфиг.
+я заманался это делать. циско упорно грузилась со старого конфига. или даже скорее с какогото слепленного из старого и нового.
+что реально помогло.
+
+-Шаг 1 
+надо зарестить циско.
+чтобы точно увидеть что конфига нет.
+
+router> enable
+router# write erase
+Erasing the nvram filesystem will remove all configuration files! Continue? [confirm] <Press Enter key>
+router# reload
+
+чтот тут важно . я использовал команду reload now. этого делать ненадо. он там спрашивает мол конфигурация изменена и хотимли мы ее сохранить.
+вобшем я ее сохраняю перезагужаюсь и конфиг как был таки остался на месте. поэтому делай как указано просто reload!
+
+источник по этому шагу:
+https://dcloud-cms.cisco.com/help/reset-router#:~:text=Find%20the%20Reset%20button%20on,the%20router%20to%20finish%20booting.
+
+
+-Шаг2
+вот именно эта команда делает чудо. 
+Switch# configure replace usbflash0: startup-config 
+# write
+
+источник по этому шагу.
+https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst3650/software/release/37e/consolidated_guide/b_37e_consolidated_3650_cg/configuration_replace_and_configuration_rollback.pdf
+
+и о чудо наконец то накатился нужный конфиг.!
+ура товариши!
+
+
+еще важно разобраться куда циско пишет sttartup config. то ли в nvram:
+т
