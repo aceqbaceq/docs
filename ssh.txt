@@ -386,17 +386,299 @@ $ ls -1 /home/vasya/.ssh
 ...
 known_hosts
 
+итак для хоста 100.0.0.6 хэш его публичного ключа был записан системой в known_hosts.
+поищем ка теперь его там.
+
+вот как выглядит known_hosts если мы запретили хэшить имя удаленного сервера
+(наш комп)$ cat known_hosts
+100.0.0.6 ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDTRQx4ZmXMByEs6dg4VTz+UtM9X9Ljxt6SU3oceqRUlV+ohx56xdD0ZPbvD0IcYwUrrqcruMG0xxgRxWuzV+FQAJVQe76ED966+lwrwAnUsVFQ5apw3N+WKnD53eldUZRq7/2nGQQizrefY7UjAGX/EZonSVOWZyhVyONu2VBBwg0B0yA3UBZV+yg+jGsrZ9ETEmfNbQRkbodEAwoZrGQ87UEdTkfj+5TGmfzqgukmBvvVV7KoXgSQIZNkqRmkAVKKXeEfydnOR37KMglBUXIR/50jkIswxWbNk2OtS6fz6UiPeEY39f4f0gwLx/HwUyel9yzH4dkDb+LBS6X/X9b9
+
+вот как на самом удаленном сервере выглядит файл с публичным ключом
+(удаленный сервер)# cat /etc/ssh/ssh_host_rsa_key.pub 
+ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDTRQx4ZmXMByEs6dg4VTz+UtM9X9Ljxt6SU3oceqRUlV+ohx56xdD0ZPbvD0IcYwUrrqcruMG0xxgRxWuzV+FQAJVQe76ED966+lwrwAnUsVFQ5apw3N+WKnD53eldUZRq7/2nGQQizrefY7UjAGX/EZonSVOWZyhVyONu2VBBwg0B0yA3UBZV+yg+jGsrZ9ETEmfNbQRkbodEAwoZrGQ87UEdTkfj+5TGmfzqgukmBvvVV7KoXgSQIZNkqRmkAVKKXeEfydnOR37KMglBUXIR/50jkIswxWbNk2OtS6fz6UiPeEY39f4f0gwLx/HwUyel9yzH4dkDb+LBS6X/X9b9 root@vagrant
+
+почему то на нашем компе в known_hosts нет root@vagrant. непонятно об этом мы поговорим
+где то ниже. в остальном получается что known_hosts строчка состоит из полей:
+
+имя_сервера    тип_ассиметричного_шифрования     публичный_ключ(нехешированный)
+
+Но! на самом деле так known_hosts выглядит если на нашем компе в /etc/ssh/ssh_config ( это файл отвечает за настройки ssh клиента (тоесть когда мы с нашего компа ломимся на удаленный сервер в отличие от sshd_config конфига когда наш комп используется как сервер на принятие от ругих ssh соединений)) стоит настройка 
+(наш комп)$ cat /etc/ssh/ssh_config | grep -i hash
+    HashKnownHosts no
+
+так вот обычно там стоит как раз обратная настройка. то есть yes. 
+когда она yes то у нас имя сервера ( в нашем примере это 100.0.0.6 ) записывается не в открытом  виде а в виде хэша. (зачем пока незнаю). но еще раз скажу пока мы рассматриваем
+случай когда HashKnownHosts no. случай когда он равен yes рассмотрим ниже несейчас.
+так вот.  еще раз. мы постучали с нашего компа на удаленный сервер
+$ ssh -o FingerprintHash=md5 -o  HostKeyAlgorithms=ssh-rsa  100.0.0.6
+
+при этом на нашем компе в known_hosts получили запись
+$ cat known_hosts
+100.0.0.6 ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDTRQx4ZmXMByEs6dg4VTz+UtM9X9Ljxt6SU3oceqRUlV+ohx56xdD0ZPbvD0IcYwUrrqcruMG0xxgRxWuzV+FQAJVQe76ED966+lwrwAnUsVFQ5apw3N+WKnD53eldUZRq7/2nGQQizrefY7UjAGX/EZonSVOWZyhVyONu2VBBwg0B0yA3UBZV+yg+jGsrZ9ETEmfNbQRkbodEAwoZrGQ87UEdTkfj+5TGmfzqgukmBvvVV7KoXgSQIZNkqRmkAVKKXeEfydnOR37KMglBUXIR/50jkIswxWbNk2OtS6fz6UiPeEY39f4f0gwLx/HwUyel9yzH4dkDb+LBS6X/X9b9
+
+далее очень интеересный момент. стучим на тот же сервер но требуем использовать не RSA
+в качесвте асиметричного шифрования а ecdsa-sha2-nistp256 (об нем подробнее ниже)
+и получаем жесточайший варнинг от линукса
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@    WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!     @
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+IT IS POSSIBLE THAT SOMEONE IS DOING SOMETHING NASTY!
+
+суть этой надписи в том что наш комп имеет уже сохраенный ключ асмиметричного
+шифрования который мы ранее одобрили. далее наш комп подключается к серверу и получаем
+ в ответ публичный ключ совершенно другой. из чего комп делает вывод что получнный публичный
+ ключ не от сервера а от злодея который сидит между нами и сервером. в  данном случае никакого 
+злодея нет. просто мы к тому же серверу обращаемся по другому ассиметричному протоколу и получаем другой публичный ключ. ОТСЮДА я делаю вывод что в known_hosts для одного удаленного
+сервера который идентифицируется в нашем случае ip адресом может находиться ТОЛЬКО ОДНА СТРОЧКА! линукс непозволяет иметь несколько строчек для одного удаленного сервера даже если
+в этих строчках указаны разные асиметричные алгоритмы шифрования. это очень важно.
+
+узнать какие алгоритмы шифроваия поддеживает удаленнй сервер по быстрому можно через ssh-keyscan
+
+$ ssh-keyscan  100.0.0.6
+
+# 100.0.0.6:22 SSH-2.0-OpenSSH_7.6p1 Ubuntu-4ubuntu0.3
+100.0.0.6 ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBAqCgW5Mlx2VpC61acc0G4VMZUAauQDoK5xIzdHzdDLPXt0GqsoIw1fuwTSSzSy8RFmGU5PNHiWn0egoUwlXdc4=
+
+# 100.0.0.6:22 SSH-2.0-OpenSSH_7.6p1 Ubuntu-4ubuntu0.3
+100.0.0.6 ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDTRQx4ZmXMByEs6dg4VTz+UtM9X9Ljxt6SU3oceqRUlV+ohx56xdD0ZPbvD0IcYwUrrqcruMG0xxgRxWuzV+FQAJVQe76ED966+lwrwAnUsVFQ5apw3N+WKnD53eldUZRq7/2nGQQizrefY7UjAGX/EZonSVOWZyhVyONu2VBBwg0B0yA3UBZV+yg+jGsrZ9ETEmfNbQRkbodEAwoZrGQ87UEdTkfj+5TGmfzqgukmBvvVV7KoXgSQIZNkqRmkAVKKXeEfydnOR37KMglBUXIR/50jkIswxWbNk2OtS6fz6UiPeEY39f4f0gwLx/HwUyel9yzH4dkDb+LBS6X/X9b9
+
+# 100.0.0.6:22 SSH-2.0-OpenSSH_7.6p1 Ubuntu-4ubuntu0.3
+100.0.0.6 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFZ/jrfDX1aK1I0A/sLRVb2qoCF9xHWbVW+gBCV8dSmg
+
+он просканровал удаленный сервер и узнал что тот поддеживает RSA, ecdsa-sha2-nistp256, 
+ssh-ed25519
+
+Далее еще один очень важный момент. Когда мы обращаемся к удаленному серверу по IP 
+то все понятно в known_hosts будет указан IP. а что если мы обращаемся к удаленному 
+серверу через доменное имя. что вэтом случае будет в known_hosts.
+ответ такой - если у нас прописан резоволинг dns в IP в /etc/hosts либо такой же резолвинг
+идет через внешний DNS сервер то в known_hosts будет содержаь доменное имя+IP 
+пример:
+$ cat /etc/hosts
+100.0.0.6 vasya.local
+
+$ ssh -o FingerprintHash=md5 -o  HostKeyAlgorithms=ssh-rsa  vasya.local
+The authenticity of host 'vasya.local (100.0.0.6)' can't be established.
+RSA key fingerprint is MD5:e2:35:e1:4f:4e:87:45:9e:5f:2c:97:e0:da:a9:df:d5.
+Are you sure you want to continue connecting (yes/no)? yes
+
+смотрим что в known_hosts
+$ cat known_hosts
+vasya.local,100.0.0.6 ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDTRQx4ZmXMByEs6dg4VTz+UtM9X9Ljxt6SU3oceqRUlV+ohx56xdD0ZPbvD0IcYwUrrqcruMG0xxgRxWuzV+FQAJVQe76ED966+lwrwAnUsVFQ5apw3N+WKnD53eldUZRq7/2nGQQizrefY7UjAGX/EZonSVOWZyhVyONu2VBBwg0B0yA3UBZV+yg+jGsrZ9ETEmfNbQRkbodEAwoZrGQ87UEdTkfj+5TGmfzqgukmBvvVV7KoXgSQIZNkqRmkAVKKXeEfydnOR37KMglBUXIR/50jkIswxWbNk2OtS6fz6UiPeEY39f4f0gwLx/HwUyel9yzH4dkDb+LBS6X/X9b9
+
+тоесть мы видим что указано и vasya.local и 100.0.0.6
+
+также видно что когда мы устанавлаием соединенеи то эта же инфо указана в
+The authenticity of host 'vasya.local (100.0.0.6)' can't be established
+тоесть нам клиент уже подсказывает что он пропишет в качестве идентификатора сервера в
+known_hosts
+
+в man 8 sshd указано что в known_hosts можно указывать вайлдкарды. тоесть скажем вместо
+vasya.local указать vasya*
+
+
+$ cat known_hosts
+vasya*,100.0.0.6 ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDTRQx4ZmXMByEs6dg4VTz+UtM9X9Ljxt6SU3oceqRUlV+ohx56xdD0ZPbvD0IcYwUrrqcruMG0xxgRxWuzV+FQAJVQe76ED966+lwrwAnUsVFQ5apw3N+WKnD53eldUZRq7/2nGQQizrefY7UjAGX/EZonSVOWZyhVyONu2VBBwg0B0yA3UBZV+yg+jGsrZ9ETEmfNbQRkbodEAwoZrGQ87UEdTkfj+5TGmfzqgukmBvvVV7KoXgSQIZNkqRmkAVKKXeEfydnOR37KMglBUXIR/50jkIswxWbNk2OtS6fz6UiPeEY39f4f0gwLx/HwUyel9yzH4dkDb+LBS6X/X9b9
+
+и это реально работает! однако это работает только при настройке  HashKnownHosts no. когда у нас domain name\IP нехэширован. когда же он хэширован то мы так уже подкоректировать руками
+known_hosts не сможем.
+
+Так вот я продолжаю тему о том что если у нас доменное имя не прописано в /etc/hosts
+или во внешнем доменном сервере а вместо этого мы используем ~/.ssh/config
+вот с такой записью:
+
+$ cat ~/.ssh/config 
+HOST vasya.local
+    HOSTNAME 100.0.0.6
+
+и мы обращаемся к серверу по доменному имени
+$ ssh -o FingerprintHash=md5 -o  HostKeyAlgorithms=ssh-rsa  vasya.local
+
+то тогда в known_hosts будет записано не доменное имя а  IP как идентификатор удаленного сервера.
+я проверил это. 
+также практика показала что если есть запись в /etc/hosts и есть запись в ~/.ssh/config
+то запись в ~/.ssh/config превалирует. 
+Таким образом если мы хотим чтобы в known_hosts присутсовало именно доменное имя
+то надо чтобы если мы используем ~/.ssh/config то там хост был прописан как доменное
+имя а не как IP адрес. например.
+
+$ cat ~/.ssh/config
+
+
+HOST vasya.local
+    HOSTNAME vasya.local
+
+при этом
+$ cat /etc/hosts
+100.0.0.6 vasya.local
+
+
+тогда 
+$ ssh -o FingerprintHash=md5 -o  HostKeyAlgorithms=ssh-rsa  vasya.local
+даст
+$ cat known_hosts
+vasya.local,100.0.0.6 ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDTRQx4ZmXMByEs6dg4VTz+UtM9X9Ljxt6SU3oceqRUlV+ohx56xdD0ZPbvD0IcYwUrrqcruMG0xxgRxWuzV+FQAJVQe76ED966+lwrwAnUsVFQ5apw3N+WKnD53eldUZRq7/2nGQQizrefY7UjAGX/EZonSVOWZyhVyONu2VBBwg0B0yA3UBZV+yg+jGsrZ9ETEmfNbQRkbodEAwoZrGQ87UEdTkfj+5TGmfzqgukmBvvVV7KoXgSQIZNkqRmkAVKKXeEfydnOR37KMglBUXIR/50jkIswxWbNk2OtS6fz6UiPeEY39f4f0gwLx/HwUyel9yzH4dkDb+LBS6X/X9b9
+
+
+но опять же можно заметить что даже если у нас система вписала доменное
+имя то она всегда обязательно прорисывает и IP адрес. так что от IP адреса
+никак неизбавиться.!
+
+что интересно. я зашел на удаленнйы хост и сменил его ip на 100.0.0.8
+далее я на нашем компе постучал на сервер 
+$ ssh -o FingerprintHash=md5 -o  HostKeyAlgorithms=ssh-rsa  vasya.local
+тогда система вот что сделала
+$ cat known_hosts
+
+vasya.local,100.0.0.6 ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDTRQx4ZmXMByEs6dg4VTz+UtM9X9Ljxt6SU3oceqRUlV+ohx56xdD0ZPbvD0IcYwUrrqcruMG0xxgRxWuzV+FQAJVQe76ED966+lwrwAnUsVFQ5apw3N+WKnD53eldUZRq7/2nGQQizrefY7UjAGX/EZonSVOWZyhVyONu2VBBwg0B0yA3UBZV+yg+jGsrZ9ETEmfNbQRkbodEAwoZrGQ87UEdTkfj+5TGmfzqgukmBvvVV7KoXgSQIZNkqRmkAVKKXeEfydnOR37KMglBUXIR/50jkIswxWbNk2OtS6fz6UiPeEY39f4f0gwLx/HwUyel9yzH4dkDb+LBS6X/X9b9
+
+100.0.0.8 ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDTRQx4ZmXMByEs6dg4VTz+UtM9X9Ljxt6SU3oceqRUlV+ohx56xdD0ZPbvD0IcYwUrrqcruMG0xxgRxWuzV+FQAJVQe76ED966+lwrwAnUsVFQ5apw3N+WKnD53eldUZRq7/2nGQQizrefY7UjAGX/EZonSVOWZyhVyONu2VBBwg0B0yA3UBZV+yg+jGsrZ9ETEmfNbQRkbodEAwoZrGQ87UEdTkfj+5TGmfzqgukmBvvVV7KoXgSQIZNkqRmkAVKKXeEfydnOR37KMglBUXIR/50jkIswxWbNk2OtS6fz6UiPeEY39f4f0gwLx/HwUyel9yzH4dkDb+LBS6X/X9b9
+
+
+она добавила новую строчку и использовала IP=100.0.0.8
+далее я удаляю верхнюю строчку в known_hosts
+еще раз стучуь по доменному имени
+получаю такое в known_hosts
+
+$ cat known_hosts
+
+100.0.0.8 ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDTRQx4ZmXMByEs6dg4VTz+UtM9X9Ljxt6SU3oceqRUlV+ohx56xdD0ZPbvD0IcYwUrrqcruMG0xxgRxWuzV+FQAJVQe76ED966+lwrwAnUsVFQ5apw3N+WKnD53eldUZRq7/2nGQQizrefY7UjAGX/EZonSVOWZyhVyONu2VBBwg0B0yA3UBZV+yg+jGsrZ9ETEmfNbQRkbodEAwoZrGQ87UEdTkfj+5TGmfzqgukmBvvVV7KoXgSQIZNkqRmkAVKKXeEfydnOR37KMglBUXIR/50jkIswxWbNk2OtS6fz6UiPeEY39f4f0gwLx/HwUyel9yzH4dkDb+LBS6X/X9b9
+
+vasya.local ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDTRQx4ZmXMByEs6dg4VTz+UtM9X9Ljxt6SU3oceqRUlV+ohx56xdD0ZPbvD0IcYwUrrqcruMG0xxgRxWuzV+FQAJVQe76ED966+lwrwAnUsVFQ5apw3N+WKnD53eldUZRq7/2nGQQizrefY7UjAGX/EZonSVOWZyhVyONu2VBBwg0B0yA3UBZV+yg+jGsrZ9ETEmfNbQRkbodEAwoZrGQ87UEdTkfj+5TGmfzqgukmBvvVV7KoXgSQIZNkqRmkAVKKXeEfydnOR37KMglBUXIR/50jkIswxWbNk2OtS6fz6UiPeEY39f4f0gwLx/HwUyel9yzH4dkDb+LBS6X/X9b9
+
+далее я удаляю строчку с vasya.local
+стучусь еще раз
+$ ssh -o FingerprintHash=md5 -o  HostKeyAlgorithms=ssh-ed25519  vasya.local 
+The authenticity of host 'vasya.local (100.0.0.8)' can't be established.
+ED25519 key fingerprint is MD5:75:20:0b:43:14:a9:8a:49:1a:d9:29:33:e1:b9:1a:b6.
+Are you sure you want to continue connecting (yes/no)? yes
+Warning: Permanently added 'vasya.local' (ED25519) to the list of known hosts.
+Warning: the ED25519 host key for 'vasya.local' differs from the key for the IP address '100.0.0.8'
+Offending key for IP in /home/vasya/.ssh/known_hosts:1
+Are you sure you want to continue connecting (yes/no)? ^C
+
+$ cat known_hosts
+100.0.0.8 ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDTRQx4ZmXMByEs6dg4VTz+UtM9X9Ljxt6SU3oceqRUlV+ohx56xdD0ZPbvD0IcYwUrrqcruMG0xxgRxWuzV+FQAJVQe76ED966+lwrwAnUsVFQ5apw3N+WKnD53eldUZRq7/2nGQQizrefY7UjAGX/EZonSVOWZyhVyONu2VBBwg0B0yA3UBZV+yg+jGsrZ9ETEmfNbQRkbodEAwoZrGQ87UEdTkfj+5TGmfzqgukmBvvVV7KoXgSQIZNkqRmkAVKKXeEfydnOR37KMglBUXIR/50jkIswxWbNk2OtS6fz6UiPeEY39f4f0gwLx/HwUyel9yzH4dkDb+LBS6X/X9b9
+vasya.local ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFZ/jrfDX1aK1I0A/sLRVb2qoCF9xHWbVW+gBCV8dSmg
+
+удаляю строчку с 100.0.0.8
+стучу еще раз получаю
+
+$ cat known_hosts
+vasya.local ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFZ/jrfDX1aK1I0A/sLRVb2qoCF9xHWbVW+gBCV8dSmg
+100.0.0.8 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFZ/jrfDX1aK1I0A/sLRVb2qoCF9xHWbVW+gBCV8dSmg
+
+удаляю обе строчки
+стучу еще раз
+получаю
+
+$ cat known_hosts
+vasya.local,100.0.0.8 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFZ/jrfDX1aK1I0A/sLRVb2qoCF9xHWbVW+gBCV8dSmg
+
+из чего я суммарно делаю вывод - если мы стучиммся на сервер по его доменному имени
+и в config нет его резоолвинга в IP то клиент ищет в known_hosts строчку где указано 
+доменное имя. если в этой строчке указано толко доменное имя без IP то клиент
+делает еще доп проверку и ищет строчку где есть IP и сравнивает одинаковые ли ключи или нет.
+если нет то клиент ругается. как это было в этом случае:
+
+$ ssh -o FingerprintHash=md5 -o  HostKeyAlgorithms=ssh-ed25519  vasya.local 
+The authenticity of host 'vasya.local (100.0.0.8)' can't be established.
+ED25519 key fingerprint is MD5:75:20:0b:43:14:a9:8a:49:1a:d9:29:33:e1:b9:1a:b6.
+Are you sure you want to continue connecting (yes/no)? yes
+Warning: Permanently added 'vasya.local' (ED25519) to the list of known hosts.
+Warning: the ED25519 host key for 'vasya.local' differs from the key for the IP address '100.0.0.8'
+Offending key for IP in /home/vasya/.ssh/known_hosts:1
+Are you sure you want to continue connecting (yes/no)? ^C
+
+$ cat known_hosts
+100.0.0.8 ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDTRQx4ZmXMByEs6dg4VTz+UtM9X9Ljxt6SU3oceqRUlV+ohx56xdD0ZPbvD0IcYwUrrqcruMG0xxgRxWuzV+FQAJVQe76ED966+lwrwAnUsVFQ5apw3N+WKnD53eldUZRq7/2nGQQizrefY7UjAGX/EZonSVOWZyhVyONu2VBBwg0B0yA3UBZV+yg+jGsrZ9ETEmfNbQRkbodEAwoZrGQ87UEdTkfj+5TGmfzqgukmBvvVV7KoXgSQIZNkqRmkAVKKXeEfydnOR37KMglBUXIR/50jkIswxWbNk2OtS6fz6UiPeEY39f4f0gwLx/HwUyel9yzH4dkDb+LBS6X/X9b9
+vasya.local ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFZ/jrfDX1aK1I0A/sLRVb2qoCF9xHWbVW+gBCV8dSmg
+
+в целом я бы сдела такой вывод - как ни извращайся но клиент будет всегда вставлять строчку в known_hosts которая обязательно будет содержать IP сервера (неважно как мы  к нему обращаемся по IP или по доменному имени). если мы обращаемся к серверу по IP то  в файле будет прописан IP. если мы обращаемся к серверу первый раз и по доменному имени то в файле в одной строке
+будет указано и доменное имя и IP. если в файле уже есть либо такой IP либо такое доменное
+имя то будет создана доп строчка с тем чегонехватает. тоесть если мы обратлись по доменному имени а в файле для IP уже есть запись то будет созана вторая строчка с только доменным
+именем. если у нас есть две строчки в которой в одной только доменное имя а в другой только
+IP и указаные разные ключи (так хитро мы смогли сделать) то система будет ругаться и говорить
+что у нас одна строка противорчеит другой как в этом примере:
+
+$ ssh -o FingerprintHash=md5 -o  HostKeyAlgorithms=ssh-ed25519  vasya.local 
+The authenticity of host 'vasya.local (100.0.0.8)' can't be established.
+ED25519 key fingerprint is MD5:75:20:0b:43:14:a9:8a:49:1a:d9:29:33:e1:b9:1a:b6.
+Are you sure you want to continue connecting (yes/no)? yes
+Warning: Permanently added 'vasya.local' (ED25519) to the list of known hosts.
+Warning: the ED25519 host key for 'vasya.local' differs from the key for the IP address '100.0.0.8'
+Offending key for IP in /home/vasya/.ssh/known_hosts:1
+Are you sure you want to continue connecting (yes/no)? ^C
+
+$ cat known_hosts
+100.0.0.8 ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDTRQx4ZmXMByEs6dg4VTz+UtM9X9Ljxt6SU3oceqRUlV+ohx56xdD0ZPbvD0IcYwUrrqcruMG0xxgRxWuzV+FQAJVQe76ED966+lwrwAnUsVFQ5apw3N+WKnD53eldUZRq7/2nGQQizrefY7UjAGX/EZonSVOWZyhVyONu2VBBwg0B0yA3UBZV+yg+jGsrZ9ETEmfNbQRkbodEAwoZrGQ87UEdTkfj+5TGmfzqgukmBvvVV7KoXgSQIZNkqRmkAVKKXeEfydnOR37KMglBUXIR/50jkIswxWbNk2OtS6fz6UiPeEY39f4f0gwLx/HwUyel9yzH4dkDb+LBS6X/X9b9
+vasya.local ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFZ/jrfDX1aK1I0A/sLRVb2qoCF9xHWbVW+gBCV8dSmg
+
+
+в целом я бы сказал так что для себя клиент в конченом итоге идентифицирует хост именно по IP 
+как ни ивзращайся и с этим IP обязатлеьно будет строчка в known_hosts и еще то что 
+для одного IP в known_hosts может быть только один ключ. неможет быть два ключа даже 
+если при этом указаны разные алгоритмы несимметричного шифрования. система будет ругаться вот так:
+
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@    WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!     @
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+IT IS POSSIBLE THAT SOMEONE IS DOING SOMETHING NASTY!
+
+так что если уж когда то полкючились к хосту через RSA и такой то ключ
+то будь добр только так к этому хосту и подключаться. а если решил сменить 
+RSA на ECSA то вначале удали из known_hosts прежний ключ вотак
+
+$ ssh-keygen -f "/home/vasya/.ssh/known_hosts" -R "100.0.0.6"
+
+еще раз подчеркн что  хост неможет иметь в known_hosts разные ключи.тоесть строчка может 
+быть только одна! при этом неважно что раньше мы связывалист с ним по RSA а щас по ECDSA.
+невоможно это обойти тем что мы будет обращаться к хосту скажем по IP по RSA
+а по доменному имени по ECDSA. этот номер непродет. как бы мы ни обраащались к хосту в коечном итоге клиент ожидает что в known_hosts либо есть одна строка с одним ключом и в этой строке
+укзано и доменное имя и IP либо там есть две строки в одной IP в другой доменное имя 
+но в обоих строках ключ должен быть одинаковый. так что обмануть обойти это недуастся.
+итого - одному хосту один ключ один алгоритм ассмиетричного шифрования. так подразумевает
+клиент. иначе он будет псоылать нахер.
 
 
 
-
+- man 8 sshd искать формат known_hosts. прочитать проработать
 - known_hosts как там найти заданный хост или хэш ? его формат есть в man 8 sshd
+- формат known_hosts
+
+- расмотреть случай когда HashKnownHosts yes
+- из примера что выше почему в 
+(удаленный сервер)# cat /etc/ssh/ssh_host_rsa_key.pub 
+есть root@vagrant
+а в
+(наш комп)$ cat known_hosts
+его уже нет
+
+- ssh-rsa vs ecdsa-sha2-nistp256 vs ssh-ed25519
+
+- выяснилась офимегнная вещь. есть sshd_config а  есть ssh_config.
+sshd_config это конфиг для сервера ssh тоесть когда наш комп является сервером и принимает
+запросы от других и это его конфиг файл. а ssh_config это когда мы с нашего пользуемся клиентом ssh и это его конфиг файл! 
+- непонятно ~/.ssh/config это локальный аналог sshd_config или ssh_config. 
+насколько я понимаб локального аналога для sshd_config быть неможет . поэтому
+~/.ssh/config это аналог ssh_config. тогда непонятно почему опция HashKnownHosts no 
+прописанна я в config несрабаывает и срабатывает если ее запихунть только в ssh_config
+
+- формат публичного ключа
+- sshd -T 
+- ssh-keyscan
+- написать какие файлы мы уже затронули для чего ни используется в ssh (наример known_hosts)
 - чтобы несравнивать глазами как сравнить два хэша ?
 - md5sum binary vs text? какая разница?
 - On  systems like GNU that do not distinguish between binary and text
      files, this option merely flags each input mode as binary: the MD5
      checksum is unaffected
-- md5sum от ключа несовпдаает с ssh-keygen
+- md5sum для публичного ключа несовпдаает с ssh-keygen
+тоесть
+cat /etc/ssh/key.pub | md5sum  
+и
+ssh-keygen -fl /etc/ssh/key.pub 
+выдает совсем разные хэши. почему? непонятно
 - что интересно md5sum он всегда вавыодит хэш без знаков : в отличие от ssh-keygen
 - < vs  << vs <<< bash ?
 - man md5sum : Do not use the MD5 algorithm for security related purposes. почему?
@@ -405,6 +687,19 @@ known_hosts
 - я щас покажу как нам узнать какой метод был выбран чуть ниже. 
 - $ ssh -o FingerprintHash=md5 -o  HostKeyAlgorithms=ssh-rsa  100.0.0.6
 дебилизмы с -o
+- где на клиенстой машине берется публичный ключ который шлется серверу. 
+тот публичный ключ котоый используется для создания первичного безопасного канала
+- еще такой вадный момент что мы рассматривали как нам важно узнать что публик кей реально 
+от сервера. а что насчет сервера? важно ли ему чтобы он знал что наш клиенсткий
+ключ исходит именно от нас. в общем случае нет. любой публичнй ключ что от нас что 
+от злодея для сервера это полноценный ключ. на основе этих ключей будет устанолвен безопасный
+канал между сервером и нами либо между сервером и злодеем. в любом случае небудет тресторонней
+цепочти типа мы злодей сервер. тоесть канал шифрования дает то что между точно сервером и 
+непонятно каким то есть любымт клиентом  с гарантией что нет третьего участинка устаналивается
+безпонаснвй канал. когда он устанолвен то наступает фаза аутентификации клиента. клиент аутентифиаицирцется внутри этого безпоасного канала либо через логин пароль либо через публичный ключ и так понимаю что это неможет быть другой ключ отличный от того что участвовал
+в создании безопасного канала (верно неверно?). через аутентифцаицию сервер понимает что 
+эт непросто вообще клиент а именно этот клеинт. есл через ключ то на сервере нужно заблаговременно добавлять хэш публичного ключа клиента ( верно неверно?)
+
 - вопрос асиметрик метод и симетрик метод о них договоариваются сразу на первом этапе за один раз или на разных
 этапах. 
 
@@ -415,4 +710,16 @@ known_hosts
 - как договвариваются клиент и сервер (причем надежно чтоб мэн ин зе мидл не влез) о 
 о начальных параметрах сеанса. например о способе ассметриченого шифрования.
 - ssh vs ssl ?
+- ssh vs ipsec
+- дифи хельман ?
+- ssh на циско
+- походу ssh это всегда async шифрвание вначале  а потом sync шифрование?
+- а какой протокол на sync у ssh ?
+- получается три фазы? фаза обмена параметрами, асинк шифр, синк шифр? разница с ipsec?
+- hmac ?
+- при команде $ vagrant ssh имя_вируталки 
+по факту в списке процессов появлется такой
+/usr/bin/ssh vagrant@127.0.0.1 -p 2222 -o LogLevel=FATAL -o Compression=yes -o DSAAuthentication=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i /home/vasya/.vagrant.d/insecure_private_key -o ForwardAgent=yes
+разобрать ключи. 
+кстати сразу видно какой приватный ключ используется === -i /home/vasya/.vagrant.d/insecure_private_key
 
