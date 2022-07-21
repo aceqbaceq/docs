@@ -240,6 +240,216 @@ a=2
 ext4 
 в каком encoding хранит она имена файлов на диске?
 -----
+ext4
+inodes
+
+посмотрел можно ли увеличиить число индоов на ext3/4. по прежнему пишут что нельзя.
+единственный способ пишут что если мы увеличиваем размер раздела через resize2fs то при этом увеличивается
+число инодов. непроверял. но это хорошо. вообще это лгично ибо у меня сложилось впечатение
+что при форматировании иноды создаются групками через некоторое количество блоков на диске.
+сответсвенно елси число блоков увеличилось то и при этом будут созданы новые иноды.
+еще один способ предлагаю. положим у нас дофига свободного места на диске а инодов мало.
+тогда предлагается чтото типа того:
+
+$ df -i  # see list ( I need just one free inode here so move just one file into other PARTITION)
+/dev/part1  1000 999 1 99.9%     /data
+
+$ dd if=/dev/zero of=/data/new_data
+$ mkfs.ext4 /data/new_data
+$ mkdir /data1
+$ mount /data/new_data /data1
+
+ну тоесть понятно . создать файл. как виртуальный диск его подмонтировать.
+----
+ext4
+про directory
+и еще про inodes
+
+в каком виде ext4 хранит инфо о папках?
+ответ инфо о папках тоже хранится в инодах.
+
+пруф
+из http://www.nongnu.org/ext2-doc/ext2.html#def-directories
+имею
+Directories
+This definition comes from the Linux Kernel Documentation with some minor alterations.
+
+A directory is a filesystem object and has an inode just like a file. It is a specially formatted file containing records which associate each name with an inode number. Later revisions of the filesystem also encode the type of the object (file, directory, symlink, device, fifo, socket) to avoid the need to check the inode itself for this information
+
+The inode allocation code should try to assign inodes which are in the same block group as the directory in which they are first created.
+
+The original Ext2 revision used singly-linked list to store the filenames in the directory; newer revisions are able to use hashes and binary trees.
+
+Also note that as directory grows additional blocks are assigned to store the additional file records. When filenames are removed, some implementations do not free these additional bloc
+
+еще вот отсюада - https://wiki.osdev.org/Ext2#What_is_an_Inode.3F
+What is an Inode?
+An inode is a structure on the disk that represents a file, directory, symbolic link, etc. Inodes do not contain the data of the file / directory / etc. that they represent. Instead, they link to the blocks that actually contain the data. This lets the inodes themselves have a well-defined size which lets them be placed in easily indexed arrays. Each block group has an array of inodes it is responsible for, and conversely every inode within a file system belongs to one of such tables (and one of such block groups).
+
+из чего я делаю вывод что каталоги тоже на ext fs сидят в инодах!
+также в доказетльество что папки тоже занимают иноды:
+$ stat ./bash
+  File: ./bash
+  Size: 4096        Blocks: 8          IO Block: 4096   directory
+Device: 10302h/66306d Inode: 24912841    Links: 4
+Access: (0777/drwxrwxrwx)  Uid: ( 1000/   vasya)   Gid: ( 1000/   vasya)
+
+bash это папка и видно что у нее есть инода.
+
+также про ext fs  янашел что inode=2 всегда содержит инфо о root directory.
+ я проверил и точно
+
+ $ stat /
+  File: /
+  Size: 4096        Blocks: 8          IO Block: 4096   directory
+Device: 10302h/66306d Inode: 2           Links: 26
+Access: (0755/drwxr-xr-x)  Uid: (    0/    root)   Gid: (    0/    root)
+
+вообще - эта сссылка очень хорошо пор ext описывает = https://wiki.osdev.org/Ext2#What_is_an_Inode.3F
+
+что  я непонимаю что в иноде прописывается типа файла который она описывает. 
+так вот там есть например fifo. но как фифо может лежать на диске. или сокет.
+как я понимал это файлы лежащие в RAM но никак не на диске ?
+
+Type value
+in hex
+
+Type Description
+0x1000  FIFO
+0x2000  Character device
+0x4000  Directory
+0x6000  Block device
+0x8000  Regular file
+0xA000  Symbolic link
+0xC000  Unix socket
+
+а вот тамже укаазаны атрибуты файлу которые в иноде можно 
+указать назвается инод флаги
+
+в ext2:
+Inode Flags
+Flag Value  Description
+0x00000001  Secure deletion (not used)
+0x00000002  Keep a copy of data when deleted (not used)
+0x00000004  File compression (not used)
+0x00000008  Synchronous updates—new data is written immediately to disk
+0x00000010  Immutable file (content cannot be changed)
+0x00000020  Append only
+0x00000040  File is not included in 'dump' command
+0x00000080  Last accessed time should not updated
+... (Reserved)
+0x00010000  Hash indexed directory
+0x00020000  AFS directory
+0x00040000  Journal file data
+
+а вот в ext4 
+какие иноды флаги:
+Inode flags:
+0x1 This file requires secure deletion (EXT4_SECRM_FL). (not implemented)
+0x2 This file should be preserved, should undeletion be desired (EXT4_UNRM_FL). (not implemented)
+0x4 File is compressed (EXT4_COMPR_FL). (not really implemented)
+0x8 All writes to the file must be synchronous (EXT4_SYNC_FL).
+0x10  File is immutable (EXT4_IMMUTABLE_FL).
+0x20  File can only be appended (EXT4_APPEND_FL).
+0x40  The dump(1) utility should not dump this file (EXT4_NODUMP_FL).
+0x80  Do not update access time (EXT4_NOATIME_FL).
+0x100 Dirty compressed file (EXT4_DIRTY_FL). (not used)
+0x200 File has one or more compressed clusters (EXT4_COMPRBLK_FL). (not used)
+0x400 Do not compress file (EXT4_NOCOMPR_FL). (not used)
+0x800 Encrypted inode (EXT4_ENCRYPT_FL). This bit value previously was EXT4_ECOMPR_FL (compression error), which was never used.
+0x1000  Directory has hashed indexes (EXT4_INDEX_FL).
+0x2000  AFS magic directory (EXT4_IMAGIC_FL).
+0x4000  File data must always be written through the journal (EXT4_JOURNAL_DATA_FL).
+0x8000  File tail should not be merged (EXT4_NOTAIL_FL). (not used by ext4)
+0x10000 All directory entry data should be written synchronously (see dirsync) (EXT4_DIRSYNC_FL).
+0x20000 Top of directory hierarchy (EXT4_TOPDIR_FL).
+0x40000 This is a huge file (EXT4_HUGE_FILE_FL).
+0x80000 Inode uses extents (EXT4_EXTENTS_FL).
+0x200000  Inode stores a large extended attribute value in its data blocks (EXT4_EA_INODE_FL).
+0x400000  This file has blocks allocated past EOF (EXT4_EOFBLOCKS_FL). (deprecated)
+0x01000000  Inode is a snapshot (EXT4_SNAPFILE_FL). (not in mainline)
+0x04000000  Snapshot is being deleted (EXT4_SNAPFILE_DELETED_FL). (not in mainline)
+0x08000000  Snapshot shrink has completed (EXT4_SNAPFILE_SHRUNK_FL). (not in mainline)
+0x10000000  Inode has inline data (EXT4_INLINE_DATA_FL).
+0x20000000  Create children with the same project ID (EXT4_PROJINHERIT_FL).
+0x80000000  Reserved for ext4 library (EXT4_RESERVED_FL).
+Aggregate flags:
+0x4BDFFF  User-visible flags.
+0x4B80FF  User-modifiable flags. Note that while EXT4_JOURNAL_DATA_FL and EXT4_EXTENTS_FL can be set with setattr, they are not in the kernel's EXT4_FL_USER_MODIFIABLE mask, since it needs to handle the setting of these flags in a special manner and they are masked out of the set of flags that are saved directly to i_flags.
+
+как посмтрть эти артрибуты у файла. - через lsattr
+
+для файлов:
+# lsattr /boot/vmlinuz-5.4.0-91-generic 
+--------------e--- /boot/vmlinuz-5.4.0-91-generic
+
+
+для папок:
+# lsattr -d /etc
+-----------I--e--- /etc
+
+# lsattr -d /
+--------------e--- /
+
+
+значения букв можно узнать из man chattr
+ The letters 'aAcCdDeijPsStTu' select the new attributes for the files: append only (a), no atime updates (A), compressed (c), no copy on  write  (C),  no  dump  (d),  synchronous
+       directory  updates  (D),  extent format (e), immutable (i), data journalling (j), project hierarchy (P), secure deletion (s), synchronous updates (S), no tail-merging (t), top of
+       directory hierarchy (T), and undeletable (u).
+
+
+щас разберем эти атрибуты
+
+самый простой но практичный атрибут это i = immutable. если его добавит на файл
+то его нельзя ни удалить ни имзенить.      A file with the 'i' attribute cannot be modified: it cannot be deleted or renamed, no link can be created to this file, most of the file's metadata can not be  modified,  and  no
+       data can be written to the file.  Only the superuser or a process possessing the CAP_LINUX_IMMUTABLE capability can set or clear this attribute.
+
+# chattr +i ./1.txt 
+# lsattr ./1.txt 
+----i---------e--- ./1.txt
+
+все. он иммьютабл.
+
+флаг (a) append only. если его применить на папку то получает волшебное свойство.
+что файлы добавлять в нее можно и редактировать можно. а удалить их нельзя.
+
+# chattr +a ./03
+# lsattr -d ./03
+-----a--------e--- ./03
+
+ я проверил работает. едтинственное редакторы текстовые привыкли копии создавать 
+ редактируемых файлов так что только в этом проблема а так круто все работает.!
+ файл удалить нельзя зато можно его редактировать.!
+
+
+
+атрибут (e) extent format из lsattr  я думаю это идет речь об инода флаге 0x80000 Inode uses extents (EXT4_EXTENTS_FL).
+он означает что в  иноде для записи информации в каких блоках лежит тело файла используется не классическая схема которая была в ext2\3  а новая система в виде экстентов. 
+дело  втом что инода имеет фиксированный размер. равный 256 байт.  откуда я взял эту 
+цфиру . взял отсюда - https://ext4.wiki.kernel.org/index.php/Ext4_Disk_Layout
+кстати там по дурацки написан такой термин как directory entry, так вот в их интерпретации
+это нефайл который отвечает за папку нет. в их интепретации это имя файла то которое 
+мы видим когда ls -1 юзаем. тоесть directory entry это у нас файл который описывает папку 
+и в ней строчка (entry) в которой указано имя файла и его инода. вот эта хрень и есть directory entry в этом файле , они это там имели ввиду под directory entry (а я вначале думал что они под этим термином понимают спец файл который хранит запись о папке. это совсем нетак еще раз. directory entry это по ихнему запись об имени файла и его иноде в файле которыйхранит инфо о папке.сразу еще раз доблавяю что на ext запись о папке хранится тоже в обыкновенной иноде и никаких блядь фокусов. так что никаких особых структур хранящих инфо о directory нет!)
+там написано - на ext2\3 размер иноды был фиксированный 128 байт (EXT2_GOOD_OLD_INODE_SIZE)
+в современном коде ядра  я ненашел чтобы была эта переменная определена.
+а в старых ядрах она была в linux/include/linux/ext2_fs.h
+и там был такой кусок
+#define EXT2_GOOD_OLD_INODE_SIZE 128
+
+
+
+
+
+-----
+proc vs sys
+как я понял в proc мы можем посмотреть информацию по процессам. proc предназначена
+прежде всего для отображения по процессам(что о них есть в ядре).
+sys предназначена чтобы посмотреть информацию о железках об устройствах.(что о них есть в ядре).
+
+таким образом основным обьектом proc являются процессы
+а у sys являются железки
+------
 euid, ruid,guid,и прочие *uid?
 
 -----
