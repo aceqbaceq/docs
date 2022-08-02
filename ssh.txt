@@ -1026,7 +1026,7 @@ lrwx------ 1 root root 64 Jul 11 19:18 11 -> /dev/ptmx
 
 
 - ext4 wiki
-- block devices vs character devices?
+
 
 
 - линукс создать файл с юникод именем
