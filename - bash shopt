@@ -1,0 +1,74 @@
+	- bash shopt
+builtin
+shopt
+
+позволяет подкручивать опции работы баша.
+
+$ set | grep SHOPT
+BASHOPTS=checkwinsize:cmdhist:complete_fullquote:expand_aliases:extglob:extquote:force_fignore:histappend:interactive_comments:progcomp:promptvars:sourcepath
+
+
+без опций выводит все опции и их статус
+$ shopt
+autocd         	off
+cdable_vars    	off
+cdspell        	off
+checkhash      	off
+checkjobs      	off
+checkwinsize   	on
+cmdhist        	on
+compat31       	off
+compat32       	off
+compat40       	off
+compat41       	off
+compat42       	off
+compat43       	off
+complete_fullquote	on
+direxpand      	off
+dirspell       	off
+dotglob        	off
+execfail       	off
+expand_aliases 	on
+extdebug       	off
+extglob        	on
+extquote       	on
+failglob       	off
+force_fignore  	on
+globasciiranges	off
+globstar       	off
+gnu_errfmt     	off
+histappend     	on
+histreedit     	off
+histverify     	off
+hostcomplete   	off
+huponexit      	off
+inherit_errexit	off
+interactive_comments	on
+lastpipe       	off
+lithist        	off
+login_shell    	off
+mailwarn       	off
+no_empty_cmd_completion	off
+nocaseglob     	off
+nocasematch    	off
+nullglob       	off
+progcomp       	on
+promptvars     	on
+restricted_shell	off
+shift_verbose  	off
+sourcepath     	on
+xpg_echo       	off
+
+
+
+--------
+	- bash set
+set
+
+$ set | grep SHELLOPTS
+SHELLOPTS=braceexpand:emacs:hashall:histexpand:history:interactive-comments:monitor
+
+
+
+- bash execution
+- передача переменных окружения 
