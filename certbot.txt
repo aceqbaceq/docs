@@ -1,0 +1,487 @@
+==============
+далее. 
+certbot
+
+
+
+
+
+# yum install epel-release
+# yum install certbot
+
+запускаем команду которая в папку /etc/letsencrypt положит сертификат и приватный ключ:
+# certbot certonly --webroot -d paidsupport.example.kz -w /srv/www/paidsupport.example.kz
+
+где:
+-d paidsupport.example.kz = название сайта
+-w /srv/www/paidsupport.example.kz = путь к папке
+
+
+
+вывод на экран:
+
+IMPORTANT NOTES:
+ - Congratulations! Your certificate and chain have been saved at:
+   /etc/letsencrypt/live/paidsupport.example.kz/fullchain.pem
+   Your key file has been saved at:
+   /etc/letsencrypt/live/paidsupport.example.kz/privkey.pem
+   Your certificate will expire on 2023-01-21. To obtain a new or
+   tweaked version of this certificate in the future, simply run
+   certbot again. To non-interactively renew *all* of your
+   certificates, run "certbot renew"
+ - If you like Certbot, please consider supporting our work by:
+
+   Donating to ISRG / Let's Encrypt:   https://letsencrypt.org/donate
+   Donating to EFF:                    https://eff.org/donate-le
+
+
+справка по certbot
+$ certbot --help all
+параметр certonly = Obtain or renew a certificate, but do not install it
+
+
+в итоге всталяем параеметры ключа в nginx вот так :
+вставляем в файл : 
+/etc/nginx/conf.d/paidsupport.example.kz.conf
+
+ listen 443 ssl;
+ ssl_certificate_key /etc/letsencrypt/live/paidsupport.example.kz/privkey.pem;    = путь к притваному ключу
+ ssl_certificate /etc/letsencrypt/live/paidsupport.example.kz/fullchain.pem;      = путь к сертификату
+
+
+активируем таймер:
+$ sudo systemctl enable --now certbot-renew.timer
+
+
+
+содрежимое systemd службы которую системд таймер вызывает 
+$ sudo cat /usr/lib/systemd/system/certbot-renew.service
+[Unit]
+Description=This service automatically renews any certbot certificates found
+
+[Service]
+EnvironmentFile=/etc/sysconfig/certbot
+Type=oneshot
+ExecStart=/usr/bin/certbot renew --noninteractive --no-random-sleep-on-renew $PRE_HOOK $POST_HOOK $RENEW_HOOK $DEPLOY_HOOK $CERTBOT_ARGS
+
+$ cat /usr/lib/systemd/system/certbot-renew.timer
+[Unit]
+Description=This is the timer to set the schedule for automated renewals
+
+[Timer]
+OnCalendar=*-*-* 00/12:00:00
+RandomizedDelaySec=12hours
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+
+
+якобы в эту папаку нужно положить +x скрипт который рестаиртит нжинкс /etc/letsencrypt/renewal-hooks/post
+чтобы после обновления сертификатов нжин перечитал конфиг.
+
+
+
+Issued On Sunday, October 23, 2022 at 5:35:40 PM
+Expires On  Saturday, January 21, 2023 at 5:35:39 PM
+
+Issued On Sunday, October 23, 2022 at 5:41:00 PM
+Expires On  Saturday, January 21, 2023 at 5:40:59 PM
+
+команда 
+# sudo  certbot certonly --force-renew -d paidsupport.example.kz --webroot -w /srv/www/paidsupport.example.kz/
+не вызывает автоматичекий нжинкс релоад конфига.
+
+
+по поводу ключа -d: The -d option specifies the domain name, or "subject", to be used in the certificate. Multiple -d options create a single certificate that contains multiple subjects. The first -d is used for the main subject. The "Certificate Subject Alt Name" (Firefox term) or "X509v3 Subject Alternative Name" (OpenSSL term) lists all subjects, including the main subject. Certbot stores the certificate material in a folder named after the main subject (i.e. the first -d).
+
+далее
+$sudo certbot renew --force-renewal
+когда неуывазваем кокнертный домен для обновления. то certbot и несрпашивает тогда про webroot папаку ( он ее берет из папки 
+/etc/letsencrypt/renewal/имя_домена для каждого домена ) и также выполняет 
+posthook из папки /etc/letsencrypt/renewal-hooks/post
+
+
+модуль nginx ( я про этот файл говорю) ставить ненужно неоябязательно, ибо то что он делает он меняет конфиг нжинкс а мы это можем делать и руками. 
+
+что происходит когда мы имеем сертиификат и получаем новый. путь к сертификату остается тот же самый:
+/etc/letsencrypt/live/paidsupport.example.kz/fullchain.pem
+просто это симлинк на файл /etc/letsencrypt/archive/paidsupport.example.kz/fullchain4.pem
+тоесть каждый раз когда обновляем мы сертификат то в этой папке доавляется файлик вида fullchainN.pem
+а для нжинкса путь остается тем же самым /etc/letsencrypt/live/paidsupport.example.kz/fullchain.pem
+поэтому в конфиге жинкса ничего менять ненадо после обновления серта. надо просто попрсить нжинкс переоткрыть файл с сертом
+тоесть перечитать свой конфиг systemctl reoad nginx. 
+это очень удобно. и главное что понятно что просиходит  со старым сертификатом что происходит  сновым сертификатом.
+
+далее. когда мы запрашиваем сертфиикат то certbot может сделать свое дело двумя способами. первый способ это он 
+поднимает свой веб сервер на питоне и садитться на порт 80. нам этот метод неудобен потому что у нас на порту 80 уже 
+сидит нжюинкс. (метод называется standlakone server). есть второй способ называется webroot это когда унас certbot
+спрашивает корневую папку для нашего домена на уже запущенном нашем веб сервере. и тогда он в той папке создает
+некую спец папку и туда кладет файл. а потом снаружи сайт леценкрипт ищет этот файл по пути вида http://домен/.well-known/имя файла. если он находит то выдается сертификат. поэтому когдмы мы первый раз для домена запрмшивает сертфиикат то 
+мы всегда должны уаазать папку под webroot через ключи  --webroot -w тоесть
+
+# certbot certonly  -d paidsupport.example.kz --webroot -w /srv/www/paidsupport.example.kz
+
+
+под каким правами запускать certbot? хз. но минимум под такими чтобы у него были права сделать запись в папку 
+с нашим сайтом /srv/www/paidsupport.example.kz,  проще всего под root
+
+
+как только серьификат получен он просто кладется в папку /etc/letsencrypt/имя_домена/ и все
+на конфиге нжмнкса сертбот ничего неделает неменяет. это уже наша забота туда подставить путь к сертификату.
+
+
+как только первй раз для домена сертифкат получен то настройки при кооторых он был получен сохранятся в файл:
+/etc/letsencrypt/renewal/имя_домена
+
+например 
+# cat  /etc/letsencrypt/renewal/paidsupport.example.kz.conf 
+# renew_before_expiry = 30 days
+version = 1.11.0
+archive_dir = /etc/letsencrypt/archive/paidsupport.example.kz
+cert = /etc/letsencrypt/live/paidsupport.example.kz/cert.pem
+privkey = /etc/letsencrypt/live/paidsupport.example.kz/privkey.pem
+chain = /etc/letsencrypt/live/paidsupport.example.kz/chain.pem
+fullchain = /etc/letsencrypt/live/paidsupport.example.kz/fullchain.pem
+
+# Options used in the renewal process
+[renewalparams]
+account = e71d5d0afe7506709699fb5a3aada224
+manual_public_ip_logging_ok = None
+server = https://acme-v02.api.letsencrypt.org/directory
+authenticator = webroot
+webroot_path = /srv/www/paidsupport.example.kz,
+
+
+это удобно когда мы будем обновлять все сертифкаты за раз то к нам небует вопросов например о папке webroot.
+
+ключ renew работает только на обновлаение всех сертификаов за раз, какойто конкретный сертификат через renew неполучится
+обновить. 
+
+ключ certonly наоборот необновляет все сразу  а обновляет только какойто кокнретный домен.
+это значит что ему обязательно нужно подслсывать и название домена и его web root папку
+
+а так посути что renew что certonly обнволят сертификат или сертификаты в /etc/letsecnrypt и ничего неменяют
+в нжинкс. ( при условии что мы неукзываем опцию certbot --nginx)
+Еще насколько я понимаю renew запускает постхук сам = /etc/letsencrypt/renewal-hooks/post/...
+
+
+опуция --dry-run насколько я понимаю делает то что она кладет файлы в папки веб серевера и пытается счиать снаружи.
+но сами сертификаты при этом нескачиываются и не сохранются на системе.
+
+еще раз подчеркну такой момент. при запуске certbot можно указать ключ --nginx  этот ключ дает то что 
+сербот обноавляет сертификаты в папке /etc/letsencrypt/... а ключ --nginx потом лезе в конфиг нжинкс и делает 
+там изменнеия вставляя туда строки которые описывают нжинксу где брать сертификаты. важно здесь подчеркнуть то что 
+ключ --nginx будет работать только и только если в системе установлен пакет python2-certbot-nginx.noarch
+если он неустановлен то ключ --nginx небудет рабоатть! и все что будет делать certbot это только обноавлять сертифкаты
+в папке /etc/letsencrypt. а в конифге нжинкса менять мы должны сами руками.
+
+
+далее речь пойдет о юнитах systemd\systemctl поэтому сразу тут я хочу сказать что чтобы вспомнить все юнитах нужно прочитать мою статью про systemd\systemctl= https://github.com/aceqbaceq/docs/blob/master/systemd.txt
+
+итак я хочу сказать - при установке пакета certbot в systemd устанавливается два юнита
+$ rpm -ql certbot
+/usr/lib/systemd/system/certbot-renew.service
+/usr/lib/systemd/system/certbot-renew.timer
+
+что они нам дают. они дают нам вместо cron job механизм автоматического обновления сертификатов!
+один юнит это таймер=certbot-renew.timer. 
+второй юнит это юнит=certbot-renew.service который этот таймер периодически запускает. и когда его 
+запускают он то и занимается обновлением сертификатов.
+значит когда мы поставили пакет certbot то чтобы обновление сертификатов заработало нам надо активировать таймер:
+$ sudo systemctl enable --now certbot-renew.timer
+опция enable --now дает то что юнит нетолько будет запускаться при boot он еще будет запущен и прям щас.
+итак таймер мы запустили и засунули его в boot. а вот  certbot-renew.service его трогать ненадо! его будет дергать 
+тогда когда надо наш таймер!
+
+вот так можно всегда посмотреть через сколько будет запущен наш таймер:
+$ sudo systemctl list-timers | grep -E "LAST|certbot"
+NEXT                          LEFT       LAST                          PASSED      UNIT                         ACTIVATES
+Ср 2022-10-26 11:54:46 UTC  15h left   Вт 2022-10-25 16:01:18 UTC  4h 4min ago certbot-renew.timer          certbot-renew.service
+
+кстати в строке видно что наш таймер активирует certbot-renew.service
+
+также всегда можно посмотреть логи запуска нашего certbot-renew.service
+сделать это очень просто:
+$ sudo journalctl -u certbot-renew.service
+-- Logs begin at Вс 2022-10-23 10:11:45 UTC, end at Вт 2022-10-25 20:07:57 UTC. --
+окт 23 15:10:34 kvs10-test.8.8.8.8 systemd[1]: Starting This service automatically renews any certbot certificates found...
+окт 23 15:10:35 kvs10-test.8.8.8.8 certbot[2293]: Saving debug log to /var/log/letsencrypt/letsencrypt.log
+окт 23 15:10:35 kvs10-test.8.8.8.8 certbot[2293]: - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+окт 23 15:10:35 kvs10-test.8.8.8.8 certbot[2293]: Processing /etc/letsencrypt/renewal/paidsupport.example.kz.conf
+окт 23 15:10:35 kvs10-test.8.8.8.8 certbot[2293]: - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+окт 23 15:10:35 kvs10-test.8.8.8.8 certbot[2293]: Cert not yet due for renewal
+
+из логов мы всегда увидим запускается ли перидически проверка на обновление сертификатов и насколько она успешно
+проходит!
+
+
+итак cron job нам ненужен. у нас есть systemd юниты для этого.
+
+
+далее. запускаю команду
+$ sudo certbot renew --dry-run
+она автоматом запускает скрипт в папке:
+Running post-hook command: /etc/letsencrypt/renewal-hooks/post/nginx.bash
+таким образом опция renew имеет важные свойства. первое - она обновляет все сертфиикаты. второе 
+она автоматом запускает renewal-hooks/post/ скрипт! третье опция renew она сама автоматом читает в какой папке webroot
+ей класть well-known файлы. а именно она смотрит в папку /etc/letsencrypt/renewal/ и там в файлах для каждого сайта 
+он ищет настройки для webroot
+
+
+далее. на сайте у клиента для папки .well-known заведена отдельна папка (location) а именно.
+есть файл 
+
+
+# cat /etc/nginx/vhost.inc.conf 
+location /.well-known/ {
+                     root /var/www/letsencrypt/;
+                     auth_basic          off;
+                     allow all;
+                        }
+
+в нем указано что для URI /.well-known/ использовать  папку /var/www/letsencrypt/
+и далее мы для конкретного сайта мы вставляем  vhost.inc.conf:
+
+
+# cat /etc/nginx/conf.d/paidsupport.example.kz.conf 
+server {
+
+        ...
+        include vhost.inc.conf;
+                                                                                  
+        }
+        
+        
+
+таким образом у нас URI  /.well-known/ будет браться из папки /var/www/letsencrypt/
+
+
+
+далее:
+  я прояснил следущий вопрос - вопрос был такой. вот у меня есть целый каталог сертификатов. тоесть:
+
+
+# ls -1
+cert1.pem
+cert2.pem
+chain1.pem
+chain2.pem
+fullchain1.pem
+fullchain2.pem
+privkey1.pem
+privkey2.pem
+
+
+
+и вознкиает вопрос - что будет если я подсуну в нжинкс неновый сертфикат а старый сертификат. я проверил - 
+старый сертификат тоже валиден. тоесть при выпуске нового сертификата леценкрипт недизейблит прошлый сертфиикат.
+таким образом можно иметь сразу несколько валидных сертификатов. 
+
+
+вопрос: 
+как приудиельно обновить сертификаты(все).
+ответ: используем опцию renew
+$ sudo certbot renew --force-renew 
+...
+Running post-hook command: /etc/letsencrypt/renewal-hooks/post/nginx.bash
+
+что классно это то что команда автоматом запустит  renewal-hooks/post скрипт.
+
+
+вопрос: 
+как обновить конкретный сертфиикат.
+ответ: используем certonly
+# sudo certbot certonly --webroot -d paidsupport.example.kz -w /srv/www/paidsupport.example.kz
+вывод на экран:
+значит что примечательно то команда спросит хотим ли мы обновить сертификат.
+
+
+What would you like to do?
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+1: Keep the existing certificate for now
+2: Renew & replace the certificate (may be subject to CA rate limits)
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+далее.
+что хранится в папках /etc/letsencrypt/...
+archive =>(здесь реально хранятся сертификаты)
+csr =>(здесь лежат приватные ключи. их дубликаты лежат также в папке archive)
+live =>(здесь лежат символические ссылки на сертификаты в папке archive)
+renewal =>(здесь лежат файлы для каждого сайта , в них находятся настройки для того чтобы сертбот мог в следущий раз 
+автономно обновить сертификаты , например там находятся настройки где лежит папка webroot для каждого сайта).
+renewal-hooks => (тут папки в которые нужно класть свои самописные скрипты которые сербот при определенных условиях запускает 
+в случае обновления сертификатов. по сути эта папка нужно чтобы сюда класть скрипты перезагрузки нжинкс чтобы он переоткрыл
+файлы с сертификатами и таким макаром нжинкс увидел обноавленные сертфиикаты)
+
+
+следущий вопрос:
+как удалить сертификат который нам больше ненужен. 
+ответ: очень просто
+
+команда:
+# sudo certbot delete
+
+сертбот нарисует какие сертификаты есть и прредложить выбрать сертифкаты которые нужно удалить.
+супер!
+
+вывод на экран:
+Saving debug log to /var/log/letsencrypt/letsencrypt.log
+
+Which certificate(s) would you like to delete?
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+1: paidsupport.example.kz
+2: paidsupport2.example.kz
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Select the appropriate numbers separated by commas and/or spaces, or leave input
+blank to select all options shown (Enter 'c' to cancel): 2
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+The following certificate(s) are selected for deletion:
+
+  * paidsupport2.example.kz
+
+Are you sure you want to delete the above certificate(s)?
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+(Y)es/(N)o: y
+Deleted all files relating to certificate paidsupport2.example.kz.
+
+
+далее. как бы можно указать сразу сертификат сайта который удалить:
+$ sudo certbot delete --cert-name example.com
+
+
+далее. еще раз замечу что:
+# certbot renew   (обноавляет все установленые сертификаты если их срок меньше 30 дней)
+# certbot renew --force-renewal ( обноавляет все установленные сертификаты даже если их срок бльше 30 дней)
+
+
+
+далее. полезняшка.
+если мы хотим создать wildcard сертификат  то тогда надо юзать не .well-known метод проверки(через папку на веб сервере) того что мы владеем доменом а DNS методом проверки. это когда мы на dns сервере создаем спец запись типа TXT. 
+
+
+
+
+
+
+
+
+
+
+
+вопросы:
+renewal-hooks === узнать как и когда эта папка работает.
+начнем с ситуации попроще. с командной строки. 
+опция renew. команда:
+$ sudo certbot renew --pre-hook "service nginx stop" --post-hook "service nginx start"
+в доке (https://eff-certbot.readthedocs.io/en/stable/using.html#renewing-certificates) сказано
+что если сертификат подлежит обновлению то срабатыает прехук и постхук. то есть: When Certbot detects that a certificate is due for renewal, --pre-hook and --post-hook hooks run before and after each attempt to renew it.  тут важно подчеркнуть что 
+оба хука отработают в любом случае и если сертификат обновлен удачно и если он обновлен неудачно,  если неполучилось.
+так вот есть еще один хук называется --deploy-hook он в отличие от постхука отрабатывает только только и только если 
+сертиификат получилось удачно обновить. итак еще раз постхук отработает в любом случае неавжно получилось обноавить сертификат
+или если неполучилось а --deploy-hook отработает только если сертиификат успешно обновился.
+еще раз - Certbot supports running so-called "pre hooks", "post hooks" and "deploy hooks", which are scripts or other executables that run before or after a renewal attempt. A "deploy hook" is run only if the renewal process was successful, whereas the "post hook" runs even if the renewal process failed. по поводу хуков я вот что еще нашел\понял - сертбот берет сертификат и проверяет
+его нужно обновлять или нет. если да то выполняется прехук. потом попытка обновить сертификат потом постхук. если сертбот 
+видит что сертификат обноавлять ненужно тогда прехук невыполняется. это важно понимать. ( у меня остается еще вопрос - а если у нас есть и постхук и деплой хук и предположим что сертификат успешно обновился что тогда и постхук выполняется и деплохук??)
+еще раз подчеркну - If Certbot finds that a certificate does not need renewal, it won't run any hooks. тоесть такого нет что
+выполняется прехук а потом сербот уже смотрит а нужно ли было сертификат обноавлять. нет. вначале сертбот смотрит нужно ли 
+обновлять сертфиикат и если да то выполняется прехук скрипт. хуки выполняются запускаются для каждого обновляемого сертфииката.
+
+пример того как запускаются хуки. куда их пихать:
+# certbot renew --pre-hook "/path/to/hook-script.sh"
+# certbot renew --post-hook "/path/to/hook-script.sh"
+# certbot renew --deploy-hook "/path/to/hook-script.sh"
+
+далее мы вспоминаем что у нас для хуков есть еще спец папки. когда и как они вызываются? в статье (https://wiki.herzbube.ch/index.php/LetsEncrypt#:~:text=Certbot%20supports%20running%20so%2Dcalled,if%20the%20renewal%20process%20failed.) я нашел:
+
+Certbot also runs any executable files that it finds in one of the following folders. Executables are run in alphabetical order of their file names. Hooks specified on the command line run after hooks found in the filesystem:
+/etc/letsencrypt/renewal-hooks/pre
+/etc/letsencrypt/renewal-hooks/post
+/etc/letsencrypt/renewal-hooks/deploy
+
+получается что хуки в папках выполняются первыми если мы юзаем опцию renew  а уже потом запукаются хуки которые мы указали
+в командной строке.
+
+
+
+вопрос --- тоесть хуки в папках выполняются при опции renew и выполняются при обноавлении каждого сертификата? 
+а если я хочу чтобы deploy хук из папки выполнился после обноавления всех сертификатов ? ответ походу никак.
+
+
+далее. я выяснил что можно заставить сертбот выполнять хуки и при опции certbot. хук прописывается в командной строке.
+$ sudo certbot certonly --webroot -d paidsupport2.example.kz -w /srv/www/paidsupport2.example.kz --deploy-hook /etc/letsencrypt/renewal-hooks/deploy/nginx.bash
+
+вывод на экран:
+Requesting a certificate for paidsupport2.example.kz
+Running deploy-hook command: /etc/letsencrypt/renewal-hooks/deploy/nginx.bash
+
+
+
+
+
+
+
+
+nginx reload как его гарантиоовать запуск? renew папка как работает
+
+
+
+
+
+
+?????????? следущий наш вопрос это cronjob vs hoook , тоесть как нам заставить сертбот запускать перечитку конфига у нжинкса
+после обноавления сертификатов??????
+
+
+
+
+
+
+
+
+вопросы:
+- когда certbot renew начинает обноавлять сертфиикаты
+(ответ: когда у сертификата дата годности меньше 30 дней)
+
+- как сертбот  меняет серты на  лету 
+(ответ: в папке /etc/letsencrypt/archive закачиваются новые сертификаты. а потом сертбот в папке /etc/letsencrypt/live 
+создает симлинки на папку archive. таким макаром если нжинкс сслыается на файлы из live то в нжинксе ненужно менять конфиг,
+надо только попросить перечитать нжинкс свой конфинг)
+
+- как обновит кучу сертификатов
+(ответ: sudo certbot renew  или sudo certbot renew --force-renew)
+
+- какая опция обновления стоит в кроне либо в системд таймере?
+(ответ: крон джоба у меня нет. а в systemd юните вот что:
+$ sudo systemctl status certbot-renew.service
+
+ ExecStart=/usr/bin/certbot renew --noninteractive --no-random-sleep-on-renew $PRE_HOOK $POST_HOOK $RENEW_HOOK $DEPLOY_HOOK $CERTBOT_ARGS
+
+единственное я не понял чему равны переменные. но по идее renew помимо хуков из переменных (которые могут быть равны нулю) 
+сертбот выполняет хуки из спецпапок /etc/letsencrypt/renewal-hooks
+
+из оф документации  я тоже нашел подотверждение своих слов - о том что вместо хуков в командной строке можно хуки
+поместить в спец папки. хуки оттуда отрабатывают перед хуками из командной строки. цитирую - You can also specify hooks by placing files in subdirectories of Certbot’s configuration directory. Assuming your configuration directory is /etc/letsencrypt, any executable files found in /etc/letsencrypt/renewal-hooks/pre, /etc/letsencrypt/renewal-hooks/deploy, and /etc/letsencrypt/renewal-hooks/post will be run as pre, deploy, and post hooks respectively when any certificate is renewed with the renew subcommand. These hooks are run in alphabetical order and are not run for other subcommands.
+Оф документация получается подтверждает такой момент важный - что хуки нежвано из командной строки или из спец папок
+вызываются для каждого сертификатат который будет обновлен. и также важно отметить из оф документации что хуки вызываются сертботом на автомате только когда мы юзаем команду renew.  
+
+
+)
+надо проерить что систмд таймер на моей тестовой системе по факту обновляет автоматом сертфиикат
+за сколко времени до оночания сертификата certbot обновляет его ? (за 30 дней)
+а что если домен резолавится в два разных IP ?
+а что происходит с сертификатом которые еще валиден если выпустили новый сертификат? старый по прежнему
+валииден или уже нет? ( эксперимент показал что валидны оба сертфикаты главное чтобы дата была непрошедшая)
+
+
+очень хоршая статья по сертботу которую полезно прочитать под конец= https://wiki.herzbube.ch/index.php/LetsEncrypt#:~:text=Certbot%20supports%20running%20so%2Dcalled,if%20the%20renewal%20process%20failed.
+
+из этой статья я узнал как отозвать сертфиикат (тоесть он станет невалидным):
+# certbot revoke --cert-path /etc/letsencrypt/live/CERTNAME/cert.pem
+
+после этого его также можно удалить из фс:
+# certbot delete --cert-name CERTNAME
+
+офиуциальная страница документации : https://eff-certbot.readthedocs.io/en/stable/using.html#renewing-certificates
+
