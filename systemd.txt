@@ -144,6 +144,16 @@ $ sudo  journalctl -u certbot-renew.timer
 
 
 
+так. ну еще чуть я добавлю.
+$ sudo systemctl list-units --all
+  UNIT                                                                             LOAD      ACTIVE   SUB       DESCRIPTION
+● sysroot.mount                                                                    not-found inactive dead      sysroot.mount
+● tmp.mount                                                                        masked    inactive dead      tmp.mount
+
+порой колонка LOAD бывает равна не "active" а "not-found","masked".
+но это скорее внештатные ситуации. "not-found" - означает что системд несмогла прочитать юнит. а masked 
+означает что мы руками пометили юнит на запрет запуска.
+
 
 
 
