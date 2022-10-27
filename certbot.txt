@@ -509,3 +509,55 @@ $ sudo systemctl status certbot-renew.service
 
 офиуциальная страница документации : https://eff-certbot.readthedocs.io/en/stable/using.html#renewing-certificates
 
+
+вопрос:
+дочитать доку
+попрообвать создать сертфикат у которого два сайта прописано сразу
+описать как надо действовать если у нас 1 домен и у него несколько ip (https://allanjohn909.medium.com/letsencrypt-multiple-ip-address-one-domain-4fd95afa176f)
+
+
+на одной сисеме нашел скрипт крона. ( привожу чисто для академекского интеерса)
+
+# cat /etc/cron.d/certbot 
+00 03 * * * root /usr/bin/certbot -q renew --post-hook='systemctl reload nginx'
+
+считаю что нужно не --post-hook а --post-deploy юзать
+
+вконце будут писать чтото.
+у сертбота есть два типа плагинов. одни называются authenticator plugins - они предназначены для того чтобы
+доказать леценкрипту что мы владелец домена, эта группа плагинов нужна чтобы успешно получить сертификат и записать его на фс.  installator plugins - это плагины нужны чтобы взять скачанный ранее сетификат и автоматом его впихнуть в ту прогу для которой
+нам нужен наш сертификат. примеры таких прог это нжинкс , апач. тоесть эти плагины позволяют нам не руками менять конфиги 
+апача и жинкса пытаясь туда прописать серфификат а сертбот с помощью этих плагинов типа умеет модифицровать конфиги апача жинкса сам без нашего участия.
+
+аутентификатор плагины исользуют либо порт 80 для своих целей тоесть протокол http
+либо на dns сервере создают txt запись.
+
+
+далее. certonly опция которая во первых говорит что мы хотим только получить новый сертификат но модифицироват конфиг 
+нжинкса мы нехотим. и второе нам обязательно нужно будет указать для какого домена или доменов мы хотим получить сертификат.
+тут еще важно понять что в результате certbot certonly мы получим только один сертификат. ровно один. даже если мы укажем
+несколько доменов. просто все эти домены будут засунунты в один сертификат. если мы указываем неколько доменов то леценкрипту
+надо убедиться что мы владеемм всеми доменами. значит ему надо будет указать для каждого домена папку в которую он положит
+.well-known/..... чтобы потом позвонить на http://domain1/.well-known, http://domain2/.well-known и проверить доступность. 
+поэтому 
+
+# certbot certonly --webroot -w /var/www/example -d www.example.com -d example.com -w /var/www/other -d other.example.net -d another.other.example.net
+
+эта команда она породит 1 сертификат но он будет мулььидоменный. 
+для www.example.com и example.com  будет использована папка /var/www/example
+а для other.example.net будет использована папка nother.other.example.net
+
+
+--webroot это название плагина аутентификатора 
+-w это папка куда плагин положит свои файлы.
+
+
+The webroot plugin works by creating a temporary file for each of your requested domains in ${webroot-path}/.well-known/acme-challenge. Then the Let’s Encrypt validation server makes HTTP requests to validate that the DNS for each requested domain resolves to the server running certbot. 
+
+Note that to use the webroot plugin, your server must be configured to serve files from hidden directories. If /.well-known is treated specially by your webserver configuration, you might need to modify the configuration to ensure that files inside /.well-known/acme-challenge are served by the webserver.
+
+итак еще раз что делает плагин webroot. он кладет файл в указанную папку а потом снаружи лецнекрипт пытается считать 
+этот файл по URL пути. если получается значит мы владелец домена. плагин вебрут подразумевает что у нас уже работает на хосте
+некий сторонний http сервер.
+
+
