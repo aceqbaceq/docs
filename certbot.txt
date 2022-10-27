@@ -417,23 +417,47 @@ Requesting a certificate for paidsupport2.example.kz
 Running deploy-hook command: /etc/letsencrypt/renewal-hooks/deploy/nginx.bash
 
 
+а вот как выглядит файл с настройками для этого домена paidsupport2.example.kz после  команды certonly 
+что мы только что вызывали:
+
+# cat /etc/letsencrypt/renewal/paidsupport2.example.kz.conf 
+
+# renew_before_expiry = 30 days
+version = 1.11.0
+archive_dir = /etc/letsencrypt/archive/paidsupport2.example.kz
+cert = /etc/letsencrypt/live/paidsupport2.example.kz/cert.pem
+privkey = /etc/letsencrypt/live/paidsupport2.example.kz/privkey.pem
+chain = /etc/letsencrypt/live/paidsupport2.example.kz/chain.pem
+fullchain = /etc/letsencrypt/live/paidsupport2.example.kz/fullchain.pem
+
+# Options used in the renewal process
+[renewalparams]
+account = e71d5d0afe7506709699fb5a3aada224
+manual_public_ip_logging_ok = None
+renew_hook = /etc/letsencrypt/renewal-hooks/deploy/nginx.bash
+server = https://acme-v02.api.letsencrypt.org/directory
+authenticator = webroot
+webroot_path = /srv/www/paidsupport2.example.kz,
+[[webroot_map]]
+
+так вот что интересно. если мы в командной строке указывали хук то он попадает в этот файл(файл называется renew config file. лежат эти файлы в папке /etc/letsencrypt/renewal/ ).
+а вот как в нем выглядит хук который мы укаазали руками в командной строке:
+renew_hook = /etc/letsencrypt/renewal-hooks/deploy/nginx.bash
 
 
 
+на счет как застаавить сертбот перечиать нжинкс после обновления сертфииката. ответ надо поместить скрипт
+который systemctl reload nginx в папку /etc/letsencrypt/renewal-hooks/deploy и тогда когда мы будем
+запускать certbot с ключом renew он после кажодого успешного обноавления каждого сертфикиата будет запускать 
+этот скрипт!
 
 
 
-nginx reload как его гарантиоовать запуск? renew папка как работает
-
-
-
-
-
-
-?????????? следущий наш вопрос это cronjob vs hoook , тоесть как нам заставить сертбот запускать перечитку конфига у нжинкса
-после обноавления сертификатов??????
-
-
+далее.
+по поводу wildcard сертификата. я уже сказал что для создания такого сертфииката сертбот должен ( с помощью спец плагина который может достучаться до провайдера dns сервера) должен войти на dns сервер и создать там спец TXT запись. тут важно понять что
+эта запись на dns создается не человеком руками а сертботом через плагин. поэтому чтобы эта съема работала надо чтобы у сертбот
+был плагин который умеет рабоатть с конкретным провайдером dns сервера кооторый у нас есть. но не руками. без плагина 
+никуда
 
 
 
