@@ -358,7 +358,16 @@ $ sudo certbot delete --cert-name example.com
 
 
 далее. полезняшка.
-если мы хотим создать wildcard сертификат  то тогда надо юзать не .well-known метод проверки(через папку на веб сервере) того что мы владеем доменом а DNS методом проверки. это когда мы на dns сервере создаем спец запись типа TXT. 
+если мы хотим создать wildcard сертификат  то тогда надо юзать не .well-known метод проверки(через папку на веб сервере) того что мы владеем доменом а DNS методом проверки. это когда мы на dns сервере создаем спец запись типа CNAME. почему то в интернете пищут что записиь типа TXT но на практике я сам делал и запись создается вида CNAME.
+
+вот пример такой записи
+
+зона example.kz 
+и в ней создается запись
+
+$ nslookup -type=cname _acme-challenge.example.kz
+Non-authoritative answer:
+_acme-challenge.example.kz  canonical name = 5f5c6ace-627f-496d-a08d-92031b7d7055.auth.acme-dns.io.
 
 
 
@@ -454,7 +463,7 @@ renew_hook = /etc/letsencrypt/renewal-hooks/deploy/nginx.bash
 
 
 далее.
-по поводу wildcard сертификата. я уже сказал что для создания такого сертфииката сертбот должен ( с помощью спец плагина который может достучаться до провайдера dns сервера) должен войти на dns сервер и создать там спец TXT запись. тут важно понять что
+по поводу wildcard сертификата. я уже сказал что для создания такого сертфииката сертбот должен ( с помощью спец плагина который может достучаться до провайдера dns сервера) должен войти на dns сервер и создать там спец CNAME запись. тут важно понять что
 эта запись на dns создается не человеком руками а сертботом через плагин. поэтому чтобы эта съема работала надо чтобы у сертбот
 был плагин который умеет рабоатть с конкретным провайдером dns сервера кооторый у нас есть. но не руками. без плагина 
 никуда
@@ -530,7 +539,7 @@ $ sudo systemctl status certbot-renew.service
 апача и жинкса пытаясь туда прописать серфификат а сертбот с помощью этих плагинов типа умеет модифицровать конфиги апача жинкса сам без нашего участия.
 
 аутентификатор плагины исользуют либо порт 80 для своих целей тоесть протокол http
-либо на dns сервере создают txt запись.
+либо на dns сервере создают CNAME запись.
 
 
 далее. certonly опция которая во первых говорит что мы хотим только получить новый сертификат но модифицироват конфиг 
@@ -559,5 +568,273 @@ Note that to use the webroot plugin, your server must be configured to serve fil
 итак еще раз что делает плагин webroot. он кладет файл в указанную папку а потом снаружи лецнекрипт пытается считать 
 этот файл по URL пути. если получается значит мы владелец домена. плагин вебрут подразумевает что у нас уже работает на хосте
 некий сторонний http сервер.
+
+--
+далее я вот на какой случай столкнулся.
+это очень важный случай.
+я получил сертификат для домена paidsupport.example.kz , и система записала  параметры при которых был получен сертификат.
+а именно:
+
+# cat /etc/letsencrypt/renewal/paidsupport.example.kz.conf 
+...
+authenticator = webroot
+webroot_path = /srv/www/paidsupport.example.kz,
+[[webroot_map]]
+
+
+в этом файле указано что challenge файл нужно поместить в папку /srv/www/paidsupport.example.kz
+
+а далее я сделал вот что, я для этого домена в нжинкс сделал изменеие:
+# cat /etc/nginx/conf.d/paidsupport.example.kz.conf 
+server {
+...
+        include vhost.inc.conf;
+                                                                                  
+        }
+
+
+# cat /etc/nginx/vhost.inc.conf 
+location /.well-known/ {
+                     root /var/www/letsencrypt/;
+                     auth_basic          off;
+                     allow all;
+                        }
+
+
+тоесть это значит что теперь URL:/paidsupport.example.kz/.well-known/ будет вести в папку /var/www/letsencrypt/
+но леценкрипт об этом незнает!! он по прежнему считает что файлы нужно класть в /srv/www/paidsupport.example.kz
+поэтому когда я запустил 
+
+# certbot renew --dry-run 
+то получил ошибки.
+
+мораль басни такова: если мы запустили certbot renew и получили ошибки то на всякий случай на слазить 
+в папку /etc/letsencrypt/renewal/ посмотреть куда там ведет папка webroot а потом пойти на нжинкс и для данного домена
+посмотреть где там указано папка для URL:/домен/.well-known 
+потому что ( еще раз ) может так случиться что после генерации сертфииката ктот защел на нжинкс и поменял настройки
+для URL://домен/.well-known но леценкрипт об этом же не вкурсе!!!
+
+что я сделал чтбы исправиить ситуацию - я зашел в  /etc/letsencrypt/renewal/paidsupport.example.kz.conf
+и поменял 
+было:
+webroot_path = /srv/www/paidsupport.example.kz,
+стало:
+webroot_path = var/www/letsencrypt/
+
+и после этого все заработало
+
+# certbot renew --dry-run
+
+
+тоесть еще раз. если мы запустили certbot renew и он показал ошибки то прежде всего надо залезть 
+в папку /etc/letsencrypt/renewal/ проанализироовать конфиг. а потом залезть в конфиг нжинкс и посмотреть насколько 
+там законфигурировано тоже самое. возмонов нжинкседругой конфиг
+----
+
+напишу важную вещь.
+для того чтобы при обновлении сертикатов через renew ненужно быол в командной строке писать постуки прехуки деплой хуки
+то надо создать файл вместо этого:
+
+# cat /etc/letsencrypt/renewal-hooks/deploy/nginx.bash 
+#!/bin/bash
+/usr/bin/systemctl reload nginx
+
+тогда каждый раз когда cerrbot renew будет обновлять очередной серфикат он будет запускать этот скрипт автоматом
+причем этот скрипт запускается только и только если сертификат был успешно обновлен. если сертфиикат неудалось 
+обновить тогда и скрипт незпускается ибо незачем
+
+
+ДАЛЕЕ!!!! ВАЖНО!!! НАПОРРЛОЛСЯ НА ВАЖНЫЙ МОМЕНТ!!!!
+значит запустил обновление сертификатов и вижу на экране:
+# certbot renew --force-renewal
+
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Processing /etc/letsencrypt/renewal/paidsupport2.example.kz.conf
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Plugins selected: Authenticator webroot, Installer None
+Starting new HTTPS connection (1): acme-v02.api.letsencrypt.org
+Renewing an existing certificate for paidsupport2.example.kz
+Running deploy-hook command: /etc/letsencrypt/renewal-hooks/deploy/nginx.bash
+Skipping deploy-hook '/etc/letsencrypt/renewal-hooks/deploy/nginx.bash' as it was already run.
+
+и я как бы непонял почему /etc/letsencrypt/renewal-hooks/deploy/nginx.bash небыло выполнен, что значит он якобы
+уже был выполнен ранее. а потом я понял.
+
+с одной стороны у меня есть общесистемный деплой хук /etc/letsencrypt/renewal-hooks/deploy/nginx.bash
+
+а с другой стороны у меня есть хук который прописан в renew файле для этого домена:
+
+# cat /etc/letsencrypt/renewal/paidsupport2.example.kz.conf 
+...
+renew_hook = /etc/letsencrypt/renewal-hooks/deploy/nginx.bash
+
+
+таким образом (согласно докам) первым отрабатывает хук который прописан в renew файле для домена а далее уже 
+запускаются хуки которые общесистемные из папки /etc/letsencrypt/renewal-hooks/ и получется что второй раз запускать
+один и тот же хук нет смысла! поэтому все правильно все коректно! но важно понимать откуда ноги растут.
+а то  я вначале подумал может такая фигня из за того что /etc/letsencrypt/renewal-hooks/deploy/nginx.bash уже отработал
+при обноавлении сертификта для другого домена, но было непонятно ведь это был бы бред. типа обноавился первый сертификат
+далее запустился хук, и далее система обноавляет следущий сертификат и незапускает хук думая ну я же запускала хук
+для прошлого сертификта. это был бы бред. к ссчастью все прояснилось. просто из за того что хуки у нас пропсиываются в двух
+местах - одно место это общесистемное а второе это в индивидуаьных renew файлах для индивдуального домена то получается 
+что если в одном месте хук отработал то запускать ровно такойже хук из другого места уже нет смысла. все понятно
+все проянсилось.
+
+напомню откуда в /etc/letsencrypt/renewal/ берутся конфиг файлы для доменов. они там берутся 
+из параметров командной строки когда мы первый раз для конкретного домена через сертбот создаем сертфиикат. тоесть
+вот есть у нас домен. без сертфииката. мы первый раз запускаем для него сертбот
+
+
+# certbot certonly --webroot -d paidsupport.example.kz -w /srv/www/paidsupport.example.kz  --deploy-hook "/bin/systemctl reload nginx"
+
+
+так вот после исполнения этого файла параметры с которым мы создавали сертфикат будут записан в в конфиг в renew папке
+/etc/letsencrypt/renewal/paidsupport.example.kz.conf
+
+таким образом параметры хука в этом файле это параметры хука в командной строке когда мы первый раз создавали сертфикат.
+понятно?!
+
+вот пример.
+берем домен новый paidsupport3.example.kz
+и заказываем для него первый раз сертификат
+
+# certbot certonly  -d paidsupport3.example.kz --webroot -w /var/www/letsencrypt  --post-hook "/bin/systemctl reload nginx"
+
+и после успешной отработки команды у нас появляется файл конфина в renewal папке
+
+# cat /etc/letsencrypt/renewal/paidsupport3.example.kz.conf 
+...
+[renewalparams]
+post_hook = /bin/systemctl reload nginx
+authenticator = webroot
+webroot_path = /var/www/letsencrypt,
+[[webroot_map]]
+paidsupport3.example.kz = /var/www/letsencrypt
+
+в нем мы видим параметр post_hook
+а также параметр webroot
+но нас щас интересует именно post_hook
+
+
+а далее интерсная ситуация с одной стороны у нас в renewal конфиге для домена прописан post_hook
+с другой стороны у нас в общесистемной папке лежит деплой хук /etc/letsencrypt/renewal-hooks/deploy/nginx.bash
+и вот вопрос при запуске обноавления через renewal оба хука будут запущены или какото один? какой возобладает или оба?
+
+делаю эксперимент:
+# certbot renew --force-renewal
+
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Processing /etc/letsencrypt/renewal/paidsupport3.example.kz.conf
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Plugins selected: Authenticator webroot, Installer None
+Starting new HTTPS connection (1): acme-v02.api.letsencrypt.org
+Renewing an existing certificate for paidsupport3.example.kz
+Running deploy-hook command: /etc/letsencrypt/renewal-hooks/deploy/nginx.bash
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+new certificate deployed without reload, fullchain is
+/etc/letsencrypt/live/paidsupport3.example.kz/fullchain.pem
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+из вывода на видно что (как я понимаю) был в итоге запущен общесистемный деплой хук
+deploy-hook command: /etc/letsencrypt/renewal-hooks/deploy/nginx.bash
+
+а чтоже случилось с индивдуальным для этого домена постухуком из файла /etc/letsencrypt/renewal/paidsupport3.example.kz.conf
+он что не был запущен? согласно выводу на экран небыл. согласно документации он должен тоже был быть запущен потому что 
+он аналог пост хука из командной строки а документация говорит о том что вначале запускаются хуки из командной строки а 
+потом общесистмные хуки. так вот я выяснил!! я засунул в /etc/letsencrypt/renewal/paidsupport3.example.kz.conf в качестве 
+постхука не перезапуск нжинкс а запись в файл и еще раз запустил certbot renewal и файл на диске создался!!!! 
+ЭТО ЗНАЧИТ ЧТО : это значит что во время certbot renewal  запускаются все хуки и хуки индивидуальные из /etc/letsencrypt/renewal/
+и хуки общесистемные из /etc/letsencrypt/renewal-hooks/ но на экране леценкрипт ( и это баг) пишет о запуске только 
+общесистемных хуков. наверное если общесистемные хуки остуствуют ( а они часто остуствуют) тогда леценкрипт напишет о выполнении
+индивидульных хуков. у меня суммарно вывод такой :  при запуске certbot renewal леценкрипт запускает все хуки и индивидуальные 
+и общесистемные а на экран выводит уведомление о запуске какого-то одного. но это незначит что был запущен только один, были 
+запущены все. я это проверил на практике.
+
+общий мой вывод:  в логе леценкрипта пишется не вся правда про хуки. и то что очень хороо и прекрасно 
+завести общесистемный деплой хук /etc/letsencrypt/renewal-hooks/deploy/nginx.bash потому что тогда мы точно будем 
+уверены что после обноваления сертфикиата у нас идет перзагрузка нжинкса внезавиимости от того что  в плане хуков
+написано в /etc/letsencrypt/renewal файлах. Тоесть /etc/letsencrypt/renewal-hooks/deploy/nginx.bash это некое 
+действие по умолчанию котрое 100% отработает внезависиомости от reneweal файлов.
+
+
+----
+
+wildcard
+dns
+CNAME
+
+как получить wildcard сертификат через dns chalenge причем в ручном режиме. главное чтобы у нас был доступ на 
+dns сервер.
+
+
+значит пользоватлся этой статьей:  https://www.digitalocean.com/community/tutorials/how-to-acquire-a-let-s-encrypt-certificate-using-dns-validation-with-acme-dns-certbot-on-ubuntu-18-04
+
+
+что надо сделать:
+
+идем в 
+
+# cd /etc/letsencrypt
+
+и качаем туда скрипт
+
+# wget https://github.com/joohoi/acme-dns-certbot-joohoi/raw/master/acme-dns-auth.py
+# chmod +x acme-dns-auth.py
+редактируем в его шапке чтобы он через питон третий работал:
+#!/usr/bin/env python3
+
+ставим третий питон:
+# dnf install python3
+
+еще надо поставить один питон модуль:
+# dnf install python36-requests.noarch
+
+
+и теперь сама команда по генерации сертификта:
+# sudo certbot certonly --manual --manual-auth-hook /etc/letsencrypt/acme-dns-auth.py --preferred-challenges dns --debug-challenges -d \*.example.kz
+
+????????????????????????????????? закрнчил тут ???????????????????????????????????????????????????
+
+
+
+
+вот как выглядит renewal конфиг после получения такого сертификата
+
+
+# cat /etc/letsencrypt/renewal/example.kz.conf 
+# renew_before_expiry = 30 days
+version = 1.11.0
+archive_dir = /etc/letsencrypt/archive/example.kz
+cert = /etc/letsencrypt/live/example.kz/cert.pem
+privkey = /etc/letsencrypt/live/example.kz/privkey.pem
+chain = /etc/letsencrypt/live/example.kz/chain.pem
+fullchain = /etc/letsencrypt/live/example.kz/fullchain.pem
+
+# Options used in the renewal process
+[renewalparams]
+account = e71d5d0afe7506709699fb5a3aada224
+manual_public_ip_logging_ok = None
+manual_auth_hook = /etc/letsencrypt/acme-dns-auth.py
+server = https://acme-v02.api.letsencrypt.org/directory
+authenticator = manual
+pref_challs = dns-01,
+
+
+обратим внимаие на 
+authenticator = manual
+
+в обычном файле когда мы получааем сертифкат через папку webroot у нас в конфиге будет строки:
+authenticator = webroot
+webroot_path = /var/www/letsencrypt/
+
+
+
+получается authenticator плагин означает вид плагина который занимается помещением challenge информации куда то.
+ в случае когда аутентификатор плагин это webroot то сам сертбот кладет challenge файл в папку,
+ когда аутентификатор плагин manual то человек своими руками создает challenge запись в DNS.
+ таким образом раскрывается смысл аутентификатор плагинов. 
 
 
