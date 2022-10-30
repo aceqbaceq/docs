@@ -759,8 +759,107 @@ deploy-hook command: /etc/letsencrypt/renewal-hooks/deploy/nginx.bash
 написано в /etc/letsencrypt/renewal файлах. Тоесть /etc/letsencrypt/renewal-hooks/deploy/nginx.bash это некое 
 действие по умолчанию котрое 100% отработает внезависиомости от reneweal файлов.
 
+----
+еще один интереснейший случай.
+
+
+предположим у нас уже есть сертификат для домена paidsupport3.example.kz
+
+а что будет если мы запросим сертификат у которого будет этот домен и еще дополнительный домен, тоесть
+
+
+# certbot certonly --webroot -d paidsupport3.example.kz -d www.paidsupport3.example.kz -w /var/www/letsencrypt
+
+
+теость здсь мы просим сделать сертификат у которого будет сразу два домена
+paidsupport3.example.kz
+www.paidsupport3.example.kz
+
+
+вопрос что будет делать леценкрипт. ответ - он отлично справится с этой задачей:
+вывод на экран:
+
+
+
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+You have an existing certificate that contains a portion of the domains you
+requested (ref: /etc/letsencrypt/renewal/paidsupport3.example.kz.conf)
+
+It contains these names: paidsupport3.example.kz
+
+You requested these names for the new certificate: paidsupport3.example.kz,
+www.paidsupport3.example.kz.
+
+Do you want to expand and replace this existing certificate with the new
+certificate?
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+(E)xpand/(C)ancel: 
+(E)xpand/(C)ancel: E
+
+
+
+тоесть он пишет что такой сертификат уже есть. и хочу ли я заменить его новым сертификатом. 
+отлично.
+
+
+
+Renewing an existing certificate for paidsupport3.example.kz and www.paidsupport3.example.kz
+Performing the following challenges:
+http-01 challenge for www.paidsupport3.example.kz
+Using the webroot path /var/www/letsencrypt for all unmatched domains.
+Waiting for verification...
+Cleaning up challenges
+Running deploy-hook command: /etc/letsencrypt/renewal-hooks/deploy/nginx.bash
+
+
+что еще примечательно. что хотя бы запускали сертбот с ключом certonly но все равно сработал общесистемный деплой хук.
+( не разбирался почему. ведь по идее хуки отрабатывают только на ключ renew.) 
+
+получается что леценкрипт без проблем заменить файл сертификата однодоменный на многодоменный если мы его попросим.
+Также важный аспект что если папка в которой хостятся домены на веб серверы одна точнее даже не так, а так 
+что если URL:/domain1/.well-acme и URL://domain2/.well-acme лежат в одной папке то  нужно указать только один 
+ключ -w а если  URL:/domain1/.well-acme и URL://domain2/.well-acme   уходят в разные папки в нжикнсе то нужно указывать
+для каждого домена свой ключ -w. тоесть  вот так:
+
+# certbot certonly --webroot -d paidsupport3.example.kz -w /folder1 -d www.paidsupport3.example.kz -w /folder2
+
+у меня просто оба сайта ведут в одну папку в нжинксе поэтому мне хватило одного ключа -w
+
+также понятно что чтобы мультидоменный сертиификат получить нужно чтобы acme проверка успешно
+прошла для всех доменов заказазнных в сертификате.
+
+---
+# certbot renew  = для обновления всех сертификатов 
+# certbot certonly = для обновляения одного сертификата с указанием для какого домена
+
+renew ищет хуки либо в renewel папке либо в renew-hooks папке
+
+а вот certonly неищет хуки нигде поэтому certonly желалтельно юзать  с хуками указанными в командной строке.
+если мы первый раз заказываем сертификат то хук ненужен ибо у нас в нжинкс скорей всего пока нет ни 443 порта ни путей к сертфикату ведь сертификата нет. а вот если мы обновляем уже имеющийся сертифкат для одного домена через certonly 
+то хук желателен. иначе после обговаления сертфиката нам езще нужно руками перезугружать нжикс  и в конфиг в папку renewel
+этот хук незапишется если его неуказать в командной строке а это плохо потому что потом когда этот серти будет обновлятьс через
+renew то надежда будет только на то что у нас происан общесистемный хук в renew-hooks папке, поэтому
+общее правило:
+
+# certbot renew
+
+# certbot certonly -d domain1  --webroot -w folder1  --deploy-hook /путь_к_хук_скрипту
+либо
+# certbot certonly -d domain1  --webroot -w folder1  --deploy-hook  "systemctl reload nginx"
+
 
 ----
+ксатти
+
+когда мы заказыаем сертфиикат по HTTP тоесть по порту 80 то нет проблем если в настройкам сайта стоит 
+редирект на https порт 443. сертбот нормально с этим работает. главое чтобы изначально на серверер слушался порт 80
+как начальная отправаня точка. а то  что потом идет редирект на 443 порт и протокол https с этим у сертбота проблем нет.
+( просто везде пишут что сертбот работает только по http то есть как бутто он не умеет работать с https . так вот нет.
+он умеет просто вначале он должен постучать на 80 порт по http. если потом его заредиректят на https да без проблем.)
+
+-----
+
 
 wildcard
 dns
@@ -795,6 +894,10 @@ dns сервер.
 
 и теперь сама команда по генерации сертификта:
 # sudo certbot certonly --manual --manual-auth-hook /etc/letsencrypt/acme-dns-auth.py --preferred-challenges dns --debug-challenges -d \*.example.kz
+
+
+
+
 
 ????????????????????????????????? закрнчил тут ???????????????????????????????????????????????????
 
