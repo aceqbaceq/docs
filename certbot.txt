@@ -941,3 +941,7 @@ webroot_path = /var/www/letsencrypt/
  таким образом раскрывается смысл аутентификатор плагинов. 
 
 
+--
+сайт который позволяет оценить степень крутости HTTPS содениения с вашим сайтом
+https://www.ssllabs.com/ssltest/analyze.html?d=paidsupport.example.kz&latest
+----
