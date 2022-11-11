@@ -11,4 +11,39 @@ Unable to create yum cache for  OS repository
 перекопировать ее на мою сисему и перезпустить установку плеска
 
 ----
+после установки вводим в команд строке
 
+$ sudo plesk login
+
+и будет предложено два линка с IP и с dns именем.
+нужно брать с DNS потому то только этот CN есть в сертификате который имеет плеск. так что только этот линк будет 
+давать защиту по https
+
+--
+после установки я вижу что открыт такие порты плеском.
+
+ $ sudo firewall-cmd --list-all
+plesk (active)
+  target: default
+  icmp-block-inversion: no
+  interfaces: eth0
+  sources: 
+  services: 
+  ports: 22/tcp 21/tcp 25/tcp 53/tcp 53/udp 80/tcp 110/tcp 143/tcp 443/tcp 465/tcp 587/tcp 993/tcp 995/tcp 8443/tcp 8447/tcp 8880/tcp 49152-65535/tcp
+  protocols: 
+  masquerade: no
+  forward-ports: 
+  source-ports: 
+  icmp-blocks: 
+  rich rules: 
+
+
+что за жесть
+
+----
+
+мы коггда толко поставили плеск то в веб морде будет написано что мы теперь Administrator и мол придумайте ваш пароль.
+мы придумали пароль. пробуем войти в веб морду вводим логин Administrator а нас посылают нахер. почему. поотомучто Administrator
+это не логин в веб морду это некий contact name а логин в веб морду это admin
+только плеск об этом непишет
+----
