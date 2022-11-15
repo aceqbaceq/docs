@@ -69,3 +69,38 @@ Disk stats (read/write):
 вывод:
 условия: bs=4k, numjobs=6, iodepth=16.
 резултат: IOPS=125k при латенции на чтение средняя avg=764.31 микросекунд = 0,76 миллисекунд
+
+
+====================
+
+еще один момент про nvme и pci шину
+
+у нас диск nvme...
+
+ищем какой у него PCI адрес через sys 
+
+# ls -al /sys/block/nvme0n1
+lrwxrwxrwx 1 root root 0 ноя 16 00:30 /sys/block/nvme0n1 -> ../devices/pci0000:00/0000:00:1d.4/0000:04:00.0/nvme/nvme0/nvme0n1
+
+
+значит адрес у него получается 0000:04:00.0
+
+смотрим параметры для этого адреса
+
+# lspci -vv -nn -s 0000:04:00.0 | grep Lnk
+	LnkCap:	Port #0, Speed 8GT/s, Width x2, ASPM L1, Exit Latency L0s <256ns, L1 <8us
+	LnkCtl:	ASPM L1 Enabled; RCB 64 bytes Disabled- CommClk+
+	LnkSta:	Speed 8GT/s, Width x2, TrErr- Train- SlotClk+ DLActive- BWMgmt- ABWMgmt-
+	LnkCtl2: Target Link Speed: 8GT/s, EnterCompliance- SpeedDis-
+	LnkSta2: Current De-emphasis Level: -6dB, EqualizationComplete+, EqualizationPhase1+
+
+
+как  я прочитал LnkCap это скорость слота
+LnkCap:	Port #0, Speed 8GT/s, Width x2,
+
+а LnkSta это фактическа скорсть на которой работает железка
+LnkSta:	Speed 8GT/s, Width x2,
+
+в нашем случае это совпдаает что хорошо
+
+===
