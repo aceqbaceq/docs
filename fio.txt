@@ -1,0 +1,71 @@
+fio
+
+железо:
+
+disk = disk= WDC PC SN520 SDAPMUW-512G-1101
+cpu = Intel(R) Core(TM) i5-8265U CPU @ 1.60GHz stepping 12
+--------------------
+
+конфиг:
+
+$ cat rr.fio 
+[global]
+name=nvme-rand-read
+time_based
+ramp_time=5
+runtime=60
+readwrite=randread
+random_generator=lfsr
+bs=4k
+ioengine=libaio
+direct=1
+numjobs=6
+iodepth=16
+group_reporting=1
+size=30000M
+randrepeat=1
+
+[nvme0]
+new_group
+filename=/home/vasya/temp/04/test
+---------------------------
+
+тест:
+
+$ fio ./rr.fio 
+nvme0: (g=0): rw=randread, bs=(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine=libaio, iodepth=16
+...
+fio-3.1
+Starting 6 processes
+Jobs: 6 (f=6): [r(6)][100.0%][r=494MiB/s,w=0KiB/s][r=127k,w=0 IOPS][eta 00m:00s]        
+nvme0: (groupid=0, jobs=6): err= 0: pid=4282: Wed Nov 16 00:33:29 2022
+   read: IOPS=125k, BW=490MiB/s (513MB/s)(28.7GiB/60001msec)
+    slat (usec): min=14, max=35189, avg=39.10, stdev=33.72
+    clat (usec): min=76, max=39932, avg=725.08, stdev=289.61
+     lat (usec): min=129, max=39977, avg=764.31, stdev=291.48
+    clat percentiles (usec):
+     |  1.00th=[  227],  5.00th=[  318], 10.00th=[  396], 20.00th=[  510],
+     | 30.00th=[  603], 40.00th=[  668], 50.00th=[  725], 60.00th=[  783],
+     | 70.00th=[  848], 80.00th=[  922], 90.00th=[ 1020], 95.00th=[ 1106],
+     | 99.00th=[ 1319], 99.50th=[ 1467], 99.90th=[ 2474], 99.95th=[ 3064],
+     | 99.99th=[ 6783]
+   bw (  KiB/s): min=72072, max=87326, per=16.74%, avg=83942.62, stdev=1470.92, samples=714
+   iops        : min=18018, max=21831, avg=20985.48, stdev=367.68, samples=714
+  lat (usec)   : 100=0.01%, 250=1.91%, 500=17.06%, 750=35.88%, 1000=33.60%
+  lat (msec)   : 2=11.39%, 4=0.14%, 10=0.02%, 20=0.01%, 50=0.01%
+  cpu          : usr=5.18%, sys=85.19%, ctx=439518, majf=0, minf=15
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.1%, 8=0.1%, 16=108.2%, 32=0.0%, >=64=0.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.1%, 32=0.0%, 64=0.0%, >=64=0.0%
+     issued rwt: total=7520515,0,0, short=0,0,0, dropped=0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=16
+
+Run status group 0 (all jobs):
+   READ: bw=490MiB/s (513MB/s), 490MiB/s-490MiB/s (513MB/s-513MB/s), io=28.7GiB (30.8GB), run=60001-60001msec
+
+Disk stats (read/write):
+  nvme0n1: ios=8138264/695, merge=22/413, ticks=4868968/239, in_queue=44, util=99.96%
+
+вывод:
+условия: bs=4k, numjobs=6, iodepth=16.
+резултат: IOPS=125k при латенции на чтение средняя avg=764.31 микросекунд = 0,76 миллисекунд
