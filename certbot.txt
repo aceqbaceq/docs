@@ -945,3 +945,9 @@ webroot_path = /var/www/letsencrypt/
 сайт который позволяет оценить степень крутости HTTPS содениения с вашим сайтом
 https://www.ssllabs.com/ssltest/analyze.html?d=paidsupport.example.kz&latest
 ----
+
+
+еще nginx можно вот так попросить перечитать конфиг:
+
+$ /usr/sbin/nginx -s reload
+====
