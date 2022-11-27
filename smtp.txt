@@ -176,3 +176,221 @@ kuku.ru TXT v=spf1 include:_spf.kuku.ru  include:_spf.google.com
 
 ===
 
+PTR
+
+как выглядит
+
+255.2.0.192.in-addr.arpa
+
+как удобно проверять наличие PTR записей = через dig
+
+
+$ dig -x IP
+
+пример
+
+$ dig mail.ru a
+mail.ru.		12	IN	A	217.69.139.202
+mail.ru.		12	IN	A	94.100.180.201
+mail.ru.		12	IN	A	94.100.180.200
+mail.ru.		12	IN	A	217.69.139.200
+
+
+$ dig -x 217.69.139.202
+202.139.69.217.in-addr.arpa. 379 IN	PTR	mail.ru.
+
+$ dig -x 94.100.180.201
+201.180.100.94.in-addr.arpa. 3576 IN	PTR	mail.ru.
+
+
+====
+
+про SPF. 
+по факту с точки зрения DNS сервер это заппись типа TXT но с особым значением.
+
+механизм проверки :
+когда один почтовый сервер А связывается с другим почтовыс сервером Б по  SMTP то сервер Б видит его IP интернетовский.(от IP пакеты которые прилетают).
+Таким образом сервер Б достоверно знает внешний IP сервера А. 
+телнет сесия к примеру выглядит так:
+
+$ telnet mx.yandex.ru 25
+EHLO localhost
+MAIL FROM:<petrov@glav-square.ru>
+RCPT TO:<petrov@pepsi.ru>
+DATA
+From: Tek Bahadur Limbu <m@glavhome.ru>
+To: someone else <m@example.com>
+Subject: testing 21:18
+
+Test test test
+.
+
+
+так вот здесь важно увидеть что обратный адрес появляется два раза. так вот по факту письмо будет отослано по тому
+адресу который указан в MAIL FROM:<petrov@glav-square.ru>
+все что указано до команы DATA это как конвертик на бумажном письме. поэтму именно поля 
+
+MAIL FROM:
+RCPT TO:
+
+также как на бумажном коневерте указывабт от кого и куда идет письмо. именно эти поля оплределяют куда будет направлено письмо.
+
+все что после комады DATA это уже листик с самим письмом. листик письма на процесс транапортиовки никак не влияет. его  упрошенно говоря 
+почтовые серверы через которые идет пиьсмо читать не будут учитыать в процессе пеерерсылки. его будет читать уже человек которому это 
+письмо прилетит уже на комп.
+ 
+так вот вот это поле MAIL FROM: 
+оно еще имеет клички другие имена, синонимы в литературе:
+return-path  
+SMTP MAIL FROM, 
+Return-Path,
+Bounce Address. 
+reverse path, 
+envelope sender, 
+envelope from
+
+
+если на почт клиенте нажать кнопу посмотреть исходное тело письмо там где будут притсовать пооля служебгные то там это поле имеет 
+название return-path. 
+показвыаю:
+
+
+Received: from localhost (11-11-11-11.dell.com [11.11.11.11])
+	...
+	...
+	...
+Return-Path: petrov@glav-square.ru
+
+
+таким образом в живом письме на компе  телнетовская хрень MAIL FROM: выглядит как Return-Path:
+
+так вот к чему это все. к тому что  принимающий почтоыый сервер он проверяет SPF именно для домена который указан в
+MAIL FROM: !!!! вот что важно. вот что надо понять.  а поле From: Tek Bahadur Limbu <m@glavhome.ru> указанные в теле письма уже 
+абсолютно для SPF проверки насрать. вот что важно понять.
+
+поэтому SPF проверка выглядит так:
+мы звоним на яндекс и доходим до этой стадии
+$ telnet mx.yandex.ru 25
+EHLO localhost
+MAIL FROM:<petrov@glav-square.ru>
+
+
+тут же яндекс лезет в DNS и ищетя для домена glav-square.ru его SPF запись. и смотрит что там написано.
+также яндекс имеет IP нашего сервера отправителя. если яндекс ненайдет наш IP в той SPF записи то он нас на данном шаге пошлет нахер.
+вот это все важно понять. как работает SPF проверка. кто куда лазии и с чем сравнивает.!!
+
+
+
+
+
+
+----
+=============================
+=============================
+БОЛЬШАЯ ТЕМА SMTP - начало блока
+=============================
+=============================
+
+SMTP
+
+
+$ telnet mx.yandex.ru 25
+
+EHLO localhost
+MAIL FROM:<petrov@glav-square.ru>
+RCPT TO:<petrov@pepsi.ru>
+DATA
+From: Tek Bahadur Limbu <m@glavhome.ru>
+To: someone else <m@example.com>
+Subject: testing 21:18
+
+Test test test
+.
+
+
+в итоге на яднексе будет такое тело письма:
+
+Received: from postback28b.mail.yandex.net (postback28b.mail.yandex.net [2a02:6b8:c02:900:1:45:d181:da28])
+	by cqxive3eyocweozr.sas.yp-c.yandex.net with LMTP id ZHx2BdfZlD-0hyDZ2MS
+	for <petrov@pepsi.ru>; Sun, 27 Nov 2022 18:20:07 +0300
+
+
+Received: from myt6-dcd87beca1ab.qloud-c.yandex.net (myt6-dcd87beca1ab.qloud-c.yandex.net [IPv6:2a02:6b8:c12:2c9a:0:640:dcd8:7bec])
+	by postback28b.mail.yandex.net (Yandex) with ESMTP id 0CA345E54A
+	for <petrov@pepsi.ru>; Sun, 27 Nov 2022 18:20:07 +0300 (MSK)
+
+
+Received: from localhost (11-11-11-11.dell.com [11.11.11.11])
+	by myt6-dcd87beca1ab.qloud-c.yandex.net (mxfront/Yandex) with ESMTP id iIQQ4x9PHuQ1-S5YiWZv4;
+	Sun, 27 Nov 2022 18:19:24 +0300
+X-Yandex-Internal: 1
+Message-Id: <20221127182006.S5YiWZv4@myt6-dcd87beca1ab.qloud-c.yandex.net>
+Date: Sun, 27 Nov 2022 18:20:06 +0300
+X-Yandex-Fwd: 1
+X-Yandex-Spam: 4
+X-Yandex-Uid-Status: 4 1130000062089509
+From: Tek Bahadur Limbu <m@glavhome.ru>
+To: someone else <m@example.com>
+Subject: testing 21:18
+Return-Path: petrov@glav-square.ru
+X-Yandex-Forward: 7acf1669f283e398ceb854741db9c1eb
+
+Test test test
+
+
+
+каждый новый мейлер через котрого проходило письмо 
+опредеяетяся по строке
+
+Received:
+
+
+
+далее. в письме все мусор ( можно можно наврать и это непроверятеся ) кроме вот этого куска:
+
+```11-11-11-11.dell.com [11.11.11.11]````
+
+
+IP адрес настощий 11.11.11.11. под ним увидел потовый сервер яндекса наше сервер
+
+dns имя 11-11-11-11.dell.com тоже настоящее. яндекс его определяет через PTR запись для IP через запрос к DNS.
+
+
+
+вот этот кусок тоже настоящий:
+````Return-Path: petrov@glav-square.ru````
+
+это в точности вот от сюда
+MAIL FROM:<petrov@glav-square.ru>
+
+
+тоест это в точности под каким ящиком представился сервер отправитель при общении с яндеком до команды DATA.
+и это в точности именно то поле которое проверяет яндекс обращаясь к spf записи домена glav-square.ru
+если там есть запись spf и наш отправщяющий сервер неимеет в ней своего IP 11.11.11.11 то яндкс пошлет наш сервер нахер при отправке.
+поэтому это поле имеет такое значение. и оно настоящее в том плане что именно на этот ящик принимающий сервер и будет по факту слать 
+письмо.
+
+ в цедом остальные поля в письме это все может быть наебка которую отправляющий сервер сообщит приимающему.
+
+
+====
+SMTP
+helo\ehlo  это не просто привестивя. это протоколы такие почтовые.
+==
+SMTP
+вот эти поля
+
+From: Tek Bahadur Limbu <m@glavhome.ru>
+To: someone else <m@example.com>
+
+
+если в них небудет имен помимо адресов почт то в почтовом клиенте 
+в графе кто отослаk и тема письма будут тупорыле пропуски
+
+===
+
+=============================
+=============================
+БОЛЬШАЯ ТЕМА SMTP - конец блока
+=============================
+=============================
