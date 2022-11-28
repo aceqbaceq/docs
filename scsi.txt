@@ -20,7 +20,13 @@ $ sudo  rescan-scsi-bus
 
 какой именно hostX надо зайти туда и посмотреть.
 
+
 после этого fdisk увидит новый диск
+
+
+охуенно поленый скрипт. если на компе дохера этих hostX
+
+for i in $(ls -1); do echo "- - -">  /sys/class/scsi_host/$i/scan; done
 
 
 ===
