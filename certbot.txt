@@ -49,9 +49,11 @@ $ certbot --help all
  ssl_certificate /etc/letsencrypt/live/paidsupport.example.kz/fullchain.pem;      = путь к сертификату
 
 
-активируем таймер:
+активируем таймер(на centos):
 $ sudo systemctl enable --now certbot-renew.timer
 
+активируем таймер (на ubuntu):
+$ sudo systemctl enable --now certbot.timer
 
 
 содрежимое systemd службы которую системд таймер вызывает 
@@ -179,10 +181,16 @@ webroot_path = /srv/www/paidsupport.example.kz,
 
 далее речь пойдет о юнитах systemd\systemctl поэтому сразу тут я хочу сказать что чтобы вспомнить все юнитах нужно прочитать мою статью про systemd\systemctl= https://github.com/aceqbaceq/docs/blob/master/systemd.txt
 
-итак я хочу сказать - при установке пакета certbot в systemd устанавливается два юнита
+итак я хочу сказать - при установке пакета certbot в systemd устанавливается два юнита (в centos)
 $ rpm -ql certbot
 /usr/lib/systemd/system/certbot-renew.service
 /usr/lib/systemd/system/certbot-renew.timer
+
+а в ubuntu 
+
+/lib/systemd/system/certbot.service
+/lib/systemd/system/certbot.timer
+
 
 что они нам дают. они дают нам вместо cron job механизм автоматического обновления сертификатов!
 один юнит это таймер=certbot-renew.timer. 
@@ -368,6 +376,12 @@ $ sudo certbot delete --cert-name example.com
 $ nslookup -type=cname _acme-challenge.example.kz
 Non-authoritative answer:
 _acme-challenge.example.kz  canonical name = 5f5c6ace-627f-496d-a08d-92031b7d7055.auth.acme-dns.io.
+
+хочу заметить что если сертбот будет пытаться проверять но по днс изменения еще необновились то он будет сука писать что 
+записи типа TXT он ненаходит. надо и ты такойдумаешь какая нахер TXT запись когда по интсруккции у нас запись CNAME.
+так вот запись именно CNAME. а не TXT. просто надо дождатся пока она долетт до ближайшего днс. сертбот прсто пока неувидел ее.
+итого - на днс создаем запись именно вида CNAME а не txt.
+==
 
 
 

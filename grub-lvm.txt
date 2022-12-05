@@ -1,0 +1,235 @@
+parted
+
+root@nginx:~# parted /dev/vdb
+GNU Parted 3.2
+Using /dev/vdb
+Welcome to GNU Parted! Type 'help' to view a list of commands.
+(parted) mklabel gpt                                                      
+(parted) mkpart                                                           
+Partition name?  []? grubsys                                              
+File system type?  [ext2]?                                                
+Start? 1M                                                                 
+End? 2M                                                                   
+(parted) set 1 bios_grub on                                               
+(parted) mkpart                                                           
+Partition name?  []? lvmroot
+File system type?  [ext2]?                                                
+Start? 2M                                                                 
+End? 100%                                                                 
+(parted) set 2 lvm on
+(parted) p                                                                
+Model: Virtio Block Device (virtblk)
+Disk /dev/vdb: 21.5GB
+Sector size (logical/physical): 512B/4096B
+Partition Table: gpt
+Disk Flags: 
+
+Number  Start   End     Size    File system  Name     Flags
+ 1      1049kB  2097kB  1049kB               grubsys  bios_grub
+ 2      2097kB  21.5GB  21.5GB               lvmroot  lvm
+
+
+
+
+про разбинеис диска тож еочень важная хрень . если диск GPT то чтобы в него поставить grub то нужно внаале диска
+созать спец раздел.  он начинается через 1МБ. имеет длинну 1МБ и имеет спец флаг  bios_grub
+
+
+Number  Start   End     Size    File system  Name  Flags
+ 1      1049kB  2097kB  1049kB  ext2         grub  bios_grub
+
+насколко я понмимаю то граб себя ставит в этт раздел. своб первую часть. зачем раздел начинать через 1МБ от начала диска. 
+я думаю из за вырванивания. 1МБ редлхраняет от любых невыроненностей. соовственно до первоо мегабайта там вобге ничего не устанавливаетя.
+это просто дырка из за выранивания блоков. 
+
+
+а на второй разел уже ставит LVM раздел. 
+и класо то что ненужно boot выосить а отдельный раздел. ! это очень удобно. итак если дск GPT то создаем раздел
+размром 1GB и туда нужно поствить зарузчиик граба. (не путать с /boot/).а на второй раздел уже весь / включая /boot который ненужно выносить
+на отдель      нйы раздел.
+/dev/sdd2
+
+
+       # vgcreate vg-root-Eih5vaiz /dev/vdc2
+        # lvcreate -n ext4-root -L (50% от vgs!!)G vg-root-Eih5vaiz   (!!!! здест важно задать размер 50% от размера vg чтоб место было под снжпшоты!!!!!!)
+       mkfs.ext4 /dev/vg-root-Eih5vaiz/ext4-root
+       tune2fs -L "fw-jira" /dev/vg-root-Loop4ohW/ext4-root
+   58  mkdir /mnt/newroot
+   59  mount /dev/vg-root-Eih5vaiz/ext4-root /mnt/newroot/
+   60  mkdir /mnt/mirror
+   61  mount --bind / /mnt/mirror/
+         (это защита чтобы при копировании не копровать всякие /dev /proc итл. очень удобвно!)
+   62  rsync -x   -aog --numeric-ids --partial --inplace --append --progress --exclude 'lost+found' /mnt/mirror/ /mnt/newroot/
+            (ключ -x очень важен он говорит чтобы копировать только файлы из одного партишена . это очень важно чтобы лишнее не брать )
+   66  mount -o bind   /dev/ /mnt/newroot/dev/
+   69  mount -o bind   /proc/ /mnt/newroot/proc/
+   70  mount -o bind   /sys/ /mnt/newroot/sys/
+   71  chroot /mnt/newroot/
+
+passwd root   !!! ВАЖНО
+passwd -l всем
+   пройись по всей машине и отклчить всем пароли  кроме root и krivosjeev
+grub-mkconfig -o /boot/grub/grub.cfg
+   это оосмсообщение на экране = WARNING: Failed to connect to lvmetad. Falling back to device scanning = оно неважное
+update-initramfs -u -k all
+      обновить все initramfs что есть. имена останутся темиже
+      при этом у меня выскаивало собщение:
+         ibkmod: ERROR ../libkmod/libkmod-config.c:656 kmod_config_parse: /lib/modules/4.15.0-134-generic/modules.softdep line 21: ignoring bad line starting with ':
+      решние: в файле /mnt/newroot/lib/modules/4.15.0-134-generic/modules.softdep убрать строку вида :sctp
+grub-install --recheck /dev/vdb
+      это ставить загрузчик граба нулевой стадии на первый раздел который 1MB размером
+   exit
+
+МЕНЯЕМ ftsab!  !!!!!!! ВАЖНО
+
+   72  lsblk -f
+   73  vim /mnt/newroot/etc/fstab
+   74  cat /mnt/newroot/etc/fstab
+   75  halt -p
+
+ДАЛЕЕ ВАЖНО!!!!!  перед перезагрузкой зайти  в /boot/grub/grub.cfg на новой системе найти строки вида 
+linux vmlinuz и заменить на конце  
+maybe-ubiquity на net.ifnames=0 biosdevname=0 console=ttyS0   иначе нихрена не загрузится !!!!!
+
+
+
+загрузится на новой машине и еще раз запустить 
+   grub-mkconfig -o /boot/grub/grub.cfg
+чтобы убрать лишние пункты из меню.
+
+
+
+заметка: 
+1) нельщя использовать UUID в fstab . потому что все снэпшоты имебт толчно такойже UUID как и исходный корень.
+вот смотри
+
+
+root@ubuntu-impish:/home/vagrant# lsblk 
+NAME                              MAJ:MIN RM   SIZE RO TYPE MOUNTPOINT
+loop0                               7:0    0  61.9M  1 loop /snap/core20/1518
+loop1                               7:1    0  63.2M  1 loop /snap/core20/1695
+loop2                               7:2    0 102.4M  1 loop /snap/lxd/23270
+loop3                               7:3    0  49.6M  1 loop /snap/snapd/17883
+loop4                               7:4    0 136.6M  1 loop /snap/lxd/23983
+sda                                 8:0    0    10G  0 disk 
+sdb                                 8:16   0    40G  0 disk 
+└─sdb1                              8:17   0    40G  0 part /
+sdc                                 8:32   0    10M  0 disk 
+sdd                                 8:48   0    50G  0 disk 
+├─sdd1                              8:49   0     1M  0 part 
+└─sdd2                              8:50   0    50G  0 part 
+sde                                 8:64   0    10G  0 disk 
+├─sde1                              8:65   0     1M  0 part 
+└─sde2                              8:66   0    10G  0 part 
+  ├─vg--root--123-ext4--root-real 253:0    0     9G  0 lvm  
+  │ ├─vg--root--123-ext4--root    253:1    0     9G  0 lvm  
+  │ └─vg--root--123-snap01        253:3    0     9G  0 lvm  
+  └─vg--root--123-snap01-cow      253:2    0   800M  0 lvm  
+    └─vg--root--123-snap01        253:3    0     9G  0 lvm  
+
+
+
+и о=только /dev/mapper дает уникальрный адрес вольюма.
+
+
+root@ubuntu-impish:/home/vagrant# ls -1 /dev/mapper/
+control
+vg--root--123-ext4--root
+vg--root--123-ext4--root-real
+vg--root--123-snap01
+vg--root--123-snap01-cow
+
+
+тока непонятн. о 
+
+├─vg--root--123-ext4--root  (исходный диск)
+  │ └─vg--root--123-snap01  ( его снэпшот )
+
+а что вот это
+
+ └─vg--root--123-snap01-cow     ???? 
+    └─vg--root--123-snap01      почему это задулидрровалось ?
+
+
+зато вот тут все четко:
+
+# ls -1 /dev/vg-root-123/
+ext4-root
+snap01
+
+навеное во фстаб надо всостаолть строку
+
+/dev/vg-root-123/ext4-root
+
+тоесть это путь /dev/VG_имя/LV_имя
+
+
+вобщем и снэшт и исходнй диск оиннаовый uuid опэтму их во фстаб юзат ельзя
+
+2) важный момегт это во эти коанды
+когда мы вошли в chroot:
+
+grub-mkconfig -o /boot/grub/grub.cfg
+update-initramfs -u -k all
+grub-install --recheck /dev/vdb
+
+
+
+эта команда он перезосзает grub.cfg
+grub-mkconfig -o /boot/grub/grub.cfg
+
+лдя этого она оредяет ткущий root раздел то есть наш новый его UUID и его сует в grub.cfg поэтому это 
+такая важная команда и ее запускам из под chroot.
+важно скзаать чт если до этго та были другре UUID то она их оставляет. тоесть комард просто еберет и для кажого initrd создает
+запис с новым root . но как я понял из практики она и старые  entry со старыми root разделами тоже сохраняет  меню.пример:
+
+cat /mnt/newroot/boot/grub/grub.cfg | grep -E "menuentry|linux|initrd"
+
+
+menuentry      
+      linux /boot/vmlinuz-5.13.0-22-generic root=/dev/mapper/vg--root--123-ext4--root ro  console=tty1 console=ttyS0
+      initrd   /boot/initrd.img-5.13.0-22-generic
+
+
+submenu      
+      linux /boot/vmlinuz-5.13.0-22-generic root=/dev/mapper/vg--root--123-ext4--root ro  console=tty1 console=ttyS0
+      initrd   /boot/initrd.img-5.13.0-22-generic
+
+
+menuentry    
+      linux /boot/vmlinuz-5.13.0-22-generic root=/dev/mapper/vg--root--123-ext4--root ro recovery nomodeset dis_ucode_ldr 
+      initrd   /boot/initrd.img-5.13.0-22-generic
+
+
+
+
+ в этих пунках меню видно что прописан наш новыенький lvm root  ==>     root=/dev/mapper/vg--root--123-ext4--root
+ прчием видно что он прописан не через UUID.(из за снэпштов)
+
+
+
+а далее идут entry в меню от старых root разделов. которые уже неаутуальные. и если их выбрать то можно сильно проколоться. 
+потому то этих дисков уже может небытаь в системе!
+
+
+
+menuentry
+         linux /boot/vmlinuz-5.13.0-22-generic root=UUID=a7642a0a-14d7-45dd-9c6d-1c2af5c9f859 ro console=tty1 console=ttyS0
+         initrd /boot/initrd.img-5.13.0-22-generic
+
+menuentry 
+         linux /boot/vmlinuz-5.13.0-22-generic root=UUID=5698aa51-129c-48f5-ad2e-0967e0970e4e ro console=tty1 console=ttyS0
+         initrd /boot/initrd.img-5.13.0-22-generic
+
+
+
+видно что здесь root=UUID=5698aa51-129c-48f5-ad2e-0967e0970e4e  ===>  значит я раздагаал как это здесь появляется. 
+когда мы запускаем 
+grub-mkconfig -o /boot/grub/grub.cfg 
+
+то он оредяет теущий / диск и для него делает запись. атакже он сканируе все диски в системе
+и там фс и если находит другие загрузочные диски то он тоже ипропсиывает. прикольно.
+
+поэтому если диск вытащил и вставил в доугой комп то надо прогнать прежле всего комнду 
+grub-mkconfig -o /boot/grub/grub.cfg
+чтобы она очитстили меню от дисков которых больше нет.
