@@ -1,0 +1,177 @@
+graylog
+
+
+install на almalinux 8:
+
+
+dnf install mc
+
+disable selinux
+к командной строке дизейблии прям щас: 
+sudo setenforce 0
+в файле :
+sudo nano /etc/selinux/config
+SELINUX=disabled
+
+
+sudo dnf -y install java-11-openjdk-devel
+
+java -version
+
+rpm --import https://artifacts.elastic.co/GPG-KEY-elasticsearch
+
+
+
+dnf install nano
+
+nano /etc/yum.repos.d/elasticsearch.repo
+
+[elasticsearch-7.x]
+name=Elasticsearch repository for 7.x packages
+baseurl=https://artifacts.elastic.co/packages/7.x/yum
+gpgcheck=1
+gpgkey=https://artifacts.elastic.co/GPG-KEY-elasticsearch
+enabled=1
+autorefresh=1
+type=rpm-md
+
+
+dnf install elasticsearch
+
+
+ sudo vi /etc/elasticsearch/elasticsearch.yml
+
+cluster.name:  graylog
+action.auto_create_index: false
+
+
+ sudo vi /etc/elasticsearch/jvm.options
+
+-Xms100m
+-Xmx100m
+
+
+sudo systemctl daemon-reload
+sudo systemctl enable --now elasticsearch.service
+
+# curl -XGET 'http://localhost:9200/_cluster/health/?pretty'
+{
+  "cluster_name" : "graylog",
+  "status" : "green",
+
+
+
+
+cat <<EOF | sudo tee /etc/yum.repos.d/mongodb-org-4.repo
+[mongodb-org-4]
+name=MongoDB Repository
+baseurl=https://repo.mongodb.org/yum/redhat/8/mongodb-org/4.4/x86_64/
+gpgcheck=1
+enabled=1
+gpgkey=https://www.mongodb.org/static/pgp/server-4.4.asc
+EOF
+
+
+
+
+
+
+
+sudo dnf install -y mongodb-org
+
+
+sudo systemctl enable --now mongod
+
+ systemctl status mongod
+
+
+
+ sudo rpm -Uvh https://packages.graylog2.org/repo/packages/graylog-4.2-repository_latest.rpm
+
+
+sudo dnf install -y graylog-server
+
+
+sudo dnf install -y epel-release
+
+
+sudo dnf install -y pwgen
+
+
+sudo pwgen -N 1 -s 96
+YccEJ3Vc5Yf1l1F27DbayiDrQmpqjV5pR9xBjLPC021ZD5ytfqY9Aqo7WxT9hueGOlrR5eoQWJ2hYgbUdvYKi2TjNhX20Ljg
+
+
+$ echo -n "Enter Password: " && head -1 </dev/stdin | tr -d '\n' | sha256sum | cut -d" " -f1
+Enter Password: 123
+a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3
+
+
+edit
+/etc/graylog/server/server.conf
+password_secret = YccEJ3Vc5Yf1l1F27DbayiDrQmpqjV5pR9xBjLPC021ZD5ytfqY9Aqo7WxT9hueGOlrR5eoQWJ2hYgbUdvYKi2TjNhX20Ljg
+root_password_sha2 = a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3
+
+
+
+/etc/sysconfig/graylog-server
+меняем переменную GRAYLOG_SERVER_JAVA_OPTS="-Xms200m -Xmx200m .....""
+
+sudo systemctl daemon-reload
+sudo systemctl start graylog-server
+sudo systemctl enable graylog-server
+
+
+systemctl status graylog-server
+
+
+sudo dnf -y install epel-release
+sudo dnf -y install nginx
+
+sudo systemctl enable --now nginx
+
+
+
+sudo vi /etc/nginx/nginx.conf
+ server {
+        listen      80 ;
+     #   listen      [::]:80 default_server;
+        server_name ИСПРАВИТЬ;
+       
+
+ location / {
+
+        proxy_redirect      off;
+        proxy_set_header    X-Real-IP $remote_addr;
+        proxy_set_header    X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header    Host $http_host;
+
+        proxy_pass http://127.0.0.1:9000;
+        }
+    }
+
+
+
+
+nginx -t
+
+systemctl reload nginx
+
+
+
+web morda http://localhost:8081/
+l: admin
+p: 123
+
+
+
+
+
+
+
+
+
+
+
+
+
