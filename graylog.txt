@@ -167,6 +167,44 @@ p: 123
 
 
 
+--
+а вот еще вариант конфига жинкса
+
+server {
+    listen 443 ssl;
+    server_name graylog.paruskaz.kz;
+
+    ssl_certificate         /etc/letsencrypt/live/graylog.paruskaz.kz/fullchain.pem;
+    ssl_certificate_key     /etc/letsencrypt/live/graylog.paruskaz.kz/privkey.pem;
+
+
+
+ location / {
+
+
+   # Mostly the GrayLog defaults
+   proxy_set_header   X-Real-IP              $remote_addr;
+   proxy_set_header   X-Forwarded-Proto      $scheme;
+   proxy_set_header   Host                   $host:$server_port;
+   proxy_set_header   X-Forwarded-Host       $host;
+   proxy_set_header   X-Forwarded-Server     $host;
+   proxy_set_header   X-Forwarded-For        $proxy_add_x_forwarded_for;
+   proxy_set_header   X-Graylog-Server-URL   https://$server_name/;
+   proxy_pass         http://127.0.0.1:9000;
+
+        include vhost.inc.conf;
+
+    access_log /srv/www/graylog.paruskaz.kz/logs/graylog.paruskaz.kz-acc main;
+    error_log /srv/www/graylog.paruskaz.kz/logs/graylog.paruskaz.kz-err;
+
+
+
+        }
+    }
+
+
+при этом важно что прикрутить aith_basic неполучется. постояно на экране выскакивает таблицчка введите пароль!
+поэттому юзаем только родную грейлоговсую аутентфикацию.
 
 
 
