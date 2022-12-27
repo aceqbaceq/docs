@@ -3699,7 +3699,7 @@ Device "lo3-ns" does not exist.
 пример
 создаем пару veth
 
-# ip link add veth1 type veth peer veth2
+# ip link add name veth1 type veth peer name veth2
 
 вот так оно выглядит после создания
 
