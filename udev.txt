@@ -1,0 +1,318 @@
+udev
+
+
+опишу здесь как оно работает.
+
+мы втыкаем железк в комп. если у ядра есть драйвер то этот драйвер распознает 
+устоуство и готово его осблуживать. но на этот момент это устойство недоступно для
+юзерспейса. на втором этапе нужно создать спец файл в юзерспейсе через который 
+можно будет обращаться к этому устросвту. это можно сделать руками или это будет
+делать некий демон. такой демон = udev. он через сетевой сокет слушает ядро.
+оно ему бросает сообщения что устроство добавильс или удалилсь.
+у udev есть таблица правил по которым он создает спец файлы в /dev или удаляет.
+таким макаром это ненужно делать руками.
+
+
+где лежат файлы udev
+
+/run/udev = тут незнаю что за файлы
+/etc/udev = тут тоже незнаю что за файлы
+/lib/udev/rules.d  = вот тут лежат нужные нам конфиги.
+
+если мы хотим добавить свое правило которо сохранится после перезагурзки то надо ее класть в /lib/udev
+
+навскидку интересуют правила котоыре отрабатывают для дисков. 
+например мы воткнули флэшку. как найти правило котроре для нее создает спец файл в /dev
+
+есть команда
+
+$ udevadm monitor -p
+
+она покажет кое что когда мы воткнем флэшку. мало что нам даст но наведет на мысли. 
+запускать команду нужно имеенноот текущего юзера а не от рута.
+
+
+искать правило для флэшки надо исходя из того что мы знаем имя /dev/sda который создается когда
+мы ее воткнули ведь должно же быть происано в когнфиге что создать /dev/sda
+
+далее эта команда:
+$ udevadm info /dev/sda
+
+P: /devices/pci0000:00/0000:00:14.0/usb1/1-1/1-1:1.0/host2/target2:0:0/2:0:0:0/block/sda
+N: sda
+S: disk/by-id/usb-JetFlash_Transcend_16GB_71LN2ZIH-0:0
+S: disk/by-path/pci-0000:00:14.0-usb-0:1:1.0-scsi-0:0:0:0
+E: DEVLINKS=/dev/disk/by-id/usb-JetFlash_Transcend_16GB_71LN2ZIH-0:0 /dev/disk/by-path/pci-0000:00:14.0-usb-0:1:1.0-scsi-0:0:0:0
+E: DEVNAME=/dev/sda
+E: DEVPATH=/devices/pci0000:00/0000:00:14.0/usb1/1-1/1-1:1.0/host2/target2:0:0/2:0:0:0/block/sda
+E: DEVTYPE=disk
+E: ID_BUS=usb
+E: ID_DRIVE_THUMB=1
+E: ID_INSTANCE=0:0
+E: ID_MODEL=Transcend_16GB
+E: ID_MODEL_ENC=Transcend\x2016GB\x20\x20
+E: ID_MODEL_ID=1000
+E: ID_PART_TABLE_TYPE=dos
+E: ID_PATH=pci-0000:00:14.0-usb-0:1:1.0-scsi-0:0:0:0
+E: ID_PATH_TAG=pci-0000_00_14_0-usb-0_1_1_0-scsi-0_0_0_0
+E: ID_REVISION=8.01
+E: ID_SERIAL=JetFlash_Transcend_16GB_71LN2ZIH-0:0
+E: ID_SERIAL_SHORT=71LN2ZIH
+E: ID_TYPE=disk
+E: ID_USB_DRIVER=usb-storage
+E: ID_USB_INTERFACES=:080650:
+E: ID_USB_INTERFACE_NUM=00
+E: ID_VENDOR=JetFlash
+E: ID_VENDOR_ENC=JetFlash
+E: ID_VENDOR_ID=8564
+E: MAJOR=8
+E: MINOR=0
+E: SUBSYSTEM=block
+E: TAGS=:systemd:
+E: USEC_INITIALIZED=230885388313
+
+тоже пока мало что дает но
+она позволяет узнать очень много интерсного про диск.
+
+так как наше устройтвсо имеет вид /dev/sda то вначале грепаем по sd
+
+$ grep "sd" /lib/udev/rules.d
+из вывода делаем вывод что сокрее всего правило лежмт в файле 60-persistent-storage.rules
+далее грепаем толкьо его
+
+
+$ grep -Ri "sd" 60-persistent-storage.rules
+KERNEL!="loop*|mmcblk*[0-9]|msblk*[0-9]|mspblk*[0-9]|nvme*|sd*|sr*|vd*|xvd*|bcache*|cciss*|dasd*|ubd*|scm*|pmem*|nbd*", GOTO="persistent_storage_end"
+KERNEL=="sd*[!0-9]|sr*", ENV{ID_SERIAL}!="?*", SUBSYSTEMS=="scsi", ATTRS{vendor}=="ATA", IMPORT{program}="ata_id --export $devnode"
+KERNEL=="sd*[!0-9]|sr*", ENV{ID_SERIAL}!="?*", SUBSYSTEMS=="scsi", ATTRS{type}=="5", ATTRS{scsi_level}=="[6-9]*", IMPORT{program}="ata_id --export $devnode"
+KERNEL=="sd*[!0-9]|sr*", ENV{ID_SERIAL}!="?*", ATTR{removable}=="0", SUBSYSTEMS=="usb", IMPORT{program}="ata_id --export $devnode"
+KERNEL=="sd*[!0-9]|sr*", ENV{ID_SERIAL}!="?*", SUBSYSTEMS=="usb", IMPORT{builtin}="usb_id"
+KERNEL=="sd*[!0-9]|sr*", ENV{ID_SERIAL}!="?*", IMPORT{program}="scsi_id --export --whitelisted -d $devnode", ENV{ID_BUS}="scsi"
+KERNEL=="sd*|sr*|cciss*", ENV{DEVTYPE}=="disk", ENV{ID_SERIAL}=="?*", SYMLINK+="disk/by-id/$env{ID_BUS}-$env{ID_SERIAL}"
+KERNEL=="sd*|cciss*", ENV{DEVTYPE}=="partition", ENV{ID_SERIAL}=="?*", SYMLINK+="disk/by-id/$env{ID_BUS}-$env{ID_SERIAL}-part%n"
+KERNEL=="sd*|cciss*", ENV{DEVTYPE}=="partition", ENV{ID_SERIAL}=="JetFlash_Transcend_16GB_71LN2ZIH-0:0", SYMLINK+="disk/by-id/transcend16GB-$env{ID_SERIAL}-part%n"
+KERNEL=="sd*[!0-9]|sr*", ATTRS{ieee1394_id}=="?*", SYMLINK+="disk/by-id/ieee1394-$attr{ieee1394_id}"
+KERNEL=="sd*[0-9]", ATTRS{ieee1394_id}=="?*", SYMLINK+="disk/by-id/ieee1394-$attr{ieee1394_id}-part%n"
+
+анализируем.
+KERNEL!="loop*|mmcblk*[0-9]|msblk*[0-9]|mspblk*[0-9]|nvme*|sd*|sr*|vd*|xvd*|bcache*|cciss*|dasd*|ubd*|scm*|pmem*|nbd*", GOTO="persistent_storage_end"
+эту строку можем отбрасить потому что у нас sd
+
+вторая строка
+KERNEL=="sd*[!0-9]|sr*", ENV{ID_SERIAL}!="?*", SUBSYSTEMS=="scsi", ATTRS{vendor}=="ATA", IMPORT{program}="ata_id --export $devnode"
+ищем вот эти свойства чему равны у нашей флэшки SUBSYSTEMS=="scsi", ATTRS{vendor}=="ATA"
+$ udevadm info /dev/sda -a | grep -i -E "subsystems|vendor"
+    SUBSYSTEMS=="scsi"
+    ATTRS{vendor}=="JetFlash"
+    SUBSYSTEMS=="scsi"
+    SUBSYSTEMS=="scsi"
+    SUBSYSTEMS=="usb"
+    SUBSYSTEMS=="usb"
+    ATTRS{idVendor}=="8564"
+    SUBSYSTEMS=="usb"
+    ATTRS{idVendor}=="1d6b"
+    SUBSYSTEMS=="pci"
+    ATTRS{subsystem_vendor}=="0x17aa"
+    ATTRS{vendor}=="0x8086"
+    SUBSYSTEMS==""
+ключ -a типа показыает свойства родителей. 
+делаем выво что эта строка тоже неподохиодит так как vendor<>ATA
+
+следущая строка тоже неподоходит такак  ATTRS{type}<>"5
+
+следущяа строка тоже неподходт такак ATTR{removable}=="1"
+
+
+дублирую еще раз строки выше но уже без исключенных строк
+KERNEL=="sd*[!0-9]|sr*", ENV{ID_SERIAL}!="?*", SUBSYSTEMS=="usb", IMPORT{builtin}="usb_id"
+KERNEL=="sd*[!0-9]|sr*", ENV{ID_SERIAL}!="?*", IMPORT{program}="scsi_id --export --whitelisted -d $devnode", ENV{ID_BUS}="scsi"
+KERNEL=="sd*|sr*|cciss*", ENV{DEVTYPE}=="disk", ENV{ID_SERIAL}=="?*", SYMLINK+="disk/by-id/$env{ID_BUS}-$env{ID_SERIAL}"
+KERNEL=="sd*|cciss*", ENV{DEVTYPE}=="partition", ENV{ID_SERIAL}=="?*", SYMLINK+="disk/by-id/$env{ID_BUS}-$env{ID_SERIAL}-part%n"
+KERNEL=="sd*|cciss*", ENV{DEVTYPE}=="partition", ENV{ID_SERIAL}=="JetFlash_Transcend_16GB_71LN2ZIH-0:0", SYMLINK+="disk/by-id/transcend16GB-$env{ID_SERIAL}-part%n"
+KERNEL=="sd*[!0-9]|sr*", ATTRS{ieee1394_id}=="?*", SYMLINK+="disk/by-id/ieee1394-$attr{ieee1394_id}"
+KERNEL=="sd*[0-9]", ATTRS{ieee1394_id}=="?*", SYMLINK+="disk/by-id/ieee1394-$attr{ieee1394_id}-part%n"
+
+
+ строка 
+KERNEL=="sd*[!0-9]|sr*", ENV{ID_SERIAL}!="?*", SUBSYSTEMS=="usb", IMPORT{builtin}="usb_id"
+пооходу подхдоиит потому что 
+$ udevadm info /dev/sda -a | grep -i -E "subsystems"
+    SUBSYSTEMS=="scsi"
+    SUBSYSTEMS=="scsi"
+    SUBSYSTEMS=="scsi"
+    SUBSYSTEMS=="usb"
+    SUBSYSTEMS=="usb"
+    SUBSYSTEMS=="usb"
+    SUBSYSTEMS=="pci"
+    SUBSYSTEMS==""
+
+
+так далее пойдем исселовать немного с другого способа:
+# sudo udevadm test /block/sda
+эта команда она как бы показывает какую логику применяет udev при обработке события.
+где /block/sda это наше блочное устрйосвао но путь к нему не через /dev а через /sys . тоесть 
+полный путь это /sys/block/sda отбрасываем /sys и подставляем. 
+получим:
+
+GROUP 6 /lib/udev/rules.d/50-udev-default.rules:56
+IMPORT builtin 'usb_id' /lib/udev/rules.d/60-persistent-storage.rules:47
+/sys/devices/pci0000:00/0000:00:14.0/usb1/1-1/1-1:1.0: if_class 8 protocol 6
+LINK 'disk/by-id/usb-JetFlash_Transcend_16GB_71LN2ZIH-0:0' /lib/udev/rules.d/60-persistent-storage.rules:52
+IMPORT builtin 'path_id' /lib/udev/rules.d/60-persistent-storage.rules:77
+LINK 'disk/by-path/pci-0000:00:14.0-usb-0:1:1.0-scsi-0:0:0:0' /lib/udev/rules.d/60-persistent-storage.rules:79
+IMPORT builtin 'blkid' /lib/udev/rules.d/60-persistent-storage.rules:94
+probe /dev/sda raid offset=0
+RUN '/usr/bin/unshare -m /usr/bin/snap auto-import --mount=/dev/%k' /lib/udev/rules.d/66-snapd-autoimport.rules:3
+RUN '/lib/udev/hdparm' /lib/udev/rules.d/85-hdparm.rules:1
+handling device node '/dev/sda', devnum=b8:0, mode=0660, uid=0, gid=6
+preserve permissions /dev/sda, 060660, uid=0, gid=6
+preserve already existing symlink '/dev/block/8:0' to '../sda'
+found 'b8:0' claiming '/run/udev/links/\x2fdisk\x2fby-id\x2fusb-JetFlash_Transcend_16GB_71LN2ZIH-0:0'
+creating link '/dev/disk/by-id/usb-JetFlash_Transcend_16GB_71LN2ZIH-0:0' to '/dev/sda'
+preserve already existing symlink '/dev/disk/by-id/usb-JetFlash_Transcend_16GB_71LN2ZIH-0:0' to '../../sda'
+found 'b8:0' claiming '/run/udev/links/\x2fdisk\x2fby-path\x2fpci-0000:00:14.0-usb-0:1:1.0-scsi-0:0:0:0'
+creating link '/dev/disk/by-path/pci-0000:00:14.0-usb-0:1:1.0-scsi-0:0:0:0' to '/dev/sda'
+preserve already existing symlink '/dev/disk/by-path/pci-0000:00:14.0-usb-0:1:1.0-scsi-0:0:0:0' to '../../sda'
+.ID_FS_TYPE_NEW=
+ACTION=add
+DEVLINKS=/dev/disk/by-path/pci-0000:00:14.0-usb-0:1:1.0-scsi-0:0:0:0 /dev/disk/by-id/usb-JetFlash_Transcend_16GB_71LN2ZIH-0:0
+DEVNAME=/dev/sda
+DEVPATH=/devices/pci0000:00/0000:00:14.0/usb1/1-1/1-1:1.0/host2/target2:0:0/2:0:0:0/block/sda
+DEVTYPE=disk
+ID_BUS=usb
+ID_DRIVE_THUMB=1
+ID_FS_TYPE=
+ID_INSTANCE=0:0
+ID_MODEL=Transcend_16GB
+ID_MODEL_ENC=Transcend\x2016GB\x20\x20
+ID_MODEL_ID=1000
+ID_PART_TABLE_TYPE=dos
+ID_PATH=pci-0000:00:14.0-usb-0:1:1.0-scsi-0:0:0:0
+ID_PATH_TAG=pci-0000_00_14_0-usb-0_1_1_0-scsi-0_0_0_0
+ID_REVISION=8.01
+ID_SERIAL=JetFlash_Transcend_16GB_71LN2ZIH-0:0
+ID_SERIAL_SHORT=71LN2ZIH
+ID_TYPE=disk
+ID_USB_DRIVER=usb-storage
+ID_USB_INTERFACES=:080650:
+ID_USB_INTERFACE_NUM=00
+ID_VENDOR=JetFlash
+ID_VENDOR_ENC=JetFlash
+ID_VENDOR_ID=8564
+MAJOR=8
+MINOR=0
+SUBSYSTEM=block
+TAGS=:systemd:
+USEC_INITIALIZED=232614452449
+run: '/usr/bin/unshare -m /usr/bin/snap auto-import --mount=/dev/sda'
+run: '/lib/udev/hdparm'
+Unload module index
+Unloaded link configuration context.
+
+
+берем первую строку
+GROUP 6 /lib/udev/rules.d/50-udev-default.rules:56
+
+она показывает срабатывание правла в строке 56 в этой файле. ищу эту строку
+SUBSYSTEM=="block" GROUP=="disk"
+
+эта строка срабывает потому что 
+$ udevadm info -n /dev/sda | grep -i subsystem
+E: SUBSYSTEM=block
+
+
+берем вторую строку
+IMPORT builtin 'usb_id' /lib/udev/rules.d/60-persistent-storage.rules:47
+видим чтобыло совпдание в строке 47 . ищем эту строку
+KERNEL=="sd*[!0-9]|sr*", ENV{ID_SERIAL}!="?*", SUBSYSTEMS=="usb", IMPORT{builtin}="usb_id"
+эта строка сработаоа видимо потому что
+$ udevadm info -a -n /dev/sda | grep -i subsystems
+    SUBSYSTEMS=="scsi"
+    SUBSYSTEMS=="scsi"
+    SUBSYSTEMS=="scsi"
+    SUBSYSTEMS=="usb"
+    SUBSYSTEMS=="usb"
+    SUBSYSTEMS=="usb"
+    SUBSYSTEMS=="pci"
+    SUBSYSTEMS==""
+
+мы видим что отрабатывает usb_id. это встроенный built-in от юдев. чтобы узнать что он делает 
+надо выполняить команду:
+$ udevadm test-builtin usb_id /block/sda
+calling: test-builtin
+Load module index
+Parsed configuration file /lib/systemd/network/99-default.link
+Created link configuration context.
+/sys/devices/pci0000:00/0000:00:14.0/usb1/1-1/1-1:1.0: if_class 8 protocol 6
+ID_VENDOR=JetFlash
+ID_VENDOR_ENC=JetFlash
+ID_VENDOR_ID=8564
+ID_MODEL=Transcend_16GB
+ID_MODEL_ENC=Transcend\x2016GB\x20\x20
+ID_MODEL_ID=1000
+ID_REVISION=8.01
+ID_SERIAL=JetFlash_Transcend_16GB_71LN2ZIH-0:0
+ID_SERIAL_SHORT=71LN2ZIH
+ID_TYPE=disk
+ID_INSTANCE=0:0
+ID_BUS=usb
+ID_USB_INTERFACES=:080650:
+ID_USB_INTERFACE_NUM=00
+ID_USB_DRIVER=usb-storage
+Unload module index
+Unloaded link configuration context.
+
+опятю же /block/sda это путь к нашему sda но не через /dev а через /sys
+таким макаром понято что через usb_id наш udev поулчил кучу инфо о флэшке
+
+следущая строка
+LINK 'disk/by-id/usb-JetFlash_Transcend_16GB_71LN2ZIH-0:0' /lib/udev/rules.d/60-persistent-storage.rules:52
+
+смотрим о чем она
+$ cat 60-persistent-storage.rules  | head -52 | tail -1
+KERNEL=="sd*|sr*|cciss*", ENV{DEVTYPE}=="disk", ENV{ID_SERIAL}=="?*", SYMLINK+="disk/by-id/$env{ID_BUS}-$env{ID_SERIAL}"
+эта строка создает симлинк disk/by-id/usb-JetFlash_Transcend_16GB_71LN2ZIH-0:0 для /dev/sda
+таким образом точно неясно какое правило создает /dev/sda 
+зато точно ясно какое правило для него создает симлинк в /dev/disk/by-id/. это правило.
+правило срабаывает если унас устройствао имеет вид /dev/sd* и если у него DEVTYPE=disk
+проверим
+$ sudo udevadm info /dev/sda | grep DEVTYPE
+E: DEVTYPE=disk
+все так и есть
+видми что SYMLINK+="disk/by-id/$env{ID_BUS}-$env{ID_SERIAL}" отрабаывает в 
+disk/by-id/usb-JetFlash_Transcend_16GB_71LN2ZIH-0:0
+проверим это 
+sudo udevadm info /dev/sda | grep ID_BUS
+E: ID_BUS=usb
+$ sudo udevadm info /dev/sda | grep ID_SERIAL=
+E: ID_SERIAL=JetFlash_Transcend_16GB_71LN2ZIH-0:0
+
+таким макаром все совпало. получается для устройств вида /dev/sd* udev создает симлинк вида
+/dev/disk/by-id/тип_шины-серийник_диска
+
+
+так я вот другую фдэшку вставил в комп. для нее тоже был создан /dev/sda
+и у этой флэшки
+$ udevadm info /dev/sda |  grep ID_BUS
+E: ID_BUS=usb
+[vasya@lenovo rules.d]$ udevadm info /dev/sda |  grep ID_SERIAL=
+E: ID_SERIAL=SanDisk_Cruzer_Blade_4C531001610320112574-0:0
+
+таким макаром я ожидаю что для /dev/sda будет создан симлинк вида
+/dev/disk/by-id/$ID_BUS-$ID_SERIAL = /dev/disk/by-id/usb-SanDisk_Cruzer_Blade_4C531001610320112574-0:0
+проверяю
+$ ls -1 /dev/disk/by-id | grep Cruzer
+usb-SanDisk_Cruzer_Blade_4C531001610320112574-0:0
+все совпало!
+
+теперь  - с точки зрения насколько такая точка монтирования в fstab будет надежной. ответ - по мне
+очень даже надежная. как бы мы ни меняли местами флэшки ее шина так и останется usb и серийный номер 
+диска тоже остается неимзенным. поэтому такой симлинк можно юзать как точку монтиоания в fstab
+другое дело что это диск его никуда несмонтруешь. и как там это дело с lvm снэпшотами тоже неясно. скорей
+всего шина и серийник у снэпшота будет такой же самый как и у исходного партищена нао проверять.
+
+
+
+таким макаром все совпало. получается для устройств вида /dev/sd* udev создает симлинк вида
+/dev/disk/by-id/тип_шины-серийник_диска
+надо будет посмтреть это дело для lvm дисков и для nvme  и для lvm снэпштов.

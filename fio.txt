@@ -134,5 +134,48 @@ sata шина имела два провода. а PCIe линия имеет 4 
 полезная нагрузка.  у PCIe 3.x кодрование 128b\130b это 0.985 полезная нагрузка тоесть 98.5%
 
 
+еще тоже самое можно посмотреть через udevadm
+$ udevadm info -a -n /dev/nvme0 | grep -E "speed|width"
+    ATTRS{current_link_speed}=="8 GT/s"
+    ATTRS{current_link_width}=="2"
+    ATTRS{max_link_speed}=="8 GT/s"
+    ATTRS{max_link_width}=="2"
+    ATTRS{current_link_speed}=="8 GT/s"
+    ATTRS{current_link_width}=="2"
+    ATTRS{max_link_speed}=="8 GT/s"
+    ATTRS{max_link_width}=="4"
 
-===
+
+
+выще я писал что через lspci можно увидет такие штуки как LnkCap и LnkSta 
+первое это скорость разьема второй это скорость железки которая воткнута в разьем.
+посмотрим еще один пример разьема железки и скоростей
+
+$ sudo lspci -vv -nn | grep -E '^[0-9][0-9]:[0-9][0-9].[0-9]|LnkCap:|LnkSta:'
+
+04:00.0 RAID bus controller [0104]: Adaptec Series 6 - 6G SAS/PCIe 2 [9005:028b] (rev 01)
+      LnkCap:  Port #0, Speed 5GT/s, Width x8, ASPM L0s L1, Exit Latency L0s <512ns, L1 <64us
+      LnkSta:  Speed 5GT/s, Width x8, TrErr- Train- SlotClk+ DLActive- BWMgmt- ABWMgmt-
+
+
+
+LnkCap:   Speed 5GT/s, Width x8, так как 5GT/s это скорость для одной линии  в PCIe 2x
+PCIe 2x имеет кодиорвание 8b/10b в итоге это значит что одна линия выдает полезную скорость передачи
+данных 512МБ\с. так как линий 8 то суммарная скооость разьема ~ 4GB/s
+
+LnkSta: - видно что фактическая скорсть железки ровно такая же.
+
+
+
+ с помощью lspci можно узнать все устройствао которы распознало ядро 
+  и которые сидят на pcie шине. что очень удобно. можно например узнать что за raid
+  контроллер в системе или что за сетевая карта или видео карта.
+  
+
+
+также инфо про память (число планок установленных), модель сервера,  моделл мат платы
+и кое какая инфо про устройства можно посмотреть также через 
+
+# dmidecode
+
+==
