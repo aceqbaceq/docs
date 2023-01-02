@@ -1,0 +1,10 @@
+journalctl
+
+как записать в journactl тестовые строки
+$ echo 1111 | logger
+
+проверка
+$ journalctl -f
+
+----
+
