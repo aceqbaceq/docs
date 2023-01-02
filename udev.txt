@@ -312,6 +312,81 @@ usb-SanDisk_Cruzer_Blade_4C531001610320112574-0:0
 всего шина и серийник у снэпшота будет такой же самый как и у исходного партищена нао проверять.
 
 
+переходим к следущей строке
+IMPORT builtin 'path_id' /lib/udev/rules.d/60-persistent-storage.rules:77
+
+$ cat 60-persistent-storage.rules  | head -77 | tail -1
+ENV{DEVTYPE}=="disk", DEVPATH!="*/virtual/*", IMPORT{builtin}="path_id"
+
+смотрим что дает этот path_id
+$ udevadm test-builtin path_id /block/sda
+calling: test-builtin
+Load module index
+Parsed configuration file /lib/systemd/network/99-default.link
+Created link configuration context.
+ID_PATH=pci-0000:00:14.0-usb-0:1:1.0-scsi-0:0:0:0
+ID_PATH_TAG=pci-0000_00_14_0-usb-0_1_1_0-scsi-0_0_0_0
+Unload module index
+Unloaded link configuration context.
+
+он дает ID_PATH и ID_PATH_TAG
+понятно. 
+
+
+следущая строка
+LINK 'disk/by-path/pci-0000:00:14.0-usb-0:1:1.0-scsi-0:0:0:0' /lib/udev/rules.d/60-persistent-storage.rules:79
+понятно как рабоатет. этот симлинк меня мало интерсует потому что в следущий раз 
+флэшка омжет оказаться подключена к другому слоту.
+
+
+
+смотрим следующую строку
+IMPORT builtin 'blkid' /lib/udev/rules.d/60-persistent-storage.rules:94
+probe /dev/sda raid offset=0
+
+$ cat 60-persistent-storage.rules  | head -94 | tail -1
+KERNEL!="sr*", IMPORT{builtin}="blkid"
+да понятно почему эта строка отрабатывает. потому что sd<>sr поэтому она и отрабатаывает
+запускается blkid built-in
+запустим его 
+
+$ sudo udevadm test-builtin blkid /block/sda
+calling: test-builtin
+Load module index
+Parsed configuration file /lib/systemd/network/99-default.link
+Created link configuration context.
+probe /dev/sda raid offset=0
+ID_PART_TABLE_UUID=ff0ebee9
+ID_PART_TABLE_TYPE=dos
+Unload module index
+Unloaded link configuration context.
+
+понятно получили ID_PART_TABLE_UUID и ID_PART_TABLE_TYPE
+таким макаром мы узнали что у нас mbr диск а не gpt 
+
+
+следущтая строка
+RUN '/usr/bin/unshare -m /usr/bin/snap auto-import --mount=/dev/%k' /lib/udev/rules.d/66-snapd-autoimport.rules:3
+
+$ cat 66-snapd-autoimport.rules 
+ACTION=="add", SUBSYSTEM=="block", KERNEL!="loop*", KERNEL!="ram*" \
+    RUN+="/usr/bin/unshare -m /usr/bin/snap auto-import --mount=/dev/%k"
+
+понятно почему отрабывает. потому что  у нас subsystem=block
+$ udevadm info -n /dev/sda | grep -i subsystem
+E: SUBSYSTEM=block
+и потому что /dev/sda <> loop и <> ram
+
+
+следущяа тсрока
+RUN '/lib/udev/hdparm' /lib/udev/rules.d/85-hdparm.rules:1
+
+
+$ cat 85-hdparm.rules  | head -1 | tail -1
+ACTION=="add", SUBSYSTEM=="block", KERNEL=="[sh]d[a-z]", RUN+="/lib/udev/hdparm"
+
+
+
 
 таким макаром все совпало. получается для устройств вида /dev/sd* udev создает симлинк вида
 /dev/disk/by-id/тип_шины-серийник_диска
