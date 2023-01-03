@@ -5696,3 +5696,229 @@ $ lspci -vv -nn | grep -E "..:..\..|modules"
 видно название железки и обслуживающий ее драйвер (модулья ядра)
 
 ====
+
+apt
+
+
+БОЛЬШОЕ ОСНОВАТЕЛЬНО описание про то как прописывать репозитории apt и что они значат.
+
+
+придется разобраться с репозитриями ибо очень зае*ло тема мутная.
+
+
+в папке /etc/apt/sources.list.d/ мы имеем  файл vasya.list
+deb [arch=amd64]    http://ftp.ubuntu.com/ubuntu  bionic               main multiverse restricted universe
+
+
+что значат эти загадочные параметры
+
+deb = просто хрень
+[arch=amd64] = значит что нас интеерсуют только пакеты с архитектутрой 64bit
+http://ftp.ubuntu.com/ubuntu  bionic    main multiverse restricted universe = самое интересное
+
+
+
+
+
+значит по адресу http://ftp.ubuntu.com/ubuntu
+лежит вот такая структура папок
+
+
+[DIR]	dists/	
+[DIR]	indices/	
+[файл] ls-lR.gz	
+[DIR]	pool/	
+[DIR]	project/	
+[DIR]	ubuntu/
+
+
+возникает вопрос какой URL надо вбивать в конфиге от чего оно зависит что ожидает увидеть apt
+через этот URL. так вот я утверждаю что в конфиге нужно вводить такой урл чтобы и я вот тут  я щас обьясню.
+
+возьмем вначале полную строку
+
+http://ftp.ubuntu.com/ubuntu  bionic    main multiverse restricted universe = самое интересное
+
+но рассмотрим толко ее часть.
+
+
+http://ftp.ubuntu.com/ubuntu  bionic 
+
+так вот эта часть строки должна быть ровно такая чтобы если ее возьмет apt то чтобы сущестовал файл
+с путем
+
+http://ftp.ubuntu.com/ubuntu/dists/bionic/InRealease
+
+
+тоесть этот дебилоидный apt добавляет dists потом еще добавляет bionic и в этой папке ищет файл InRelease
+вот какой смысл этой дебильной строки. это куски пути на сайте к файлу InRelease. какого хуя они явно 
+неукзавыают папку dists непонятно.
+
+
+итак еще раз если у нас в vasya.list есть строка:
+deb [arch=amd64] https://repo.skype.com/deb stable main
+
+то она в частности значит что apt будет искать файл InRelease в папке
+https://repo.skype.com/deb/dists/stable/InRelease
+
+тоесть если обозначить 
+https://repo.skype.com/deb=A1   а stable=B1 
+то путь к файлу InRelease в этом репозитории обязан быть
+
+A1/dists/B1/InRelease
+
+и действительно стрктуру папок если открыть https://repo.skype.com/deb/dists/stable/
+
+
+[   ]	InRelease	2023-01-03 10:30	4.4K	 
+[   ]	Release	2023-01-03 10:30	3.9K	 
+[   ]	Release.gpg	2023-01-03 10:30	488	 
+[DIR]	main/	2023-01-03 10:30	-	 
+
+
+
+таким макаром если у нас есть в файле vasya.list строка
+deb [arch=amd64]    http://ftp.ubuntu.com/ubuntu  bionic               main multiverse restricted universe
+
+то большую часть ее смысла мы раскрыли. тоесть большая часть ее предназначена чтобы
+найти и скачать файл InRelease. 
+
+чтоже значит отставшая ся часть  main multiverse restricted universe
+
+это так называемые компоненты. что дает указание компонента. оно дает то что до этого ммоента мы только 
+скачали файл InRelease но этого мало. там нет всей инфо. пакеты в репозитории разбиты по группам.
+эти группы называются компоненты. чтобы скачать хоть один пакет надо указать в какой группе мы будем
+искать компоненты. так вот  main multiverse restricted universe это уже компоненты тоесть группы 
+пакетов в репозитриии.
+
+что по факту происходит с точки зрения apt когда мы указали имя компонента. дает то что он 
+пытается скачать файлы 
+
+
+http://ftp.ubuntu.com/ubuntu/dists/bionic/main/binary-amd64/Release
+http://ftp.ubuntu.com/ubuntu/dists/bionic/main/binary-amd64/Packages.gz или Packages.xz
+
+вот что для apt значит указание компонента.
+
+тепрь мы полность расшифровали физ смысл строчки. как ее юзает apt что он делает с ней.
+
+
+вот эти вот файлы InRelease, Release, Packages.xz это все толко списки пакетов украшенные PGP хэшами.
+тоесть из этих хреней apt узнает про список файлов на том репозитории и где они там лежат.тоесьт это
+некая индексная информация. 
+вот что это по факту дает. сами пакеты сгруппирование по алфавиту лежат по факту в папке 
+
+http://ftp.ubuntu.com/ubuntu/pool/
+
+но это уже внутреняя кухная apt нам туда руками лазит ненадо. просто я хотел выразить то что в папках 
+что мы рассмотрели выше там самих пакетов нет . там толко индексная ифнлморация.
+
+
+также показывают как вглядит папка с компонентами main multiverse итд
+
+путь = http://ftp.ubuntu.com/ubuntu/dists/bionic/
+папка выгляидит как
+
+
+[   ]	Contents-amd64.gz	2018-04-26 05:59	38M
+[   ]	Contents-i386.gz	2018-04-26 07:25	37M
+[   ]	InRelease	2018-04-26 23:38	236K
+[   ]	Release	2018-04-26 23:38	236K
+[   ]	Release.gpg	2018-04-26 23:38	819
+[DIR]	by-hash/	2017-10-25 09:04	-
+[DIR]	main/	2018-04-24 01:33	-
+[DIR]	multiverse/	2017-10-25 13:33	-
+[DIR]	restricted/	2017-10-24 22:44	-
+[DIR]	universe/	2017-10-25 13:33	
+
+
+я это к тому что если мы зашли в эту папку то визуально мы сразу можем определить названия компонентов
+этого репозитория = main, multiverse, restricted, universe, by-hash
+
+
+далее немножка как выглядит InRelease файл внутри что там в нем
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA512
+
+Origin: Ubuntu
+Label: Ubuntu
+Suite: bionic
+Version: 18.04
+Codename: bionic
+Date: Thu, 26 Apr 2018 23:37:48 UTC
+Architectures: amd64 arm64 armhf i386 ppc64el s390x
+Components: main restricted universe multiverse
+Description: Ubuntu Bionic 18.04
+MD5Sum:
+ 32a92a5c20f378d42dd2d2f4f28f6637        628836439 Contents-amd64
+ 53c6a594819b51a5755f88b45d1eff7f         37766986 Contents-arm64.gz
+ cd7bf6d50403da4348ee48138eace986        585939706 Contents-ppc64el
+
+если репонеимеет файла InRelease то apt пытается в той же папке найти файл Release 
+который выглядит примерно также
+
+
+
+далее. вверху мы рассаотрели файл vasya.list
+deb [arch=amd64]    http://ftp.ubuntu.com/ubuntu  bionic               main multiverse restricted universe
+
+но ест и другой формат записи пути к репозиторию.  первое важнео отличие имя файла должно заканчиваться
+не на .list а на .sources !!!! ЕЩЕ РАЗ ЭТО ОЧЕНЬ ВАЖНО. файл с алтернативной формой пути записи 
+к репозиторию долже заканчиваться не на .list а на .sources
+
+/etc/apt/sources.list.d/vasya.sources
+# cat vasya.sources 
+
+Types: deb
+URIs: http://ftp.ubuntu.com/ubuntu
+Suites: bionic
+Components: main multiverse restricted universe
+Architectures: amd64
+
+
+далье уже нам выбирать какая форма записи пути к репозитори нам больше нравтся.
+
+в заключении хочу сказать что man sources.list можно читать это не совсем сборище мусора как обычно.
+
+также вот эта страница тоже раскрыла глаза = https://wiki.debian.org/DebianRepository/Format
+
+из нее видно то же самое что я только что описал а именно
+что строка в .list файле имеет вид:
+
+
+deb uri distribution [component1] [component2] [...]
+
+
+они дают пример
+
+deb https://deb.debian.org/debian stable main contrib non-free
+
+
+при этом 
+
+https://deb.debian.org/debian  = называется uri
+stable = называется distribution
+main = называется компонент1
+
+
+они говрят что 
+
+Here deb specifies that this is source for binary packages, deb-src is for source packages.
+The uri, in this case https://deb.debian.org/debian specifies the root of the archive. далее они называют его как  $ARCHIVE_ROOT
+
+далее они гвоорят что distribution в нашем случае это stable описывает вот такую подпапку 
+$ARCHIVE_ROOT/dists/$DISTRIBUTION которая должна существовать в которой apt ищет файл InRelease 
+а если его там нет то он тамже ищет файл Release
+
+длаее они переходят к компонентам и говорят что 
+To download the index of the main component, apt would scan the Release file for hashes of files in the main directory. eg. https://deb.debian.org/debian/dists/testing/main/binary-i386/Packages.gz which would be listed in https://deb.debian.org/debian/dists/testing/Release as main/binary-i386/Packages.gz
+
+вэтом примере они рассмотрели поиск пакетов для i386 архитерутуры. если же мы  вставили в нащу строчку
+вот такую хрень [arch=amd64] то тоода поиск будет идти пактов 64битной архитекуры уже в другой папке
+
+https://deb.debian.org/debian/dists/testing/Release as main/binary-amd64/Packages.gz
+
+
+вот и все с этим ебучим apt-ом
+
+=====
