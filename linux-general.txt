@@ -5646,3 +5646,53 @@ End-Date: 2022-11-12  01:48:55
 алерт забикса он в целом полезен. но он вообще нераскрывает  кто когда как и на что поменял файл /etc/passwd
 
 ========================================
+
+если вылезает такая шибка
+
+update-initramfs: Generating /boot/initrd.img-5.4.0-91-generic
+W: Possible missing firmware /lib/firmware/rtl_nic/rtl8125a-3.fw for module r8169
+W: Possible missing firmware /lib/firmware/rtl_nic/rtl8168fp-3.fw for module r8169
+W: Possible missing firmware /lib/firmware/i915/tgl_dmc_ver2_04.bin for module i915
+W: Possible missing firmware /lib/firmware/i915/skl_guc_33.0.0.bin for module i915
+W: Possible missing firmware /lib/firmware/i915/bxt_guc_33.0.0.bin for module i915
+W: Possible missing firmware /lib/firmware/i915/kbl_guc_33.0.0.bin for module i915
+W: Possible missing firmware /lib/firmware/i915/glk_guc_33.0.0.bin for module i915
+W: Possible missing firmware /lib/firmware/i915/kbl_guc_33.0.0.bin for module i915
+W: Possible missing firmware /lib/firmware/i915/icl_guc_33.0.0.bin for module i915
+update-initramfs: Generating /boot/initrd.img-5.4.0-84-generic
+
+о том что нехватает какойто firmare
+что делать
+
+качаем эти firmware с сайта ядра.
+mkdir rtl8125b_fw
+cd rtl8125b_fw
+wget https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/rtl_nic/rtl8125b-2.fw
+wget https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/rtl_nic/rtl8168fp-3.fw
+sudo cp *.fw /lib/firmware/rtl_nic/
+sudo update-initramfs -u
+
+и обноавляем initramfs
+
+аналогично на сайте  в папке i915 лежат недостющие для него firmware
+
+https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/i915/
+
+=====
+как узнать какое устройство работает на каком драйвере
+
+$ lspci -vv -nn | grep -E "..:..\..|modules"
+
+пример вывода:
+00:02.0 VGA compatible controller [0300]: Intel Corporation Device [8086:3ea0] (rev 02) (prog-if 00 [VGA controller])
+	Kernel modules: i915
+
+00:04.0 Signal processing controller [1180]: Intel Corporation Xeon E3-1200 v5/E3-1500 v5/6th Gen Core Processor Thermal Subsystem [8086:1903] (rev 0c)
+	Kernel modules: processor_thermal_device
+
+00:12.0 Signal processing controller [1180]: Intel Corporation Device [8086:9df9] (rev 30)
+	Kernel modules: intel_pch_thermal
+
+видно название железки и обслуживающий ее драйвер (модулья ядра)
+
+====
