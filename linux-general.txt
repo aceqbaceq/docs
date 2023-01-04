@@ -5932,6 +5932,18 @@ deb https://deb.debian.org/debian stable main contrib non-free
 и посмотреть названия папок в этой папке
 
 
+еще пример файла .sources у котрого использован новый формат описания репозитория
+
+# cat /etc/apt/sources.list.d/ubuntu-de.sources 
+
+Types: deb
+URIs: http://mirror.ip-projects.de/ubuntu
+Suites: bionic
+Components: main multiverse restricted universe
+Architectures: amd64
+
+
+
 =====
 apt-file
 
