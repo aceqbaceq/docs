@@ -5953,3 +5953,51 @@ apt-file
 еще неустанвлен который бы содержал некоторый файл. 
 
 -----
+
+apropos
+
+полжим мы хотим найти man по какйото теме в линуксе. 
+
+тогда можно заюзать apropos . пишут что каждый маг содержит ключевые солова и апропос
+ищет нам статьи мана по ключевым словами. пример хотим почитать про firmware
+
+$ apropos firmware
+bootctl (1)          - Control the firmware and boot manager settings
+btcflash (8)         - firmware flash utility for BTC DRW1008 DVD+/-RW recorder.
+hex2hcd (1)          - firmware converter
+hp-firmware (1)      - Firmware Download Utility
+nvme-fw-commit (1)   - Used to verify and commit a firmware image.
+nvme-fw-download (1) - Download all or a portion of an nvme firmware image.
+nvme-fw-log (1)      - Send NVMe Firmware log page request, returns result and log
+rpl8 (8)             - Firmware loader for DVD drives
+[vasya@lenovo docs]$ 
+
+-----
+
+
+initramfs
+firmware
+driver
+
+
+когда мы обновляем initramfs то может выскочить на экране что у нас нехватает /lib/firmware/.. файлов
+из пакетов искать это мудота. там бывает нет тог что надо. простой выход скачать их отсююда https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/refs/
+
+а потом просто копируемфайлы в папку /lib/firmware
+
+что за хрень firmware. 
+
+вот здесь пишут https://wiki.ubuntu.com/Kernel/Firmware  что  каждый а может и не каждый драйвер состоит из двух частей одна часть это модуль ядра. фишка модуля ядра в том что от него есть исходный код. 
+а вторая часть это готовый бинарник без исходного кода который зоветмя фирмвейр. и этот бинарнтик надо 
+закачивать внутрь железки. почему его там нет изналачально непонятно. и вот так как это бинарник без исхоных кодов то начтнается мудота где его взять ибо это же линукс. тут у всего должны быть исходные коды.
+поэтому их придодися качать отдебно.
+
+как проверить какие firmware по факту были загружены
+
+# dmesg -T | grep -e 'firmware'
+[Чт дек 29 17:03:26 2022] [drm] Finished loading DMC firmware i915/kbl_dmc_ver1_04.bin (v1.4)
+[Чт дек 29 17:03:30 2022] ath10k_pci 0000:02:00.0: firmware ver WLAN.TF.2.1-00021-QCARMSWP-1 api 6 features wowlan,ignore-otp crc32 42e41877
+
+----
+
+
