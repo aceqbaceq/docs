@@ -5921,4 +5921,15 @@ https://deb.debian.org/debian/dists/testing/Release as main/binary-amd64/Package
 
 вот и все с этим ебучим apt-ом
 
+
+получается каждая строчка вида 
+
+deb https://deb.debian.org/debian stable main contrib non-free
+
+это отдльный репозиторий. в этом репозитории пакеты разделены на группы чем больше
+мы справа добавляем тем больше мы групп пакетов включаем. имена групп можно узнать если 
+зайти в по урл в папку https://deb.debian.org/debian/dists/stable 
+и посмотреть названия папок в этой папке
+
+
 =====
