@@ -1,6 +1,328 @@
 
-apt
+apt  
+=====
 
+ПРЕЖДЕ ЧЕМ изучать APT надо изучить GPG потому что его исопьзует APT поэтому нам
+надо разобраться как рабоатет GPG
+
+итак
+
+GPG
+большое обьяснение
+
+
+gpg
+
+это шифрвние на основе публиный риватный ключ. таких пар может быть много.
+
+по дефолту ключи хрантся в хранилище , по английски оно называется keyring тоесть это как бы аналог
+колечка на котором висят ключи.  по дефолту этот файл находися по пути
+
+
+
+~/.gnupg/pubring.kbx
+
+
+
+
+наскольк я понимаю там хрнаться только публичные ключи. приатнвых там нет
+
+
+как посмотреть ключи котоыре лежат там
+
+
+
+
+$ gpg --list-keys
+/home/vasya/.gnupg/pubring.kbx
+------------------------------
+pub   rsa4096 2017-05-08 [SCEA]
+      1EDDE2CDFC025D17F6DA9EC0ADAE6AD28A8F901A
+uid           [ unknown] Sublime HQ Pty Ltd <support@sublimetext.com>
+sub   rsa4096 2017-05-08 [S]
+
+
+
+
+при этом кмана вывдет тот факт что она взяла ключи из файла /home/vasya/.gnupg/pubring.kbx
+на картинке я привел толкь один ключ из листинга.
+
+1EDDE2CDFC025D17F6DA9EC0ADAE6AD28A8F901A = это фингерпринт от ключа.
+
+по этому фингепринут можно искать этот ключ среди прочих
+
+надо миниум 8 цифр от фингепринта чтобы по нему найти ключ
+
+
+
+
+$ gpg --list-keys --fingerprint D88E42B4
+pub   rsa2048 2013-09-16 [SC]
+      4609 5ACC 8548 582C 1A26  99A9 D27D 666C D88E 42B4
+uid           [ unknown] Elasticsearch (Elasticsearch Signing Key) <dev_ops@elasticsearch.org>
+sub   rsa2048 2013-09-16 [E]
+
+
+
+
+
+далее.
+вместо дефолтого ключехраниища мы можем укзаать любой другой файл с ключами
+
+это опция --keyring
+
+
+
+
+$ gpg --list-keys --keyring ./deadsnakes_ubuntu_ppa.gpg --no-default-keyring
+./deadsnakes_ubuntu_ppa.gpg
+---------------------------
+pub   rsa4096 2017-07-29 [SC]
+      F23C5A6CF475977595C89F51BA6932366A755776
+uid           [ unknown] Launchpad PPA for deadsnakes
+
+
+
+
+
+доп опция --no-default-keyring нам нужна потмоу что если ее неуказать то gpg покажет ключи
+из укзанного нами ключехранилища и плюс клчючи из дефолтовгого ключехранидища а нам это ненадо.
+дебильное поведение у созателей gpg если чстно.
+
+
+таким макаром мы можем теперь легко посмотреть все ключи котоыре харняться в любом opengpg ключехранилище
+в том числе и те котоыре используются командой apt
+
+например
+
+
+
+
+$ gpg --list-keys --keyring /etc/apt/trusted.gpg --no-default-keyring
+/etc/apt/trusted.gpg
+--------------------
+pub   rsa4096 2017-05-08 [SCEA]
+      1EDDE2CDFC025D17F6DA9EC0ADAE6AD28A8F901A
+uid           [ unknown] Sublime HQ Pty Ltd <support@sublimetext.com>
+sub   rsa4096 2017-05-08 [S]
+
+
+
+
+ради этого мы и разбиралст с gpg. потому что он исползуется командой apt
+
+
+
+тепрь передйтем к вопрому как имея подписанны через цифрову подпись файл проверить
+его достоверность целостность пдлинность
+
+качаем файл
+ 2007  wget http://www.netgull.com/gcc/releases/gcc-4.8.0/gcc-4.8.0.tar.gz
+
+качаем  подпись цифровую для этого файла
+ 2008  wget http://ftp.gnu.org/gnu/gcc/gcc-4.8.0/gcc-4.8.0.tar.gz.sig
+
+качаем публичный ключ gpg
+ 2009  wget ftp://ftp.gnu.org/gnu/gnu-keyring.gpg
+
+
+
+смотрим что там в публичном ключе
+    $ gpg --no-default-keyring --list-keys --keyring ./gnu-keyring.gpg
+
+
+
+проверяем пользуясь публичным ключом по цифровой подписи достверность файла
+ 2010  gpg --verify --keyring ./gnu-keyring.gpg ./gcc-4.8.0.tar.gz.sig
+gpg: assuming signed data in './gcc-4.8.0.tar.gz'
+gpg: Signature made Пт 22 мар 2013 19:32:29 +06
+gpg:                using DSA key A328C3A2C3C45C06
+gpg: Good signature from "Jakub Jelinek <jakub@redhat.com>" [expired]
+gpg: Note: This key has expired!
+Primary key fingerprint: 33C2 35A3 4C46 AA3F FB29  3709 A328 C3A2 C3C4 5C06
+
+
+во первых заметим что мы указали только файл с цифровой подптсью и файл с публичным ключом
+а сам файл не указали. и программа сама догадывается какое имя у проверяемого файла.
+
+gpg: assuming signed data in './gcc-4.8.0.tar.gz'
+
+
+далее вот эти две строки посмотрим
+using DSA key A328C3A2C3C45C06
+Primary key fingerprint: 33C2 35A3 4C46 AA3F FB29  3709 A328 C3A2 C3C4 5C06
+
+по факту это указан один и тот же публичный ключ , его фингерпринт.
+
+
+таким образом самое важное что надо понять. для поверки файла по цифровой подписи и по пбуличному ключу
+надо в прогрмме указать  керинг для публичного ключа, файл цифровой подписи. и сам файл программа надйет
+в тоейже папке сама
+
+
+также по приколу убедиися  что публичный ключ с указагным  фингерпинтом дейтсивтельно есть в нашем кейринге.
+
+
+
+$ gpg  --keyring ./gnu-keyring.gpg --list-keys --fingerprint A328C3A2C3C45C06
+pub   dsa1024 2004-04-21 [SC] [expired: 2009-04-20]
+      33C2 35A3 4C46 AA3F FB29  3709 A328 C3A2 C3C4 5C06
+uid           [ expired] Jakub Jelinek <jakub@redhat.com>
+
+
+
+вывод да действиетльно. такой публичный ключ есть в кейринге.
+заметим также что ключ имеет формат DSA . и выше об этом также было написано при проверке
+подписи 
+gpg:                using DSA key A328C3A2C3C45C06
+
+
+
+далее стоит сказать что публичные ключи GPG в ключеъранилище хранятся в некотоором форрмате
+незнаю название но этот точно не текстовый фоомат а какойто бинарный. это важно. 
+так как  далее  мы  увидим как gpg и его цфирвые подписи и публичные ключи используются в apt
+репозитоиях. и в этих репозиториях публичный ключ обычно предоставлен в другом формате - в текстом виде
+вот примерно вот в таком
+
+$ head gpg
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+
+mQINBFit2ioBEADhWpZ8/wvZ6hUTiXOwQHXMAlaFHcPH9hAtr4F1y2+OYdbtMuth
+lqqwp028AqyY+PRfVMtSYMbjuQuu5byyKR01BbqYhuS3jtqQmljZ/bJvXqnmiVXh
+...
+=0YYh
+-----END PGP PUBLIC KEY BLOCK-----
+
+
+вот если ключ в таком формате прдетсталвен то мы должны его переделать в бианрный вид чтобы 
+вставит его в ключехраниище.
+
+но прежде всего ( опять эти прежде всего) надо понять откуда нам брать gpg публиные ключи от того или
+игного apt репозитория. это тоже мудациий сложный вопрос. в само простом случае он хранится прям в папке
+репозитория. например  имею apt репозиторий от докера
+
+# cat /etc/apt/sources.list.d/docker.list 
+deb [arch=amd64] https://download.docker.com/linux/ubuntu/ bionic stable
+
+публичный ключ для этого репо лежит тут https://download.docker.com/linux/ubuntu/gpg
+этот ключ как раз имеет вид не бинарный а текстовый. и его нужно прееделать в бинарный 
+и импортировать в кейринг. импртиовать можно в сущестующий кейринг а можно в новый. 
+
+
+
+
+
+для начала засунем ключ в новый кейринг new.gpg
+$ cat gpg | gpg --dearmor  -o /etc/apt/new.gpg
+
+
+
+проерим как ключ выглядит в новом хранилище
+# gpg --list-keys --keyring /etc/apt/new.gpg  --no-default-keyring
+gpg: WARNING: unsafe ownership on homedir '/home/vasya/.gnupg'
+/etc/apt/new.gpg
+----------------
+pub   rsa4096 2017-02-22 [SCEA]
+      9DC858229FC7DD38854AE2D88D81803C0EBFCD88
+uid           [ unknown] Docker Release (CE deb) <docker@docker.com>
+sub   rsa4096 2017-02-22 [S]
+
+
+
+
+заебыаюший момент у гпг. во первых аргументы их порядок имеет значение.
+во вторых опция --no-default-keyring которую нужно везде вставлять
+
+далее тот же самый ключ у нас щас находится в дефолтовом кейринге  pubring.kbx
+# gpg --list-keys --no-default-keyring  --keyring  /home/vasya/.gnupg/pubring.kbx  -fingerprint 0EBFCD88  
+pub   rsa4096 2017-02-22 [SCEA]
+      9DC858229FC7DD38854AE2D88D81803C0EBFCD88
+uid           [ unknown] Docker Release (CE deb) <docker@docker.com>
+sub   rsa4096 2017-02-22 [S]
+
+
+я хочу удалить этот ключ из дефолтогвого кейринга.
+# gpg --delete-key --no-default-keyring  --keyring  /home/vasya/.gnupg/pubring.kbx  -fingerprint 0EBFCD88  
+gpg: WARNING: unsafe ownership on homedir '/home/vasya/.gnupg'
+gpg (GnuPG) 2.2.4; Copyright (C) 2017 Free Software Foundation, Inc.
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+
+pub  rsa4096/8D81803C0EBFCD88 2017-02-22 Docker Release (CE deb) <docker@docker.com>
+
+Delete this key from the keyring? (y/N) y
+
+
+проверяем остался ли ключ в ключехранидище pubring.kbx
+# gpg --list-keys --no-default-keyring  --keyring  /home/vasya/.gnupg/pubring.kbx  -fingerprint 0EBFCD88  
+gpg: WARNING: unsafe ownership on homedir '/home/vasya/.gnupg'
+gpg: error reading key: No public key
+
+
+
+теперь я хочу импортировать этот ключ из /etc/apt/new.gpg в другое хранилизе /etc/apt/trusted.gpg
+# gpg --no-default-keyring  --keyring  /etc/apt/trusted.gpg  --import  /etc/apt/new.gpg
+
+итаки до он туда импортиолвался
+# gpg --no-default-keyring --list-keys  --keyring  /etc/apt/trusted.gpg  -fingerprint 0EBFCD88  
+gpg: WARNING: unsafe ownership on homedir '/home/vasya/.gnupg'
+pub   rsa4096 2017-02-22 [SCEA]
+      9DC858229FC7DD38854AE2D88D81803C0EBFCD88
+uid           [ unknown] Docker Release (CE deb) <docker@docker.com>
+sub   rsa4096 2017-02-22 [S]
+
+теперь когда мы засунули публичый ключ GPG в нужное нам ключехранилище
+то можно добавит его в наш apt репозитоия докера чтобы apt при своей работе мог опираться
+на этот ключ.
+
+итак у нас была строка репо без указания кейринга
+
+
+
+# cat /etc/apt/sources.list.d/docker.list 
+deb [arch=amd64] https://download.docker.com/linux/ubuntu/ bionic stable
+
+
+а щас мы даелаем репо в котором мы укажем кейринг снужным ключом GPG
+
+# cat /etc/apt/sources.list.d/docker.list 
+deb [arch=amd64 signed-by=/etc/apt/trusted.gpg] https://download.docker.com/linux/ubuntu/ bionic stable
+
+
+таким макакром что мы сделали. мы добавили пуличный ключ GPG в ключехраниище /etc/apt/trusted.gpg
+от репозитория докера. и далее мы ддобавили к apt репозитторий докера и прописали в нем где
+искать публичный ключ GPG от этого репозитория 
+
+
+# apt-get update 
+нам покажет что все сделано верно. никакой ругани небудет
+
+скажу также что apt имеет типа свой совбстенный инструмнт работы с PGP ключами 
+это комада apt-key но  прикол в том что с какогото времени эта комнда както нихерна неоработает 
+и неделает то что надо. поэтмоу вместо нее прихоится мудить через команды gpg
+
+
+остатеся еще один мудацкий вопрос. не все апт репозитории имеют публичный ключ  в явном виде.
+например апт репозитории убунты неимеют в своем корне публичного ключа GPG. вместо этого 
+его предполагается дообывать совершенно другим дебилнм путем. есть сервер keyserver.ubuntu.com
+и на него любой желающий может залить свой публичный GPG ключ. а далее любой желающий зная фингерпринт
+от этого ключа может его скачать. таким образом  публичный ключ от репозитория убунты надо качать 
+оттуда. если мы знаем фингеприент то импортровать ключ в дефолтовый керинг  ~/.gnupg/pubring.kbx
+можно вот так
+
+
+# gpg   --keyserver keyserver.ubuntu.com --recv-keys  7CE8FC69BE118222
+
+
+отстаетс только вопрос как узнать фингерпринт от репозитория убунты...
+
+красивого способа я щас незнаю. знаю корявый. если мы прописали некоторый репозиторий но 
+у нас на компе нет публичного GPG ключа от apt-get update нам выдас ошибку на экране и напишет
+фингепринт публичного ключа который нам надо найти и закчать на комп. вот такой способ.
+
+
+
+======================================
 
 
 
@@ -223,7 +545,6 @@ To download the index of the main component, apt would scan the Release file for
 https://deb.debian.org/debian/dists/testing/Release as main/binary-amd64/Packages.gz
 
 
-вот и все с этим ебучим apt-ом
 
 
 получается каждая строчка вида 
@@ -248,6 +569,93 @@ Architectures: amd64
 
 
 
+хочк тпепрь подробно коснутся что хранится в InRelease файле.
+значит как я уже сказал выше первым делом apt скачивает файл InRelease . тоесть
+вот унас есть трочка в *.list файле
+
+deb [ arch=amd64 ] http://us.archive.ubuntu.com/ubuntu/ bionic main restricted
+
+значит тогда apt скачивает файл
+http://us.archive.ubuntu.com/ubuntu/dists/bionic/InRelease
+
+для начала вот как выглдяит папка http://us.archive.ubuntu.com/ubuntu/dists/bionic/
+
+
+
+[   ]   Contents-amd64.gz
+[   ]   Contents-i386.gz
+[   ]   InRelease
+[   ]   Release
+[   ]   Release.gpg
+[DIR]   by-hash/   
+[DIR]   main/   
+[DIR]   multiverse/ 
+[DIR]   restricted/ 
+[DIR]   universe/   
+
+
+вот кусок того что внутри InRelease
+MD5Sum:
+ 32a92a5c20f378d42dd2d2f4f28f6637        628836439 Contents-amd64
+ 53c6a594819b51a5755f88b45d1eff7f         37766986 Contents-arm64.gz
+...
+SHA1:
+ 2089b55f9d70613f3423aefda55ab022a9ee9d92        628836439 Contents-amd64
+ c24a8a11fe53a979be1b7ac49e04bb79e26fb291         37766986 Contents-arm64.gz
+ ...
+SHA256:
+ a52178aee3ae6a3eeb2d91269b3331cfa2b5d1d064f1998b1316040c47e61ba4        628836439 Contents-amd64
+ d9c9c29c2a19d77794c3e887fed03fee7976ba012ca42fc422cd7803ece8c58c        37766986 Contents-arm64.gz
+
+
+итого в нем указаны все файлы из текущей папки и папок 
+main
+multiverse
+restricted
+universe
+
+и для каждого файла указан его MD5, SHA1, SHA256 хэш
+в папках которые внутри самих пакето deb нет. там только файлы которые содержат некоторый список пакетов. не 
+более того.
+таким образом руководствуясь файлом InRelease наш apt скачивая файлы из этих папок может проверять достоверность
+файлов  в них вычисляя md5 и сравнивая с тем хэшем что указан в InRelease. Но как проерить что сам файл InRelase
+достоверный. тут приходит на помощь GPG.  в самом файле есть также кусок в котором укзана цифровая подпись GPG(именно цифровая подпись а не публичный ключ)
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
+
+iQIcBAEBCgAGBQJa4mMAAAoJEDtP5qzAsh8yCEAQALln+mZtZ8M/X0m8d/qgqXxD
+urONP0FblVN95qLAxcUfDOKhkpfizmrSoZ5nH4gFNveqsU762gXR5fbHXnhW0fBW
+pE3E1PUdOMLwEygPYNDuCV4RhNVxexWP5A+TxTeWjCJTFgY4LczzqHtSmphYXxV/
+sZHSqidzA9mtjRFvsFzucsZDsCGm/Nv/xSsZ8MJTjt5PKNMnumpaxjolb0coxk24
+r337QyWHfx9ZFaFdLdusqEmUNk3MINBfjyTqPsN/Y6RVEYhvaHNwNbWz9X9Vk7Gb
+Tf1vOQy9NxIs1DNTYDrdPOovf6P87H06MRb+EsyKwp3iee5CpqcQewTd7O4h8bEs
+AsSnq6dRgsnCHpY1SRcwsKgudQFrEfkYEr1IGNpsmjpTVxaR05z9F8nduuBvBKW7
+y1e97eHgt/boMKVeB4TwQpeJ0IPao7QgWw9G+dK5V/oVUX7/+x93MgdRv0oTXSXn
+ZMQIjymL3SGTd+23izASOuhiF+wemoifS4LHXf/OP1fcYc7ocq03B5rIvRYlKkdT
+wXcaMr8kkDVY1tLVvXYTfOu/P+VWD25DYHsvYaSaBYNCwzks0Sr7qYsDbxZqNCXX
+3TLygurN/NelH5N0L71hdkJKAHXSN0w2QLVNQ7S+7thOR5Mgd18VXp3UaNfeqgQ7
+QU+FaXsLp77+R4ZjIybB
+=3EBC
+-----END PGP SIGNATURE-----
+
+также эта эта цифровая подпись есть в отдельном фйле Release.gpg
+
+так вот перед тем как качать файлы через apt с репозитория нам надо с репозитория 
+скачать публичный GPG ключ.  
+
+
+
+
+
+
+
+
+
+
+вот и все с этим ебучим apt-ом
+
+
 =====
 apt-file
 
@@ -257,6 +665,7 @@ apt-file
 еще неустанвлен который бы содержал некоторый файл. 
 
 -----
+
 
 apt 
 gpg
@@ -339,6 +748,157 @@ $ debsums bash
 /usr/share/menu/bash                                                          OK
 
 
+ а вот наконец я нашел то что в пакете который устанолвен прописано какой у него в целом MD5.
+ посмтреть можно здесь
 
+
+
+ $ head -n 30 /var/lib/dpkg/available 
+Package: adduser
+Architecture: all
+Version: 3.116ubuntu1
+Multi-Arch: foreign
+Priority: important
+Section: admin
+Origin: Ubuntu
+Maintainer: Ubuntu Core Developers <ubuntu-devel-discuss@lists.ubuntu.com>
+Original-Maintainer: Debian Adduser Developers <adduser-devel@lists.alioth.debian.org>
+Bugs: https://bugs.launchpad.net/ubuntu/+filebug
+Installed-Size: 624
+Depends: passwd, debconf (>= 0.5) | debconf-2.0
+Suggests: liblocale-gettext-perl, perl, ecryptfs-utils (>= 67-1)
+Filename: pool/main/a/adduser/adduser_3.116ubuntu1_all.deb
+Size: 162684
+MD5sum: 97dff943493ad5831c5bfa67e4b503ac
+SHA1: 5f3a18ea4515c5afdbd54f326ffd2707ca571124
+SHA256: d451eb00b2d0e2940e26028ea9f2fb1be4f5109010e997acfb2c46229ebd9ebe
+Homepage: http://alioth.debian.org/projects/adduser/
+Description: add and remove users and groups
+Task: minimal
+Description-md5: 7965b5cd83972a254552a570bcd32c93
+Build-Essential: yes
+Supported: 5y
+
+в файле available хранится инфо обо всех устанволенных пакетах
+кстаии в описании пакета нет gpg цифр подпист. тоесть скачанный пакет в плане достоерности прлверяется
+не через gpg подпись а через его md5 хэш. а где же юзается gpg ? щас рассмотрим. 
+
+
+но это было вручную а через команду
+
+$ dpkg-query  -p bash
+Package: bash
+Essential: yes
+Priority: required
+Section: shells
+Installed-Size: 1588
+Origin: Ubuntu
+Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
+Bugs: https://bugs.launchpad.net/ubuntu/+filebug
+Architecture: amd64
+Multi-Arch: foreign
+Version: 4.4.18-2ubuntu1
+Replaces: bash-completion (<< 20060301-0), bash-doc (<= 2.05-1)
+Depends: base-files (>= 2.1.12), debianutils (>= 2.15)
+Pre-Depends: libc6 (>= 2.15), libtinfo5 (>= 6)
+Recommends: bash-completion (>= 20060301-0)
+Suggests: bash-doc
+Conflicts: bash-completion (<< 20060301-0)
+Filename: pool/main/b/bash/bash_4.4.18-2ubuntu1_amd64.deb
+Size: 614184
+MD5sum: bb172fdca61d926fe61d8e642876f369
+Description: GNU Bourne Again SHell
+Original-Maintainer: Matthias Klose <doko@debian.org>
+SHA1: ff433274a20b8d832387d4a2fecaabd2786d98b1
+SHA256: 5895e980d1fc874906d27823ab31eeb65cfe1d059936b9d6d304bfee02c8995c
+Homepage: http://tiswww.case.edu/php/chet/bash/bashtop.html
+Task: minimal
+Description-md5: 3522aa7b4374048d6450e348a5bb45d9
+Supported: 5y
+
+
+
+скачанные deb файлы хрантся в /var/cache/apt/archives/ 
+ если отолько не сделать apt-clean
+
+
+значит можно проверить интегрити для пакета или все пакетов через
+
+# dpkg -V basg
+# dpkg -V 
+
+  -V, --verify [package-name...]
+              Verifies  the  integrity  of  package-name  or  all packages if omitted, by comparing information from the files installed by a package with the files metadata information
+              stored in the dpkg database (since dpkg 1.17.2).  The origin of the files metadata information in the database is  the  binary  packages  themselves.  That  metadata  gets
+              collected at package unpack time during the installation process.
+
+              Currently  the  only functional check performed is an md5sum verification of the file contents against the stored value in the files database.  It will only get checked if
+              the database contains the file md5sum. To check for any missing metadata in the database, the --audit command can be used.
+
+              The output format is selectable with the --verify-format option, which by default uses the rpm format, but that might change in the future, and as such,  programs  parsing
+              this command output should be explicit about the format they expect.
+
+
+прикольно. как я понимаю эта опция берет MD5 ( берет отсюда /var/lib/dpkg/info/*.md5sums )для каждого файла кажого установленного из пакетов и сверяет с тем что на практкие вычисляет.
+подчеркуну что вычисялется md5 не для пакета а для кажого файла котоорый был скопирован в системе
+из пакета.
+
+
+тоже самое делает debsums
+
+# debsums bash
+# debsums
+
+
+далее.
+ щас я хочу сам руками вычислить MD5 для отдельного пакета  с тем что 
+заявлено в его орисании.
+
+тут меня ожидал прикол dpkg и apt это совсем не связанные программы. тоесть это прогарммы которые друг 
+с другом мало связаны. тоесть в базе данных dpkg по адресу /var/lib/dpkg/available записаны далеко
+не все имена пакетов которые были установлены. хотя по факту они установлены. (https://unix.stackexchange.com/questions/653084/dpkg-p-is-not-working-for-some-packages-like-vim)
+значит чтобы добавит в базу данных dpkg инфо об установлыенных пакетах в систему выполним 
+команду
+
+# apt-cache dumpavail | dpkg --merge-avail -
  
+
+теперь запросим как md5 у пакета elasicsearch
+# dpkg-query -p elasticsearch | grep MD5
+MD5sum: b4d3d26b353e567ef231011b917fcdb2
+
+а теперт вычислмм MD5 этого пакета руками
+# md5sum /var/cache/apt/archives/elasticsearch_7.17.8_amd64.deb 
+b4d3d26b353e567ef231011b917fcdb2  /var/cache/apt/archives/elasticsearch_7.17.8_amd64.deb
+
+вывод они совпдаают
+
+
+такми макарм мы науились искать MD5 для устанолвенного пакета.
+научились искать где хранится скачанный пакет
+научилис руками вычислять MD5 от файла
+ура.
+
+
+интеренаая вещь. если запросим инфо об устанолвеном пактее  то будет интересное поле Filename
+оно указывает в какой папке в удаленном репозитории лежит этот пакет. прикольно
+# dpkg-query -p vim
+...
+Filename: pool/main/v/vim/vim_8.0.1453-1ubuntu1.9_i386.deb
+
+
+как раз видим папка pool про которую я говорил что именно она и содержит все пакеты
+
+
+
+
+
+
+
+
+
+
+здет мжно найти InRelease наши репозриориев
+/var/lib/apt/lists/...
+
 
