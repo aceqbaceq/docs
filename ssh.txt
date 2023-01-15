@@ -779,7 +779,285 @@ aiuthoized_keys неуказывается логин под которым ра
 (верность хэша мы проверяем глазами на основе переданного нам ранее каким то человеком по телефону либо через бумажку записи этого самого хэша).
 
 
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+тут указан новый материал. который надо всунуть  в текст основго
+текста который выше
 
+1) как на сервере опредеить фингерпринт чтобы его передать человеку
+
+
+ключ в голом виде (считай бесползена хрень)
+$ cat ~/.ssh/known_hosts | grep '\[94.247.130.176\]:10223'
+[94.247.130.176]:10223 ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBAfS3sFK738obrzogmaCnTUu95Yay0lvfz1rQh96soenzQlZrJGa7mbOVZAMYr5etp820YyRWFfeF8B8D9jyDeI=
+
+
+фингепринт от этогоже ключа (уже то что надо )
+$ ssh-keygen  -F [94.247.130.176]:10223 -l -E sha256
+# Host [94.247.130.176]:10223 found: line 135 
+[94.247.130.176]:10223 ECDSA SHA256:QUQ7k27XyiMrUuNUuTpgZNHijLuplwEEZkLeFUFj4nQ 
+
+ 
+  ssh-keygen  -F 176.99.7.202  -l -E sha256 -f ~/.ssh/known_hosts
+# Host 176.99.7.202 found: line 18 
+176.99.7.202 ECDSA SHA256:8e9xUr1TAecRNWqKv+1dyusWfWuocEhhlobqhp8f+Qo
+
+
+вот ключи которые срвер снаружи показал
+$ ssh-keyscan   176.99.7.202 
+
+# 176.99.7.202:22 SSH-2.0-OpenSSH_7.4
+176.99.7.202 ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDFmb5EWnJ5rVqoWRw0x5wI+BMeqLzofNsjBsT/RJ8ZZMxVTY225sih9YhI7hzB3swqU6Yc4LhHqGNN20UI7HlUX9eltCkSD+duzxQOf+bcY3fFcHWzGXpefA61XS+eSDQssO40LMURFbVsUv27Prc3/oKmo6wzbzPji3a4krtvWDw9nE4/o56QnXX3kIr2wrqboGPLn2OKsRhPA9MJ/DzTUeNDilovEYCULS0xcv2++N0ZycPZuk07jm/6EkHoGDRSQQnBGayR7By/6pLxWcw9idAzCqgibd0aT+E+wuYjQlo5YSIAdrMCi7RIDiOPjHxoqs33TSJAEUtwrKbbZ/8P
+
+# 176.99.7.202:22 SSH-2.0-OpenSSH_7.4
+176.99.7.202 ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBA5EcRBy4/lNGsAhPSAgySYEfKo/2dlcA2NtcZVG6tPdYs2JEIt0sYln3Gu/D4DMolppzw2lO8oBqyo0SgJGYL8=
+
+# 176.99.7.202:22 SSH-2.0-OpenSSH_7.4
+176.99.7.202 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGbJDBZW7TEtpCpouVNbt0tWx0oothfgMe/lqgngUcAB
+
+
+в таком виде их можно прям вставиь в known_hosts
+
+также можно в шифрованном виде сразу вствит в known_hosts
+
+
+$ ssh-keyscan   -H 176.99.7.202  
+
+# 176.99.7.202:22 SSH-2.0-OpenSSH_7.4
+|1|2Cjkor38fsbtZ+zhW8n5yaVYIdQ=|/noulaO/3tvV/ldjf11uX1BX3nU= ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDFmb5EWnJ5rVqoWRw0x5wI+BMeqLzofNsjBsT/RJ8ZZMxVTY225sih9YhI7hzB3swqU6Yc4LhHqGNN20UI7HlUX9eltCkSD+duzxQOf+bcY3fFcHWzGXpefA61XS+eSDQssO40LMURFbVsUv27Prc3/oKmo6wzbzPji3a4krtvWDw9nE4/o56QnXX3kIr2wrqboGPLn2OKsRhPA9MJ/DzTUeNDilovEYCULS0xcv2++N0ZycPZuk07jm/6EkHoGDRSQQnBGayR7By/6pLxWcw9idAzCqgibd0aT+E+wuYjQlo5YSIAdrMCi7RIDiOPjHxoqs33TSJAEUtwrKbbZ/8P
+
+# 176.99.7.202:22 SSH-2.0-OpenSSH_7.4
+|1|83fs8lNmeV9gmiQ1//jjj10C+00=|/7OGivivIRqZC/x3RdCBDL095zA= ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBA5EcRBy4/lNGsAhPSAgySYEfKo/2dlcA2NtcZVG6tPdYs2JEIt0sYln3Gu/D4DMolppzw2lO8oBqyo0SgJGYL8=
+
+# 176.99.7.202:22 SSH-2.0-OpenSSH_7.4
+|1|XHdJr6BqLKtAyyCbbrWpADAck18=|GdlTwJO6IALypFvQPswcpm4kMu0= ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGbJDBZW7TEtpCpouVNbt0tWx0oothfgMe/lqgngUcAB
+[vasya@lenovo Desktop]$ 
+
+
+как нам из ключей получить их фингрепринты
+вначле запишем ключи в файл (проббраз known_hosts)
+
+$ ssh-keyscan   -H 176.99.7.202   > 23.txt
+
+теперь получим из него фингепринты
+
+$ ssh-keygen  -F 176.99.7.202  -l -E sha256 -f ./23.txt
+
+# Host 176.99.7.202 found: line 1 
+176.99.7.202 RSA SHA256:pymgWwZ9iCaAGF2QLr2HcWRDA0zAMYycM06YGK6fmMo 
+# Host 176.99.7.202 found: line 2 
+176.99.7.202 ECDSA SHA256:8e9xUr1TAecRNWqKv+1dyusWfWuocEhhlobqhp8f+Qo 
+# Host 176.99.7.202 found: line 3 
+176.99.7.202 ED25519 SHA256:WROSbsMWpnruUKegmoyNbHbVzrKtz/JJGlnJepLf5yI 
+
+
+можно и без записи в файл. но тогда он покажет только первый фингер
+
+$ ssh-keyscan   176.99.7.202  | ssh-keygen  -F 176.99.7.202  -l -E sha256
+# Host 176.99.7.202 found: line 18 
+176.99.7.202 ECDSA SHA256:8e9xUr1TAecRNWqKv+1dyusWfWuocEhhlobqhp8f+Qo 
+
+
+на хосте у сервера публичные ключи лежат в 
+/etc/ssh/*.pub
+
+вот как для примера выглядит один из пабкеев
+
+# cat ssh_host_ecdsa_key.pub
+ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBDzJejgbCqxiiAmsee4R2zqqFSqHR8+vIP2ByLXsZSfDXFXTekJ/O9i6sgE+LGB1pU+KyEUHVX+zlRtiVXcvavY= root@vasya-Lenovo-IdeaPad-L340-15IWL
+
+как видно паблей не содержит IP адреса сервера. поэтому тепрь мы это знаем.
+что фингепринт он не содержит инфо об адресе. фигнеприент это хэш только пабкея и видимо
+метода широывания ecdsa-sha2-nistp256
+
+а вот как на хосте из поубличных ключей получить их фингеы чтобы можно было людффм ссобщить
+
+# ssh-keygen -l -f ssh_host_ecdsa_key.pub
+256 SHA256:u4EoTU6dXVDXdCt3fRtBDukP+OEJxgKf+fuKij4Hc10 root@vasya-Lenovo-IdeaPad-L340-15IWL (ECDSA)
+ 
+# ssh-keygen -l -f ssh_host_ed25519_key.pub
+256 SHA256:ac9ka4z5yT9kjLM/kQC3PMjOJY6JNmIqKhKNWYyOod0 root@vasya-Lenovo-IdeaPad-L340-15IWL (ED25519)
+ 
+# ssh-keygen -l -f ssh_host_rsa_key.pub
+2048 SHA256:f71Lr8hSHwOJclkzXFhQRt/iPt/IpNtXCH4HVGhUZuU root@vasya-Lenovo-IdeaPad-L340-15IWL (RSA)
+
+#  ssh -o HostKeyAlgorithms=ecdsa-sha2-nistp256  -o FingerprintHash=sha256 localhost
+The authenticity of host 'localhost (127.0.0.1)' can't be established.
+ECDSA key fingerprint is SHA256:u4EoTU6dXVDXdCt3fRtBDukP+OEJxgKf+fuKij4Hc10.
+Are you sure you want to continue connecting (yes/no)? 
+
+сравним SHA256:u4EoTU6dXVDXdCt3fRtBDukP+OEJxgKf+fuKij4Hc10
+с тем что получали выше путем расчета руками 
+        SHA256:u4EoTU6dXVDXdCt3fRtBDukP+OEJxgKf+fuKij4Hc10
+
+видно полное совпадение.(точка на конце она неимеет отношения к фингеприенту )
+
+
+такми макаром чтомы научились:
+на сервере - брать публиный ключ и вычислаьт от него фингепринт. теперь его можно сособщать клиентам,
+на клиенте - запрашивать все пабкеи котоыре сервер предлагает. и вычисляеть от них фингепримнты,
+научились искать в known_hosts пабкеи от удаленного сервере и вычислять от них фингепринты. поэтомму
+теперь мы можем иъ сравгить с тем что прделагает сервер хотя это автоматом делает система сама.
+
+
+
+
+2) как понять подрживет ли серевр публик кей аутентфиикаци.
+
+ssh -G  удаленный_хост
+
+масса полезной ифно
+
+# ssh -G localhost | grep -E "^pubkeyauth|^passwordauth|^pubkeyacceptedkeytypes"
+passwordauthentication yes
+pubkeyauthentication yes
+pubkeyacceptedkeytypes ecdsa-sha2-nistp256-cert-v01@openssh.com,ecdsa-sha2-nistp384-cert-v01@openssh.com,ecdsa-sha2-nistp521-cert-v01@openssh.com,ssh-ed25519-cert-v01@openssh.com,ssh-rsa-cert-v01@openssh.com,ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,ssh-ed25519,rsa-sha2-512,rsa-sha2-256,ssh-rsa
+
+видно что удаленный сервер принимает аутентицифкаиаию по ключам и по паролям.
+также виден формат пубкев который он приниммает
+
+
+# cat ~/.ssh/PS.pub 
+ssh-rsa AAAAB3NzaC1yc... vqH 
+
+а это  посмотрел какого формата мой публичный ключ. 
+ну что он подходит.
+
+
+   -Q query_option
+             Queries ssh for the algorithms supported for the specified version 2.  The available features are: cipher (supported symmetric ciphers), cipher-auth (supported symmetric
+             ciphers that support authenticated encryption), mac (supported message integrity codes), kex (key exchange algorithms), key (key types), key-cert (certificate key types),
+             key-plain (non-certificate key types), and protocol-version (supported SSH protocol versions).
+
+
+
+
+вот этотс способ поиска хоста
+подойдет только уесли у нас known_hjosts незашиорыванный
+
+# cat ~/.ssh/known_hosts | grep 94.247.130.176
+94.247.130.176 ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBF53bZ4iZxmuHKkf+YrK6f3nT5+iV9Drs+Sg3yxQmQqZ5xvkPjXBXRG7HFoNRQyqye0/3v8fEpA+K/rPZjEcwAU=
+[94.247.130.176]:10222 ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBAfS3sFK738obrzogmaCnTUu95Yay0lvfz1rQh96soenzQlZrJGa7mbOVZAMYr5etp820YyRWFfeF8B8D9jyDeI=
+[94.247.130.176]:10223 ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBAfS3sFK738obrzogmaCnTUu95Yay0lvfz1rQh96soenzQlZrJGa7mbOVZAMYr5etp820YyRWFfeF8B8D9jyDeI=
+[94.247.130.176]:23 ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBAfS3sFK738obrzogmaCnTUu95Yay0lvfz1rQh96soenzQlZrJGa7mbOVZAMYr5etp820YyRWFfeF8B8D9jyDeI=
+
+
+зато четко видно в каком формете зывисывается ip и порт. если порт 22 то просто IP
+а если порт кастомный то формате  [IP]:порт
+это вадно знаь потому что если файл заширофынный то там записи будут в виде 
+
+|1|XHdJr6BqLKtAyyCbbrWpADAck18=|GdlTwJO6IALypFvQPswcpm4kMu0= ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGbJDBZW7TEtpCpouVNbt0tWx0oothfgMe/lqgngUcAB
+
+и там ты хреь поймешь какой ip и какой порт. 
+только тип ключа и ключ.
+
+а хост нейм ипорт важно знать чтобы искать через ssh-keygen
+
+# ssh-keygen -F "[94.247.130.176]:10223"  -l -E sha256 -f ~/.ssh/known_hosts
+# Host [94.247.130.176]:10223 found: line 135 
+[94.247.130.176]:10223 ECDSA SHA256:QUQ7k27XyiMrUuNUuTpgZNHijLuplwEEZkLeFUFj4nQ 
+
+вот почмуважно знаи в каком формет указывать ip и порт в ssh-keygen при поиске
+
+важно замтеть что ECDSA это на смом дееле ecdsa-sha2-nistp256
+тоеть в ssh -o подтсвляется именно ecdsa-sha2-nistp256  а не ecdsa
+
+ssh -G позукывает хрень знает что. скорей всего настйоки локального лкиента. но никак не 
+настойки удаленного серверва !!!!
+
+
+
+# ssh-keyscan  -4 -p 10223  94.247.130.176 > 12.txt
+# ssh-keygen  -F "[94.247.130.176]:10223"  -l -E sha256 -f ./12.txt
+[94.247.130.176]:10223 RSA SHA256:TMrW/lwZay8QUO/alEmvd+sgSv6jikRlya8hR5aXLR8 
+[94.247.130.176]:10223 ECDSA SHA256:f5BIx7AXMSq3iWrz0+dkVs+CbhWAZWfI6mRj3ktrOJ0 
+[94.247.130.176]:10223 ED25519 SHA256:qeADXJfnq1vGUlZKfhGcCA+fXQCddmB3ubrj/jVEm9g 
+
+а ум еня накомпе вот такой ключ
+
+]$ ssh-keygen  -F "[94.247.130.176]:10223"  -l -E sha256 -f ~/.ssh/known_hosts
+[94.247.130.176]:10223 ECDSA SHA256:QUQ7k27XyiMrUuNUuTpgZNHijLuplwEEZkLeFUFj4nQ 
+
+
+срванваю. 
+на компе       ECDSA SHA256:QUQ7k27XyiMrUuNUuTpgZNHijLuplwEEZkLeFUFj4nQ 
+в интернегте   ECDSA SHA256:f5BIx7AXMSq3iWrz0+dkVs+CbhWAZWfI6mRj3ktrOJ0
+
+чтото явно не совпдаатает !!
+
+
+забавно выгляди команда на удаление фиггенра  из known_jhosts
+$ ssh-keygen -f "/home/vasya/.ssh/known_hosts" -R "[94.247.130.176]:10223"
+
+тоесть оопятбеже мы видим "[94.247.130.176]:10223"
+
+====
+
+ssh -G = ????? показаывает ли он что удаленный сервер потцениаьно
+разрешил входпо ключу или нет ???? ПРОЯСНИТЬ!!!!
+
+==
+суер важны момент пири конетке на ssh срвереве
+
+деажим через ssh -vvvv
+
+$ ssh -vvv
+...
+debug1: Server host key: ecdsa-sha2-nistp256 SHA256:f5BIx7AXMSq3iWrz0+dkVs+CbhWAZWfI6mRj3ktrOJ0
+...
+debug1: Authentications that can continue: publickey,gssapi-keyex,gssapi-with-mic,password
+...
+debug1: Next authentication method: publickey
+debug1: Offering public key: RSA SHA256:XzR4kVrDUalGvF2fq+HXLlCRUBtTdD0Z7wtgzQsslKY /home/vasya/.ssh/PS
+
+
+
+то есть во первых сосмотрим чему равен фингер
+во вторых какие методы аутентифицкаии нам доступны по факту
+в третьих последние стоки показывают как выглядят строки когда происходит вход по ключу
+
+а вот пример когда в списке аутентификаций нет пубкея
+Authentications that can continue: gssapi-keyex,gssapi-with-mic,password
+
+хотя сам сервер поддерживает но каким то макаром фортигейт вырезал эту опцию в пакете 
+котоый прилетел нащеуму клиену. поэтом наш клиент небудет пробовать так входить
+
+даже такое не поможет 
+ssh ds01.lcwaikiki.com  -vvv  -p 22 -o PAsswordAuthentication=no -o PubKeyAuthentication=yes  -o PreferredAuthentications=publickkey
+
+далее. ssh -G IP = эта команда нихуя незначит. то что она покзвыает это полная хуйня.
+в ее выводе есть инфо  том пддерживатет ли хост аутертицфикаци по паролю или ключу. но 
+непонятно к какому хосту эта инфо имеет отношение. по факту у меня ни на локальном компе неразрешен
+вход по паролю ни на удаленном. но вывод этой комнды покажет что разрешен на какомто непонятно 
+хосте вход п паролю  поэтому на вывод это йомандй надо положить хуй. единсвтеннйы реальнй способ понять
+подежвает ли хосьт вход по паролю или ключу это вывод команды:
+
+$ ssh -vvv root@kvs12-test.waba.bot 2>&1 | grep Authentications
+debug1: Authentications that can continue: publickey,gssapi-keyex,gssapi-with-mic
+debug1: Authentications that can continue: publickey,gssapi-keyex,gssapi-with-mic
+debug1: Authentications that can continue: publickey,gssapi-keyex,gssapi-with-mic
+debug1: Authentications that can continue: publickey,gssapi-keyex,gssapi-with-mic
+
+вот только отслюада моно точно опрееить какой сопоб аутенфтикациии ест на удаленном хосте !!!
+
+
+далее. еще раз еще  о том как взять файл на сервере с его хост ключами и вычислить 
+для них финерприент
+
+# ls -1 /etc/ssh/*.pub | xargs -L 1 -I %  ssh-keygen   -l -E sha256 -f  %
+256 SHA256:sGKXxLKWM1EtlgYjHmU4t3Ac068fIqb69Fx+Z1jWFqc no comment (ECDSA)
+256 SHA256:q7t6yVOlVqfNIIL4KnPm4dDBpJEs6FfBYsOL8xButDo no comment (ED25519)
+3072 SHA256:rMGMZBxMXzLF9tuG/8yQ84Y6CeMWopU0KorHWIik3cs no comment (RSA)
+
+а вот смотрим какой по факту нам этот удаленный серчер ключ предьявляет:
+$ ssh -vvv root@kvs12-test.waba.bot 2>&1 | grep -i "Server host key"
+debug1: Server host key: ecdsa-sha2-nistp256 SHA256:sGKXxLKWM1EtlgYjHmU4t3Ac068fIqb69Fx+Z1jWFqc
+
+также напоминаю что ECDSA и ecdsa-sha2-nistp256  это одно и тоже
+
+
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
 
 
