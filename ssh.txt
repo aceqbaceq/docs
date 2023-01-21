@@ -807,18 +807,25 @@ proxy hostname = 8.8.8.8
 port =22
 username = vasya
 print proxy diagnostic = yes
-command to send = plink.exe -v -ssh %user@%proxyhost -P %proxyport -nc %host:%port   -i "c:\Users\vasya\.ssh\foxy.ppk"
+command to send = 
+= plink.exe -v -ssh %user@%proxyhost -P %proxyport -nc %host:%port   -i "c:\Users\vasya\.ssh\foxy.ppk"
 
-сохраняем настройки.
-
-## . ##
-    plink.exe -v -ssh %user@%proxyhost -P %proxyport -nc %host:%port   -i "c:\Users\john\.ssh\private.ppk"
 
 конекктимся. готово.
 
+ЕЩЕ ВАЖНО: если у нас приватный ключ защищен паролем то шарманка описнная незаработает потому
+что надо вводить пароль от ключа а запрос не появится поэтому и не заработает поэтому надо также
+загрузить доп утилииту от путти называется pagent и в нее добавит наш приватный ключ. тогда 
+путти будет искать пароль через эту утилиту.
+
+
+далее. оказывается можно сделать тоже самое что я только что описал но чисто 
+через командную строку, это мегафохуенно:
+
 putty.exe -proxycmd "plink.exe vasya@8.8.8.8 -P 22 -nc 172.16.0.21:22 -i c:\Users\vasya\.ssh\private.ppk " vasya@172.16.0.21  -i c:\Users\vasya\.ssh\private.ppk
 
-ПРИВАТНЙЦ КЛЮЧ ЕСЛИ С ПАРОЛЕМ ТО ПУТИ АГЕНТ
+
+а вот я опубликовал на стековерфлоу все то что я описал с картинками:
 
 https://stackoverflow.com/questions/28926612/putty-configuration-equivalent-to-openssh-proxycommand/75191807#75191807
 
