@@ -809,7 +809,10 @@ username = vasya
 print proxy diagnostic = yes
 command to send = plink.exe -v -ssh %user@%proxyhost -P %proxyport -nc %host:%port   -i "c:\Users\vasya\.ssh\foxy.ppk"
 
-сохраняем настройки.!
+сохраняем настройки.
+
+## . ##
+    plink.exe -v -ssh %user@%proxyhost -P %proxyport -nc %host:%port   -i "c:\Users\john\.ssh\private.ppk"
 
 конекктимся. готово.
 
