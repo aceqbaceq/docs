@@ -816,8 +816,9 @@ command to send = plink.exe -v -ssh %user@%proxyhost -P %proxyport -nc %host:%po
 
 конекктимся. готово.
 
+putty.exe -proxycmd "plink.exe vasya@8.8.8.8 -P 22 -nc 172.16.0.21:22 -i c:\Users\vasya\.ssh\private.ppk " vasya@172.16.0.21  -i c:\Users\vasya\.ssh\private.ppk
 
-
+ПРИВАТНЙЦ КЛЮЧ ЕСЛИ С ПАРОЛЕМ ТО ПУТИ АГЕНТ
 
 
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
