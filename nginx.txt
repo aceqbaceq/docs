@@ -461,3 +461,183 @@ location / {
 nginx -T
 
 =====
+
+
+про то как настроить nginx + php
+
+
+вначале нужно установить php, php-fpm (в чем у них разница пока как в тумане)
+
+
+
+добавляем репозиторий с php
+
+# cat ondrej-ubuntu-php-jammy.list 
+deb        https://ppa.launchpadcontent.net/ondrej/php/ubuntu/ jammy main
+deb-src    https://ppa.launchpadcontent.net/ondrej/php/ubuntu/ jammy main
+
+тут важно сказаьть насчет jammy. на самом деле вместо jammy нужно вставлять ту версию
+убунты которая у нас стоит. если bionic значит bionic, если jammy то jammy
+
+# apt-get update
+получаем ошибку
+ GPG error: https://ppa.launchpadcontent.net/ondrej/php/ubuntu jammy InRelease: 
+ The following signatures couldn't be verified because the public key is 
+ not available: NO_PUBKEY 4F4EA0AAE5267A6C
+
+нужно импорторвать gpg ключ
+
+# apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 4F4EA0AAE5267A6C
+# apt-key list
+# apt-key export 14AA40EC0831756756D7F66C4F4EA0AAE5267A6C | sudo gpg --dearmor -o /usr/share/keyrings/ondrig-launchpad-php.gpg
+
+
+теперь редактируем репозитрий прописываем ключ:
+# cat ondrej-ubuntu-php-jammy.list 
+deb  [arch=amd64 signed-by=/usr/share/keyrings/ondrig-launchpad-php.gpg]      https://ppa.launchpadcontent.net/ondrej/php/ubuntu/ jammy main
+deb-src [arch=amd64 signed-by=/usr/share/keyrings/ondrig-launchpad-php.gpg]   https://ppa.launchpadcontent.net/ondrej/php/ubuntu/ jammy main
+
+теперь apt-get update продйет без ошибок
+
+
+далее смотрим как версии php нам доступны
+
+# apt-cache search php
+
+или
+
+# apt-cache madison php7.0
+если через madison то важно именно указать php7.0
+
+а вот такой вариант 
+# apt-cache madison php
+нам не покажет то что надо
+
+
+
+ставим пакеты php
+# apt-get install php7.0
+# apt-get install php7.0-fpm
+# systemctl enable php7.0-fpm
+# systemctl start php7.0-fpm
+# systemctl status php7.0-fpm
+
+
+к php можно конектится либо через сокет либо по сети.
+будем конекиттс через сокет. он лежит в файле /run/php/php7.0-fpm.sock
+это нам дальше пригоится
+
+
+ставим nginx
+
+#apt-get install nginx
+# systemctl enable nginx
+# systemctl start nginx
+
+
+заменяем конфиг жинкса
+
+
+# cat /etc/nginx/sites-enabled/default 
+server {
+  # Example PHP Nginx FPM config file
+  listen 80 default_server;
+  listen [::]:80 default_server;
+  root /var/www/html;
+
+  # Add index.php to setup Nginx, PHP & PHP-FPM config
+  index index.php index.html index.htm index.nginx-debian.html;
+
+  server_name _;
+
+  location / {
+    try_files $uri $uri/ =404;
+  }
+
+  # pass PHP scripts on Nginx to FastCGI (PHP-FPM) server
+  location ~ \.php$ {
+    include snippets/fastcgi-php.conf;
+
+    # Nginx php-fpm sock config:
+    fastcgi_pass unix:/run/php/php7.0-fpm.sock;
+    # Nginx php-cgi config :
+    # Nginx PHP fastcgi_pass 127.0.0.1:9000;
+  }
+
+  # deny access to Apache .htaccess on Nginx with PHP, 
+  # if Apache and Nginx document roots concur
+  location ~ /\.ht {
+    deny all;
+  }
+} # End of PHP FPM Nginx config example
+
+
+
+в нем уже прописан путь к сокету php.
+
+корневая папка /var/www/html
+
+копируем туда 27.php файл
+
+
+# cat /var/www/html/27.php 
+<?php
+   session_start();
+   
+   if( isset( $_SESSION['counter'] ) ) {
+      $_SESSION['counter'] += 1;
+   }else {
+      $_SESSION['counter'] = 1;
+   }
+
+$_SESSION['variable1'] = "Test1";
+$_SESSION['variable2'] = "Test2";
+
+
+echo $_SERVER['HTTP_USER_AGENT'];
+ 
+
+$_SESSION['variable3'] = $_SERVER['HTTP_USER_AGENT'];
+
+    
+   $msg = "You have visited this page ".  $_SESSION['counter'];
+   $msg .= "in this session.";
+?>
+
+
+
+
+в чем фишка этого файла.
+он создает php сессию при обрашении.
+
+эта сессия это файл который хранится в папке. путь к этой папке можно узнаь через 
+
+# php -i  | grep session.save_path
+session.save_path => /var/lib/php/sessions => /var/lib/php/sessions
+
+
+в чем фишка этого конкретно 27.php в том что он в файл сессии (или просто сессия) записывает
+параметр User-Agent клиента.
+
+
+протестровать можно либо через граф браузер
+
+http://127.0.0.1/27.php
+
+либо через curl. 
+
+#  curl -A "Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101 Firefox/81.0" http://127.0.0.1/27.php
+Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101 Firefox/81.0
+
+
+и тогда в файле сессии мы увидим
+
+# cat /var/lib/php/sessions/sess_9u6eh6rlproca6r0p1hdp0ipo4 
+counter|i:1;variable1|s:5:"Test1";variable2|s:5:"Test2";variable3|s:68:"Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101 Firefox/81.0";
+
+таким образом мы немного познакомиись с сессяими в php
+и также мы увидели как можно в сессию добавлтять свои любые переменные и данные.
+
+мы увидели в частности что параметр User-Agent  будет ли он пристссоввать в сессиии или нет
+зависит не от настроек на nginx или php сервере а от кода самой пользовательской 27.php странциы
+
