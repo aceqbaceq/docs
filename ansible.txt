@@ -4100,6 +4100,138 @@ $ ansible-paybook -i hosts play.yml --check
 	
 =====================================================
 
+вот есть такой код он создает учетку юзера на сервере
+
+
+##### CREATE USER
+
+- name: 'create a  user  WITH password |  Debian like OS '
+  user: name='{{ item.name }}' password='{{ item.password }}' comment='{{ item.comment }}' shell='/bin/bash'
+  with_items:
+    -  '{{ users }}'
+  when:  ('enable' in item.role )  and  ('password' in item.role )  and ( item.server_groups | intersect(group_names) )
+
+
+- name: 'create a  user  WITHOUT password |  Debian like OS '
+  user: name='{{ item.name }}' password='!$6$HbqVO21G$7PViddFST9yim36Ucj3du03vtmEwQwkCi2oV5Gabpe.TJaSbylup0ByyWuSR7nIBOOjj.N1EoBzGfAcs1Vbbd1' comment='{{ item.comment }}' shell='/bin/bash'
+  with_items: '{{ users }}'
+  when:  ('enable' in item.role ) and  ('password' not in item.role )    and ( item.server_groups | intersect(group_names) )
+
+######
+
+
+
+переменная user имеет такой вид
+# cat ./group_vars/all/users
+
+  - name: vasya
+    comment: vasya ,,,
+    password: '$6...'
+    ssh_key: 'ssh-rsa A...'
+    role:
+     - user
+     - root
+     - enable
+    server_groups:
+     - none
+     - vagrant
+     - fastrans_all
+     - glavtrasa_all
+     - yandex
+
+
+так вот из всего кода хочется осветить вот этот кусок
+
+when:  ('enable' in item.role )  and  ('password' in item.role )  and ( item.server_groups | intersect(group_names) )
+
+а точнее даже вот этот субкусок:
+item.server_groups | intersect(group_names)
+
+
+
+значит group_name это встроенная перменная ансибля представляет собой list тоесть список всех групп
+куда входит текущий хост в инвентаре ансибля
+
+item.server_groups это тоже список  и для нашего текущего пользователся он равен
+
+item.server_groups  =     server_groups  = [none, vagrant, fastrans_all, glavtrasa_all, yandex ]
+
+так вот задача вышеуказанного куска кода item.server_groups | intersect(group_names)
+состоит в том что мы имеем два списка и нам надо выяснить вот что - вот у нас есть текущий сервер на котором
+исолняется ансибль. этот сервер входит в группу или группы в инвентаре и нам надо понять есть ли хоть один 
+элемент из этого списка который был бы в свойствах юзера в его списке server_groups
+например у нас
+
+group_names = [ vagrant]
+server_groups  = [none, vagrant, fastrans_all, glavtrasa_all, yandex ]
+
+
+соотсвтенно мы видим что vagrant эелмент есть в server_groups.
+таким образом для нас это признак того что данный акаунт нужно создавать на данном сервере потому что акаунт юзера
+входит в туже группу сереров в которую входит этот сервер в инвентаре.
+так вот вот этот код
+
+item.server_groups | intersect(group_names)
+
+он проверяет если у нас есть два списка то есть ли между ними intersection в смысле множеств. 
+и если интерсекшн не пустой то значит результат true. 
+
+вот пример более простой
+
+# return only the common elements of list1 and list2
+# list1: [1, 2, 5, 3, 4, 10]
+# list2: [1, 2, 3, 4, 5, 11, 99]
+{{ list1 | intersect(list2) }}
+# => [1, 2, 5, 3, 4]
+
+вот отсюда взял = https://docs.ansible.com/ansible/devel/collections/ansible/builtin/intersect_filter.html
+
+тоесть фишка в том что будет возвращен true если есть хотя один общий элемент в обоих списках.
+это как раз то что надо.
+
+а вот например такой код нам не подходит
+
+vars:
+    a: [1,2,3,4,5]
+    b: [2,3]
+tasks:
+    - debug:
+        msg: "A includes B"
+      when: a is superset(b)
+
+    - debug:
+        msg: "B is included in A"
+      when: b is subset(a)
+
+
+потому что тут требование чтобы все эллементы одного массива входили в другой. 
+такого у нас нет. (пример взял отсюда = https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_tests.html#tests)
+
+далее
+как можно увидеть из строки 
+when:  ('enable' in item.role )  and  ('password' in item.role )  and ( item.server_groups | intersect(group_names) )
+
+еще есть  фильтр "in"
+'enable' in item.role
+
+я им хотел вначале воспользоваться то есть вот так пробовал заюзать
+item.server_groups in  group_names
+но такое в данном случае несработает потому что слева от "in" должен стоять тип данных string или 
+как он там называется . тогда да "enable" ищется во всех элементах списка. но у нас не константа
+не string а тоже список слева item.server_groups  поэтмоу команда "in" нихрена недает.
+
+поэтому очень важно понимать не только что команда делает но и с какими типами данных
+она умеет проавильно работать.
+
+
+ 
+
+
+
+
+====================
+
+
 var.a
 var['a']
 
