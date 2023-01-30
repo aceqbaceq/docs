@@ -81,16 +81,15 @@ grub-install --recheck /dev/vdb
    exit
 
 МЕНЯЕМ ftsab!  !!!!!!! ВАЖНО
+   # cat /mnt/newroot/etc/fstab | grep -v '#'
+   /dev/mapper/vg--root--Loop4ohW-ext4--root           /               ext4    errors=remount-ro 0       1
 
-   72  lsblk -f
-   73  vim /mnt/newroot/etc/fstab
-   74  cat /mnt/newroot/etc/fstab
-   75  halt -p
 
 ДАЛЕЕ ВАЖНО!!!!!  перед перезагрузкой зайти  в /boot/grub/grub.cfg на новой системе найти строки вида 
 linux vmlinuz и заменить на конце  
 maybe-ubiquity на net.ifnames=0 biosdevname=0 console=ttyS0   иначе нихрена не загрузится !!!!!
 
+# halt -p
 
 
 загрузится на новой машине и еще раз запустить 
