@@ -1,0 +1,180 @@
+wifi
+
+все началось что после очердной перезагрузки перестал работать вай фай.
+и также в граф режиме на экране было написано что cinnamon неможет найти дрова поэтмоу 
+работает щас без граф ускорения.
+
+сразу краткий ответ - та версия ядра что загружена в ней нет модуля для карты от вай фай 
+и нет дров от видеокарты.
+
+длинный ответ - как понять что у данного ядра нет дров под вай фай 
+
+$ lspci  -nn -v
+02:00.0 Network controller [0280]: Qualcomm Atheros QCA9377 802.11ac Wireless Network Adapter [168c:0042] (rev 31)
+	Subsystem: Lenovo QCA9377 802.11ac Wireless Network Adapter [17aa:0901]
+	Flags: bus master, fast devsel, latency 0, IRQ 140
+	Memory at a4000000 (64-bit, non-prefetchable) [size=2M]
+	Capabilities: <access denied>
+	Kernel driver in use: ath10k_pci
+	Kernel modules: ath10k_pci
+
+
+в этой команде мы видим что у нас есть вай фай карточка.
+и что ее обслуживает драйвер\модуль  ath10k_pci
+
+так вот если у данной модели ядра нет этого модуля то вот этих стро не будет
+
+Kernel driver in use: ath10k_pci
+Kernel modules: ath10k_pci
+
+
+также небудет сетевой картчоки отвечающей за вай фай
+
+# ip -c a
+
+ wlp2s0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default qlen 1000
+    link/ether 80:30:49:b2:85:cf brd ff:ff:ff:ff:ff:ff
+    inet 192.168.0.41/24 brd 192.168.0.255 scope global dynamic noprefixroute wlp2s0
+       valid_lft 23998sec preferred_lft 23998sec
+
+
+вот эта команда тоже будет пустая
+
+#  nmcli dev wifi list
+IN-USE  SSID           MODE   CHAN  RATE        SIGNAL  BARS  SECURITY  
+*       Olive2         Infra  2     270 Mbit/s  69      ▂▄▆_  WPA2      
+        Olive3         Infra  3     270 Mbit/s  57      ▂▄▆_  WPA2      
+        AllCALL        Infra  1     270 Mbit/s  42      ▂▄__  WPA1 WPA2 
+        Mirlan         Infra  3     270 Mbit/s  40      ▂▄__  WPA2      
+        Kanykei        Infra  3     270 Mbit/s  39      ▂▄__  WPA2      
+        olive3000      Infra  8     270 Mbit/s  37      ▂▄__  WPA2      
+        Olive3         Infra  1     270 Mbit/s  34      ▂▄__  WPA2      
+        KyrgyzTourism  Infra  7     130 Mbit/s  34      ▂▄__  WPA1 WPA2 
+        ZTE_vTSKwt     Infra  6     130 Mbit/s  30      ▂___  WPA1 WPA2 
+        netis_13CFD0   Infra  2     270 Mbit/s  27      ▂___  WPA1 WPA2 
+        TP-Link_E062   Infra  2     270 Mbit/s  25      ▂___  WPA2      
+        Dastan         Infra  5     130 Mbit/s  25      ▂___  WPA1 WPA2 
+        KANY           Infra  1     130 Mbit/s  22      ▂___  WPA1 WPA2 
+
+
+что делать если возникла прблема.
+лезем в инет с телефона и ищем как называется модуль который обсулуживает нащу вай фай карту
+Qualcomm Atheros QCA9377
+
+это модуль ath10k_pci
+
+далее идем в /lib/modules и ищем может у нас есть какая то модель ядра  вкоторой есть 
+даннйы модуль. пример
+
+# find /lib/modules -type f -name "ath10*"
+/lib/modules/5.4.0-91-generic/kernel/drivers/net/wireless/ath/ath10k/ath10k_usb.ko
+/lib/modules/5.4.0-91-generic/kernel/drivers/net/wireless/ath/ath10k/ath10k_core.ko
+/lib/modules/5.4.0-91-generic/kernel/drivers/net/wireless/ath/ath10k/ath10k_sdio.ko
+/lib/modules/5.4.0-91-generic/kernel/drivers/net/wireless/ath/ath10k/ath10k_pci.ko
+
+
+значит в ядре 5.4.0-91 есть то что надо.
+
+
+далее идем в настроки grub 
+и активируем чтобы при загрузке она выскочило окно grub
+
+
+# cat /etc/default/grub  | grep GRUB
+...
+GRUB_TIMEOUT_STYLE=menu
+GRUB_TIMEOUT=30
+
+
+перезагружаемся.
+выбираем 5.4.0-91  грузмися. проверяем помогло ли.
+
+далее задача в том чтобы это ядро сделать дефолтовым при загрузке
+
+
+как выбрать в меню другое ядро для загрузки 
+из установенных
+
+cстатья - https://support.huaweicloud.com/intl/en-us/trouble-ecs/ecs_trouble_0327.html
+
+если коротко:
+/etc/default/grub
+
+меняем GRUB_DEFAULT=0 на GRUB_DEFAULT="1>1"
+
+тоесть
+# cat /etc/default/grub  | grep -i default
+GRUB_DEFAULT="1>1"
+
+
+
+главный вопрос как понять какую цифрц ставить
+цифра означает номер меную или субмену в списке загрузки граба.
+
+смотрим в файл
+# cat grub.cfg | grep menu 
+
+0 menuentry 'Ubuntu' --class ubuntu ...
+1 submenu 'Advanced options for Ubuntu' ...
+	0 menuentry 'Ubuntu, with Linux 5.4.0-117-generic' ...
+	1 menuentry 'Ubuntu, with Linux 5.4.0-117-generic (recovery mode)
+	2 menuentry 'Ubuntu, with Linux 5.4.0-99-generic' 
+	3 menuentry 'Ubuntu, with Linux 5.4.0-99-generic (recovery mode)
+	4 menuentry 'Ubuntu, with Linux 4.15.0-134-generic'
+	5 menuentry 'Ubuntu, with Linux 4.15.0-134-generic (recovery mode)
+	6 menuentry 'Ubuntu, with Linux 4.15.0-112-generic' 
+	7 menuentry 'Ubuntu, with Linux 4.15.0-112-generic (recovery mode)
+	8 menuentry 'Ubuntu, with Linux 4.15.0-96-generic' 
+	9 menuentry 'Ubuntu, with Linux 4.15.0-96-generic (recovery mode)
+
+
+слева я проставил цифры. которые присваивает граб менюшкам своим. возвращаемся к строке GRUB_DEFAULT="1>1"
+первая цифра это цифра главного меню. а еслт у меню есть субменю то вторая цифра озанчает позицию в субменю.
+щас обьясню на примерах. кстаи каойто придурок писал что позици меню которые отвечают за recovery mode они не входят в цифриы .это полная
+ложь. все строки меню имеют цифры. далее примеры. какая строка как будет обозначаться в грабе , српва от строки я встаовяю сотвттсвующую 
+строку для комагды с грабом:
+
+
+
+0 menuentry 'Ubuntu' --class ubuntu ... GRUB_DEFAULT="0"
+1 submenu 'Advanced options for Ubuntu' ... GRUB_DEFAULT="1"
+	0 menuentry 'Ubuntu, with Linux 5.4.0-117-generic' ...  GRUB_DEFAULT="1>0"
+	1 menuentry 'Ubuntu, with Linux 5.4.0-117-generic (recovery mode)  GRUB_DEFAULT="1>1"
+	2 menuentry 'Ubuntu, with Linux 5.4.0-99-generic'  GRUB_DEFAULT="1>2"
+	3 menuentry 'Ubuntu, with Linux 5.4.0-99-generic (recovery mode)  GRUB_DEFAULT="1>3"
+	4 menuentry 'Ubuntu, with Linux 4.15.0-134-generic'  GRUB_DEFAULT="1>4"
+	5 menuentry 'Ubuntu, with Linux 4.15.0-134-generic (recovery mode) GRUB_DEFAULT="1>5"
+	6 menuentry 'Ubuntu, with Linux 4.15.0-112-generic'  GRUB_DEFAULT="1>6"
+	7 menuentry 'Ubuntu, with Linux 4.15.0-112-generic (recovery mode) GRUB_DEFAULT="1>7"
+	8 menuentry 'Ubuntu, with Linux 4.15.0-96-generic'  GRUB_DEFAULT="1>8"
+	9 menuentry 'Ubuntu, with Linux 4.15.0-96-generic (recovery mode) GRUB_DEFAULT="1>9"
+
+
+
+надюсь теперт будет понятно кака ястрока каой цифроу ширфрутся.
+еще добавлю что в яндекс обрлаке ни в коем случа нельзя запускать со строкой которая с recovery - витртуалка незагрузися!!! никакого recovery !
+
+
+теперь с цифрааи разобралсиь.
+
+далее это еще неконец. нам нужно после редактирования /etc/default/grub  обновить  основной конфиг граба через команду # update-grub. 
+но вдруг мы все сломаем. вдруг незагрузися в том плане что 
+мы все такм могли выбрат неверрную цифру или выранное ядро херовое и мы с него не сможем загрузится. (так дальше и случилось).
+поэтому можно попросить граб загрузистя один раз свсего один раз с нововыбранным ядром. если мы с новым ядром незагрузися 
+то мы просто poweroff машину и грузися с осноного ядра без прбем. так чуд команда для загрузски с выбранным 
+ядром один раз :
+
+# grub-reboot "1>1"
+# reboot
+
+так вот у меня так и полусло. я выбрал верстю 96 ядра с recovery опцией. перегзупщися но не загрузилось.
+poweroff.
+если все окей. мы загрузились . то тогда уже меняем основгой конфиг граба.
+
+# update-grub
+# reboot
+
+готво.
+===
+
+
