@@ -962,3 +962,69 @@ deb-src [arch=amd64 signed-by=/usr/share/keyrings/ondrig-launchpad-php.gpg]   ht
 теперь apt-get update продйет без ошибок
 
 ====
+
+вобще получается интересная тема.
+если хочешь узнать устанолвен ли пакет то 
+
+# dpkg -i bash
+
+а если хочешь почитать описание к нему то
+
+# dpkg-query -s bash
+
+
+=====
+еще одна очень интересная тема.
+вот у нас есть строчка в sources.list
+
+deb [ arch=amd64 ] http://us.archive.ubuntu.com/ubuntu/ bionic main restricted
+
+или такая строчка
+
+deb [ arch=amd64 ] http://us.archive.ubuntu.com/ubuntu/ bionic-updates main restricted
+
+эти строчки они опысывают репозиторий разбитый на отдельные куски так вот мы хотим знать 
+а к какому куску относится тот или иной пакет. например есть у нас пакет bash или gnumeric 
+вот какая строчка из указаных выше привелет к тому что данный пакет будет достуен для установки
+
+ответ лежит в этом каталоге
+/var/lib/apt/lists
+
+ищем для пакета gnumeric
+# export name="gnumeric" && grep "$name" -Ri /var/lib/apt/lists | grep "Package: $name$" | grep binary | grep "ubuntu.com"
+/var/lib/apt/lists/ftp.ubuntu.com_ubuntu_dists_bionic_universe_binary-amd64_Packages:Package: gnumeric
+
+
+смотрим глазами на эту строку что получили
+ftp.ubuntu.com_ubuntu_dists_bionic_universe_binary-amd64_Packages
+
+я щас покажу ответ из какого репо в итоге можно закачать gnumeric
+# grep "ubuntu.com" -Ri /etc/apt | grep "bionic universe"
+/etc/apt/sources.list:deb  [ arch=amd64 ] http://us.archive.ubuntu.com/ubuntu/ bionic universe
+
+тоесть файл /etc/apt/sources.list
+и строка в нем 
+deb  [ arch=amd64 ] http://us.archive.ubuntu.com/ubuntu/ bionic universe
+это и ест то что мы искали
+
+ а теперь обьясню как расшифровать строчку
+ubuntu_dists_bionic_universe
+слово ubuntu относится к  http://..../ubuntu/
+слово dists мы инориуем
+слово bionic_universe это вот в этой строке
+deb  [ arch=amd64 ] http://us.archive.ubuntu.com/ubuntu/ bionic universe
+последние два слова
+
+
+
+# export name="bash" && grep "$name" -Ri /var/lib/apt/lists | grep "Package: $name$" | grep binary | grep "ubuntu.com"
+/var/lib/apt/lists/ftp.ubuntu.com_ubuntu_dists_bionic_main_binary-amd64_Packages:Package: bash
+/var/lib/apt/lists/ftp.ubuntu.com_ubuntu_dists_bionic-security_main_binary-amd64_Packages:Package: bash
+/var/lib/apt/lists/ftp.ubuntu.com_ubuntu_dists_bionic-updates_main_binary-amd64_Packages:Package: bash
+
+# grep "ubuntu.com" -Ri /etc/apt | grep "bionic main"
+/etc/apt/sources.list:deb [ arch=amd64 ] http://us.archive.ubuntu.com/ubuntu/ bionic main restricted 
+
+ 
+
+
