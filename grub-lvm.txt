@@ -30,6 +30,71 @@ Number  Start   End     Size    File system  Name     Flags
 
 
 
+хотел бы обратить внимание на строки
+Start? 1M                                                                 
+End? 2M 
+
+возникает вопрос это честыне мегабайты (1024КБ) или маркетиновые (1000 КБ). ответ это честные 
+мегайбайты. а вот эта сука по дефолту почемуто выводит маркетиновые по команде print
+
+тоесть вот это это маркетиновые килобайты
+Number  Start   End     Size    File system  Name     Flags
+ 1      1049kB  2097kB  1049kB               grubsys  bios_grub
+ 2      2097kB  21.5GB  21.5GB               lvmroot  lvm
+
+а если мы хотим увидеть четсные мегабайты\килобайты 
+то надо задать юниты вывода
+(parted) unit Mib print                                                   
+Model: Virtio Block Device (virtblk)
+Disk /dev/vda: 2048MiB
+Sector size (logical/physical): 512B/4096B
+Partition Table: gpt
+Disk Flags: 
+
+Number  Start    End      Size     File system  Name     Flags
+ 1      1,00MiB  2,00MiB  1,00MiB               grubsys  bios_grub
+ 2      2,00MiB  2047MiB  2045MiB  ext4         boot
+
+
+и тогда мы увидим что все верно. мы задали чтобы партишн начинался с 1МБ так он и начинается.
+
+вот еще раз покажу по делфтоу эта сука parted исполькет маркетиновые килобайты.
+а мы это незнаем и видим какуто хуйню
+
+[gd] root@fw-erp-demo-v3-a 19:58:19 /var/www/newlove/application/config # parted /dev/vda
+GNU Parted 3.2
+Using /dev/vda
+Welcome to GNU Parted! Type 'help' to view a list of commands.
+(parted) p                                                                
+Model: Virtio Block Device (virtblk)
+Disk /dev/vda: 2147MB
+Sector size (logical/physical): 512B/4096B
+Partition Table: gpt
+Disk Flags: 
+
+Number  Start   End     Size    File system  Name     Flags
+ 1      1049kB  2097kB  1049kB               grubsys  bios_grub
+ 2      2097kB  2146MB  2144MB  ext4         boot
+
+
+ а потом мы устаналвием нормальыне килобайты
+
+(parted) unit Kib print
+Model: Virtio Block Device (virtblk)
+Disk /dev/vda: 2097152kiB
+Sector size (logical/physical): 512B/4096B
+Partition Table: gpt
+Disk Flags: 
+
+Number  Start    End         Size        File system  Name     Flags
+ 1      1024kiB  2048kiB     1024kiB                  grubsys  bios_grub
+ 2      2048kiB  2096128kiB  2094080kiB  ext4         boot
+
+
+и видим что все четко. раздел начинается с 1МБ. все в порядке. 
+
+
+
 
 про разбинеис диска тож еочень важная хрень . если диск GPT то чтобы в него поставить grub то нужно внаале диска
 созать спец раздел.  он начинается через 1МБ. имеет длинну 1МБ и имеет спец флаг  bios_grub
@@ -51,9 +116,12 @@ Number  Start   End     Size    File system  Name  Flags
 
 
        # vgcreate vg-root-Eih5vaiz /dev/vdc2
-        # lvcreate -n ext4-root -L (50% от vgs!!)G vg-root-Eih5vaiz   (!!!! здест важно задать размер 50% от размера vg чтоб место было под снжпшоты!!!!!!)
+       # lvcreate -n ext4-root -L (50% от vgs!!)G vg-root-Eih5vaiz   (!!!! здест важно задать размер 50% от размера vg чтоб место было под снжпшоты!!!!!!)
        mkfs.ext4 /dev/vg-root-Eih5vaiz/ext4-root
        tune2fs -L "fw-jira" /dev/vg-root-Loop4ohW/ext4-root
+       или
+       mkfs.xfs ...
+       xfs_admin -L fw-jira /dev/....
    58  mkdir /mnt/newroot
    59  mount /dev/vg-root-Eih5vaiz/ext4-root /mnt/newroot/
    60  mkdir /mnt/mirror
@@ -66,21 +134,25 @@ Number  Start   End     Size    File system  Name  Flags
    70  mount -o bind   /sys/ /mnt/newroot/sys/
    71  chroot /mnt/newroot/
 
-passwd root   !!! ВАЖНО
-passwd -l всем
+#passwd root   !!! ВАЖНО
+#passwd -l всем
    пройись по всей машине и отклчить всем пароли  кроме root и krivosjeev
-grub-mkconfig -o /boot/grub/grub.cfg
+# grub-mkconfig -o /boot/grub/grub.cfg
    это оосмсообщение на экране = WARNING: Failed to connect to lvmetad. Falling back to device scanning = оно неважное
-update-initramfs -u -k all
+# update-initramfs -u -k all
       обновить все initramfs что есть. имена останутся темиже
       при этом у меня выскаивало собщение:
          ibkmod: ERROR ../libkmod/libkmod-config.c:656 kmod_config_parse: /lib/modules/4.15.0-134-generic/modules.softdep line 21: ignoring bad line starting with ':
       решние: в файле /mnt/newroot/lib/modules/4.15.0-134-generic/modules.softdep убрать строку вида :sctp
-grub-install --recheck /dev/vdb
+# grub-install --recheck /dev/vdb
       это ставить загрузчик граба нулевой стадии на первый раздел который 1MB размером
    exit
 
-МЕНЯЕМ ftsab!  !!!!!!! ВАЖНО
+!!!!! ВАЖНО НИВКОЕМ СЛУЧАЕ НЕ ЭКСПОРТИРУЙ LVM РАЗДЕЛ иначе при загрузке на новой системе 
+оно тебе напишет Volume group vg-hdd-Neewu3og is exported
+НИВКОЕМ СЛУЧАЕ НЕЭКСПОРТИРУЙ LVM РАЗДЕЛ. НИВ КОЕМ СЛУЧАЕ
+
+!!!!!! МЕНЯЕМ ftsab  ВАЖНО
    # cat /mnt/newroot/etc/fstab | grep -v '#'
    /dev/mapper/vg--root--Loop4ohW-ext4--root           /               ext4    errors=remount-ro 0       1
 
