@@ -4224,7 +4224,20 @@ item.server_groups in  group_names
 она умеет проавильно работать.
 
 ====================
+как сделать чтобы таск исполнялся на другом хосте отличном от заданного. 
+ответ 
 
+- name: play 1
+  hosts: app_servers
+
+  tasks:
+     - name: task 1
+       mysql_db:
+          name:  rails
+          state: present
+       delegate_to: db_servers
+
+==================
 
 var.a
 var['a']
