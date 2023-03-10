@@ -4,26 +4,27 @@ yandex cloud
 
 
 
-
-перед тераформомо надо поставит яндекс cli
 как ставить yandex cli
 $ curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash
+
 потом надо получить oauth токен через ссылку
 https://oauth.yandex.ru/authorize?response_type=token&client_id=1a6990aa636648e9b2ef855fa7bec2fb
+
 далее тыкаем
 $ yc init
+
 там вводим токен
-по окончании посмотреть текущие настройки
+
+по окончании посмотреть настройки текущего провиля якли
 $ yc config list
 token: y0_...
 cloud-id: b1...
 folder-id: b1g...
 compute-default-zone: ru-central1-a
 
-где хранятся эти настройки 
-а хранятся они вот в этой папке 
-
+вопрос где хранятся эти настройки на файловой системе - а хранятся они вот в этой папке 
 $HOME/.config/yandex-cloud/config.yaml
+
 
 
 а теперь куча теории:

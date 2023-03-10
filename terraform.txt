@@ -152,6 +152,256 @@ $ terraform apply plan.txt
 вначале надо поставит на комп yandex cli
 как это сделать и прочая полезная штука про яблоко смотри в файле yandex_cloud.txt
 
+вот мы поставили якли. в якли есть профили. профилей может быть несколько.
+профиль это  набор настроек с которым якли
+конектится к яблоку. эти настройки вклчают в себя: креды,номер папки яблока, номер облака яблока.
+в один момент времени может быть активен только один профиль якли. с его настройками
+якли и стучится на яблоко.
+
+так вот нам для тераформа надо чтобы текущий профиль якли был с кредами сервис акаунта( сервис акаунт
+это такой один из типов юзеров с которым можно подключаться к яблоку) от имени которого мы 
+и будем подключаться из тераформа к яблоку. 
+
+возникает вопрос какая связь между якли и тераформом. связь такая что тераформу чтобы подключаься 
+к яблоку надо получить от IAM (сервис аутентификации яблока) специальный токен = IAM токен.
+этот токен это как пропуск. который тераформ будет предьявлять сервисам яблока для работс ними.
+так вот этот токен это проще всего получить через якли постучавшись на яблоко от имени сервис акаунта.
+
+
+когда поставили яндекс кли. и там прописали в профиле папку на яблоке, креды сервис акаунта
+то теперь надо добавить этому сервис акаунту права нужные тераформа.
+а именно (как я понял из этого говенного описания https://cloud.yandex.com/en/docs/tutorials/infrastructure-management/terraform-quickstart) надо выдать этому акаунту права "editor"
+сделать это тоесть добавить прав сервис акаунта можно через веб морду. окей защли в веб морду
+выдали права "editor"
+
+возвращаемся к нашему якли.
+проверяем в нашем якли профиле какой сервис акаунт указан, какая яблоко  папка указана,
+какое яблоко облако указано
+$ yc config list
+service-account-key:
+  id: aje9ru
+  service_account_id: ajed54
+  created_at: "2023-03-09T19:15:13.886916958Z"
+  key_algorithm: RSA_2048
+  public_key: |
+    -----BEGIN PUBLIC KEY-----
+    MIIBIjAQAB
+    -----END PUBLIC KEY-----
+  private_key: |
+    -----BEGIN PRIVATE KEY-----
+    MIIEvQ+cVgQvUE5AowIHtW/D0=
+    -----END PRIVATE KEY-----
+cloud-id: b1g8sk79560kbvb6nr2j
+folder-id: b1gobq5rv8qm8qi76hig
+
+тоесть проверяем 
+service_account_id
+cloud-id
+folder-id
+
+если это то что мы ожидали видеть то двигаем дальше.
+а именно получаем IAM токен через якли от IAM сервиса 
+
+$ yc iam create-token
+t1.9euelZqM...
+
+
+тоесть якли стучится от имени сервис акаунта на IAM сервис и говорит я сервис акаунт такой то
+дай мне IAM токен.
+если все ок то на экране мы получим наш IAM токен. он действиует 12 часов.
+его можно обновить если приспичило в течение этих 12 часов но янедкс пишет что это делать 
+рекеомнудется не чаще чем 1 раз в час.
+
+
+этот iam токен это наш паспорт пропуск теперь  к сервисам яблока. мы его подставим в тераформ 
+и он сможет успешно подключаться к сервисам яблока.
+вот именно ради возможности получит IAM токен мы и ставили на комп якли.
+
+
+длаее созаем папку
+
+$ mkdir ~/cloud-terrafom
+$ cd ~/cloud-terrafom
+$ touch main.tf
+
+дальше дока яндекса рекоменует переимновать файл .terraformrc в котором находится
+конфиг настроек тераформа для текущего юзера.
+$ mv ~/.terraformrc ~/.terraformrc.old
+
+этого файла может и небыть.
+
+создаем заново этот файл
+$ touch  ~/.terraformrc
+
+в этот файл мы вставляем кусок
+
+$ cat ~/.terraformrc
+provider_installation {
+  network_mirror {
+    url = "https://terraform-mirror.yandexcloud.net/"
+    include = ["registry.terraform.io/*/*"]
+  }
+  direct {
+    exclude = ["registry.terraform.io/*/*"]
+  }
+}
+
+
+
+далее в наш main.tf
+мы вставляем кусок:
+
+terraform {
+  required_providers {
+    yandex = {
+      source = "yandex-cloud/yandex"
+    }
+  }
+  required_version = ">= 0.13"
+}
+
+provider "yandex" {
+  token     = "<OAuth>"
+  cloud_id  = "<cloud ID>"
+  folder_id = "<folder ID>"
+  zone      = "<default availability zone>"
+  
+}
+
+
+соответвенно сюда надо вставить наш текущий iam-токен
+котоыйр мы ранее полуили через якли от яблока,
+а cloud-id, folder-id, zone availability  можно посмотреть в свойствах якли 
+$ yc config list
+
+далее как я понял из этого мудацкого описания https://cloud.yandex.com/en/docs/tutorials/infrastructure-management/terraform-quickstart
+переходим в папку с main.tf 
+и запускаем команды
+
+$  terraform providers lock -net-mirror=https://terraform-mirror.yandexcloud.net -platform=linux_amd64 yandex-cloud/yandex
+$  terraform init
+
+
+далее в main.tf 
+добавляем кусок
+
+
+resource "yandex_compute_instance" "vm-1" {
+name = "terraform1"
+
+resources {
+    cores  = 2
+    memory = 2
+}
+
+boot_disk {
+    initialize_params {
+    image_id = "fd87va5cc00gaq2f5qfb"
+    }
+}
+
+network_interface {
+    subnet_id = yandex_vpc_subnet.subnet-1.id
+    nat       = true
+}
+
+metadata = {
+    ssh-keys = "ubuntu:${file("~/.ssh/id_rsa.pub")}"
+}
+}
+
+resource "yandex_compute_instance" "vm-2" {
+name = "terraform2"
+
+resources {
+    cores  = 4
+    memory = 4
+}
+
+boot_disk {
+    initialize_params {
+    image_id = "fd87va5cc00gaq2f5qfb"
+    }
+}
+
+network_interface {
+    subnet_id = yandex_vpc_subnet.subnet-1.id
+    nat       = true
+}
+
+metadata = {
+    ssh-keys = "ubuntu:${file("~/.ssh/id_rsa.pub")}"
+}
+}
+
+resource "yandex_vpc_network" "network-1" {
+name = "network1"
+}
+
+resource "yandex_vpc_subnet" "subnet-1" {
+name           = "subnet1"
+zone           = "ru-central1-a"
+network_id     = yandex_vpc_network.network-1.id
+v4_cidr_blocks = ["192.168.10.0/24"]
+}
+
+output "internal_ip_address_vm_1" {
+value = yandex_compute_instance.vm-1.network_interface.0.ip_address
+}
+
+output "internal_ip_address_vm_2" {
+value = yandex_compute_instance.vm-2.network_interface.0.ip_address
+}
+
+
+output "external_ip_address_vm_1" {
+value = yandex_compute_instance.vm-1.network_interface.0.nat_ip_address
+}
+
+output "external_ip_address_vm_2" {
+value = yandex_compute_instance.vm-2.network_interface.0.nat_ip_address
+}
+
+
+далее проверяем валидность этого конфига
+$ terraform validate
+
+далее просим тераформ переписать наш конфиг так чтобы он стал "красивым"
+$ terraform fmt
+
+
+$ terraform plan  -out plan.txt
+
+далее формируем файл изменений которые тераформ собирается делать. так называемый
+план. при этом на яблооке ничего небудет изменено мы просто увидим подробный план
+того что тераформ собирается делать на экране а в файле будет запсана некая служебная хрень
+$ terraform plan  -out plan.txt
+
+ПОЛЕЗНАЯ ВЕЩЬ - в веб морде яблока нажимаем на имя клауда и справа будет закладка Quotas
+в ней указаны лимиты на разные ресурсы в яблоке. там же можно увеличить эти лимиты
+
+ПОЛЕЗНАЯ ВЕЩЬ - как посмотреть имаджи операционок доступные на яблоке
+$ yc compute image list --folder-id standard-images | grep -E "ID|ubuntu-22"
+
+далее применяем наш план уже в жизнь
+$ terraform apply  "plan.txt"
+
+
+готово. виртуалки и другие ресурсы из плана созданы.
+
+как останвоить виртулки через тераформ пока непонятно.
+приходится через якли это делать
+
+$ yc compute instance list
+$ yc compute instance stop  --name  terraform1
+$ yc compute instance stop  --name  terraform2
+
+
+
+
+
+
+
 
 
 
