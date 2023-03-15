@@ -557,7 +557,9 @@ main.tf  (здесь наш конфиг)
 но это еще не конец мудежа. наща конечная задача это чтбы если один юзер запустил
 команду на исполннеие тераформа то второй юзер должен немочь ее запукать чтобы 
 неиспортить инфраструктуру. для этого длполенительно надо заюзать dynamo
-#$#
+для этого юзаю эту статью https://habr.com/ru/post/711982/
+
+
 
 
 
@@ -566,7 +568,444 @@ main.tf  (здесь наш конфиг)
 
 #$#!!!
 описать:
-3. dynamo + запрет на одновременный модификация двух юзеров + проверить
+3.s надо чтобы все аспекты с нуля до конца были сделаны через командную строку.
+например создание бакета и все такое. сейчас многое все делается руками а надо 
+чтобы все было только через скрипт!!!!
+
+тераформ работает от имени сервис акаунта в яблоке а сервис акаунт 
+привязывается к конкретной папке яблока поэтому создавать папку яблока и 
+сервис акаунт для этой папки через тераформ нельзя а можно только сторонниим методами
+наприер через якли
+
+переключаемся на якли профиль который раотает от имени веб юзера\яндекс юзера
+$ yc config profile list
+default
+service_account_profile-krivosheev-test ACTIVE
+
+актвируем профиль в котором прописан веб юзер
+$ yc config profile activate default
+Profile 'default' activated
+
+проверяем что это рельно профиль от веб юзера
+$ yc config list
+token: y0_AgA...
+cloud-id: b1g8s
+folder-id: b1gobq
+compute-default-zone: ru-central1-a
+
+
+создаем новую яблокоо папку
+$ yc resource-manager folder create test-folder-2
+id: b1gop5honld
+cloud_id: b1g8s2j
+created_at: "2023-03-13T09:48:45.867259773Z"
+name: test-folder-2
+status: ACTIVE
+
+
+создаем сервис акаунт для этой папки
+
+$ yc iam service-account create --name service-account-2 \
+  --description "сервис акаунт для папки test-folder-2 для тераформа" \
+  --folder-name "test-folder-2"
+
+id: ajec4h
+folder_id: b1go
+created_at: "2023-03-13T09:51:46.935971935Z"
+name: service-account2
+description: сервис акаунт для папки test-folder-2 для тераформа
+
+
+создаем пару authorize keys для этого сервис акаунта. на основе этого атораайз key 
+наш якли будет аутентифицироваться на иам сервисе и получать от него иам токен  который 
+в свою очередь я кли будет предьявлять сервисам яблока для аутентиицикации.
+таким макаром аторайз ки используется для аутентификации перед иам сервисом  но для доступа 
+к другим сервисам яблока например vpc надо предьявлять иам токен который выдает иам сервис
+
+
+$ yc iam key create --service-account-name service-account-2 --folder-name "test-folder-2" -o $HOME/.config/yandex-cloud/service-account-2-auth-keys.json
+
+id: aje6rqernq
+service_account_id: aje5n
+created_at: "2023-03-13T10:05:51.187614866Z"
+key_algorithm: RSA_2048
+
+
+обращаю вниманеи что надо указывать папку в которой сидит сервис акаунт иначе  система небудет 
+его находить.
+файл с ключами мы сразу сохраняем в папку настроек якли.
+
+даем этому сервис акаунту роль (права) на создание\редактирование виртуалок в этой папке
+$ yc resource-manager folder add-access-binding test-folder-2 \
+  --role compute.admin \
+  --service-account-name service-account-2 \
+  --folder-name test-folder-2
+
+
+подставляем выше
+$ yc resource-manager folder add-access-binding test-folder-2 \
+     --role compute.admin \
+     --service-account-name service-account-2 \
+     --folder-name test-folder-2
+
+также добавляем роль чтобы акаунт мог сети в vpc создавать
+$ yc resource-manager folder add-access-binding test-folder-2 \
+     --role vpc.admin \
+     --service-account-name service-account-2 \
+     --folder-name test-folder-2
+
+
+
+также добавляем ему права на редактирование ydb баз "ydb.admin"
+$ yc resource-manager folder add-access-binding test-folder-2  \
+     --role ydb.admin \
+     --service-account-name service-account-2 \
+     --folder-name test-folder-2
+
+
+также добавляем роль чтобы этот акаунт мог создавать бакеты
+
+$ yc resource-manager folder add-access-binding test-folder-2 \
+     --role storage.admin \
+     --service-account-name service-account-2 \
+     --folder-name test-folder-2
+
+
+
+генерируем для этого сервис акаунта его static access key ( аля aws static key)
+$ yc iam access-key create \
+   --service-account-name service-account-2 \
+   --folder-name "test-folder-2" \
+   --description "статик ключ для доступа на aws подобные ресурсы"
+
+access_key:
+  id: aje7nled85chli
+  service_account_id: aje5na
+  created_at: "2023-03-13T19:57:42.009502688Z"
+  description: статик ключ для доступа на aws подобные ресурсы
+  key_id: YCAJE...
+secret: YCNuNIf...
+
+
+устанавливаем aws cli чтобы туда записать полученный   access static key
+потому что якли этот ключ использовать неможет а aws cli может (дебилизм конечно)
+нам этот aws cli понадобится чуть ниже когда мы будем работать с YDB базой данных.
+
+# apt-get install awscli
+прописываем наш статический ключ который мы получили выше в aws cli конфиг используя aws cli профили  
+для того чтобы мы имели возможность если нужно  записать
+несколько стат ключей
+$ aws configure --profile service-account-2
+AWS Access Key ID [None]: YCAJE...
+AWS Secret Access Key [None]: YCNuNIf...
+Default region name [None]: ru-central1
+
+настройки будут сохранены в папку $HOME/.aws/
+
+возвращаеися обратно к якли.
+создаем профиль в якли с этим сервим акаунтом и его папкой в яблоке
+$ yc config profile create service-account-2
+
+далее подключаем  к текущему активному профилю наш ранее созданный файл с ключами RSA:
+напомню что файл service-account-2-auth-keys.json должен лежать в папке $HOME/.config/yandex-cloud
+$ yc config set service-account-key   service-account-2-auth-keys.json
+
+далее полезно прписать в профиле cloud-id
+сам id придется посмотреть через веб морду потому что как я понял с текушими ролями
+наш сервис акаунт неможет его определить
+$ yc config set  cloud-id b1g8sk79560kbvb6nr2j 
+
+дале полезно добавит в профиль folder-id.
+его мы уже можетм определить через cli
+$ yc resource-manager folder list
++----------------------+---------------+--------+--------+
+|          ID          |     NAME      | LABELS | STATUS |
++----------------------+---------------+--------+--------+
+| b1gop5honldmvbpmg516 | test-folder-2 |        | ACTIVE |
++----------------------+---------------+--------+--------+
+
+
+$ yc config set  folder-id  b1gop5honldmvbpmg516
+
+в целом создание папки и сервис акаунта в яблоке закончена. также как бонус
+мы создали профиль в якли с этим сервиc акаунтом.
+
+теперь надо создать яблоко бакет (размером 50МБ) где мы будем хранить тераформ стейт для данной яблоко
+папки
+
+$ yc storage bucket create \
+     --name bucket-2aw  \
+     --default-storage-class standard \
+     --max-size 52428800 \
+     --grants grant-type=grant-type-account,grantee-id=aje5na0qfqnci747bgs5,permission=permission-write \
+     --grants grant-type=grant-type-account,grantee-id=aje5na0qfqnci747bgs5,permission=permission-read
+
+name: bucket-2aw
+folder_id: b1gop5honldmvbpmg516
+anonymous_access_flags:
+  read: false
+  list: false
+default_storage_class: STANDARD
+versioning: VERSIONING_DISABLED
+max_size: "1"
+acl: {}
+created_at: "2023-03-13T20:53:02.424678Z"
+
+
+теперь надо создать базу YDB  для того чтобы тераформ там ставил метку 
+если тераформ начал чтот делать с инфраструктурой чтобы только один юзер в один момент времени
+мог запускать тераформ. 
+
+$ yc ydb database create terraform-state-lock-2 --serverless
+
+проставляем пермишнсы для нашего сервис акаунта на эту базу
+замечу что если сервис акаунт не имеет роли "ydb.admin" то команда успешно не пройдет.
+я подчеркиваю я имею ввиде не про роль  "--role  ydb.editor" указанную в этой команде
+а именно роль которую мы назначали акаунту выше.
+$ yc ydb database add-access-binding  terraform-state-lock-2 \
+     --role  ydb.editor \
+     --service-account-id "aje5na0qfqnci747bgs5"
+
+
+но базу создать мало надо создать таблицу в ней. и тут прикол в том что мы неможем этого сделтаь 
+через якли. мы можем это сделать только через aws cli который мы поставили ранее. и прописали туда 
+статик ключ от сервис акаунта.
+для начала нам нужно опрееделить endpoint у нашей базы
+$ yc ydb database get  --name   terraform-state-lock-2 
+name: terraform-state-lock-2
+document_api_endpoint: https://docapi.serverless.yandexcloud.net/ru-central1/b1g8sk79560kbvb6nr2j/etn7rrapc9r6eoma53a7
+
+итак создаем таблицу в базе
+$ aws dynamodb create-table \
+   --profile service-account-2 \
+   --table-name terraform-state-lock-2 \
+   --attribute-definitions   AttributeName=LockID,AttributeType=S \
+   --key-schema   AttributeName=LockID,KeyType=HASH \
+   --provisioned-throughput ReadCapacityUnits=5,WriteCapacityUnits=5  \
+   --endpoint https://docapi.serverless.yandexcloud.net/ru-central1/b1g8sk79560kbvb6nr2j/etn7rrapc9r6eoma53a7
+
+замечу что в этой команде я указал опцию --profile service-account-2 
+это указан профиль самой утилиты aws cli чтобы aws cli стучался на яблоко под нужным ключом - под ключом именно сервис акаунта "service-account-2"
+
+
+
+итак что сделано: 
+создан сервис акаунт
+ему выданы роли
+создан бакет
+создана база
+
+это все нам дает теперь возможность прописать этот сервис акаунт в тераформ и он будет от его имени
+стучаться на яблоко и создавать наконец виртуалки, также стейт тераформа будет хранися в бакете
+и тераформ будет лочить свое состояние через YDB базу так что другой юзер не сможет запустить тераформ
+если другой юзер уже запустил тераформ.
+
+создаем папку
+$ mkdir ~/terraform/01
+
+создаем в папке два файла
+$ cat .terraform.lock.hcl 
+provider "registry.terraform.io/yandex-cloud/yandex" {
+  version = "0.86.0"
+  hashes = [
+    "h1:hW7eHexpzEQXpun1kChUdfB+fFNepFxybhoxxbqOIjc=",
+  ]
+}
+
+
+
+
+$ cat main.tf 
+
+
+terraform {
+  required_providers {
+    yandex = {
+      source = "yandex-cloud/yandex"
+    }
+  }
+  required_version = ">= 0.13"
+
+
+
+
+
+
+
+  backend "s3" {
+    endpoint = "storage.yandexcloud.net"
+    bucket   = "bucket-2aw"
+    region   = "ru-central1-a"
+    key      = "folder1/terraform.tfstate"
+    profile  = "service-account-2"
+
+    skip_region_validation      = true
+    skip_credentials_validation = true
+
+    dynamodb_endpoint = "https://docapi.serverless.yandexcloud.net/ru-central1/b1g8sk79560kbvb6nr2j/etn7rrapc9r6eoma53a7"
+    dynamodb_table    = "terraform-state-lock-2"
+
+  }
+
+}
+
+
+
+
+
+provider "yandex" {
+  service_account_key_file = file("~/.config/yandex-cloud/service-account-2-auth-keys.json")
+  cloud_id                 = "b1g8sk79560kbvb6nr2j"
+  folder_id                = "b1gop5honldmvbpmg516"
+  zone                     = "ru-central1-a"
+
+}
+
+
+
+
+
+
+
+resource "yandex_compute_instance" "vm-1" {
+  name                      = "terraform1"
+  platform_id               = "standard-v3"
+  allow_stopping_for_update = true
+
+  scheduling_policy {
+    preemptible = true
+  }
+
+
+  resources {
+    cores         = 2
+    memory        = 1
+    core_fraction = 20
+  }
+
+
+  boot_disk {
+    initialize_params {
+      image_id = "fd8haecqq3rn9ch89eua"
+    }
+  }
+
+  network_interface {
+    subnet_id = yandex_vpc_subnet.subnet-1.id
+    nat       = false
+  }
+
+  metadata = {
+    ssh-keys = "ubuntu:${file("~/.ssh/foxy.pub")}"
+  }
+}
+
+
+
+
+resource "yandex_vpc_network" "network-2" {
+  name = "network1"
+}
+
+resource "yandex_vpc_subnet" "subnet-1" {
+  name           = "subnet1"
+  zone           = "ru-central1-a"
+  network_id     = yandex_vpc_network.network-2.id
+  v4_cidr_blocks = ["192.168.10.0/24"]
+}
+
+
+output "internal_ip_address_vm_1" {
+  value = yandex_compute_instance.vm-1.network_interface.0.ip_address
+}
+
+
+output "external_ip_address_vm_1" {
+  value = yandex_compute_instance.vm-1.network_interface.0.nat_ip_address
+}
+
+
+
+в этмом конфиг я хочу выделить блок
+
+  backend "s3" {
+    endpoint = "storage.yandexcloud.net"
+    bucket   = "bucket-2aw"
+    region   = "ru-central1-a"
+    key      = "folder1/terraform.tfstate"
+    profile  = "service-account-2"
+
+    skip_region_validation      = true
+    skip_credentials_validation = true
+
+    dynamodb_endpoint = "https://docapi.serverless.yandexcloud.net/ru-central1/b1g8sk79560kbvb6nr2j/etn7rrapc9r6eoma53a7"
+    dynamodb_table    = "terraform-state-lock-2"
+
+  }
+
+
+в нем мы прописваем
+
+    bucket   = "bucket-2aw"                  # имя бакета созданного
+    key      = "folder1/terraform.tfstate"   # куда в бакете класть стейт файл
+    profile  = "service-account-2"           # имя AWS профиля на компе где искать static ключи для 
+                                             # доступа к бакету
+    dynamodb_endpoint=                       # точка доступа к базе 
+    dynamodb_table =                         # имя таблицы в базе где хранить будем lock запуска тераформ
+
+
+
+также хотел этот кусок выделить
+
+provider "yandex" {
+  service_account_key_file = file("~/.config/yandex-cloud/service-account-2-auth-keys.json")
+  cloud_id                 = "b1g8sk79560kbvb6nr2j"
+  folder_id                = "b1gop5honldmvbpmg516"
+  zone                     = "ru-central1-a"
+
+}
+
+ключ service_account_key_file =  описывает где иcкать authorize key через который мы стучимся на iam сервис
+который в свою очередь выдает вответ тераформу iam токен который он уже как паспорт предьявляет сервисам
+яблока
+
+
+в целом main.tf тераформ создаст +1 vpc  внем создаст подсеть. и в ней создаст одну виртулку
+
+запускаем наконец тераформ
+
+ $  terraform init
+ $  terraform validate 
+ $  terraform fmt
+ $  terraform plan -out "plan.txt"
+ $  terraform apply  "plan.txt"
+
+
+
+
+далее.
+как в main.tf  в свойствах виртуалки
+прописывается ssh ключ
+ответ
+
+  metadata = {
+    ssh-keys           = "ubuntu:${file("~/.ssh/foxy.pub")}"
+    serial-port-enable = 0
+  }
+
+где ubuntu = это типа имя линук юзера которому будет этот ключ присунут. 
+в данном случае это ubuntu. прикол в том что если мы вместо ubuntu напишем vasya то 
+тераформ все равно добавить ключ к юзеру убунту. почему? потому что :
+
+Regardless of the username specified, the key is assigned to the user given in the cloud-init configuration by default. In different images, these users differ. (об этом написано здесь https://cloud.yandex.com/en/docs/compute/concepts/vm-metadata)
+
+
+
+
+3. dynamo + запрет на одновременный модификация двух юзеров + проверить + описать
+3.a [ создать кастом диск с lvm      ]
+    [ добавиьт второй диск           ]
+    [ импорт инфрастрктуры в main.tf ] 
 3.1 записать сюда мой main.tf 
 3.5 создать через код новую папку+новые сервис акаунт+новый бакет
 вобщем полостью цикл через код без веб морды!
