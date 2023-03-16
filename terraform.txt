@@ -500,6 +500,31 @@ secret_key = "YCM0..."
 поэтому мы выбираем в том меню "create static access key" и он нам выдаст нам пару ключей. 
 это и есть access_key и secret_key ! вот их то и надо указать в конфиге main.tf
 так с этим разобрались. итак  с полями разобрадись в main.tf
+итак еще раз поля access_key(это как бы id ключа) и secret_key(это сам ключ) = так вот эти поля это 
+ключ доступа (метод аутнетификации) со стороны тераформа к яндекс бакету. тоесть эта хрень нужна 
+в этой сеции чтобы тераформ смог получить доступ до бакета. 
+и я тутже скажу что чтобы не харнить эти ключи в main.tf их можно сохраниьт в отдельном месте 
+а именно например в профиле aws cli (смотри об этом где то дальше) и тогда в main.tf можно
+указать вместо ключей название aws cli профилс тоесть
+
+один вариант (ключи к бакету храним в самом main.tf )
+
+  backend "s3" {
+...
+    access_key = "YCAJ..."
+    secret_key = "YCM0..."
+...
+  }
+
+
+и второй вариант ( ключи к бакету храним в отдельном месте - профиле aws cli)
+
+ backend "s3" {
+  ...
+    profile  = "service-account-2"
+  ...
+  
+  }
 
 
 
@@ -688,7 +713,8 @@ secret: YCNuNIf...
 
 
 устанавливаем aws cli чтобы туда записать полученный   access static key
-потому что якли этот ключ использовать неможет а aws cli может (дебилизм конечно)
+потому что якли этот ключ использовать неможет а aws cli может (дебилизм конечно но я нашел что есть 
+отдельный cli родной от ydb возможно он умеет делать то что надо. вот докумен8тация от родного cli https://ydb.tech/en/docs/getting_started/cli  но в данной инструкции мы будем использовать aws cli)
 нам этот aws cli понадобится чуть ниже когда мы будем работать с YDB базой данных.
 
 # apt-get install awscli
@@ -999,19 +1025,514 @@ provider "yandex" {
 
 Regardless of the username specified, the key is assigned to the user given in the cloud-init configuration by default. In different images, these users differ. (об этом написано здесь https://cloud.yandex.com/en/docs/compute/concepts/vm-metadata)
 
+далее.
+как через один хост ssh зайти на другой хост по ssh
+$ ssh -J ubuntu@51.250.14.188:22 ubuntu@192.168.10.16
+где 51.250.14.188 = первый хост
+и 192.168.10.16 = второй хост (конечный)
 
 
 
+|далее.
+как создать пустой доп диск и прикрепить его к ВМ.
+вначале создаем пустой диск
+
+resource "yandex_compute_disk" "vm-1---disk2" { # название виртуалки к которой крепим диск и номер диска
+  name       = "vm-1---disk2"
+  type       = "network-hdd"
+  zone       = "ru-central1-a"
+  size       = "5"
+  block_size = "4096" # при таком блоке макс размер диска 8ТБ
+}
+
+
+а потом внутри настроек виртуалки добалвяем этот диск
+resource "yandex_compute_instance" "vm-1" {
+...
+  secondary_disk {
+    disk_id     = yandex_compute_disk.vm-1---disk2.id
+    auto_delete = true
+    mode        = "READ_WRITE"
+  }
+...
+}
+
+
+| далее
+в яблоке есть такая хрень. 
+диски можно менять размер через веб моорду только если ты оставнил виртулаку.
+а через тераформ доблавялется доп хуйня состоящая в том что если менять доп диск
+то он не уничтожается а именно расширяется. а если менять размер системного диска
+то провайдер терформа от яндекса он уничтожает диск уничтожает инстанс и переоздает 
+его заново. это просто отлично
+
+|далее.
+если у нас виртувлка выелючена то изменения накатаныне через тераформ оставят 
+виртуалку выключенной. также нет таких опций у тераформа чтобы выключить или
+включить виртуакдку. это тоже очень прекрасно
+
+
+|далее. как делать импорт ресурсов в тераформ.
+пример как импортировать vpc
+скажем у нас есть vpc с названием "default" и id="enptqgmqsa4aa8sofj81"
+в main.tf создаем кусок
+
+resource "yandex_vpc_network" "default" {
+  name = "default"
+}
+
+и в командной строке запускаем
+$ terraform import yandex_vpc_network.default enptqgmqsa4aa8sofj81
+
+готово.
+
+также - импорт vpc он импортирует только свойства vpc и он не импортирует субнеты.точнее
+он импортирует имена субнетов потому что это свойство vpc но свойства субнетов
+он не импортирует.  импортировать субнеты надо отдельно руками. 
+
+вот как импортировать субнет:
+вот имеем описанный ресурс в main.tf
+
+resource "yandex_vpc_subnet" "private-1-a-subnet" {
+  name           = "private-1-a-subnet"
+  zone           = "ru-central1-a"
+  network_id     = yandex_vpc_network.default.id
+  v4_cidr_blocks = ["172.16.1.0/24"]
+}
+
+
+импортируем этот субнет
+$ terraform import "yandex_vpc_subnet"."private-1-a-subnet"  e9bc4ns5s3dhbbt8ksnb
+
+смотрим результат (команда STATE SHOW)
+$ terraform state show  "yandex_vpc_subnet"."private-1-a-subnet"
+# yandex_vpc_subnet.private-1-a-subnet:
+resource "yandex_vpc_subnet" "private-1-a-subnet" {
+    created_at     = "2022-12-18T22:03:25Z"
+    folder_id      = "b1gobq5rv8qm8qi"
+    id             = "e9bc4ns5s3dhbbt"
+    labels         = {}
+    name           = "private-1-a-subnet"
+    network_id     = "enptqgmqsa4aa8s"
+    route_table_id = "enp1dtv89pussel"
+    v4_cidr_blocks = [
+        "172.16.1.0/24",
+    ]
+    v6_cidr_blocks = []
+    zone           = "ru-central1-a"
+
+    timeouts {}
+}
+
+
+кстати про разницу в командах
+$ terraform state show
+$ terraform show
+
+первая команда покзыает инфо о конкетном ресурсе.
+а вторая команда показывает  инфо обо всех ресурсах 
+
+но в обоих случаях инфо черпается не из облака а из стейт файла.
+поэтому перед этим полезно ввести
+$ terraform resfresh
+чтобы обновить инфо в стейт файле на основе реального состояния из облака
+
+
+
+|далее. команды STATE и REFRESH
+команда
+$ terraform refresh
+делает то что тераформ берет обрашается к облаку и скачиает состояние из облака для всех ресурсов
+прописанных в main.tf и если на облоаке ресурс изменился то и в стейт файле тоже состояние будет 
+обновлено. это очень хорошо. скажем через веб морду изменил размер диска и через рефреш это изменение 
+подтягивается  в стейт файл. очень хорошо.
+
+так теперь про команду state. она позволяет посмртеть свйоства записанные в стейт файл про некотрй ресурс
+указанные в main.tf
+
+например имеем в main.tf запись
+
+resource "yandex_vpc_network" "network-1" {
+  name = "network1"
+}
+
+
+тогда свойства этого ресурса в стейт файле можно посмотреть как
+
+$ terraform state show yandex_vpc_network.network-1
+# yandex_vpc_network.network-1:
+resource "yandex_vpc_network" "network-1" {
+    created_at = "2023-03-10T09:32:49Z"
+    folder_id  = "b1gobq5rv8qm8qi76hig"
+    id         = "enp4eaogkheinfabqcdu"
+    labels     = {}
+    name       = "network1"
+    subnet_ids = [
+        "e9bbko7j4em15tla0fbd",
+    ]
+}
+
+
+
+чем полезна эта команда у нас в main.tf в свойствах ресурса может быть указана только
+часть его пропертис. а вот стейт показывает как я понимаю все поля настроек которые у этого
+ресурса по факту есть вот как это видно выше. в main.tf задано только name
+а по факту в стейт гораздо больше полей определено.
+
+перед тем как запускать STATE полезна запустить REFRESH чтобы мы увидели не просто записи в стейт
+файле а именно то как оно есть на яблоке в реальности прям щас. тоесть
+
+$ terraform refresh
+$ terraform state show yandex_vpc_network.network-1
+
+
+
+и тут приходит гениальная идея - а можно ли через команду terraform refresh воосстановить
+стейт файл если мы его потеряли?
+рассмаотрим этот вопрос:
+значит я взял из рабочей терафор папки и скопировал только два файла.
+main.tf
+.terraform.lock.hcl
+
+далее  я взял и вырезал из main.tf полностью весь блок про backend
+ а именно вырезал блок
+
+  backend "s3" {
+    endpoint = "storage.yandexcloud.net"
+    bucket   = "ter1"
+    region   = "ru-central1-a"
+    key      = "folder1/terraform.tfstate"
+    profile  = "test"
+
+    skip_region_validation      = true
+    skip_credentials_validation = true
+
+    dynamodb_endpoint = "https://docapi.serverless.yandexcloud.net/ru-central1/b1g8sk79560kbvb6nr2j/etnfjlci9"
+    dynamodb_table    = "Terraform-backend-lock"
+
+  }
+
+теперь полуается у меня файл со стейтом будет хранится локально.
+далее я инициализировал папаку
+
+$ terraform init
+
+далее я пытаюсь засосать состояние всех ресурсов из яблока в стейт файл. ибо стейт файла у меня
+нет
+
+$ terrafom refresh
+
+однако облом, получаю воттакое
+
+╷
+│ Warning: Empty or non-existent state
+│ 
+│ There are currently no remote objects tracked in the state, so there is nothing to refresh.
+╵
+
+значит как я понял то  тераформ может делать refresh только если он знает ID ресурсов 
+прописанных в main.tf а если стейт файла нет то и iD ресурсов неизвестен.
+поэтому если унас нет стейт файла (мы его потеряли) то восстановить стейт файл через 
+команду terraform refresh не получится! 
+единсвтенный вариант восстановить стейт файл это мы имеем main.tf  и мы сидим и для каждого
+ресурса делаем импорт 
+$ terraform import имя_ресурса ID_ресурса.
+имя_ресурса мы смотрим в main.tf а id_ресурса мы смотрим через веб морду в яблоке.
+
+так прикол еще и в том что импорт тоже невсегда простое занятие как я почитал. 
+поэтому лучше всего никогда нетерять стейт файл иначе будут проблемы большие.
+
+
+|далее. очень ВАЖНЫЙ момент про КАВЫЧКИ.
+по поводу использования кавычек в main.tf
+пример
+
+resource "yandex_vpc_subnet" "private-1-a-subnet" {
+  name           = "private-1-a-subnet"
+  zone           = "ru-central1-a"
+  network_id     = yandex_vpc_network.default.id
+  v4_cidr_blocks = ["172.16.1.0/24"]
+  route_table_id = yandex_vpc_route_table.route-table-2.id
+}
+
+если у нас справа константа то заключаем ее в кавычки.
+name           = "private-1-a-subnet"
+
+а если у нас справа типа переменная то кавычки категорически нельзя
+иначе переменная будет восприниматься тераформом как константа в буквальном смысле
+поэтому правильно только вот так
+  route_table_id = yandex_vpc_route_table.route-table-2.id
+
+кстати вот еще вариант как это можно коректно прописать через кавычки
+  route_table_id = "${yandex_vpc_route_table.route-table-2.id}"
+
+
+
+
+| далее. надо научиться бэкапить стейт файл в бакете на облаке
+потеря стейт файла это звездец.
+для этого надо включить версионность
+
+
+$ yc storage bucket  list
++------+----------------------+------------+-----------------------+---------------------+
+| NAME |      FOLDER ID       |  MAX SIZE  | DEFAULT STORAGE CLASS |     CREATED AT      |
++------+----------------------+------------+-----------------------+---------------------+
+| ter1 | b1gobq5rv8qm8qi76hig | 1073741824 | STANDARD              | 2023-03-12 14:09:35 |
++------+----------------------+------------+-----------------------+---------------------+
+
+[vasya@lenovo Desktop]$ yc storage bucket  get --name ter1
+name: ter1
+folder_id: b1gobq5rv8qm8qi76hig
+anonymous_access_flags:
+  read: false
+  list: false
+  config_read: false
+default_storage_class: STANDARD
+versioning: VERSIONING_DISABLED
+max_size: "1073741824"
+created_at: "2023-03-12T14:09:35.619470Z"
+
+$ yc storage bucket  update --name ter1 --versioning versioning-enabled
+name: ter1
+folder_id: b1gobq5rv8qm8qi76hig
+default_storage_class: STANDARD
+versioning: VERSIONING_ENABLED
+max_size: "1073741824"
+acl: {}
+created_at: "2023-03-12T14:09:35.619470Z"
+
+что дает активированная версионность - при каждой записи в бакет сохраняется предыдущая копия.
+потом через веб морду можно просмотреть и восстановить одну и предыдущих версий. и последняя версия
+и все преддыдущие хранятся в этом же бакете. 
+
+
+
+
+
+
+1.1 про vpc
+про его стркутуру. что в него входит из чего состоит:
+* network
+* subnet
+* route-table
+* gateway
+
+
+
+
+* network
+
+на самом верхнам уровне vpc находится network. их может быть несколько.
+
+когда мы создаем network то из свойств  которые можно ей указать это 
+только имя и все. 
+$ yc vpc network create --help
+
+
+однако по факту к нетворку крепятся другие элементы. тоесть нетворк внутри себя содержит 
+такие элементы как:
+subnet
+route-table
+security-group
+
+просто их нельзя создать на стадии создания нетворка. они создаются отдельными командами
+уже после того как нетворк создан.
+еще этот нетворк его можно переместить в другую папку(так как все службы яблока они привязаны к папке)
+
+как создать network через cli
+$ yc vpc network create --name "network-1"
+
+как создать network через terraform
+resource "yandex_vpc_network" "network-1" {
+  folder_id = "<folder ID>"
+  name = "network1"
+}
+
+
+как импортировать network в тераформ
+$ terraform import "yandex_vpc_network"."network-1"   ID_нетворка
+
+
+
+
+* subnet 
+
+субнет по сути это и есть та структура в которой прописаны IP адреса локальной сети 
+которые и выдаются потом виртуалкам. тоеть в свойтсвах виртуалки прописывается субнет 
+
+
+как создать через тераформ
+resource "yandex_vpc_subnet" "private-1-a-subnet" {
+  name           = "private-1-a-subnet"
+  zone           = "ru-central1-a"
+  network_id     = yandex_vpc_network.default.id
+  v4_cidr_blocks = ["172.16.1.0/24"]
+  route_table_id = yandex_vpc_route_table.route-table-2.id
+}
+
+значит видно что в свойствах субнета уазано: имя, зона, нетворк к которому субнет прикреплен,
+блок ip адресов который закреплен за этим субнетом, и роут таблица.
+
+если мы укажем id этого субнета в свойствах виртуалки то ей будет назначен IP адрес из блока 
+этого субнета. вот пример как это пропсиывается в виртуалке
+
+
+
+resource "yandex_compute_instance" "vm-3" {
+...
+network_interface {
+    subnet_id = yandex_vpc_subnet.private-1-a-subnet.id
+    nat       = false
+  }
+...
+}
+
+таким макаром мы создаем субнеты для описания в них блока Ip адресов чтобы потом через 
+эти субнеты раздавать виртуалкам IP адерса.
+и роут тейбл в свойтсвах субнета дает то что пакеты  проходя через рут тейбл будут раскидываться по 
+разным выходным точкам. например часть пакетов будет уходить в интернет.
+
+
+
+
+* роут тейбл
+
+роут тейбл крепится к нетворку. тоесть при создании роут тейбла
+ему нужно указать  к какому нетворку он относится. тоесть нетворк это как
+коробка и внутри нее помещается игрушка под названием роут тейбл.
+
+по сути у него такие свойства: имя, нетворк  к которому он прикреплен, набор статических маршрутов.
+в статическом маршруте указывается имя гейтвея на который пуляют пакеты которые 
+подходят под маршрут
+
+
+создать через CLI
+$  yc vpc route-table create    --help
+
+создать через тераформ
+resource "yandex_vpc_route_table" "route-table-2" {
+  name       = "route-table-2"
+  network_id = "yandex_vpc_network.default.id"
+
+  static_route {
+    destination_prefix = "0.0.0.0/0"
+    gateway_id         = yandex_vpc_gateway.nat-2.id
+  }
+}
+
+
+импортировать через тераформ
+$ terraform import "yandex_vpc_route_table"."route-table-2"  enp1dtv89pusseldi3sb
+
+
+
+
+
+* гетвеи
+
+создать через CLI
+$ yc vpc gateway create --help
+$ yc vpc gateway create --name gate2
+по сути это и все свойтства что есть у гейтвея - только имя
+больше у этого ресурса и свойств то нет
+
+
+создать в тераформ
+описание ресурса в  тераформе  https://registry.terraform.io/providers/yandex-cloud/yandex/latest/docs/resources/vpc_gateway ) 
+там написано что пофакту ресурс имеет только свойство "name" и свойство "shared_egress_gateway" который на данный момент неимеет никаких параметров. и еще свойство "descripton"
+
+
+resource "yandex_vpc_gateway" "nat-2" {
+  name = "nat-2"
+  description = "шлюз в инет" -> null  
+  shared_egress_gateway {}
+}
+
+
+
+импорт в тераформ
+$  terraform import yandex_vpc_gateway.nat-2 enpkq1dil4o7b50hjhal
+
+к ресурсу гейтвей  прикрепляется ресурc route-table. тоесть пакеты влетающие в роут табл 
+пуляются на гейтвей.
+
+
+
+
+
+
+
+
+
+
+
+
+0.1 как же делать бэкап бакета? 
+0.0 не знаю что дает "shared_egress_gateway" ??
+1.0 а как добавить третий четерный диск с вм ?
+1.1 импортировать полностью всю структуру в тераформ из папки test-folder
+а после этого полностью импортироровать структуру из папки prod 
+3.4 проработать на практие опреацию рашинеия диска системного и загрузочного.
+так чтбы четко видно что ничего нестирается при этом.
+1.1 как создать стат internet IP и прикрепить его к виртулке в тераформ
+1.3 стопим виртлку. через веб мрду расширяем размер бут диска. стартуем вирталку.
+импортируем изменнеие в тераформ. убеждаемся что ничего не сломано.
+1.4 создаем в тераформ бутовый диск отдельно через ресурс. потом уже его добавляем как 
+бутовый в виртуалуй с опцией что нельяз удалять. если мы удалим эту вирталку то у нас останется id 
+этого диска и мы сможем его перепокдлючить либо удалить черзе тераформ.
+далее два варианта: первый это снимаем снэпшт или имадж с диска , и подключаем к другой виртулке ( это все
+чере тераформ. ) правим этои диск , отключаем и создаем новую виртуалку. второй вариант удаляем 
+виртуалку. берем этот диск пдключаем к дургой виртулке , правим его, отключаем, созаем новую виртуалку.
+1.5 научится импортировать впц+субнеты+вм
+2. два сервис акаунта для управления одной папкой
 3. dynamo + запрет на одновременный модификация двух юзеров + проверить + описать
 3.a [ создать кастом диск с lvm      ]
-    [ добавиьт второй диск           ]
     [ импорт инфрастрктуры в main.tf ] 
 3.1 записать сюда мой main.tf 
-3.5 создать через код новую папку+новые сервис акаунт+новый бакет
-вобщем полостью цикл через код без веб морды!
-4. Just accidently destroyed VM after changing boot_disk size. (used EC2 for some time and forgot about this feature in yandex-cloud terraform provider)
-5. прикольно то что если виртуалки выключены то teraform aply этого не видит. как бы плучается
-ему пофиг выключены они или включены. ..кхм...
+a.2 модули в тераформ ?
+a.3 output что за хрень ?
+0.0 как с переменными работать
+variable "region" { default = "us-east-1" }
+variable "availability_zone" { default = "us-east-1a" }
+variable "instance_type" { default = "t2.micro" }
+variable "instance_count" { default = "2" }
+variable "key_name" {}
+variable "public_key_path" {}
+variable "connection_user" { default = "ec2-user" }
+variable "name" { default = "web" }
+variable "environment" { default = "production" }
+provider "aws" {
+  region = "${var.region}"
+}
+module "web" {
+  source = "../modules/web"
+  availability_zone = "${var.availability_zone}"
+  connection_user = "${var.connection_user}"
+  instance_count = "${var.instance_count}"
+  instance_type = "${var.instance_type}"
+  key_name = "${var.key_name}"
+  public_key_path = "${var.public_key_path}"
+  region = "${var.region}"
+  web_security_groups = "${module.sg.security_group_id}"
+  name = "${var.name}"
+  environment = "${var.environment}"
+}
+module "sg" {
+  source = "../modules/sg"
+  name = "${var.name}"
+  environment = "${var.environment}"
+}
+module "elb" {
+  source = "../modules/elb"
+  availability_zones = "${var.availability_zone}"
+  name = "${var.name}"
+  environment = "${var.environment}"
+  web_instance_ids = "${module.web.web_instance_ids}"
+}
+output "elb_dns_name" {
+  value = "${module.elb.dns_name}"
+}
 
 
 
