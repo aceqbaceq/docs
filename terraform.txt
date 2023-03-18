@@ -2141,6 +2141,34 @@ resource "yandex_vpc_address" "ext-ip-1" {
 
 
 
+
+
+
+| далее. DEBUG 
+как активировать выполнение тераформа в режиме дебага
+
+$ export  TF_LOG=TRACE
+$ terrafrom ...
+
+лог выполнения будет на экране прям. в лог файл лазить никакой ненадо.
+
+а чтобы выключить дебаг то надо 
+$ unset TF_LOG
+
+
+
+
+
+| далее. ошибка failed to read provider configuration schema for ... provider
+это значит что был установлен старый провайдер. надо его убрать из конфига и удалить через
+$ terraform init
+а потом хорошенько поискать как правильно поставить нужную версию провайдера
+
+
+
+
+
+
 |далее. VARIABLES , MAP, LIST, CONSOLE
 описание перменных. работа с ними. дебаг в консоли тераформа.
 
@@ -2526,11 +2554,81 @@ tomap({
 
 1.0 alien-terrafrom вопросы 
 [ как подключить второй и третий диск через модуль?]
+for_each (как юзать):
+variable "vpc_name" {
+  description    = "список vpc нетворков"
+  type           = list(string)
+  default        = [ 
+                     "network-1",
+                     "network-2"
+                                 ]
+}
+
+
+resource "yandex_vpc_network" "this" {
+  for_each = toset(var.vpc_name)
+  name = each.value
+}
+
+
+результат
+
+$ terraform show
+
+# yandex_vpc_network.this["network-1"]:
+resource "yandex_vpc_network" "this" {
+    created_at = "2023-03-18T22:24:22Z"
+    folder_id  = "b1gobq5rv8qm8qi76hig"
+    id         = "enpf3vgubl2fpm6nmfg0"
+    labels     = {}
+    name       = "network-1"
+    subnet_ids = []
+}
+
+# yandex_vpc_network.this["network-2"]:
+resource "yandex_vpc_network" "this" {
+    created_at = "2023-03-18T22:24:22Z"
+    folder_id  = "b1gobq5rv8qm8qi76hig"
+    id         = "enp19jihnisr82lad784"
+    labels     = {}
+    name       = "network-2"
+    subnet_ids = []
+}
+
+а $ terraform state show yandex_vpc_network.this["network-1"]
+неработает!
+
+
 [ загрузка модуля из гитлаба ]
 [ как заставить первым отрабатывать root модуь и только потом осталные модули????  ]
 [ yandex security group? что за хрень? ]
 
+1.3 null_provider и null_resurce
+как поставить и юзать. для игры с переменными
+
+1.4 list vs set ?
+1.2 что за станный тип переменной?
+variable "user_information" {
+  type = object({
+    name    = string
+    address = string
+  })
+  sensitive = true
+}
+(https://developer.hashicorp.com/terraform/language/values/variables#set)
+
+
+1.4 depends_on = ?
+https://www.scalr.com/blog/terraform-locals#:~:text=How%20do%20locals%20differ%20from,more%20meaningful%20or%20readable%20result.
+
+1.r There is also a concept of variables on Terraform which can be used to assign dynamic values, 
 1.3 терраформ console ?
+1.5 как дестроить ресурсы = https://spacelift.io/blog/how-to-destroy-terraform-resources
+
+1.6 что такое локальные перменные 
+( https://spacelift.io/blog/terraform-locals,
+https://www.scalr.com/blog/terraform-locals#:~:text=How%20do%20locals%20differ%20from,more%20meaningful%20or%20readable%20result.)
+
 1.1 импортировать полностью всю структуру в тераформ из папки test-folder
 1.4 импортироровать структуру из папки prod 
 3.4 проработать на практие опреацию рашинеия диска системного и загрузочного.
