@@ -1058,6 +1058,58 @@ resource "yandex_compute_instance" "vm-1" {
 }
 
 
+возникает вопрос  а как добавит третий черветрй диск на виртуалку?
+ответ создаем еще один ресурс с диском
+а потом в свойствах виртуалки просто добавляем еще одну секцию  secondary_disk
+тоесть
+
+
+
+resource "yandex_compute_disk" "vm-1---disk2" { # название виртуалки к которой крепим диск и номер диска
+  name       = "vm-1---disk2"
+  type       = "network-hdd"
+  zone       = "ru-central1-a"
+  size       = "5"
+  block_size = "4096" # при таком блоке макс размер диска 8ТБ
+}
+
+
+
+resource "yandex_compute_disk" "vm-1---disk3" { # название виртуалки к которой крепим диск и номер диска
+  name       = "vm-1---disk3"
+  type       = "network-hdd"
+  zone       = "ru-central1-a"
+  size       = "5"
+  block_size = "4096" # при таком блоке макс размер диска 8ТБ
+}
+
+
+
+
+resource "yandex_compute_instance" "vm-1" {
+...
+  secondary_disk {
+    disk_id     = yandex_compute_disk.vm-1---disk2.id
+    auto_delete = true
+    mode        = "READ_WRITE"
+  }
+
+ secondary_disk {
+    disk_id     = yandex_compute_disk.vm-1---disk3.id
+    auto_delete = true
+    mode        = "READ_WRITE"
+  }
+
+
+...
+}
+
+
+ура !
+ 
+
+
+
 | далее
 в яблоке есть такая хрень. 
 диски можно менять размер через веб моорду только если ты оставнил виртулаку.
@@ -1457,12 +1509,25 @@ $  terraform import yandex_vpc_gateway.nat-2 enpkq1dil4o7b50hjhal
 к ресурсу гейтвей  прикрепляется ресурc route-table. тоесть пакеты влетающие в роут табл 
 пуляются на гейтвей.
 
+
+на счет shared_egress_gateway {}  на что он влияет.
+если мы его удалим из описания ресурса то при запуске тераформ он его удалить и на облаке 
+но прикол в том что при следущем запуске тераформа он опять нарисует что он будет его удалять тоестьь 
+как бутто как только мы удаляем это свойство на облаке оно его автоматом обратно доблавляет поэтому
+это свойство получается должно быть must have.
+
+
+хочу подытожить. гейтвей привязывается к роут-тейбл. роут-тейбл привязывается к субенету. субнет
+привязывается  к нетворк.
+
+
+
+
 | далее. outputs
 если у нас в main.tf есть какие то outputs то как бы нам посмотеть
 сейчас чему они равны. ответ
 
-$ terraform refresh
-и оно все покажет
+$ terraform output
 
 
 | далее. про subnet 
@@ -1593,10 +1658,377 @@ resource "yandex_compute_instance" "vm-1" {
 из subnet2 потому что связь между subnet2 и subnet1 есть по локалке.
 воттаакая архитектура!
 
+| далее. статический IP адрес . как его прикрепить к ВМ.
+
+как мы задаем сетевую карту на ВМ
+
+
+resource "yandex_compute_instance" "vm-1" {
+...
+  network_interface {
+    subnet_id      = yandex_vpc_subnet.dmz-1-a.id
+    nat            = false
+  }
+}
+
+
+resource "yandex_vpc_subnet" "dmz-1-a" {
+  name           = "dmz-1-a"
+  zone           = "ru-central1-a"
+  network_id     = yandex_vpc_network.default.id
+  v4_cidr_blocks = ["172.16.2.0/24"]
+}
+
+тоесть унас есть субнет. в нем есть блок адресов. и мы в свойствах вм 
+указываем номер субнета. а уже яблоко само и карту создает и адрес из субнета назначает из его блока IP
+адресов. тоесть subnet_id это не IP адрес. это номер субнета.
+
+
+
+а как нам замапить внешний IP интернет адрес на этот локальный адрес
+
+resource "yandex_compute_instance" "vm-1" {
+...
+  network_interface {
+    subnet_id      = yandex_vpc_subnet.dmz-1-a.id
+    nat            = true
+  }
+}
+
+
+тоесть просто добавляем строку nat=true. 
+есть только одна проблема то что при каждой перезагрузке виртуалки у нее будет меняться номер 
+этого внешнего IP.  а как нам сделать статичекий внешний IP?
+
+для начала надо создать этот статический внешний IP
+
+
+
+resource "yandex_vpc_address" "ext-ip-1" {
+  name = "ext-ip-1"
+
+  external_ipv4_address {
+    zone_id = "ru-central1-a"
+  }
+}
+
+
+теперь надо этот внешний IP как прикрепить к ВМ
+делается это вот так
+
+
+resource "yandex_compute_instance" "vm-1" {
+...
+  network_interface {
+    subnet_id      = yandex_vpc_subnet.dmz-1-a.id
+    nat            = true
+    nat_ip_address = ??
+  }
+}
+
+
+вот осталось понять что же вставлять в поле "??"
+
+
+чтобы это понять посмотрим как выглядит ресурс "yandex_vpc_address"."ext-ip-1"
+для этого вставим в main.tf output
+
+output "external_debug_yandex_vpc_address_ext-ip-1" {
+  value = yandex_vpc_address.ext-ip-1
+}
+
+запускаем 
+$ terraform refresh
+получаем
+
+
+external_debug_yandex_vpc_address_ext-ip-1 = {
+  "created_at" = "2023-03-17T08:27:43Z"
+  "deletion_protection" = false
+  "description" = ""
+  "external_ipv4_address" = tolist([
+    {
+      "address" = "51.250.3.188"
+      "ddos_protection_provider" = ""
+      "outgoing_smtp_capability" = ""
+      "zone_id" = "ru-central1-a"
+    },
+  ])
+  "folder_id" = "b1gobq5rv8qm8qi76hig"
+  "id" = "e9bv1c385ddippqblidv"
+  "labels" = tomap({})
+  "name" = "ext-ip-1"
+  "reserved" = true
+  "timeouts" = null /* object */
+  "used" = true
+}
+
+очевидно что нам надо добавить в наш путь external_ipv4_address чтобы мы стали ближе к получению ip адреса
+в запросе
+тоесть
+
+
+output "external_debug_yandex_vpc_address_ext-ip-1" {
+  value = yandex_vpc_address.ext-ip-1.external_ipv4_address
+}
+
+
+
+заупускаем
+$ terraform validate && terraform fmt && terraform plan -out "plan.txt" && terraform apply
+получаем
+
+external_debug_yandex_vpc_address_ext-ip-1 = tolist([
+  {
+    "address" = "51.250.3.188"
+    "ddos_protection_provider" = ""
+    "outgoing_smtp_capability" = ""
+    "zone_id" = "ru-central1-a"
+  },
+])
+
+
+значит здесь мы видим что у нас стоит toist. это значит что у нас с точки зрения yaml мы 
+имеем список . сосотоящий из одного элемента. как получить доступ к этому списку. доступ к элементам
+списка идет через цифры. первый элемент это 0 .
+значит добавляем ноль в путь
+тоесть
+
+
+output "external_debug_yandex_vpc_address_ext-ip-1" {
+  value = yandex_vpc_address.ext-ip-1.external_ipv4_address.0
+}
+
+проверяем
+
+external_debug_yandex_vpc_address_ext-ip-1 = {
+  "address" = "51.250.3.188"
+  "ddos_protection_provider" = ""
+  "outgoing_smtp_capability" = ""
+  "zone_id" = "ru-central1-a"
+}
+
+
+а теперт осталось доабвить address к пути
+тоесть
+
+
+output "external_debug_yandex_vpc_address_ext-ip-1" {
+  value = yandex_vpc_address.ext-ip-1.external_ipv4_address.0.address
+}
+
+
+получаем
+
+external_debug_yandex_vpc_address_ext-ip-1 = "51.250.3.188"
+
+наконецто! мы смогли вычленить из ресурса yandex_vpc_address  параметры IP адреса.
+вот эту штуку и подставляем в ВМ тоесть
+
+
+resource "yandex_compute_instance" "vm-1" {
+...
+  network_interface {
+    subnet_id      = yandex_vpc_subnet.dmz-1-a.id
+    nat            = true
+    nat_ip_address = yandex_vpc_address.ext-ip-1.external_ipv4_address.0.address
+  }
+}
+
+вот это  и есть ответ на вопрос как нам примапить к ВМ статический ip адрес.
+также приколв том что через веб интерфейс этого сделать совершенно нельзя.
+
+таким макаром рассмотрено три случая - как виртуалке прописать локальный IP,как ей замапить динмический
+IP внешний, как ей замапит стаический IP внешний
+
+
+| далее. по поводу boot_disk
+
+значит по дефолту загрузочный диск к ВМ прикрепляется вот так
+
+resource "yandex_compute_instance" "vm-3" {
+...
+  boot_disk {
+    initialize_params {
+      image_id = "fd8haecqq3rn9ch89eua"
+    }
+  }
+...
+}
+
+проблема тут в том что мы незаем какой у нас у диска id
+и то что мы неможем ему задать имя.
+это значит что если мы установим параметр чтобы яблоко неудаляло диск при удалении виртуалки то после
+удаления вируалки мы в списке диско небудем знать какой же диск был у нас загрузочным для виртуалки
+
+поэтому друой более правильный вариант как добавлять загрузочный диск к ВМ.
+
+
+
+resource "yandex_compute_disk" "vm-1---bootdisk---disk1" { # название виртуалки к которой крепим диск и номер диска
+  name       = "vm-1---bootdisk---disk1"
+  type       = "network-hdd"
+  zone       = "ru-central1-a"
+  size       = "10"
+  block_size = "4096" # при таком блоке макс размер диска 8ТБ
+  image_id   = "fd8haecqq3rn9ch89eua"
+}
+
+
+
+resource "yandex_compute_instance" "vm-1" {
+...
+  boot_disk {
+    disk_id     = yandex_compute_disk.vm-1---bootdisk---disk1.id
+    auto_delete = false
+    mode        = "READ_WRITE"
+
+  }
+...
+}
+
+
+output "vm_1_bootdisk" {
+  value = yandex_compute_disk.vm-1---bootdisk---disk1.id
+}
+
+
+теперь если  удалим виртуалку то диск у нас останется. и его можно будет найти в списке 
+дисков во первых по его id через вывод output а  во вторых даже глазами в веб морде по имени.
+
+
+также важны момент. в main.tf надо размещать описание дисков перед описанием вм. иначе 
+при создании вм тераформ будет писать ошибку что диск ненайден!
+
+
+|далее. апдейт про BACKEND
+выше я описал как настроить бекенд для тераформа.
+так вот теперь апдейт этого вопроса.
+
+значит возникла идея и задача о том тобы разделить код тераформа от данных тераформа.
+чтобы кода осталвся тем же самым а данные были ли бы закоодированы через переменные 
+а переменные  бы лежали в отдельном файле.
+
+напомню что у меня в main.tf была секция
+
+ backend "s3" {
+    endpoint = "storage.yandexcloud.net"
+    bucket   = "bucket-2aw"
+    region   = "ru-central1-a"
+    key      = "folder1/terraform.tfstate"
+    profile  = "service-account-2"
+
+    skip_region_validation      = true
+    skip_credentials_validation = true
+
+    dynamodb_endpoint = "https://docapi.serverless.yandexcloud.net/ru-central1/b1g8sk79560kbvb6nr2j/etn7rrapc9r6eoma53a7"
+    dynamodb_table    = "terraform-state-lock-2"
+
+  }
+
+
+
+я попробовал сюда начать всталвять перменные.
+
+backend "s3" {
+bucket = var.backend_bucket_name
+...
+
+
+и мне выдало ошибку
+
+
+$ terraform init -reconfigure
+
+Initializing the backend...
+╷
+│ Error: Variables not allowed
+│
+│ on main.tf line 19, in terraform:
+│ 19: bucket = var.backend_bucket_name
+│
+│ Variables may not be used here.
+
+
+таким образом в настройках бекенда нельзя использовать переменные. (об этом есть как раз 
+подтверждение тут https://github.com/hashicorp/terraform/issues/13022 ) 
+
+
+тогда я применил другой подход.
+создаем отдельный файл backend.tfbackend в котором я буду хранит настройки бекенда
+( о том как надо правильно называть написано тут https://developer.hashicorp.com/terraform/language/settings/backends/configuration#using-a-backend-block )
+
+
+далее в основном файле main.tf мы удаляем почти все
+и оставляем
+$ cat main.tf 
+...
+  backend "s3" {
+    endpoint = "storage.yandexcloud.net"
+    skip_region_validation      = true
+    skip_credentials_validation = true
+  }
+...
+
+а остальные настройки мы переносим в backend.tfbackend
+
+$ cat  backend.tfbackend
+
+    bucket   = "bucket-2aw"
+    region   = "ru-central1-a"
+    key      = "folder1/terraform.tfstate"
+    profile  = "service-account-2"
+ 
+    dynamodb_endpoint = "https://docapi.serverless.yandexcloud.net/ru-central1/b1g8sk79560kbvb6nr2j/etn7rrapc9r6eoma53a7"
+    dynamodb_table    = "terraform-state-lock-2"
+
+
+далее так как мы изменили настройки бекенда теперь надо бекенд переинцилизиаоровать.
+и сделать это интересным способом
+
+$  terraform init  -backend-config=./backend.tfbackend  -reconfigure
+
+важно еще отметить что нельзя вот взять и полностью всю секцию backend убрать из main.tf
+тогда тераформ нас нахер пошлет.  в минимальном виде обязательно в main.tf должен быть 
+вот хотя бы такой блок
+
+$ cat main.tf
+...
+  backend "s3" {}
+
+....
+
+
+вот это очень важно знать . потому что я вначале полнотью убрал блок backend из main.tf
+потом попробвал инциализировать и там одни только ошибки. поэтому backend "s3" {} обязательно
+должен присутовать в main.tf
+
+
+при таких настройках далее уже можно с терпформом работаь как обычно не указывыая  -backend-config каджый раз.
+напрмиер 
+
+$ terraform refresh
+
+
+это очень важная инфо.
+
+чего мы в итоге достигли.  -  так как переенные нельзя использовать в бекенд секции то 
+мы эту секцию убрали из main.tf таким образом мы сделали main.tf более независимым от 
+конкретных хардкод настроек бекенда. main.tf стало более универсальным более незавиимым от 
+конкретики.
 
 
 
 
+
+0.0 переделать main.tf в test-folder и test-folder2 
+чтобы вверху шли первостепенные ресурсы  а внизу  второстепенные
+0.1  надо по взоможности те ресурсы которые надо создавать первыми размещать в main.tf вверху
+а ресурсы котоыре создавать посоедними размещать внизу потому что если в файле намешано то тераформ
+плохо понимает какое ресурс надо создавать первым  а потом пишет что немогу найти ресур.
+например вверху main.tf надо рарзмешатть диски а виртулаки уже ниже чтобы неылло проблем.
+0.2 надо локальный IP адрес создавать отдельно от виртуалки а потом уже к ней его клеить . почему.
+потому что при пересоании виртуалки ей будет назначен другой локлаьный адрес и это может быть проблемой.
 0.0 как правильно удалять ресурсы из тераформа?
 убрал часть ресурсов из main.tf 
 думал что он удалит после terfaorm aplly 
@@ -1630,12 +2062,477 @@ $ terraform state rm yandex_vpc_network.network-1
 ....
 */
 
-0.4 статичный IP адрес. - что с ним можно сдеалать 
-0.1 как же делать бэкап бакета? 
-0.0 не знаю что дает "shared_egress_gateway" ??
-1.0 а как добавить третий четерный диск с вм ?
+
+
+|далее. hostname в описании ВМ
+
+
+разберем некотоыре поля в ВМ
+
+resource "yandex_compute_instance" "vm-3" {
+  name                      = "vm-3---terraform"
+  hostname                  = "vm-3---terraform"
+  description               = "тест машина. создана через тераформ"
+
+
+name это название виртуалки которые видно через веб морду.
+description это описание виртуалки в ввеб морде если на нее нажать.
+тоесть эти два поля они вобще то для веб морды. и для якли
+
+hostname это линукс хостнейм который нам будет виден когда мы войдем по ssh на виртуалку.
+
+если мы хотим поменять name или description то тераформ это делает налету.
+а вот если мы хотим поменяеть hostname то тераформ (внимание ) убивает виртуаку и пересоздает ее
+заново!!!
+
+какой огромный бонус есть от hostname - можно пинговать все виртуалки котоыре входят в состав network
+по их hostname (он резволится через локальный яндекс dns сервер. для нас это все автоматически настроек делать руками ненадо)
+
+|далее. STATE LIST
+
+очень полезная комнанда
+
+$ terraform  state list
+yandex_compute_disk.vm-1---bootdisk---disk1
+yandex_compute_disk.vm-1---disk2
+yandex_compute_disk.vm-1---disk3
+yandex_compute_instance.vm-1
+yandex_compute_instance.vm-2
+yandex_compute_instance.vm-3
+yandex_vpc_address.ext-ip-1
+yandex_vpc_gateway.nat-2
+yandex_vpc_network.default
+yandex_vpc_route_table.route-table-2
+yandex_vpc_subnet.dmz-1-a
+yandex_vpc_subnet.private-1-a-subnet
+yandex_vpc_subnet.subnet3
+
+показвыает все ресурсы
+
+$ terraform show 
+покажет другое
+
+
+| далее. CONSOLE
+в консоли можно посмтреть переменные. пример.
+$ head variables.tf 
+variable "cloud_id" {
+  description = "cloud id"
+  type        = string
+  default     = "b1g8sk79560kbvb6nr2j"
+}
+
+
+запускаем консоль и смотрим чему равна переменная
+$ terraform console
+> var.cloud_id
+"b1g8sk79560kbvb6nr2j"
+> exit
+
+
+
+| далее. в названии resource нельзя использовать переменные.
+тоесть 
+
+resource "yandex_vpc_address" "ext-ip-1" {
+}
+
+так вот в этой строке resource нельзя применять переменные а только константы . все.
+
+
+
+|далее. VARIABLES , MAP, LIST, CONSOLE
+описание перменных. работа с ними. дебаг в консоли тераформа.
+
+в тераформе переменные лучше всего обьявлять в спец файле
+для этого variables.tf тогда тераформ автоматом засасывает этот файл,
+обьявляется переменная  вот по такому правилу
+
+
+variable "имя_переменной" {
+  type = тип_переменной
+  default = {
+   
+   значение переменной
+
+  }
+}
+
+
+какие бывают типы перменных:
+string
+number
+bool
+list
+map
+
+
+самые интересные типы это list и map. они  в точности соотвестуют ямловским типа список и словарь тоесть
+list и dictionary
+
+как выглядит примеры с list и dictionary
+
+
+variable "private_subnet_cidr_blocks" {
+  description = "Available cidr blocks for private subnets."
+  type        = list(string)
+  default = [
+    "10.0.101.0/24",
+    "10.0.116.0/24"
+  ]
+}
+
+
+соотсветсвенно можно тоже самое записать чуть по другому
+
+variable "private_subnet_cidr_blocks" {
+  description = "Available cidr blocks for private subnets."
+  type        = list(string)
+  default = [ "10.0.101.0/24", "10.0.116.0/24" ]
+}
+
+
+важно заметить что мы не просто пишем list а еще и указываем тип данныех внутри этого листа,
+ в доках тераформа эти суки об этом ничего не пишут.
+ значит по идее тогда таких типов list() может быть несколько
+
+list(string)
+list(number)
+list(bool)
+
+и еще может быть один спец тип списка
+list(any)
+
+заметим что значение описывается через квадратгые скобки [] ровно так как это и есть у ансибля в его ямль
+в ансибле аналогичная переменная бы имела вид
+
+private_subnet_cidr_blocks: [ "10.0.101.0/24", "10.0.116.0/24" ]
+
+либо
+
+private_subnet_cidr_blocks: 
+    - "10.0.101.0/24"
+    - "10.0.116.0/24" 
+
+
+
+
+
+
+а вот пример dictionary
+
+variable "ami_image_id" {
+  type = map(string)
+  default = {
+    "ru-central1-a" = "fd8haecqq3rn9ch89eua"
+    "ru-central2-a" = "fd8haecqq3rn9chaaaaa"
+  }
+}
+
+
+
+или вот в таком виде
+
+variable "ami_image_id" {
+  type = map(string)
+  default = {  "ru-central1-a" = "fd8haecqq3rn9ch89eua",  "ru-central2-a" = "fd8haecqq3rn9chaaaaa"  }
+}
+
+
+а вот как эта бы перменная выгяедла бы в ансибле
+
+ami_image_id: {  "ru-central1-a" = "fd8haecqq3rn9ch89eua",  "ru-central2-a" = "fd8haecqq3rn9chaaaaa"  }
+
+либо
+
+ami_image_id: 
+   "ru-central1-a": "fd8haecqq3rn9ch89eua"
+   "ru-central2-a": "fd8haecqq3rn9chaaaaa"  
+
+
+
+тип map тоже не может быть просто типа map. он также должен быть прояснен какие виды значений
+лежат в этом словаре тоесть
+  type = map(string)
+
+либо
+
+  type = map(bool)
+
+ну и так далее
+
+а еще можно вотак
+
+  type = map(any)
+
+
+
+а теперь возникает очень важный вопрос - а как нам получать доступ к элементам внутри list
+или dictionary. ответ такой - если это список то поиск идет по номеру элемента в списке ( по номеру строки
+в списке) 
+
+а если это dictionary то поиск идет по ключу ( так как дикшонари это ключ=значение то сама логика
+просит нас делать поиск по ключу. у списка нет клюей поэтому там был вариант искать либо по номеру строки либо по значениею в итоге в списке ищут по номеру строки)
+
+показываю на практике
+имеем в variables.tf
+
+$ cat variables.tf
+
+variable "ami_image_id" {
+  type = map(string)
+  default = {
+    "ru-central1-a" = "fd8haecqq3rn9ch89eua"
+    "ru-central2-a" = "fd8haecqq3rn9chaaaaa"
+  }
+}
+
+
+variable "private_subnet_cidr_blocks" {
+  description = "Available cidr blocks for private subnets."
+  type        = list(string)
+  default = [ "10.0.101.0/24", "10.0.116.0/24" ]
+}
+
+
+
+заходим  в консоль
+$ terraform console
+
+
+> var.ami_image_id
+tomap({
+  "ru-central1-a" = "fd8haecqq3rn9ch89eua"
+  "ru-central2-a" = "fd8haecqq3rn9chaaaaa"
+})
+
+
+
+> var.ami_image_id["ru-central1-a"]
+"fd8haecqq3rn9ch89eua"
+
+
+
+> var.private_subnet_cidr_blocks
+tolist([
+  "10.0.101.0/24",
+  "10.0.116.0/24",
+])
+
+
+> var.private_subnet_cidr_blocks.0
+"10.0.101.0/24"
+> var.private_subnet_cidr_blocks.1
+"10.0.116.0/24"
+
+
+
+а теперь покажу что можно при вызове переменной исползовать другую переменную.
+
+
+вот у нас есть две переменные
+
+variable "ami_image_id" {
+  type = map(string)
+  default = {
+    "ru-central1-a" = "fd8haecqq3rn9ch89eua"
+    "ru-central2-a" = "fd8haecqq3rn9chaaaaa"
+  }
+}
+
+
+variable "zone" {
+  description = "availability zone"
+  type        = string
+  default     = "ru-central1-a"
+}
+
+
+
+и тогда можно вот так
+
+$ terraform console
+
+> var.ami_image_id[var.zone]
+"fd8haecqq3rn9ch89eua"
+
+
+единственное надо постоянно помнить что мы когда вызываем переменную то надо приплюсовать var.
+тоесть var.zone а не просто zone
+
+
+итак еще раз если у нас есть переменная vasya у которой тип list это значит что внутри 
+переменной есть списочек элементов
+и можно получать доступ к элементам списка через вот так
+
+var.vasya.0 или var.vasya.1
+
+а если у нас переенная vasya имеет тип map то переменная состоит из элементов каждый из которых это 
+ключ=значение. и доступ к элементу идет через значение ключа. тоесть 
+
+var.vasya[ключ]
+
+
+хочу еще раз рассмотреть момент определения сколько элементов имеет переменная list или map
+в себе. потому что навсикду всегда непонятно сколько же элеметов имеет переменная типа list или map
+еще раз рассмотрим переменные которые мы выше смотрели
+
+
+variable "ami_image_id" {
+  type = map(string)
+  default = {
+    "ru-central1-a" = "fd8haecqq3rn9ch89eua"
+    "ru-central2-a" = "fd8haecqq3rn9chaaaaa"
+  }
+}
+
+
+variable "private_subnet_cidr_blocks" {
+  description = "Available cidr blocks for private subnets."
+  type        = list(string)
+  default = [ "10.0.101.0/24", "10.0.116.0/24" ]
+}
+
+
+
+еще раз посмотрим как выглядели бы эти переменные в ансибле
+
+
+ami_image_id:
+    ru-central1-a: "fd8haecqq3rn9ch89eua"
+    ru-central2-a: "fd8haecqq3rn9chaaaaa"
+
+
+private_subnet_cidr_blocks: 
+    -  "10.0.101.0/24" 
+    -  "10.0.116.0/24" 
+
+
+тогда у первой переменной есть два элемента  'ru-central1-a: "fd8haecqq3rn9ch89eua"' и
+'ru-central2-a: "fd8haecqq3rn9chaaaaa"''
+
+у второй переменной есть два элемента  '"10.0.101.0/24"' и '"10.0.116.0/24"' 
+
+надеюсь вопрос сколько элементов имеет list или map стал более понятным.
+
+
+теперь рассмотрим еще один пример переменной
+
+variable "project" {
+  description = "Map of project names to configuration."
+  type        = map(any)
+
+  default = {
+    client-webapp = {
+      public_subnets_per_vpc  = 2,
+      private_subnets_per_vpc = 2,
+      instances_per_subnet    = 2,
+      instance_type           = "t2.micro",
+      environment             = "dev"
+    },
+    internal-webapp = {
+      public_subnets_per_vpc  = 1,
+      private_subnets_per_vpc = 1,
+      instances_per_subnet    = 2,
+      instance_type           = "t2.nano",
+      environment             = "test"
+    }
+
+  }
+
+}
+
+
+
+посмотрим как выглядела бы эта переменная в ансибле
+
+
+project: 
+   client-webapp: 
+      public_subnets_per_vpc: 2
+      private_subnets_per_vpc: 2
+      instances_per_subnet: 2
+      instance_type: "t2.micro"
+      environment: "dev"
+   internal-webapp: 
+      public_subnets_per_vpc: 1
+      private_subnets_per_vpc: 1
+      instances_per_subnet: 2
+      instance_type: "t2.nano"
+      environment: "test"
+
+
+а теперь посмотрим как мы внутри этой переменной мы будем вычленять элементы и субэлементы
+
+
+$ terraform console
+> var.project
+tomap({
+  "client-webapp" = {
+    "environment" = "dev"
+    "instance_type" = "t2.micro"
+    "instances_per_subnet" = 2
+    "private_subnets_per_vpc" = 2
+    "public_subnets_per_vpc" = 2
+  }
+  "internal-webapp" = {
+    "environment" = "test"
+    "instance_type" = "t2.nano"
+    "instances_per_subnet" = 2
+    "private_subnets_per_vpc" = 1
+    "public_subnets_per_vpc" = 1
+  }
+})
+
+
+
+> var.project.client-webapp
+{
+  "environment" = "dev"
+  "instance_type" = "t2.micro"
+  "instances_per_subnet" = 2
+  "private_subnets_per_vpc" = 2
+  "public_subnets_per_vpc" = 2
+}
+
+
+> var.project.internal-webapp
+{
+  "environment" = "test"
+  "instance_type" = "t2.nano"
+  "instances_per_subnet" = 2
+  "private_subnets_per_vpc" = 1
+  "public_subnets_per_vpc" = 1
+}
+
+> var.project.internal-webapp.environment
+"test"
+
+> var.project.client-webapp.environment
+"dev"
+
+> var.project.client-webapp.instance_type
+"t2.micro"
+
+
+
+
+
+
+
+
+
+
+
+1.0 alien-terrafrom вопросы 
+[ как подключить второй и третий диск через модуль?]
+[ загрузка модуля из гитлаба ]
+[ как заставить первым отрабатывать root модуь и только потом осталные модули????  ]
+[ yandex security group? что за хрень? ]
+
+1.3 терраформ console ?
 1.1 импортировать полностью всю структуру в тераформ из папки test-folder
-а после этого полностью импортироровать структуру из папки prod 
+1.4 импортироровать структуру из папки prod 
 3.4 проработать на практие опреацию рашинеия диска системного и загрузочного.
 так чтбы четко видно что ничего нестирается при этом.
 1.1 как создать стат internet IP и прикрепить его к виртулке в тераформ
@@ -1696,6 +2593,7 @@ module "elb" {
 output "elb_dns_name" {
   value = "${module.elb.dns_name}"
 }
+0.1 как же делать бэкап бакета? 
 
 
 

@@ -5763,3 +5763,13 @@ cron
 
 -----
 
+как нам удалить переменную из баша которую мы обьявили чеерз export
+ответ unset
+
+пример
+$ export vasya =1
+$ set | grep vasya
+$ unset vasya
+$ set | grep 
+
+-------
