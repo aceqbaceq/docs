@@ -2021,6 +2021,62 @@ $ terraform refresh
 
 
 
+0.a план: описать настройки cloud-init, модуль засунуть в гит и оттуда скачивать. сделать variables.tfsf чтобы
+смена кода модуля ненаебнула настройки прода(даже незнаю стоит ли). импорт существующих виртуалок в контуре прод. раскатать туже инфраструрутуру что в проде на тестовой папке но с маленькими размерами. чтобы всегда была для теста стркутуру аналогичная тому что на проде => после этого мы успешно запустили проект тераформ на проде. 
+0.1 cloud-init
+в main.tf прописано 
+  metadata = {
+    ssh-key = ...
+    }
+так вот на хосте служба cloud-init считывает из сети 
+этот ключ через ссылку
+http://169.254.169.254/2018-09-24/meta-data/public-keys/0/openssh-key (здесь лежит ssh-key)
+
+а вот этот кусок в main.tf 
+  metadata = {
+    user-data           = data.template_file.cloud_init.rendered
+}
+
+его cloud-init счывтает по сети по ссылке
+http://169.254.169.254/2018-09-24/user-data
+
+если мы в main.tf поменяли user-data то 
+накатываем новые настройки это херни через тераформ 
+$ terraform validate
+$ terrafrom plan
+$ terraform aplly 
+заходим на хост и мы сразу увидим эти настройки по ссылке 
+http://169.254.169.254/2018-09-24/user-data
+
+далее вопрос как накатить их на хост не перезагружая хост.
+вначале нужно стереть файлы
+# rm -rf /var/lib/cloud/*
+
+а потом запутсить накат 
+# cloud-init init
+
+прикол в том что без стиарния файлов эта сука ненакатывает изменения. 
+но и возникает проблема в том что из за стиаиния файлов на хосте меняется ssh_host_key
+значит при заходе по ssh система напишет что ключ хоста сменился!
+
+
+0.000 реальные приколы и проблемы: 
+- если назначить стат IP внешний  а потом его убрать из настроек тераформа
+(перменаная ext-ip) то по факту этот стат IP все равно осатется прикрепленный  к этой вм. а чтобы
+его открепить от этой вм надо отключить нат и обратно включить ( настройка isnat=true).
+- еще одноврееннно создаем сетеовй ресурс и виртуалку описарбющуся на этот сет ресурс то 
+тераформ эпплай напишет что данная виртуалка неможет быть создана так как остутстует сетевой ресурс. поэтому
+приходиься вначале созадвать сетовой ресурс а потмо уже только виртуалку с этим сет ресурсом.
+- далее клауд-инит вот мы задали настройки в cloud-init.cfg и раскатали виртуалку. а потом мы взяи 
+и измнили файл cloud-iit.cfg и прикол в том что клауд инит больше настроки с эттго файла сука ненакатывает.
+хоть перегружай хост хоть не прегржужай. возможно с клауд инит у меня изначально и неполучалось потому что
+новые настройки работают только и только на абсолютно чистой системе при первой загрузке и все а ято 
+пытался внести настройки на машине на которой уже было 100 перезагрузок и на которой клауд инит уже
+отработал поэтому там ничего и не срабатывало
+- удаление ресурсов лучше делать аккуратно и по частям
+- массированное удаление с массированным созаданием ресурсов лучше разделить на части
+
+
 0.0 переделать main.tf в test-folder и test-folder2 
 чтобы вверху шли первостепенные ресурсы  а внизу  второстепенные
 0.1  надо по взоможности те ресурсы которые надо создавать первыми размещать в main.tf вверху
@@ -2551,6 +2607,81 @@ tomap({
 
 
 
+1. почемуто output из модуля нихуя неработает сук бляь
+1.3 conditinals
+
+если нам надо if then else
+
+locals {
+  test = "${ condition ? value : (elif-condition ? elif-value : else-value)}"
+}
+
+(нашел здесь https://stackoverflow.com/questions/55555963/how-to-write-an-if-else-elsif-conditional-statement-in-terraform)
+
+
+мой пример. в конфиге задается две переенные
+vm_name
+vm_hostname
+
+моя задача : 
+если незадан vm_name но при этом задан vm_hostnme то vm_name=vm_hostname инааче vm_name = random
+если незадан vm_hostname но при этом задан vm_name то vm_hostname=vm_name иначе vm_hostname = random
+
+решение
+
+locals {
+
+   check_name     = var.vm_name != "" ? var.vm_name : (var.vm_hostname != "" ? var.vm_hostname : "name-error")
+   check_hostname = var.vm_hostname != "" ? var.vm_hostname : (var.vm_name != "" ? var.vm_name : "hostname-error")
+
+   vm_name       = "${local.check_name}"
+   vm_hostname   = "${local.check_hostname}---terraform"
+   vm_desc       = "${local.check_hostname}  ${var.vm_desc}"
+
+   disk1_desc    = "${local.check_name}  ${var.disk1_desc}"
+   disk1_name    = "${local.check_name}---${var.disk1_name}"
+
+}
+
+
+
+
+0.0 как передать внутрт модуля наример параметр vpc network 
+ответ надо передать через string имя vpc а внутри модуля создать через data этот vpc
+прмиер
+задаем переменную
+
+variable "subnet" {
+  description = "id сети "
+  type        = string
+  default     = "subnet3"
+}
+
+
+вот внутри модуля пишем
+
+data "yandex_vpc_subnet" "this" {
+  name = var.subnet
+
+}
+
+при том что сам vpc network созан не в модуле. мы лишь суда через data передали
+его параметр
+
+теперь внутри модуля можно обращаться е этому network vpc
+  network_interface {
+    subnet_id = data.yandex_vpc_subnet.this.id
+    nat       = var.isnat
+  }
+
+  это круто!
+
+
+
+
+0.0 запилить сеть в отдельный модуль!
+0.a variables.tf vs terraform.tfvars
+https://stackoverflow.com/questions/56086286/terraform-tfvars-vs-variables-tf-difference
 
 1.0 alien-terrafrom вопросы 
 [ как подключить второй и третий диск через модуль?]
@@ -2597,6 +2728,96 @@ resource "yandex_vpc_network" "this" {
 
 а $ terraform state show yandex_vpc_network.this["network-1"]
 неработает!
+
+походу решение в другой области = https://github.com/yandex-cloud/terraform-provider-yandex/issues/43
+
+
+витоге решение
+
+variable "vasya" {
+  type = list(string)
+  default = [ "disk4", "disk5" ]
+}
+
+
+
+
+
+resource "yandex_compute_disk" "this" {
+  for_each = toset(var.vasya)
+  name       = each.value
+  type       = "network-hdd"
+  zone       = "ru-central1-a"
+  size       = "5"
+  block_size = "4096" # при таком блоке макс размер диска 8ТБ
+}
+
+
+resource "yandex_compute_instance" "vm-3" {
+
+
+ dynamic "secondary_disk" {
+    for_each     = var.vasya
+    content {
+     disk_id     =  yandex_compute_disk.this[secondary_disk.value].id
+     auto_delete = true
+     mode        = "READ_WRITE"
+    }
+ }
+
+
+а если я не хочу ничего создавать тогда перменная должны выглядеть вот так
+
+variable "vasya" {
+  type = list(string)
+  default = [ ]
+}
+
+
+далее в модуле пишем
+
+data "yandex_vpc_subnet" "this" {
+  name = var.subnet
+}
+
+
+(что за хрень  data ??)
+
+тогда в настройках вм пишем
+
+resource compute_instance ...   {
+...
+  network_interface {
+    subnet_id = data.yandex_vpc_subnet.this.id
+    nat       = false
+  }
+...
+}
+
+
+
+далее прикольно то что задание общей перенной в файле varibles уже никак не влияет 
+на перменные уазнные в модуле!
+а чтобы переопределти занчение перменнйо в модулу то нужно делать вот так
+
+
+module "vm3" {
+  source        = "./modules/create-vm"
+  vasya  =  [ "disk2", "disk3", "disk4" ]
+
+}
+
+
+тоесть нужно в вызоыве модуля писать новое занчнеиеи переменной в данном случае это 
+vasya = 
+
+
+
+
+
+
+
+
 
 
 [ загрузка модуля из гитлаба ]
