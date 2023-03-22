@@ -591,7 +591,7 @@ main.tf  (здесь наш конфиг)
 
 
 
-#$#!!!
+
 описать:
 3.s надо чтобы все аспекты с нуля до конца были сделаны через командную строку.
 например создание бакета и все такое. сейчас многое все делается руками а надо 
@@ -2108,7 +2108,6 @@ $ terraform plan -out "plan.txt"
 0.a план:
   - понять какие ресурсы сделать неудаляемыми (отредактировать main.tf и модуль).
     и попробовать удалить виртуалку и заново ее создать и чтобы старые диски прикрутились.
-  - попробвать var = {} вместо var = ""
   - локклаьный IP для вм чтобы можно было ставить
   - описать настройки cloud-init, модуль засунуть в гит и оттуда скачивать. 
   - сделать variables.tfsf чтобы смена кода модуля ненаебнула настройки прода(даже незнаю стоит ли). 
@@ -2169,7 +2168,7 @@ http://169.254.169.254/2018-09-24/user-data
 - удаление ресурсов лучше делать аккуратно и по частям
 - массированное удаление с массированным созаданием ресурсов лучше разделить на части
 
-
+1.15 terragrunt ???
 1.2 aws instance teraform модуль на github посмотреь  с целью получения опыта 
 0.0 переделать main.tf в test-folder и test-folder2 
 чтобы вверху шли первостепенные ресурсы  а внизу  второстепенные
@@ -2772,6 +2771,18 @@ data "yandex_vpc_subnet" "this" {
 
 
 
+0.9 terraform как скопироовать файл на вм
+//EC2 Instances
+resource “aws_instance” “my_web_servers” {
+        ami = “ami-0d527b8c289b4af7f” //Ubuntu 20.04
+ instance_type = “t2.micro”
+ count = var.vm_count
+ provisioner “file” {
+  source = “./resolv.conf”
+  destination = “/etc/resolv.conf”
+ }
+}
+ссылка = https://www.cloudbolt.io/terraform-best-practices/terraform-template/
 
 
 0.a variables.tf vs terraform.tfvars
@@ -2875,7 +2886,7 @@ data "yandex_vpc_subnet" "this" {
 }
 
 
-(что за хрень  data ??)
+(что за хрень  data . типа оно не создает ресурс а делает его рид онли копию.)
 
 тогда в настройках вм пишем
 
@@ -2890,25 +2901,205 @@ resource compute_instance ...   {
 
 
 
-далее прикольно то что задание общей перенной в файле varibles уже никак не влияет 
-на перменные уазнные в модуле!
-а чтобы переопределти занчение перменнйо в модулу то нужно делать вот так
+далее вот у нас есть модуль и в нем переменная прописана. например 
+вот кусок модуля
 
+resource "yandex_compute_disk" "bootdisk---disk1" { # название виртуалки к которой крепим диск и номер диска
+  description = var.disk1_desc
+...
+}
 
-module "vm3" {
+как нам передать эту переменную в  модуль из основного root модуля?
+во первых в самом модуле есть файл variables.tf где эта переменная должна быть задана
+например
+
+variables "description" {
+  type    = string
+  default = "диск 1"
+}
+
+но нам то надо как то из root модуля перебить это значение. как это сделать.
+ответ - через вызов в модуле а именно
+
+module "vm_3" {
   source        = "./modules/create-vm"
-  vasya  =  [ "disk2", "disk3", "disk4" ]
+  description   = "диск 31"
+...
+}
+
+тогда "диск 31" перебьет "диск 1". тут еще важно отметить то что наш root модуль тоже имеет
+свой variables.tf и в нем может иметь переменную description. так вот переменные в этом variables.tf они относится только к модулю root и никакого отгошения к нижележащим модулям не имеют.
+таким образом еще раз.  файл variables.tf лежащий в модуле относится только к этому модулю и задает 
+значения по умолчанию для модуля. файл variables.tf лежащий в root модуле относистя только к root модулю ( к файлу main.tf в рут модуле) и больше ни к чему, задает в нем дефолтовые значения. а если мы хотим из рут модуля из main.tf передать занчение в 
+переменную в модуле то это делается  в рут модуле в секции модуль.  
+$ cat main.tf (рут модуль)
+module "vm_3" {
+  source        = "./modules/create-vm"
+  description   = "диск 31"
+...
+}
+
+если мы в секции модуля  не передадим знаение в переменную в модуль то в модуле значение переменной
+будет равно тому что указано  в модульном variables.tf и еще раз скажу что модулю насрать на variables.tf который 
+относится к root модулю.
+
+
+
+
+| далее. template тема. тема с темплейтами
+
+имеем в модуле код
+
+data "template_file" "cloud_init" {
+  template = file("cloud-init.tftpl")
+
+  vars = {
+    ssh_user_name  = var.ssh_user_name
+    ssh_public_key = var.ssh_public_key
+  }
+}
+
+
+
+вопрос по какому пути тераформ будет искать файл cloud-init.tftpl 
+ответ он будет его искать в той папке где лежит root модуль !
+а если мы хотим чтобы файл искался в папке модуля?!
+ответ - тогда надо записать вот так
+
+data "template_file" "cloud_init" {
+  template = file("${path.module}/cloud-init.tftpl")
+
+  vars = {
+    ssh_user_name  = var.ssh_user_name
+    ssh_public_key = var.ssh_public_key
+  }
+}
+
+
+
+| далее. как импортировать ВМ в модуль.
+во первых импорт идет не всех ресурсов из модуля . нет!
+импорт что в модуль что в root идет только индивидуальных ресурсов 
+тоесть при импорте в модуль надо указать какой именно ресурс из модуля ты хочешь 
+импортировать.  так вот виртуалку надо импортировать так:
+1. вначале все ресурсы диски
+2  и только потом ресурс виртуалку
+например
+$ terraform  import module.vm_3.yandex_compute_disk.bootdisk---disk1  fhmt5rbuqa8ds4j8fe3l
+$ terraform  import  module.vm_3.yandex_compute_instance.vm fhm7ntr7ltgkl38thjs1
+
+id подсматриваем в вею морде или якли
+
+| далее. про защиту от удаления.
+не все элементы имеют опцию защиты от удаления.
+например "yandex_vpc_address" имеет защиту от удаления опция "delete_protection"
+а какието элементы и нет. 
+что касается виртуалки и дисков. сам ресурсдиск неимеет защиты от удаления.
+а в ресурсе виртуалка есть свойство о том что при удалении именно ресурса виртуалка 
+неудалять автоматом диск но это недает защиту от удаления если мы удаляем сам ресурс диск!
+поэтому надо быть внимательным. а лучше всего при таких работах делать снэпшот дисков !
+
+| далее . snapshot , image
+разницу межд снэпшотом и имаджем я непонял.
+по скорости снэпшот снимается быстрее. как я понял
+имадж дольше. но в чем разница нпонятно.
+у амазона есть сущесвтенная разница : у них снэпшот это снэпшот диска. а имадж еще включает некие параметры
+операционки поэтому запустить новую виртуалку можно только  с имаджа а со снэпшота нельзя. со снэпшота можно
+сделать диск но загрузиться с него будет нельзя. можно только с имаджа. у яндекса таких заморочек нет.
+у яндекса запуск идет с диска. диск можно создать и из снжпшота и из имаджа. если в итоге исходник был загрузочным
+то нет пролем с чего был сделан диск с имаджа или снэпшота. 
+из того что я вижу пока это то что снэпшот делается быстрее но диск с него создается дольше.
+имадж делется дольше но диск с него создатеся быстрее. и все.
+
+
+
+|далее суперважная тема про for_each
+во первых если у нас есть модуль то типа того что мы не имеет доступа к переменным внутри модуля.
+самое простое это настроить как бы экспорт нужных нам переменных. настройка идет через output
+например скажем модуль create-disk имеет вот такие аутпуты:
+
+$ cat ./modules/create-disk/outputs.tf 
+output  "bootdisk_id"  {
+   value = yandex_compute_disk.bootdisk.id
+}
+
+
+output "extra_disks" {
+   value = yandex_compute_disk.this
+}
+
+
+положим в модуле root мы заюзали этот модуль вот так:
+module "vm_4_disks" {
+  source        = "./modules/create-disk"
+...
+}
+output "vm_4_bootdisk_id" {
+  value = module.vm_4_disks.bootdisk_id
+
+}
+
+тогда в другом модуле можно читать эти экспортрованные переменные вот так:
+module "vasya" {
+ ...
+  bootdisk_id    = module.vm_4_disks.bootdisk_id
+  extra_disks    = module.vm_4_disks.extra_disks
+...
+}
+
+итак еще раз - если мы хотим из одног модуля всунуть некие данные в другой модуль
+то надо настраивать outputs. это первый момент.
+
+а теперь самое главное = предположим что переменная которую мы читаем и потом пихаем в другой 
+модуль это непросто string а например list или map.
+и положим что в модуле куда мы передаем на основе этой переменной создаются ресурсы в частности через команду for_each
+например 
+
+
+data "yandex_compute_disk" "extra_disk" { # название виртуалки к которой крепим диск и номер диска
+    for_each     = var.extra_disks
+     disk_id     =   each.value["id"]
+
 
 }
 
 
-тоесть нужно в вызоыве модуля писать новое занчнеиеи переменной в данном случае это 
-vasya = 
+так вот если мы передаем переменную типа list то тераформ пошлет нас нахер вот такой руганью:
+ Error: Invalid for_each argument
+│ 
+│   on modules/cr-vm-2/main.tf line 67, in data "yandex_compute_disk" "extra_disk":
+│   67:     for_each     = toset(var.extra_disks)
+│     ├────────────────
+│     │ var.extra_disks is list of string with 2 elements
+│ 
+│ The "for_each" set includes values derived from resource attributes that cannot be determined until apply, and so Terraform cannot determine the full set of keys that will identify the
+│ instances of this resource.
+│ 
+│ When working with unknown values in for_each, it's better to use a map value where the keys are defined statically in your configuration and where only the values contain apply-time
+│ results.
+│ 
+│ Alternatively, you could use the -target planning option to first apply only the resources that the for_each value depends on, and then apply a second time to fully converge.
+╵
+
+
+а вот обьясенние от одного толкового разраба тераформа:
+Unfortunately what you observed here does seem to be Terraform working as designed, though I agree it's an annoying edge to the design.
+
+The root problem here is that because map elements must have unique keys Terraform cannot know the number of elements in any map constructed with unique keys: Terraform has no way to prove that two of the keys won't end up having the same value.
+
+Furthermore though, even ignoring the issue of number of elements for for_each in particular the map keys become part of the tracking address of each instance and so they must each individually be known during planning so Terraform can correlate with instances with the same keys during the apply phase.
+
+So as commonly recommended in these situations, the answer is to set the map keys to include only known values and place unknown values such as a server-generated ID only in the values of the map elements. Terraform will then have the tracking keys it needs but can still take into account the unknown ID for use when populating arguments of the resource.
 
 
 
-
-
+таким образом проблему можно решить двумя путями:  
+это не передавать между модулями инфо через list а передавать через map. это мгновенно решает проблему.
+и есть еще полуколхозный способ - если мы хотим передавать даные именно через list переменную то тогда 
+надо вначале создать все ресурсы  через первый модуль. а уже толкьо потом запускать создание ресурсов 
+на второй модуле. после первого шага так как ресурсы уже созданы то тераформ точно знает сколько и чего 
+будет передано во второй модуль. но это колхоз решение а нормальеное решение я уже скааал - передвать  данные 
+между модулями через map перемнную.
 
 
 
@@ -2933,6 +3124,7 @@ variable "user_information" {
 (https://developer.hashicorp.com/terraform/language/values/variables#set)
 
 
+1.3  попробвать var = {} вместо var = ""
 1.4 depends_on = ?
 https://www.scalr.com/blog/terraform-locals#:~:text=How%20do%20locals%20differ%20from,more%20meaningful%20or%20readable%20result.
 

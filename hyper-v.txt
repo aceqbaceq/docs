@@ -59,7 +59,7 @@ HYPER-V switch
 
 
 есть еще один тип свича но его надо ставить руками через power shell это NAtswitch.
-о нем ищи отдельно в инете.
+как ставить тут = https://askme4tech.com/how-create-nat-switch-hyper-v
 ---------- 
 
 
