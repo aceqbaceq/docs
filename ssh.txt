@@ -1,5 +1,36 @@
 ssh
 
+|далее. ssh-agent
+
+
+как его суку запустить.
+
+$ eval `ssh-agent -s`
+
+что это дает.
+
+если запутить 
+
+$ ssh-agent -s
+SSH_AUTH_SOCK=/tmp/ssh-Qn02vw3NpSI0/agent.3812; export SSH_AUTH_SOCK;
+SSH_AGENT_PID=3813; export SSH_AGENT_PID;
+echo Agent pid 3813;
+
+то на экране будут выведены переменные.
+прикол в том что чтобы сработала наша следующая команда ssh-add то нам надо 
+чтобы эти переменные были добавлены в наше bash окружение.
+так вот eval он как раз автоматом делает так что то что на экране выведено оно будет запущено
+в новом баще. то есть оно выполнится как команды и у нас автомтом эти переенные окажтутся в
+нашем окружении.
+
+но когда мы его запустили этоо мало. далее надо добавить в него наши ключи
+
+$ ssh-add ~/.ssh/id_rsa
+
+
+
+
+
 есть такой файл ~/.ssh/config
 
 в него можно много чего вставлять
@@ -1104,6 +1135,76 @@ $ ssh -vvv root@kvs12-test.waba.bot 2>&1 | grep -i "Server host key"
 debug1: Server host key: ecdsa-sha2-nistp256 SHA256:sGKXxLKWM1EtlgYjHmU4t3Ac068fIqb69Fx+Z1jWFqc
 
 также напоминаю что ECDSA и ecdsa-sha2-nistp256  это одно и тоже
+
+
+| далее.  -o PubkeyAuthentication
+вопрос нам надо заути на удаленный сервер тольео по паролю. а по ключу нам ненадо.
+наша цель -  понять реально ли на удаленном серверер запрещена аутентификация по паролю.
+для этого надо запретить вход по ключу. как это сделать 
+отввет
+
+$ ssh -o PubkeyAuthentication=no ...
+
+тоест вот этот ключ запрещает испольовать RSA ключи для аутентфикации
+
+
+или второй вариант
+
+$ ssh -o PubkeyAuthentication=no -o PreferredAuthentications=password  example.com
+
+но тогда в истории bash останется пароль
+
+| далее. ProxyJump
+
+
+как зайти на хост B через хост A
+
+хост A  = 8.8.8.8
+хост B  = 10.10.10.10
+
+$ ssh -J ubuntu@8.8.8.8  vasya@10.10.10.10
+
+а теперь как это запиать в ssh config 
+
+
+Host host-b  10.10.10.10
+HostName 10.10.10.10
+IdentityFile /home/vasya/.ssh/id_rsa
+ProxyJump ubuntu@8.8.8.8
+Port 22
+User vasya
+ForwardAgent yes
+
+опцию ProxyJump подерживают только новые версии ssh демона. а старые нет. 
+вместо этого тогда надо юзать опцию ProxyCommand
+
+
+Host yandex-demo-erp      172.16.0.21
+   HostName 172.16.0.21
+   user  vasya
+   IdentityFile /home/vasya/.ssh/id_rsa
+   ProxyCommand           ssh -q -A vasya@8.8.8.8 nc %h %p
+   Port 22
+
+
+| далее. запретить вход по паролю.
+для этого достаточно в конфиг sshd_config вставить строку
+
+PasswordAuthentication no
+
+и перезапустить сервис. НО! подстава состоит в том что также надо 
+посмотреть какие файлы еще есть в папке /etc/ssh/sshd_config.d 
+дело в том что если там есть файлы то они ссука перебивают настройки
+из основного файле. например там может быть вот такой файл
+
+# cat /etc/ssh/sshd_config.d/50-cloud-init.conf 
+PasswordAuthentication yes
+
+тогда он ссука пеербивает настрйоки в основном файле и у нас по прежнему работаут вход
+через ssh по паролю !!!!
+
+
+
 
 
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
