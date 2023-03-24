@@ -5773,3 +5773,247 @@ $ unset vasya
 $ set | grep 
 
 -------
+
+ufw настройка файрволла
+
+как настроить файрволл
+
+
+супер важная вещь что  ufw по дефолту контролирует только часть правил iptables.
+а чтобы ufw контролировал все правила целиком то надо выставить
+# cat /etc/default/ufw
+MANAGE_BUILTINS=yes
+и перезагрузка сервиса. об этом читай в linux-general.txt
+возможно это может мешать докеру. это надо выяснять.
+
+
+далее  отключить ipv6 на ufw 
+# sudo nano /etc/default/ufw
+IPV6=no
+      
+
+типовой набор команд активации ufw:
+
+   98  ufw default deny incoming
+   99  ufw default allow outgoing
+  100  ufw allow 22/tcp
+  102  ufw show added numbered
+  103  ufw enable
+  104  ufw allow 80/tcp
+  105  ufw allow 443/tcp
+  106  ufw reload
+  108  ufw status numbered
+  111  ufw status verbose
+   11  ufw allow in  on <interface> to any  (это правило юзать чтобы разрешить все входящие на 
+   интерфейс который будет отвечать за локалку)
+
+
+Status: active
+
+     To                         Action      From
+     --                         ------      ----
+[ 1] 22/tcp                     ALLOW IN    Anywhere                  
+[ 2] 80/tcp                     ALLOW IN    Anywhere                  
+[ 3] 443/tcp                    ALLOW IN    Anywhere        
+
+
+как настроить через него nat и port forward
+
+https://gist.github.com/kimus/9315140
+
+
+ДАЛЕЕ: КАК активировать NAT :
+
+/etc/default/ufw
+DEFAULT_FORWARD_POLICY="ACCEPT"
+
+
+в sysctl 
+net.ipv4.ip_forward=1
+
+
+далее сказано что надо разместить вот этот кусок вначале файла /etc/ufw/before.rules до блока *filter
+однако в man ufw (который тоже хороший документ) сказано что этот кусок нужно разместить в конце
+этого файла после блока *filter
+
+
+
+
+# NAT table rules
+*nat
+:POSTROUTING ACCEPT [0:0]
+
+# Forward traffic through eth0 - Change to match you out-interface
+-A POSTROUTING -s 10.10.10.0/24 -o eth0 -j MASQUERADE
+
+# don't delete the 'COMMIT' line or these nat table rules won't
+# be processed
+COMMIT
+
+
+перегружаем правила готово
+# ufw reload
+
+
+однако тут выясняется прикол. если мы сделаем пару перезагрузок ufw 
+то мы заметим что правила каасающиеся NAT они размножаются это мможно увидеть через iptables-save
+
+
+
+будет вот чтото типа такого
+
+*nat
+:PREROUTING ACCEPT [385:22237]
+:INPUT ACCEPT [63:3370]
+:OUTPUT ACCEPT [5:368]
+:POSTROUTING ACCEPT [0:0]
+-A POSTROUTING -s 10.10.10.0/24 -o eth0 -j MASQUERADE
+-A POSTROUTING -s 10.10.10.0/24 -o eth0 -j MASQUERADE
+-A POSTROUTING -s 10.10.10.0/24 -o eth0 -j MASQUERADE
+COMMIT
+
+
+
+это же жесть!
+
+так вот я нашел разьяснение = https://bugs.launchpad.net/ufw/+bug/364558
+цитирую 
+
+Thank you for using ufw and taking the time to report a bug. This is by design to make sure ufw doesn't step on other applications' rules. From /usr/share/doc/ufw/README.gz:
+
+The primary chains are ufw-before-*, ufw-after-* and ufw-reject-*. The
+treatment of iptables' built-in chains can be controlled with the
+MANAGE_BUILTINS configuration option (in /etc/default/ufw). By default this is
+set to 'no', which means that other than adding the primary chains, the
+built-in chains will remain untouched. This also means that these primary
+chains will stay in the table, even after disabling ufw. This is to make sure
+that the primary chains don't move around other non-ufw rules and chains. To
+completely flush the built-in chains with this configuration, you can use:
+
+# /usr/share/ufw/ufw-init flush-all
+
+Alternately, ufw may also take full control of the firewall by setting
+MANAGE_BUILTINS=yes in /etc/defaults/ufw. This will flush all the built-in
+rules and delete the non-built-in rules on start, stop and reload.
+
+
+поэтому я выбрал решение
+
+MANAGE_BUILTINS=yes in /etc/defaults/ufw
+
+вот при таком раскладе уже перезагрузка ufw недает разможения правил в iptables-save
+
+также при отключенной опции и наличии докера  наш файрволл теряет весь смысл потому что докер
+будет вставлять свои цеопчки и контейнеры будут выставлены наружу!!!
+
+
+============
+
+
+
+
+----------
+
+parted, expand, grow, extend
+
+
+вот если мы увеличили размер диска в гипервизоре
+
+далее мы обнвоили об этом инфо через
+
+# rescan-scsi-tool
+
+далее надо как то через parted изменить раздел 
+
+
+# lsblk -f  -o name,size
+NAME    SIZE
+sda      24G
+├─sda1  953M
+├─sda2    1G
+├─sda3    2G
+└─sda4 18,4G
+
+
+
+
+расширяем раздел sda4
+
+# parted /dev/sda
+(parted) resizepart 4 100%
+Warning: Partition /dev/sda4 is being used. Are you sure you want to continue?
+Yes/No? Yes                                                               
+
+
+
+# lsblk -f  -o name,size               
+NAME    SIZE
+sda      24G
+├─sda1  953M
+├─sda2    1G
+├─sda3    2G
+└─sda4 20,1G
+
+
+удобство в том что resizepart 4 100% даем то что ненужно руками вбирвать размер хвоста
+мы просто говорим расширь на все сколько можешь
+
+
+и далее после расширения партиции надо еще расширить ФС
+
+# xfs_grows  /mount_pint
+или
+# resize2fs /device
+
+
+--------------
+
+netplan
+
+типовая настройка
+
+ip адрес
+если мы настраиваем сет карту через netplan вот конфиг типовой
+
+# cat /etc/netplan/00-installer-config.yaml 
+network:
+  ethernets:
+    eth0:
+      optional: true
+      addresses:
+      - 81.81.81.81/28
+      nameservers:
+        addresses:
+        - 8.8.8.8
+        search: []
+      routes:
+      - to: default
+        via: 81.81.81.80
+    eth1:
+      optional: true
+      addresses:
+      - 10.10.10.1/24
+      nameservers:
+        addresses:
+        - 8.8.8.8
+        search: []
+  version: 2
+
+
+и здесь я укажу очень важную опцию 
+optional: true
+смысл ее в том что при такой настройке линукс небудет ждать пока указанный интерфейс будет полностью сконфигурирован
+и готов к работе (согласно man netplan) - что это по факту значит "будет полностью готов к работе"
+но по факту если этой настройки нет то  при загруке убунты у нас загрузка останавливается на фразе
+
+"job is running for wait for network to be configured.." 
+
+и так висит 30-60 секунд.
+а вот с этой настройкой такой хуйни нет и вртуалка грузится мгновенно.
+
+а вот кстати как проверить скорость интернета из команднйо строки
+
+# apt-get install -y speedtest-cli
+
+
+---
