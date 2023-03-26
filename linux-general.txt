@@ -5907,6 +5907,44 @@ MANAGE_BUILTINS=yes in /etc/defaults/ufw
 будет вставлять свои цеопчки и контейнеры будут выставлены наружу!!!
 
 
+еще один важный момент про связь между ufw и docker
+если у нас выставлена опция MANAGE_BUILTINS=no
+то если мы стартуем контейнер 
+# docker run -it --rm -d -p 80:80 --name web2 nginx
+то докер добавляет сам правила в таблицу iptables и таким макаром 
+открывает на хосте порты наружу! все файрволл пробит изнутри.
+а что будет если перезагрузить ufw ?
+# ufw reload
+будет то что ufw нетрогает правила докера  и порт открытый через докер 
+останется открытым!
+
+
+а если у нас выставлена опция MANAGE_BUILTINS=yes
+тогда при запуске ufw он стирает часть правил докера
+и при попытке запуска докера  увидим вот что 
+
+# docker run -it --rm -d -p 80:80 --name web2 nginx
+
+f2de59cccf062b2a6cd320d3a0106c657e54ee99ed02a06b80abb4f8a2eec4b1
+docker: Error response from daemon: driver failed programming external connectivity on endpoint web2 (27b91c86e25636fbdbda98dedc2e3a59312c1bf5532d62dcd37b14f809d151d8):  (iptables failed: iptables --wait -t filter -A DOCKER ! -i docker0 -o docker0 -p tcp -d 172.17.0.2 --dport 80 -j ACCEPT: iptables: No chain/target/match by that name.
+ (exit status 1)).
+
+если мы перезапустим сервис докера
+# systemctl restart docker
+
+то он создаст свои стертые правила и тогда уже можно успешно запустить контейнер 
+
+# docker run -it --rm -d -p 80:80 --name web2 nginx
+
+и у нас опять порт открыт наружу !
+а что будет если перезапустить ufw? он сотрет часть правил докера 
+и это приведет вот к чему = с самого хоста доступ в контенер по порту будет работать
+но снаружи доступа к порту контейнера нет.
+
+если наша задача закрыть порт контейнера снаружи то тогда надо при каждом новом запуске
+или перезапуске контейнера перезапускать ufw!!а это полная фигня а не продакшн.
+
+
 ============
 
 
@@ -6017,3 +6055,28 @@ optional: true
 
 
 ---
+mysql
+mariadb
+
+делаем
+
+# ps aux | grep mariadb
+
+
+вопрос как узнать на данный момент база запущена из сервиса или руками.
+так вот ответ такой  - если база работает  потому что ее запустили из сервиса то в процессах этот процесс будет иметь очень простой вид
+
+ps aux | grep mariadb
+mysql     531425 24.1 20.2 7798524 2066700 ?     Ssl  20:33   7:12 /usr/sbin/mariadbd
+
+а вот если прцоесс был запущен руками то вид будет совершенно другой сложный.
+
+# ps aux | grep mariadb
+mysql     493096 48.4 85.4 12509856 8709908 ?    Sl   мар23 1592:12 /usr/sbin/mariadbd --basedir=/usr --datadir=/var/lib/mysql --plugin-dir=/usr/lib/mysql/plugin --user=mysql --skip-grant-tables --log-error=/var/log/mysql/error.log --open-files-limit=16364 --pid-file=/var/run/mysqld/mysqld.pid --socket=/var/run/mysqld/mysqld.sock --port=3306
+
+ну и конечно эо можно проверить через банальный
+
+# systemctl status mariadb
+и он покажет работает ли сервис сейчас на данный момент или он упал.
+
+----------
