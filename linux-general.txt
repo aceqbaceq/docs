@@ -6080,3 +6080,100 @@ mysql     493096 48.4 85.4 12509856 8709908 ?    Sl   мар23 1592:12 /usr/sbin
 и он покажет работает ли сервис сейчас на данный момент или он упал.
 
 ----------
+
+mariadb
+mysql
+
+проверить текущий статус  ведет ли mysql\mariadb бинарный лог
+
+
+> show variables like 'log_bin';
++---------------+-------+
+| Variable_name | Value |
++---------------+-------+
+| log_bin       | ON    |
++---------------+-------+
+1 row in set (0,001 sec)
+
+
+
+посмотреть список бинарных логов
+
+> SHOW BINARY LOGS;
++--------------------+------------+
+| Log_name           | File_size  |
++--------------------+------------+
+| mariadb-bin.000071 |          0 |
+| mariadb-bin.000072 |          0 |
+| mariadb-bin.000073 |          0 |
+| mariadb-bin.000074 |          0 |
+| mariadb-bin.000075 |          0 |
+| mariadb-bin.000076 |          0 |
+| mariadb-bin.000077 |          0 |
+| mariadb-bin.000078 |          0 |
+| mariadb-bin.000079 |          0 |
+| mariadb-bin.000080 |          0 |
+| mariadb-bin.000081 |          0 |
+| mariadb-bin.000082 |          0 |
+| mariadb-bin.000083 |          0 |
+| mariadb-bin.000084 |          0 |
+| mariadb-bin.000085 | 1048585914 |
+| mariadb-bin.000086 |  995604484 |
++--------------------+------------+
+
+
+как отключить
+идем в конфиг и 
+
+[mysqld]
+skip-log-bin = true 
+
+
+---------------------
+
+mariadb
+mysql
+
+slow query log
+
+как проверить что он щас активирован
+
+
+> show variables like 'slow_query_log';
++----------------+-------+
+| Variable_name  | Value |
++----------------+-------+
+| slow_query_log | ON    |
++----------------+-------+
+
+
+
+как это выключить без перезапуска 
+
+>  SET GLOBAL slow_query_log = 'OFF';
+
+но чтобы проверить сработало или нет то  надо обязательно 
+выйти из мускула и обратно зайти. 
+
+> show variables like 'slow_query_log';
++----------------+-------+
+| Variable_name  | Value |
++----------------+-------+
+| slow_query_log | OFF   |
++----------------+-------+
+
+
+а если не выйти\зайти то будет показывать 
+что якобы по прежнему все работает.
+
+
+а как через конфиг отключить?
+ну вроде вот так - просто закоментить
+
+#slow_query_log          = 1
+#slow_query_log_file     = /var/log/mysql/mariadb-slow.log
+#log_slow_rate_limit    = 1000
+#log_slow_verbosity      = query_plan
+#log_slow_admin_statements
+
+----------
