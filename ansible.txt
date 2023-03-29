@@ -4238,7 +4238,197 @@ item.server_groups in  group_names
        delegate_to: db_servers
 
 ==================
+тэги
+tags
 
+щас я хочу поговорить про тэги
+
+значит в чем коленкор. 
+если мы берем плейбук и там мы можем задачам назначить тэги
+
+- name: task1
+  ...
+  tags: tag1
+
+- name: task2
+  ...
+  tags: tag2
+
+
+посмотреть какие тэги в итоге ансибль видит. какие тэги имеют таски
+
+    $ ansible-playbook   admins.yml  --list-tags
+
+   playbook: vasya.yml
+
+  play #1 (localhost): localhost	TAGS: []
+      TASK TAGS: [tag1, tag2]
+
+вот видно какие тэги имеет плейбук.
+
+
+и тогда можно при старте плейбука указать таски с каким тэгом выполнять.
+по дейфолту если тэг не указать то анссибль выполнить все таски со всеми тэгами.
+все красиво все хорошо.
+жопа наступает тогда когда мы внутри роли тоже прописвыаем тэги у тасков.
+и тут оказывается что ансибль эти тэги невидит.
+
+ниже ответ с примерами.
+краткая выжимка такая - неиспользовать include_tasks внутри роли
+а использовать только import_tasks 
+и тогда проблем небудет.
+
+
+  
+if we use `include_tasks` in a role --> then we have troubles with tags.  
+if we use `import_tasks` in a role --> all is ok
+  
+  
+example:  
+  
+    $ ansible --version
+    ansible [core 2.11.7] 
+
+  
+
+a playbook: **admins.yml**
+
+    - hosts: localhost
+      roles:
+        - { role: admins}
+
+a role:
+./roles/admins/tasks/**main.yml**  
+
+    ---
+    
+    
+    - name:  ' create | Debian ' 
+      ansible.builtin.include_tasks:  "Debian/create.yml"
+
+  
+  
+/roles/admins/tasks/Debian/**create.yml**  
+
+    ---
+    
+    - name: tag2
+      debug:
+         msg: "tag2"
+      tags: tag2
+    
+    
+    - name: tag3
+      debug:
+         msg: "tag3"
+      tags: tag3
+  
+  
+  
+
+lets list tags:  
+
+    $ ansible-playbook   admins.yml  --list-tags
+    
+    playbook: admins.yml
+    
+      play #1 (localhost): localhost	TAGS: []
+          TASK TAGS: []
+
+  
+  
+So we have troubles with tags.
+Lets test it.
+  
+   
+
+    $ ansible-playbook   admins.yml  -t "tag3"
+    
+    PLAY [localhost] 
+    TASK [Gathering Facts] 
+    ok: [localhost]
+
+So zero tasks is accomplished.  
+
+lets change **main.yml**
+  
+  
+
+    ---
+    
+    
+    - name:  ' create | Debian ' 
+      ansible.builtin.import_tasks:  "Debian/create.yml"
+
+  
+  
+Now we dont have troubles with tags:  
+  
+
+    $ ansible-playbook   admins.yml  --list-tags
+    playbook: admins.yml
+    
+      play #1 (localhost): localhost	TAGS: []
+          TASK TAGS: [tag2, tag3]
+  
+  
+Lets test it.  
+  
+  
+
+    $ ansible-playbook   admins.yml  -t "tag3"
+    
+    PLAY [localhost] 
+    TASK [Gathering Facts] 
+    ok: [localhost]
+    
+    TASK [admins : tag3] ok: [localhost] => {
+        "msg": "tag3"
+    }
+
+
+все ок.
+
+
+в заключении поясню вот еще что
+
+вот еще плейбук
+
+- hosts: newline_all
+  roles:
+    - { role: admins, tags: [ 'admins']}
+
+что это за хрень с тэгом. 
+это всего навсего мы говорим ансиблю что мол присвой всем таскам внутри роли автоматически тэг 'admins'
+таким макаром если мы  запустим 
+
+$ ansible-playbook main.yml -t 'admins'
+
+то будут выполенены все таски из этой роли.
+
+а что там с тэгами в случае когда таски внутри роли имеют свои прописанные тэги?
+посмотрим что скажет ансибль
+
+$ ansible-playbook   admins.yml  --list-tags
+
+playbook: admins.yml
+
+  play #1 (localhost): localhost	TAGS: []
+      TASK TAGS: [admins, tag2, tag3]
+
+видно то что у нас есть все тэги: admins назначенный из плейбука, а tag2 и tag3 пропсанный внутри роли.
+если мы запустим с тэгом admins то будут выполнены все таски из роли.
+а если мы запустим  с тэгом tag2 то будут запущены таски в роли только те которые имеют тэг  tag2
+таким образом одни тэги другим не мешают.
+
+таким образом имея тэги внутри роли можно их исполтзовать при запуске плейбука и это позволит запустить толко часть задача в роли. это отлично.
+а указание тэга роли из плейбука дает возможность при запуске ансибля указать что мы хотим выполнить только таски их такой то роли при этом 
+таски из других ролей мы не хотим выполнять. тоесть это позвояет получить инструмент который позволяет нам рулить из командной строки какие роли 
+из плейбука мы хотим запустить потому что по дфеолут ансибль такого переключателя нам недает.
+
+
+
+===================
 var.a
 var['a']
 
