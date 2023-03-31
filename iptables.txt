@@ -624,3 +624,11 @@ iptables -t таблица -L -v
 это можно юзать вместо доавения цеопочек логрования
 
 ---
+flush rules delete
+
+как удалить абсолютно все правила из текущей таблицы iptables
+
+
+# iptable -X -t filter
+# iptables -X -t nat
+----
