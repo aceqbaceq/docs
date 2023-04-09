@@ -4437,6 +4437,14 @@ $  ansible yandex  -i hosts.prod  --limit '!fw-erp-newline-demo-v4-a'    -m shel
 
 yandex - это группа хостов в инвентаре 
 --limit '!fw-erp-newline-demo-v4-a'   = а это позволяет исключить отдельный хост из группы при исполнении
+кавычки обязателно одиночные иначе будет ошибку выдавать
+
+а вот как надо делать чтобы тоже самое задать не у адхока а привыполнении плейбука
+
+$ ansible-playbook admins.yml -i hosts.prod  --diff -b  -l 'yandex,!fw-erp-newline-demo-v4-a'
+
+эта хрень будет выпоняться на группе серверов 'yandex' но из нее будет исключен хост fw-erp-newline-demo-v4-a
+
 
 ===================
 var.a
