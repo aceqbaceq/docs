@@ -156,6 +156,139 @@ $ sudo systemctl list-units --all
 
 
 
+===========================
+как делать маунтинг с помощью systemd когда нужно монтироватьточки  в опреденном порядке
+
+
+
+исходная задача: 
+нам надо создать два маунт поинта.
+один завиисит от другого
+
+/var/www
+/var/www/translogistic_ftp
+
+по дефолту линукс не умеет монтировать в нужно порядке. он старатется монтиоовать все точки одновременно.
+поэтому по дефолту фейл.
+
+
+
+
+для этого создаем в папке /etc/systemd/system
+два файла 
+var-www.mount
+var-www-translogistic_ftp.mount
+
+
+тоесть
+/etc/systemd/system/var-www.mount
+/etc/systemd/system/var-www-translogistic_ftp.mount
+
+
+(замечу что еще есть папка /lib/systemd/system в нее класть файлы ненадо это
+папка настроек systemd в которую кладут свои файлы пакеты линукса. итак еще раз 
+
+/etc/systemd/system = сюда кладем свои кастомные файлы настроек systemd
+/lib/systemd/system = сюда класть ненадо . сюда файлы кладет система из пакетов
+)
+
+
+содержимое файлов
+
+==========================================
+файл для /var/www
+==========================================
+
+# cat var-www.mount
+[Unit]
+Description=mountpoint (/var/www)
+DefaultDependencies=no
+Conflicts=umount.target
+Before=local-fs.target umount.target
+After=swap.target
+
+[Mount]
+What=/dev/disk/by-id/dm-name-vg02--ssd--Bytu12-lv0
+Where=/var/www
+Type=xfs
+Options=defaults
+
+[Install]
+WantedBy=multi-user.target
+
+
+===============================================
+файл для /var/www/translogistic_ftp
+===============================================
+
+# cat var-www-translogistic_ftp.mount
+[Unit]
+Description=mountpoint(/var/www/translogistic_ftp)
+DefaultDependencies=no
+Conflicts=umount.target
+Before=local-fs.target umount.target
+RequiresMountsFor=/var/www
+
+[Mount]
+What=/dev/disk/by-id/dm-name-vg01--hdd--Afgt56-lv1
+Where=/var/www/translogistic_ftp
+Type=xfs
+Options=defaults,x-systemd.requires-mounts-for=/var/www
+
+[Install]
+WantedBy=multi-user.target
+
+
+=================================================
+
+
+очень важное дополнение что имена файлов немогут быть произволнрыми.
+имена файлов должны быть в точнсоти как путь маунтинга через минус. тоесть 
+для /var/www = var-www.mount
+для /var/www/vasya = var-www-vasya.mount
+иначе systemctl выдаст ошиибку
+
+также надо systemctl перезагрузить
+# systemctl  daemon-reload
+
+
+
+проверка что все заработало
+
+$ systemctl start var-www-translogistic_ftp
+
+
+далее
+
+
+$ df -h
+
+и унас должно подмонтироваться сразу обе точки монтования сразу !
+
+
+самая фишка во втором файле  опция  Options=defaults,x-systemd.requires-mounts-for=/var/www
+
+далее возникает вопрос. а что писать во fstab? может ничего? нет . надо там тоже писать вот что 
+
+
+
+$ cat /etc/fstab
+
+# nginx
+/dev/disk/by-id/dm-name-vg02--ssd--Bytu12-lv0                   /var/www                           xfs       defaults 0 2
+
+# translogistic_ftp
+/dev/disk/by-id/dm-name-vg01--hdd--Afgt56-lv1                   /var/www/translogistic_ftp         xfs       defaults,x-systemd.requires-mounts-for=/var/www    0 2
+
+
+здесь самая фишка это опция  defaults,x-systemd.requires-mounts-for=/var/www
+
+
+решение взял отсюда <= https://www.golinuxcloud.com/mount-filesystem-in-certain-order-systemd/
+
+
+
+========================================
 
 
 
