@@ -23,7 +23,7 @@ grub
 
 
 ==========
-| далее
+| далее. установка на GPT раздел.
 
 parted
 
@@ -156,6 +156,12 @@ Number  Start   End     Size    File system  Name  Flags
          (это защита чтобы при копировании не копровать всякие /dev /proc итл. очень удобвно!)
    62  rsync -x   -aog --numeric-ids --partial --inplace --append --progress --exclude 'lost+found' /mnt/mirror/ /mnt/newroot/
             (ключ -x очень важен он говорит чтобы копировать только файлы из одного партишена . это очень важно чтобы лишнее не брать )
+
+   (!!) если мы создаем vm с lvm из линукса на котором не было lvm то чтобы новая вм смогла загрузиться с lvm нужно перекопировать
+        с вм на которой мы делаем работы папку /etc/lvm на /mnt/newroot (!!) это супер важный шаг. иначе новая машина на lvm
+        не сможет найти root раздел. (!!)
+   65  cp -r /etc/lvm   /mnt/newroot/etc/lvm  # чтото типа того
+
    66  mount -o bind   /dev/ /mnt/newroot/dev/
    69  mount -o bind   /proc/ /mnt/newroot/proc/
    70  mount -o bind   /sys/ /mnt/newroot/sys/
@@ -173,15 +179,41 @@ Number  Start   End     Size    File system  Name  Flags
       решние: в файле /mnt/newroot/lib/modules/4.15.0-134-generic/modules.softdep убрать строку вида :sctp
 # grub-install --recheck /dev/vdb
       это ставить загрузчик граба нулевой стадии на первый раздел который 1MB размером
-   exit
 
-!!!!! ВАЖНО НИВКОЕМ СЛУЧАЕ НЕ ЭКСПОРТИРУЙ LVM РАЗДЕЛ иначе при загрузке на новой системе 
+если при этом на экране увидим
+grub-install: warning: this GPT partition label contains no BIOS Boot Partition; embedding won't be possible.
+grub-install: warning: Embedding is not possible.  GRUB can only be installed in this setup by using blocklists.  However, blocklists are UNRELIABLE and their use is discouraged..
+grub-install: error: will not proceed with blocklists.
+
+это значит что  у нас GPT диск но при этом ты забыл создать первый раздел с меткой  " bios_grub" и grub
+не может поставить свой загрузчик .ему просто некуда его ставить! тогда смотри начало 
+этой доки там показано как разбить диск правльно (!!)
+
+
+
+#exit
+
+
+(!!)  НИВКОЕМ СЛУЧАЕ НЕ ЭКСПОРТИРУЙ LVM РАЗДЕЛ иначе при загрузке на новой системе 
 оно тебе напишет Volume group vg-hdd-Neewu3og is exported
 НИВКОЕМ СЛУЧАЕ НЕЭКСПОРТИРУЙ LVM РАЗДЕЛ. НИВ КОЕМ СЛУЧАЕ
 
-!!!!!! МЕНЯЕМ ftsab  ВАЖНО
-   # cat /mnt/newroot/etc/fstab | grep -v '#'
-   /dev/mapper/vg--root--Loop4ohW-ext4--root           /               ext4    errors=remount-ro 0       1
+
+(!!) меняем ftsab 
+# cat /etc/fstab
+
+# root 
+/dev/disk/by-id/dm-name-vg01--hdd--Afgt56-lv0                    /         xfs        defaults 0 0
+
+# boot
+/dev/disk/by-uuid/867dbce8-c62e-4f0c-a5ea-1089e5b711b0          /boot      ext4       defaults 0 0
+
+# /var/www
+/dev/disk/by-id/dm-name-vg02--ssd--Bytu12-lv0                   /var/www   xfs       defaults 0 0
+
+здесь важно заметить что если раздел у нас лежит на lvm то его я вписывают через /dev/disk/by-id
+а если раздел лежит не на lvm то я его вписыаю как /dev/disk/by-uuid
+(мы не юзаем by-uuid для lvm разделов потому что снэршоты имеют такиеже uuid как и оригиналы lvm разделов)
 
 
 ДАЛЕЕ ВАЖНО!!!!!  перед перезагрузкой зайти  в /boot/grub/grub.cfg на новой системе найти строки вида 
@@ -331,3 +363,7 @@ grub-mkconfig -o /boot/grub/grub.cfg
 поэтому если диск вытащил и вставил в доугой комп то надо прогнать прежле всего комнду 
 grub-mkconfig -o /boot/grub/grub.cfg
 чтобы она очитстили меню от дисков которых больше нет.
+
+далее.
+как у ext4 ФС поменять UUID 
+# tune2fs -U random /dev/sdb1
