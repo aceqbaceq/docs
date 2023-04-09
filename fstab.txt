@@ -41,6 +41,57 @@ fstab
 поэтому по дефолту фейл.
 
 
+для регения этой задачи надо заюзать systemd.
+и тут откровение - на самом деле маунтингом занимается systemd и точки монтирования можно прописывать не только в /etc/fstab
+но и в юнитах systemd. сразу возникает вопрос - а если одна и таже  точка монтирования указана и там и там то кто преобладает?
+цитрую из  man systemd.mount
+
+If a mount point is configured in both /etc/fstab and a unit file that is stored below /usr, the former will take precedence. If the unit file is stored below /etc, it will take
+precedence. 
+
+таким образом самый сильный это юнит из ./etc/systemd/system , потом идут настройки в /etc/ftsab а потом юниты из /usr .. ну я там незнаю где
+там юниты прописываются от системд.
+
+вобще система рабатает так: при загрузке спец прога от системд назыается /lib/systemd/system-generators/systemd-fstab-generator
+она читает fstab и налету генерирует юнит файлы а уже из них и система делает маунты. я имею ввиду если этих точек монтирования нет в /etc/systemd/system
+как я указал выше.
+
+обо всем это можно прочитать в двух манах
+
+$ man systemd.mount
+$ man systemd-fstab-generator
+
+также такой  важный момент в fstab можно указывать опции которые понимает systemd и которыех не было до системд и системд будет учитыать это 
+при маунтинге тоесть во fstab можно указыать настроки маунтинга которые понимает только систмед. и вот одна из этих 
+фишек это в fstab можно прописать какие точки монтирования нужно монтировать друг за другом. пример.
+
+вот имеет две точки монтирования
+
+/var/www
+/var/www/translogistic_ftp
+
+
+тогда вот так их прописываем в ftsab
+
+
+$ cat /etc/fstab
+
+# nginx
+/dev/disk/by-id/dm-name-vg02--ssd--Bytu12-lv0                   /var/www                           xfs       defaults 0 2
+
+# translogistic_ftp
+/dev/disk/by-id/dm-name-vg01--hdd--Afgt56-lv1                   /var/www/translogistic_ftp         xfs       defaults,x-systemd.requires-mounts-for=/var/www    0 2
+
+
+и все. тперь. системд понимает что первым надо монтирвать /var/www а уже после /var/www/translogic...
+но минус такого подохода (из того что я замеитил) сотоит в том что если маунтятся точки коректно то  unmount уже и
+идет некоректно. линукс пытается отмонтировать все точки одновременно и поэтому он будет исать что  не могу отмонтирвать точку 
+при ребуте. поэтому  лучше всякие тонкости монтирования описывать все таки через юниты в /etc/  тоодгда нет проблем ни при монтировании
+ни при размонтировании. я проверил. а во фстаб вставлять ну те опции которые можно втавить чтобы было понятно что за эту точку монтрования походу 
+отвчает все таки какйото юнит.
+
+так вот теперь я покажу как написать эти точки монтииоваия через юнит файлы:
+
 
 
 для этого создаем в папке /etc/systemd/system
@@ -140,22 +191,39 @@ $ df -h
 далее возникает вопрос. а что писать во fstab? может ничего? нет . надо там тоже писать вот что 
 
 
-
-$ cat /etc/fstab
-
-# nginx
-/dev/disk/by-id/dm-name-vg02--ssd--Bytu12-lv0                   /var/www                           xfs       defaults 0 2
-
-# translogistic_ftp
-/dev/disk/by-id/dm-name-vg01--hdd--Afgt56-lv1                   /var/www/translogistic_ftp         xfs       defaults,x-systemd.requires-mounts-for=/var/www    0 2
+таким макаром настройки этих двух точк монтирования идут по факту через юнит файлы а во фстаб они приствтууют для српавки и подстраховки.
 
 
-здесь самая фишка это опция  defaults,x-systemd.requires-mounts-for=/var/www
+так что в юнит файлах настриваем реально точки монтиования а в фстаб файле мы их тоже всталяем для спрвки и подстарвховки.
+и юнит файлы хоть и трбуют доп труда но зато с ними потом нет проблем при анаумунт точек монтирваия. 
+
+в заключении как псмотеть  все точки монтиорвания за которые заведует системд
+
+# systemctl -t mount
+
+  UNIT                                              LOAD   ACTIVE SUB     DESCRIPTION                              
+  -.mount                                           loaded active mounted Root Mount
+  boot-efi.mount                                    loaded active mounted /boot/efi
+  boot.mount                                        loaded active mounted /boot
+  dev-hugepages.mount                               loaded active mounted Huge Pages File System
+  dev-mqueue.mount                                  loaded active mounted POSIX Message Queue File System
+  run-credentials-systemd\x2dsysusers.service.mount loaded active mounted /run/credentials/systemd-sysusers.service
+  run-user-1000.mount                               loaded active mounted /run/user/1000
+  sys-fs-fuse-connections.mount                     loaded active mounted FUSE Control File System
+  sys-kernel-config.mount                           loaded active mounted Kernel Configuration File System
+  sys-kernel-debug.mount                            loaded active mounted Kernel Debug File System
+  sys-kernel-tracing.mount                          loaded active mounted Kernel Trace File System
 
 
-решение взял отсюда <= https://www.golinuxcloud.com/mount-filesystem-in-certain-order-systemd/
+четко видно что имя юнита соотвесвтует точке монтиования. например 
+ run-user-1000.mount   = /run/user/1000
 
 
+все маунт юниты которые щас аутальные в системе они всегда лежат в папке 
+
+$ ls -1 /run/systemd/generator | grep mount
+boot-efi.mount
+-.mount
 
 
 ======================
