@@ -1028,3 +1028,44 @@ deb  [ arch=amd64 ] http://us.archive.ubuntu.com/ubuntu/ bionic universe
  
 
 
+====
+вот у нас есть файловы бэкап. как узнать версию установленногопакета
+например весию пакета для mariadb.
+
+идем в /var/lub/dpkg/info
+
+/var/lib/dpkg/info# ls -1 | grep mariadb-server
+mariadb-server-10.1.conffiles
+mariadb-server-10.1.config
+mariadb-server-10.1.list
+mariadb-server-10.1.md5sums
+mariadb-server-10.1.postinst
+mariadb-server-10.1.postrm
+mariadb-server-10.1.preinst
+mariadb-server-10.1.prerm
+mariadb-server-10.1.templates
+mariadb-server-core-10.1.list
+mariadb-server-core-10.1.md5sums
+mariadb-server.list
+mariadb-server.md5sums
+
+
+уже понятно чтоверсия 10.1  но нас интереусует и третья цифра.
+смотрим внутрь этих файлов и видим что  пакет вуключает файлы которые лежат в  /usr/share/doc/mariadb-server-10.1
+
+идем туда и читаем что там написанр.
+
+$ zcat changelog.Debian.gz | head
+mariadb-10.1 (1:10.1.45+maria-1~bionic) bionic; urgency=medium
+
+  * Automatic build with MariaDB build.
+
+ -- Buildbot <buildbot@ubuntu-bionic-amd64>  Fri, 08 May 2020 03:55:54 -0400
+
+mariadb-10.1 (10.1.0) unstable; urgency=low
+
+  * Initial release.
+
+ага! значитверсия пакета 1:10.1.45  
+гоча !
+
