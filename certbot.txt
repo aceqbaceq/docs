@@ -971,3 +971,13 @@ https://www.ssllabs.com/ssltest/analyze.html?d=paidsupport.example.kz&latest
 
 $ /usr/sbin/nginx -s reload
 ====
+как псмотреть список сертификатов
+
+# certbot certificates
+
+===
+как удалить все просроченные сертификаты
+$ certbot certificates 2>&1| grep EXPIRED   -B2 | grep "Certificate Name" | awk '{print $3}' | xargs -L 1 -I %  certbot delete --cert-name %
+
+
+
