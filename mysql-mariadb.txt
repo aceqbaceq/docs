@@ -1,0 +1,157 @@
+==============
+|сменить unix_socket на password аутентфикацию
+
+как для ползоавтеля сменить тип аутентификации с метода unix_socket (когда без пароля входим)
+на вход по паролю
+
+метод через alter user(про который постоянно пишут!) появился только в 10.2 
+а если версия mariadb более старая то там просто напросто 
+этого alter user его нет, поэтому через компнду:
+
+
+update mysql.user 
+ set authentication_string=password('mypass'),  
+ plugin='mysql_native_password' 
+where user='root'; 
+
+
+MariaDB [(none)]> select host,user,plugin,password from mysql.user;
++-----------+------------+-----------------------+-------------------------------------------+
+| host      | user       | plugin                | password                                  |
++-----------+------------+-----------------------+-------------------------------------------+
+| localhost | root       | mysql_native_password | *23AE809DDACAF96AF0FD78ED04B6A265E05AA257 |
+| localhost | vasya      |                       | *23AE809DDACAF96AF0FD78ED04B6A265E05AA257 |
++-----------+------------+-----------------------+-------------------------------------------+
+
+что интересно что если в поле plugin стоит пусто 
+то это считается что вход наод делать через пассворд.
+
+
+===
+|старт в режиме когда грант тейблс отключены (single user режим)
+
+изначит можно войти без пароля
+
+# systemctl stop mariadb
+
+# mysqld --skip-grant-tables  &
+
+проверем что гратнт тейблс отключены:
+MariaDB [(none)]> show grants for root@localhost;
+ERROR 1290 (HY000): The MariaDB server is running with the --skip-grant-tables option so it cannot execute this statement
+
+когда уже вошли то активировать обратно grant tables можно 
+чрез команду
+MariaDB [(none)]> flush privileges;
+Query OK, 0 rows affected (0.00 sec)
+
+MariaDB [(none)]> show grants for root@localhost;
++----------------------------------------------------------------------------------------------------------------------+
+| Grants for root@localhost                                                                                            |
++----------------------------------------------------------------------------------------------------------------------+
+| GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' IDENTIFIED BY PASSWORD '*23AE809DDACAF96AF0FD78ED04B6A265E05AA257' |
+| GRANT PROXY ON ''@'%' TO 'root'@'localhost' WITH GRANT OPTION                                                        |
++----------------------------------------------------------------------------------------------------------------------+
+
+
+
+пароль для юзера можно имзенить тоько когда grant tables активны.
+
+поэтму если нет рут пароля то дезактиивируем эти таблицы, заходоим,
+активирет обратно, потом меняем пароль как описано выше.
+
+
+
+============================
+| как запустить mysql в режме skip-grant-tables когда для входа ненужен пароль и 
+потом сменить пароль для root юзера
+
+
+
+убунту 18:
+> select version();
++----------------------------------+
+| version()                        |
++----------------------------------+
+| 10.1.48-MariaDB-0ubuntu0.18.04.1 |
++----------------------------------+
+
+
+
+# systemctl stop mariadb
+
+# mysqld --skip-grant-tables  &
+# mysql
+>  flush privileges;
+> update mysql.user  
+       set authentication_string=password('789'),  
+       plugin='mysql_native_password'  
+       where user='root' and host='localhost';
+>exit
+
+# kill -15 $(ps aux | grep mysqld | grep -v grep | awk '{print $2}')
+# systemctl start mariadb
+# mysql -u root -p
+Enter password: 789
+
+MariaDB [(none)]> select user();
++----------------+
+| user()         |
++----------------+
+| root@localhost |
++----------------+
+
+
+значит начиная с mariadb 10.2 ввели alter user поэтому тогда уже вместо
+
+> update mysql.user  
+       set authentication_string=password('789'),  
+       plugin='mysql_native_password'  
+       where user='root' and host='localhost';
+
+
+надо юзать alter user ... (https://mariadb.com/kb/en/alter-user/)
+
+
+а начиная с 10.4 все стало еще круче:
+MariaDB-10.4+ the mysql.user is a view rather than a table.
+Its recommend to stop copying off old blogs to do any authentication relates changes in MySQL and MariaDB, the mechanisms are being updated and no longer apply. Always check the official documentation.
+Use SET PASSWORD or ALTER USER to manage user authentication.
+Also modifying a user/host component of the username will put triggers, events, plugins, grants, roles etc out of sync with the combined username (aka broken). So just DROP/CREATE users rather than manipulate them.
+
+
+убунту 22:
+> select version();
++--------------------------------------+
+| version()                            |
++--------------------------------------+
+| 10.6.12-MariaDB-0ubuntu0.22.04.1-log |
++--------------------------------------+
+
+
+====
+|revoke all privileges
+
+"To revoke all privileges, use the second syntax, which drops all global, database, table, column, and routine privileges for the named user or users:
+
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM user [, user] ..."
+
+=====
+|создать юзера с входом по паролю
+
+
+> CREATE USER foo2@test IDENTIFIED BY 'password';
+
+
+MariaDB [(none)]> select host,user,plugin,password from mysql.user;
++-----------+------------+-------------+-------------------------------------------+
+| host      | user       | plugin      | password                                  |
++-----------+------------+-------------+-------------------------------------------+
+| localhost | vasya      |             | *23AE809DDACAF96AF0FD78ED04B6A265E05AA257 |
++-----------+------------+-------------+-------------------------------------------+
+
+
+======
+
+
+
