@@ -3312,6 +3312,61 @@ $ terragrunt import yandex_compute_disk.this[\"disk2\"]  fhml8oqvisq4n97357f4
 
 $ terraform import   module.vm_3_disks.yandex_compute_disk.this[disk2]  fhmvdn94c1rjr9rr8hhq
 
+====
+| как посмотреть подробности конкретного ресурса.
+вначале смотрим название ресурса. 
+$ terrafrom state list
+
+а потом уже смотрим подробности ресурса
+$ terraform state  show  yandex_compute_image.image-1
+
+# yandex_compute_image.image-1:
+resource "yandex_compute_image" "image-1" {
+    created_at    = "2023-04-11T18:33:01Z"
+    description   = "это заготовка шаблон болванка внутри lvm вольюм пустой. тип диска hdd"
+    folder_id     = "b1gnaqbm3b48e5d97fjj"
+    id            = "fd8s30e0ji2qahoga0kc"
+    labels        = {}
+    min_disk_size = 15
+    name          = "image-distr-hdd-lvm"
+    pooled        = false
+    product_ids   = []
+    size          = 0
+    status        = "ready"
+
+    timeouts {}
+}
+
+
+а вот еще прикол
+если есть ресурс с именем
+terraform state show   module.vm_12_disks.yandex_compute_disk.this["disk2"]
+
+то "disk2" надо экранировать \"disk2\" при просмотреть стейта иначе выдаст ошибку
+тоесть: 
+
+$ terraform state show   module.vm_12_disks.yandex_compute_disk.this[\"disk2\"]
+# module.vm_12_disks.yandex_compute_disk.this["disk2"]:
+resource "yandex_compute_disk" "this" {
+    block_size  = 4096
+    created_at  = "2023-04-11T19:03:41Z"
+    description = "fw-venlog-proxy   LVM(/)"
+    folder_id   = "b1gnaqbm3b48e5d97fjj"
+    id          = "fhm3ustqg1u98kvevqvg"
+    image_id    = "fd8s30e0ji2qahoga0kc"
+    name        = "fw-venlog-proxy---hdd-1-lvm"
+    product_ids = []
+    size        = 15
+    status      = "ready"
+    type        = "network-hdd"
+    zone        = "ru-central1-a"
+
+    disk_placement_policy {}
+}
+
+
+
+
 
 ====
 @@@@@@@@@@@@@@
@@ -3345,7 +3400,7 @@ inputs = {
 
 в этом примере мы говорим что нашу модуль зависит от модуля "vpc". и так как ог еще не установлен то мы укзыаем
 какиое фейковое значение для переменной  vpc_id надо юзать на стадии terragrunt plan.
- 
+
 
 
 

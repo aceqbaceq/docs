@@ -189,6 +189,20 @@ grub-install: error: will not proceed with blocklists.
 не может поставить свой загрузчик .ему просто некуда его ставить! тогда смотри начало 
 этой доки там показано как разбить диск правльно (!!)
 
+(!!)еще одна ошибка которая может вылезти при выполнении grub-install --recheck /dev/vdb
+grub-install: error: /usr/lib/grub/i386-pc/modinfo.sh doesn't exist. Please specify --target or --directory.
+она значит то что исходный линукс ставился на uefi комп и поэтому инсталляор сука неустановил пакет 
+$ sudo apt-get install grub-pc
+его надо поставить под chroot и все заколосится.
+но тут возникнет еще одна проблема в том что  apt-get не может работать по chroot поотому что resolv.conf 
+это символическая ссылка и она на нашем chroot папке ведет вникуда. надо ее временно удалить и скопировать с хоста
+хостовый resolv.conf ,  запустить apt-get , поставить пакет и обратно сокпировать исхондный resolv.conf
+ссылки:
+https://askubuntu.com/questions/784990/grub-2-install-error-grub-install-error-usr-lib-grub-i386-pc-modinfo-sh-does
+https://askubuntu.com/questions/590354/after-chroot-apt-get-update-err-and-failed-to-fetch-bootableflashfromharddis
+
+
+
 
 
 #exit
