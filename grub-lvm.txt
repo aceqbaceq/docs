@@ -230,9 +230,13 @@ https://askubuntu.com/questions/590354/after-chroot-apt-get-update-err-and-faile
 (мы не юзаем by-uuid для lvm разделов потому что снэршоты имеют такиеже uuid как и оригиналы lvm разделов)
 
 
-ДАЛЕЕ ВАЖНО!!!!!  перед перезагрузкой зайти  в /boot/grub/grub.cfg на новой системе найти строки вида 
+(!!) перед перезагрузкой зайти  в /boot/grub/grub.cfg на новой системе найти строки вида 
 linux vmlinuz и заменить на конце  
 maybe-ubiquity на net.ifnames=0 biosdevname=0 console=ttyS0   иначе нихрена не загрузится !!!!!
+(!!) или другой прикол maybe может небыть но эта сука непрописыает параметры net.ifnames=0 biosdevname=0 console=ttyS0
+их надо обязательно дбавить в vmlinuz строку
+пример того как выглядит правильная строка
+linux   /vmlinuz-5.15.0-67-generic root=/dev/mapper/vg01--hdd--1--Arft45a-lv0 ro  net.ifnames=0 biosdevname=0 console=ttyS0
 
 # halt -p
 

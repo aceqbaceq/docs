@@ -3365,7 +3365,13 @@ resource "yandex_compute_disk" "this" {
 }
 
 
-
+====
+|plan 
+|apply
+проверить план
+$ terraform validate && terraform fmt && terraform plan  -var-file=folder-specific-vars.tfvars  -out "plan.txt"
+запустить план
+$ terraform apply "plan.txt"
 
 
 ====
@@ -3414,7 +3420,704 @@ inputs = {
 
 
 
+===========
+| for_each, for, dynamic 
+супер тема.
+ссылка которая поомгла разобоарться 
+https://blog.gruntwork.io/terraform-tips-tricks-loops-if-statements-and-gotchas-f739bbae55f9
 
+значит о чем речь.
+
+во первых надо разобраться как работае цикл "for" в тераформе
+для  этого поможет код:
+
+$ cat main.tf 
+
+#######
+
+variable "vasya" {
+    description = "1212"
+    type = string
+    default = "1"
+}
+
+
+output  "vasya" {
+  value = var.vasya
+
+}
+
+#########
+
+
+###
+
+variable "hero_thousand_faces" {
+  description = "map"
+  type        = map(string)
+  default     = {
+    neo      = "hero"
+    trinity  = "love interest"
+    morpheus = "mentor"
+  }
+}
+
+locals {
+
+ bios = [for key, value in var.hero_thousand_faces : "key=${key}, value=${value}"]
+}
+
+
+output "bios" {
+   value  = local.bios
+}
+
+output "bios2" {
+  value = {for key, value in var.hero_thousand_faces : key => value}
+
+}
+
+
+####
+
+
+variable "hero_thousand_faces2" {
+  description = "map"
+  type        = map(string)
+  default     = {
+    neo      = "hero"
+    trinity  = "love interest"
+    morpheus = "mentor"
+  }
+}
+
+
+
+locals {
+ bios3 ={ for key, value in var.hero_thousand_faces2 : key => value }
+}
+
+output  "bios3" {
+   value = local.bios3
+}
+
+
+###
+
+variable "p2" {
+    description = "1212"
+    type = map(any)
+    default = {
+                 disk2:{
+                         "dpg_name": "123"
+                         "size"    : "50"
+                 },
+
+                 disk3:{
+                         "dpg_name": ""
+                         "size"    : "10"
+                 },
+                 
+
+
+    } 
+}
+
+
+
+output  "p2" {
+  value = var.p2
+
+}
+
+
+output "p3" {
+  value = { for key, value in var.p2: key => value if value["dpg_name"] != ""  } 
+
+}
+
+
+
+запускай смотри разбирайся.
+
+
+
+
+далее следующий вспомогательный кусок
+
+
+$ cat provider.tf 
+###################################
+##   general 
+##################################
+
+
+terraform {
+  required_version = ">= 0.13"
+
+
+
+
+required_providers {
+    null = {
+      source = "hashicorp/null"
+      version = "3.2.1"
+    }
+  }
+
+
+
+  backend "local" { }
+
+}
+
+
+
+
+$ cat main.tf
+
+##################
+
+
+variable "dict1" {
+  description = "map"
+  type        = map(string)
+  default     = {
+    key1      = "value1"
+    key2      = "value2"
+
+  }
+}
+
+
+
+resource "null_resource" "dict1" {
+
+for_each = var.dict1
+
+
+  triggers = {
+    value = each.key
+  }
+
+}
+
+
+
+resource "null_resource" "dict2" {
+
+for_each = var.dict1
+
+
+  triggers = {
+    value = each.value
+  }
+
+}
+
+
+##################################
+
+
+
+variable "list1" {
+  description = "set"
+  type        = list(string)
+  default     = [
+      "value1",
+      "value2"
+  ] 
+}
+
+
+
+resource "null_resource" "list1" {
+
+for_each = toset(var.list1)
+
+
+  triggers = {
+    value = each.key
+  }
+
+}
+
+
+
+resource "null_resource" "list2" {
+
+for_each = toset(var.list1)
+
+
+  triggers = {
+    value = each.value
+  }
+
+}
+
+
+
+
+
+
+
+вывод на экран:
+
+ # null_resource.dict1["key1"] will be created
+  + resource "null_resource" "dict1" {
+      + id       = (known after apply)
+      + triggers = {
+          + "value" = "key1"
+        }
+    }
+
+  # null_resource.dict1["key2"] will be created
+  + resource "null_resource" "dict1" {
+      + id       = (known after apply)
+      + triggers = {
+          + "value" = "key2"
+        }
+    }
+
+  # null_resource.dict2["key1"] will be created
+  + resource "null_resource" "dict2" {
+      + id       = (known after apply)
+      + triggers = {
+          + "value" = "value1"
+        }
+    }
+
+  # null_resource.dict2["key2"] will be created
+  + resource "null_resource" "dict2" {
+      + id       = (known after apply)
+      + triggers = {
+          + "value" = "value2"
+        }
+    }
+
+  # null_resource.list1["value1"] will be created
+  + resource "null_resource" "list1" {
+      + id       = (known after apply)
+      + triggers = {
+          + "value" = "value1"
+        }
+    }
+
+  # null_resource.list1["value2"] will be created
+  + resource "null_resource" "list1" {
+      + id       = (known after apply)
+      + triggers = {
+          + "value" = "value2"
+        }
+    }
+
+  # null_resource.list2["value1"] will be created
+  + resource "null_resource" "list2" {
+      + id       = (known after apply)
+      + triggers = {
+          + "value" = "value1"
+        }
+    }
+
+  # null_resource.list2["value2"] will be created
+  + resource "null_resource" "list2" {
+      + id       = (known after apply)
+      + triggers = {
+          + "value" = "value2"
+        }
+    }
+
+
+
+
+
+чтоздесь важно заметить. если у нас в for_each передется переменна типа dictionary то
+индексами будут ключи этого дикшонари. тоесть вот у нас переменная
+
+
+variable "dict1" {
+  description = "map"
+  type        = map(string)
+  default     = {
+    key1      = "value1"
+    key2      = "value2"
+
+  }
+}
+
+
+у нее ключи   key1 и key2 
+и тогда  у нас создаются ресурсы с индеками key1 и key2
+
+
+ # null_resource.dict1["key1"] will be created
+ # null_resource.dict1["key2"] will be created
+ # null_resource.dict2["key1"] will be created
+ # null_resource.dict2["key2"] will be created
+
+
+а если у нас в for_each передается переменная типа set (это как list только с уникальными значениями, без повторяющихся)
+то индексами ресурса будут уже value поля
+тоесть
+
+у нас есть пременная 
+
+
+
+variable "list1" {
+  description = "set"
+  type        = list(string)
+  default     = [
+      "value1",
+      "value2"
+  ] 
+}
+
+
+
+
+и вот такие индексы будут у ресусов
+
+
+
+  # null_resource.list1["value1"] will be created
+  # null_resource.list1["value2"] will be created
+  # null_resource.list2["value1"] will be created
+  # null_resource.list2["value2"] will be created
+
+
+далее что интересно. неважно передалимы в for_each дикошонари или set у нас обрашение к элементам
+этого for_each будет одно и тоже
+
+each.key
+each.value
+
+
+разница только в тмо что если мы преедали в for_each дикшонари то 
+
+в each.key будет содержаться var.key
+в each.value буде содержатся var.value
+
+а в случае коогда мы в for_each передали set то будет вот так
+
+each.key=var.value
+each.value=var.value
+
+это все очень хорошо видно из вывода сверху.
+
+
+знаменательно то что когда мы преедали в for_each set то обращаться к элементам можно хоть через each.key
+хоть через each.value
+
+тоесть вот у нас есть 
+
+
+variable "list1" {
+  description = "set"
+  type        = list(string)
+  default     = [
+      "value1",
+      "value2"
+  ] 
+}
+
+
+мы говорим
+
+for_each = toset (var.list1)
+each.key у нас будет равен [value1, value2]
+ each.value у нас будет равено тожему же самому [value1, value2]
+
+ запомни это ! это ниже пригодится!
+
+
+
+
+ТЕПЕРЬ ФОРМУЛИРУЮ ПРОБЛЕМУ:  задача научиться создавать диски у которых будет прописан disk placement group
+теперь как это на практике
+
+
+в root модуле создается диск плейсмент группа
+
+resource "yandex_compute_disk_placement_group" "disk_pgroup_1" {
+  name        = "ssd-spread-group-1-a"
+  folder_id   = var.folder_id
+  description = "группа размещения дле нерплицируемых дисков"
+  zone        = var.zone
+}
+
+
+далее в root модуле мы задаем  переменную 
+в которой прописаны параметры доп дисков для виртуалки
+в которых  в частности укаываем имя  плейсмент группы куда надо поместить создаваемые диски
+
+
+
+variable "vm_12_extra_disks" {
+  description = "доп диски виртуалки"
+  type        = map(any)
+  default = {
+    disk2 = {
+      description = "корневой раздел,  диск 1 lvm vgs"
+      name        = "hdd-rootp-1-a" # имя в веб морде
+      type        = "network-hdd"
+      size        = 250
+      block_size  = 4096
+      image_id    = ""
+      snapshot_id = "fd83924vj8b7vbes2dp6"
+      dpg_name    = ""
+
+    },
+    disk3 = {
+      description = "корневой раздел , диск 2 lvm vgs"
+      name        = "hdd-rootp-2-a" # имя в веб морде
+      type        = "network-hdd"
+      size        = 50
+      block_size  = 4096
+      image_id    = ""
+      snapshot_id = "fd8pq4r8eq5bqqu3l43i"
+      dpg_name    = ""
+
+
+    }
+
+    disk4 = {
+      description = "swap"
+      name        = "ssd-swap-a" # имя в веб морде
+      type        = "network-ssd"
+      size        = 10
+      block_size  = 4096
+      image_id    = ""
+      snapshot_id = "fd8v9rs8gqteku4q220e"
+      dpg_name    = ""
+
+    }
+
+
+    disk5 = {
+      description = "нереплицируемый диск под мускул"
+      name        = "unssd-mysql-1-a" # имя в веб морде
+      type        = "network-ssd-nonreplicated"
+      size        = 279
+      block_size  = 4096
+      image_id    = ""
+      snapshot_id = ""
+      dpg_name    = "ssd-spread-group-1-a"
+
+
+    }
+
+
+
+    disk6 = {
+      description = "нереплицируемый диск под мускул"
+      name        = "unssd-mysql-2-a" # имя в веб морде
+      type        = "network-ssd-nonreplicated"
+      size        = 279
+      block_size  = 4096
+      image_id    = ""
+      snapshot_id = ""
+      dpg_name    = "ssd-spread-group-1-a"
+
+    }
+
+
+ у каждого диска есть суб переменная она описывает помщеен ли диск в плейсмент групп
+ или нет
+
+если
+     dpg_name    = ""                        # не помещен
+
+если
+     dpg_name    = "ssd-spread-group-1-a"    # диск находится в плейсмент группе 
+
+
+таким макаром диск5 и диск6 при создании надо поместить в плейсмент группу с именем "ssd-spread-group-1-a"
+
+
+осталось создать эти диски:
+переходимв в код модуля который создает диски:
+
+
+первый кусок
+
+data "yandex_compute_disk_placement_group"  "dpg_names" {
+   for_each   = { for key, value in var.extra_disks: key => value if value["dpg_name"] != ""  }
+       name    = each.value["dpg_name"]
+}
+
+
+
+
+он берет переменную var.extra_disks проходит по списку дисков , вычленяет для каждого диска его плейсмент 
+группу по ключу "dpg_name" а вот дальше самое интересное - если имя плейсмент группы пустое тоесть dpg_name=""
+то тераформ говорит что плейсмент группы с таким имеенем несуществует. я пытался по разному и "" и null подставялять
+он все равно ругается. поэтому единсвенныеый выход это чтобы for_each пробегался не по всем дискам а только 
+по тем у которых dpg_name != "" для этого и испольуеся супехитрый блок с 
+
+{ for key, value in var.extra_disks: key => value if value["dpg_name"] != ""  }
+
+дополнительно замечу что для for_each данные которые он жрет должны быть обяазтельно dictionary то есть  {}
+что мы и делаем. тоесть список [] ему по моему неподходит. надо уточнять.
+
+теперь когда мы для каждого диска  узнали параметры ресурса его плейсмент группы через 
+
+data."yandex_compute_disk_placement_group"
+
+
+теперь можно подставлять id этой группы в диск при его создании
+для этого имеем код в этом же модуле
+
+
+resource "yandex_compute_disk" "this" {
+  for_each         = var.extra_disks
+  ...
+
+dynamic "disk_placement_policy" {
+    for_each = each.value["dpg_name"] != "" ? toset([each.key]) : toset([]) 
+
+     content {
+             disk_placement_group_id =  data.yandex_compute_disk_placement_group.dpg_names[disk_placement_policy.value].id
+    }
+
+}
+
+
+
+}
+
+
+
+
+здесь много всего интресного насовано. 
+во первых у нас есть for_each а внутри него   присунут dynamic блок.
+внутри этого dynamic блока  есть свой for_each , причем значение для этого for_each мы подставляем из предыдущего for_each 
+в виде его текущего значения each.value - по мне это просто пиздец как сложно. тоесть тераформ понимает что 
+each.value относится к головному for_each а не текущему. пиздец.
+
+значит чему будет равыен каждый each.value от головного for_each 
+так как в головной for_each подставляется дикшонари то 
+он будет равено вот такому
+
+
+for_each = {   disk2: {
+      description = "корневой раздел,  диск 1 lvm vgs"
+      name        = "hdd-rootp-1-a" # имя в веб морде
+      type        = "network-hdd"
+      size        = 250
+      block_size  = 4096
+      image_id    = ""
+      snapshot_id = "fd83924vj8b7vbes2dp6"
+      dpg_name    = ""
+
+    },
+}
+
+
+где
+
+each.key = disk2
+each.value =   {
+      description = "корневой раздел,  диск 1 lvm vgs"
+      name        = "hdd-rootp-1-a" # имя в веб морде
+      type        = "network-hdd"
+      size        = 250
+      block_size  = 4096
+      image_id    = ""
+      snapshot_id = "fd83924vj8b7vbes2dp6"
+      dpg_name    = ""
+
+    }
+
+
+еще прмимер
+
+for_each = { disk6 : {
+      description = "нереплицируемый диск под мускул"
+      name        = "unssd-mysql-2-a" # имя в веб морде
+      type        = "network-ssd-nonreplicated"
+      size        = 279
+      block_size  = 4096
+      image_id    = ""
+      snapshot_id = ""
+      dpg_name    = "ssd-spread-group-1-a"
+
+    }
+}
+
+
+где 
+
+each.key = disk6
+each.value =    {
+      description = "нереплицируемый диск под мускул"
+      name        = "unssd-mysql-2-a" # имя в веб морде
+      type        = "network-ssd-nonreplicated"
+      size        = 279
+      block_size  = 4096
+      image_id    = ""
+      snapshot_id = ""
+      dpg_name    = "ssd-spread-group-1-a"
+
+    }
+
+
+
+
+и вот в свою очередь уже этот each.value подсталяется в строку:
+
+for_each = each.value["dpg_name"] != "" ? toset([each.key]) : toset([])
+
+
+тогда этот второй for_each будет принимать значения и вот тут самое интересное
+мы  проверяем что текущее значение each.value["dpg_name"] от головного for_each оно непустое != "" 
+b если оно пустое то 
+
+for_each = []  и блок dynamic несоздается  
+
+
+а если each.value["dpg_name"] непустое то  в for_each подсталяется уже не переенная типа dictionary 
+а типа set
+
+
+for_each = [ each.key ] 
+
+где each.key это хренота от головного for_each то есть (смотрим наверх) оно равно disk5 и disk6
+таким образом наш второй for_each принимает такие значения
+
+for_each =  [ "disk5" ]
+for_each =  [ "disk6" ]
+
+
+и dynamic модуль создается 
+
+теперь возникает вопрос как нам обратится к этому элементу for_each чтобы получить disk5 и disk6.
+как я говорило в самом верху. если у нас for_each это set то  можно обратться двумя способами.
+они оба дадут одно итоже . можно обраться как each.key а можно как each.value
+в обоих случаях поулчим disk5 и disk6
+
+ну я выбрал обратиться через each.value
+тут еще всопмнимаем что если у нас for_each исполуется в блоке dynamic то обращаться к нему надо через each.*
+а через имя блока dynamic тоеств нашем случае это disk_placement_policy
+итого чтовы вытащить из for_each его занчение надо обраться как disk_placement_policy.value  
+охренеть и тогда
+
+disk_placement_group_id =  data.yandex_compute_disk_placement_group.dpg_names[disk_placement_policy.value].id  
+
+
+по сути у нас будет подставлсят во такие значения
+
+disk_placement_group_id =  data.yandex_compute_disk_placement_group.dpg_names["disk5"].id
+disk_placement_group_id =  data.yandex_compute_disk_placement_group.dpg_names["disk6"].id
+
+
+
+вот такой пирог пиздеца.
+
+а все поому что нам надо отфильтровать лишнее в data.
+
+
+====
 
 
 
