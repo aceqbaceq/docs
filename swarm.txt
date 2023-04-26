@@ -1,0 +1,213 @@
+swarm
+
+установка
+
+делаем на трех нодах
+
+вначле ставим на нодах докер
+
+переходим к установке сворма
+
+на первой ноде
+$ docker swarm init --advertise-addr <MANAGER-IP>
+
+где
+--advertise-addr = это Ip адрес менеджерской ноды. 
+по этмоу IP  другие ноды будут связыватся с менеджерской нодой.
+
+
+я ввел
+
+$ docker swarm init --advertise-addr  192.168.56.21
+
+
+
+
+есть два вида ролей у нод: 
+менеджер - раздает задачи , управляет
+воркер   - крутитна себе контенеры.
+
+на одной ноде может быть при желании сразу две роли.
+
+
+все сворм мы активировали.
+проверим
+
+$ docker info | grep -i swarm
+Swarm: active
+
+
+после запуска init  у нас выскочить подсказака что надо вбить на 
+других нодах
+
+$ docker swarm join --token SWMTKN-1-076bgopviemyx0t51rphsh25r83g7hiijoek7ox7bw8kus6qe7-6p7zrk4afqi3e9ah7w4cq9lf1 192.168.56.12:2377
+
+вбиваем эту команду на двух других нодах
+
+все унас триноды в клстере
+
+на менеджерской ноде вводим
+
+
+$ docker node ls
+ID                            HOSTNAME   STATUS    AVAILABILITY   MANAGER STATUS   ENGINE VERSION
+3sxx590kl2gz84ypqksdkq7ua     vagrant    Ready     Active                          23.0.4
+dqdadu7ixg9lshvqoy47cd1bc *   vagrant    Ready     Active         Leader           23.0.4
+kcnfta4am8y55ael8gdp9iq5n     vagrant    Ready     Active                          23.0.4
+
+
+звезда покзыает где мы шас сидим.
+
+
+если нам надо опять получить подсказка с помощью которой мы присоединяем новые ноды
+то на менеджере ввеодим
+
+$ docker swarm join-token worker
+To add a worker to this swarm, run the following command:
+
+    docker swarm join --token SWMTKN-1-076bgopviemyx0t51rphsh25r83g7hiijoek7ox7bw8kus6qe7-6p7zrk4afqi3e9ah7w4cq9lf1 192.168.56.12:2377
+
+
+далее разворачиваем на сворме  локальный регистри сервис:
+
+$ docker service create --name registry --publish published=5000,target=5000 registry:2
+
+где
+registry:2 = это имя имаджа и его версия  на основе которой надо запустить контейнер новый
+
+он нам нужен для того что туда будем пихать наши кастомные имаджи от докер композера.
+чтобы сворм мог их откуда то считать.
+
+$ docker service ls
+ID             NAME         MODE         REPLICAS   IMAGE           PORTS
+yk8087lr2gta   registry     replicated   1/1        registry:2      *:5000->5000/tcp
+
+
+
+нашел мега прикол
+указан env_file
+в нем пропсано 
+ MARIADB_ROOT_PASSWORD=1
+
+еще есть такое
+        environment:
+            - MARIADB_ROOT_PASSWORD
+
+
+что в композере как мне казалось должно озаначать что ссмотрит переменную  MARIADB_ROOT_PASSWORD ее значеие
+в env_file но пхоуду это полная хуйня и пофакту ознавает что MARIADB_ROOT_PASSWORD=null
+по крайне мере так в сворме работает!
+
+
+тоестть:
+при таком вот конфиге
+файл e1:
+ MARIADB_ROOT_PASSWORD=1
+
+
+
+services:
+    mariadb:
+        ...
+        env_file: ./e1
+        environment:
+            - MARIADB_ROOT_PASSWORD
+            - MARIADB_DATABASE
+
+
+в контейнере у нас будет  MARIADB_ROOT_PASSWORD=null (проерено на убунту22)
+
+
+тоесть если переменная естьв env_file и в environment: то сворм считает что в environmnet: указан более
+приортетный вариант. поолькуо   - MARIADB_ROOT_PASSWORD как бы эквиватлентен - MARIADB_ROOT_PASSWORD=null
+то в итоге у нас в контейнере будет MARIADB_ROOT_PASSWORD = null 
+поэтому: либо пеерменная укзываетс в env_file либо в environmet: но не в двух местах сразу
+
+еслиубнту 22 то в нем можно воттакт оцениить какой конфигв итоге поедетв сворм
+
+$ docker stack config -c docker-compose.yml
+
+
+щас финальный вариант сворм мусула лежит в убунту22
+===
+ вдокерер есть несколько видов сетей.
+
+
+host сеть - это когда коейнер сидит в том же сететвом стеке что и ос.
+тоесь имеет доступ к тем же сетвым картам.
+то есть этот тот случай когда мы хотим иметь изоляцию сервиса на уровне контейнера
+по цпу и так далее но не хотим изоляции для него на уровне 
+
+
+как на сворме создать сервис который подключен к сети хоста:
+
+$ docker service create --name wp --publish mode=host,target=80,published=8000 wordpress (это развернет 
+один контейнер на каком то одном хосте)
+$ docker service create --name my-nginx   --publish  mode=host,target=80,published=80  --mode=host   --mode=global   --network host   nginx (это развернет контенер на кажом хосте)
+
+
+а вот как это прописывается через докер композ файл
+
+
+services:
+    mariadb:
+        ...
+        networks:
+           - 'host'
+
+networks:
+  host:
+    external: true
+           
+
+таким макамро мы подключаемся к уже существюзей сети!
+( ссылки по теме
+https://docs.docker.com/compose/networking/
+https://docs.docker.com/compose/compose-file/06-networks/#external 
+)
+
+правда прикопление контейнера  к хостовой сети это минус в том плане
+что сервис контейнера слушает 0.0.0.0:3306 что жопа
+
+(поумать так к какой сети пихать контейне\сервис)
+
+
+
+вотпример что  я конечу свой сервис к сети "bridge"
+
+services:
+    mariadb:
+        image: localhost:5000/mysql:1
+        build: 
+             context: ./config/mariadb
+             dockerfile: Dockerfile
+        deploy:
+          placement:
+             constraints:
+                - node.role == manager
+        volumes:
+            - ./data/mysql/db:/var/lib/mysql
+            - ./config/mariadb/my.cnf:/etc/mysql/mariadb.cnf
+            - ./data/mysql/logs:/var/log/mysql
+            - ./temp:/temp/
+        env_file: .env
+        networks:
+           - 'bridge'
+#        ports:
+#          - 3306:3306
+
+ 
+networks:
+  bridge:
+    external: true
+
+
+ после этого мой контейнер имеет ip = 172.17.0.2
+ с хоста я могу  стучать на сокет 172.17.0.2:3306
+ а снаружи порт закрыт! ура!
+
+ остаось понять как закрыть служебные порты сворма снаружи из интенета
+
+ 
+
+
