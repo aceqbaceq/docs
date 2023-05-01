@@ -29,6 +29,7 @@ $ docker system df
 $ docker system prune
 $ docker volume prune
 $ docker image prune
+$ docker builder prune
 
 ===
 как узнать сколько места занимает тот или иной докер контейнер
