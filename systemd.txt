@@ -161,4 +161,86 @@ $ sudo systemctl list-units --all
 смотри этот вопрос в fstab.txt 
 =======
 
+как сделать так чтобы systemd автоматом перезагружал сервис если он упал.
+по дефолту и в  этом полный прикол что systemd сука  если сервис упал то он с ним ничего неделает.
+чтобы сервис был автоматом загружен если он упал надо делать изменения на systemd.
+
+полузуюсь этой стстьей
+
+https://serverfault.com/questions/840996/modify-systemd-unit-file-without-altering-upstream-unit-file
+
+оказатесячто ест неколькол способов редактивровать systemd юниты.
+первый лоховской эьто редактировать их в папках /lib/,,, или /usr/... но 
+это плохо потому что обноавление пакета перетрует наши кастомные настройки
+
+более правилный способ это скопироват юнит файл из /lib/ или /usr/.. в /etc/systmd/system и такм редактировать.
+тогда обнолвание пакетов неперетрет наши настйорки.
+
+но есть еще более крутой споособ редактирования юнит файлов через drop-ins
+
+создаем drop-in файл:
+/etc/systemd/system/[name-goes-here].service.d/config_name.conf
+
+имя файла знаения неимеет имеет значение только имя папки. например для mariadb делаем вот так
+
+/etc/systemd/system/mariadb.service.d/restart.conf
+
+и в него суем конент
+[Service]
+Restart=always
+
+
+тоесть
+
+# cat /etc/systemd/system/mariadb.service.d/restart.conf 
+[Service]
+Restart=always
+
+
+эти дропины позвяляют менять кусочек в основном файле.
+
+далее надо перезашрущить сам демон systemd
+
+# systemctl daemon-reload
+
+наличие дроп-ин файла можно найти в свойствах сервиса
+
+# systemctl status mariadb
+● mariadb.service - MariaDB 10.6.12 database server
+     Loaded: loaded (/lib/systemd/system/mariadb.service; enabled; vendor preset: enabled)
+    Drop-In: /etc/systemd/system/mariadb.service.d
+             └─restart.conf
+     Active: active (running) since Tue 2023-05-02 23:34:44 +06; 35min ago
+       Docs: man:mariadbd(8)
+             https://mariadb.com/kb/en/library/systemd/
+   Main PID: 3248 (mariadbd)
+     Status: "Taking your SQL requests now..."
+      Tasks: 8 (limit: 4915)
+     Memory: 57.2M
+     CGroup: /system.slice/mariadb.service
+             └─3248 /usr/sbin/mariadbd
+
+
+замечем строчку
+
+    Drop-In: /etc/systemd/system/mariadb.service.d
+             └─restart.conf
+
+
+очень удобно.
+
+
+ну а смысл конкртено это го допина в том чтобы заставить системд сразу же перезапускать maeiadb 
+если он упал ( в том числе если его убил OOM killer)
+
+
+я проерил - работает.
+
+кстати из того же статуса вижно как давно процесс был стартанут. тоже очень удобно.
+
+
+=
+
+
+
 

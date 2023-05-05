@@ -1,0 +1,264 @@
+lxd
+====
+как его поставить из snap
+потому что там самый послдний
+
+# обновит инфо о снапах
+   29  snap refresh
+
+# обвноить наш lxd
+   35  snap refresh lxd --channel=latest/stable
+
+# проеверить что наш снап обновился
+   40  snap list
+
+=====
+
+как искать имаджи на удаленной системе
+
+# lxc image list ubuntu: | grep ubuntu | grep 86_64 | grep 22.04| grep 2023 | grep Apr | grep CONTAINER
+
+
+
+или
+# lxc image list images: 
+
+
+скопироать имадж с удаленного серверра на свой локальный комп
+
+# lxc image copy ubuntu:b75bb602cfee   local:
+
+самая полезня ссылка = https://ubuntu.com/blog/nested-containers-in-lxd
+чтообы запустить первый контейнер надо
+взять два файла
+
+
+# ls -1 /etc/sub*id
+/etc/subgid
+/etc/subuid
+
+
+и вставить в них
+# cat /etc/sub*id
+root:500000:196608
+root:500000:196608
+
+далее надо убедиться что /etc/lxc/ default.conf отсутсвтует
+
+
+теперь мы можем запустить кнтйенер от рута
+
+# lxc launch  local:ed7509d7e83f  first
+
+
+---
+а вот как сделтаь так чтобы внутриэтого контйенера можно было заупстить докер
+
+https://discuss.linuxcontainers.org/t/what-does-security-nesting-true/7156/2
+
+прверть какие контйенеры у меня идут с настройкой позволяюзей заупскать докер внутри наших lxc контйенеров
+
+# lxc list security.privileged=true
+
+
+роверить эту настройку для конкретного котнйерера
+
+$ lxc config get your-container-name security.privileged
+
+
+
+
+
+---
+
+
+
+как проерить что контйенер работает в unprivilged mode
+
+заходим в контйенер
+
+# lxc exec  cont_name -- /bin/bash
+
+и далее
+
+
+It's also possible to check if a container is unprivileged from inside the LXD container by checking:
+
+/proc/self/uid_map
+/proc/self/gid_map
+where it will show something like (root 0 mapped to user 1000000):
+
+root@first:~# cat /proc/self/gid_map
+         0     500000     196608
+root@first:~# cat /proc/self/uid_map
+         0     500000     196608
+
+
+а теперь покызваю содержимое файлов уже на хостовой ОС моей
+
+# cat /etc/sub*id
+root:500000:196608
+root:500000:196608
+
+все совпадает
+
+----
+
+как с хоста засунуть в виртуалку файл
+
+# lxc file push ~/temp/1/gt_erp.sql.gz first/mnt/
+
+first = название вм
+
+---
+лимит памяти на контейнер
+
+#  lxc config set first  limits.memory 400MB
+
+first = название контейнера
+
+прчием можно менять налету!
+
+есть еще такое
+
+# lxc config set my-container limits.memory.enforce 2GB
+незнаю в чем разница
+---
+
+как быстро забить оперативку
+
+mount -t tmpfs none /new/path/for/temp -o size=32m
+---
+lxc start --all
+lxc stop --all
+lxc restart --all
+----
+скопировать контенер в другой контенер
+# lxc copy  src_cont   dest_cont
+----
+как защиттить контенер от случайного удаления
+
+# lxc config set my-container security.protection.delete true
+
+как снять азщиту
+
+# lxc config set my-container security.protection.delete false
+
+
+
+
+
+----
+пробрсто порта
+
+# lxc config device add имя_контейнера  myport80 proxy listen=tcp:0.0.0.0:9898  connect=tcp:127.0.0.1:80   (добавить)
+# lxc config device remove first myport80 (удалить)
+
+
+как выглядит это в netstat 
+видно что слушатель это lxd
+# netstat -tnlp | grep -E "Proto|lxd"
+Proto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program name    
+tcp6       0      0 :::1200                 :::*                    LISTEN      13469/lxd           
+
+
+---
+ в предеелах хоста одна виртуалка может достучаться до другой по доменому имени.
+ в виде имя_виртуалки.lxd
+
+ если имя вируталки second то  с другой виртуалки можно достучаться как
+
+$ ping -c 3  second.lxd
+
+---
+
+
+конфиг жинкса (так чисто можт пригодистя)
+
+upstream apache-server {
+    server apache-server.lxd:80;
+}
+
+server {
+    listen 80 proxy_protocol;
+    listen [::]:80 proxy_protocol;
+    server_name apache.server.test; #< Your domain goes here
+
+    location / {
+        proxy_pass http://apache-server;
+
+        proxy_redirect off;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+
+---
+
+создать снэпшот
+
+# lxc snapshot {container} {snapshot-name}
+
+это будет stateless снэпшот.
+
+еще можно снть statefull - пока незнаю как.
+---
+вотстановить снэпшот
+# lxc restore {container} {snapshot-name}
+
+---
+удалить снэпшот
+lxc delete {container}/snapshot-name}
+---
+
+перенести контейнер с машины на машину
+https://openschoolsolutions.org/how-to-backup-lxd-containers/
+
+---
+lxd + lvm
+
+https://www.pither.com/simon/blog/2018/09/28/lxd-lvm-thinpool-setup
+---
+есть эфемерные кнтейнеры которые будут удалены при стопе  автоматом
+----
+как получить конфиг lxd
+
+lxc config show
+lxc cluster show mycluster
+lxc network show lxdbr0
+lxc storage show default
+lxc profile show default
+
+
+из вывода можно состраяпать один файл
+и скормить его новой установке
+
+# lxd init --presees < file.yaml
+-----
+постмреть конфиг контейнера 
+
+# lxc config show  имя_конфига  --expanded
+
+----
+автостарт контйеров при старте хоста
+# lxc config set {container-name} boot.autostart true
+
+следущая настройка задает таймаут 10 секунд после того как котейнер стартанул
+до старта ледущего котейнтера
+#  lxc config set mysql  boot.autostart.delay 10
+
+cледующая насторкйка высталвяет приортет. какй когтейнер сртартует первым
+чем больше число тем контенер стартует первее
+# lxc config set db_vm boot.autostart.priority 100
+
+
+-----
+?????
+
+как сробрать котнейнер с hdd+ssd стораджами
+как перенести файловый бэкап внутрь контейнера
+как при старте контейнера указат на ккаком сторадже ему сидеть? (если сторадже несколько )
+---
+
