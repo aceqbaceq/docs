@@ -1,0 +1,62 @@
+gluster
+
+# cat /etc/fstab
+
+/dev/sdb   /gluster/bricks/1 xfs defaults 0 0
+
+localhost:/gfs /mnt/gluster glusterfs   defaults,acl,_netdev,backupvolfile-server=localhost,x-systemd.requires-mounts-for=/gluster/bricks/1 0 0
+
+
+здесь важная хуня. во первых зависимость однойточки 
+монтирования от другой.
+вот вторых вклчена поддержка acl для glusterfs иначе setfacl небудет работать!
+
+
+
+docker swarm - запуском реолокацией  контейнеров в сворме занимается исключетельно сука 
+нода с рольью "менеджер". если сдох менеджео то сворму пизда. ни один контейнер не будет релоцирован
+если нода с ролью "воркер" сломалась. поэтому надо иметь много менеджеров!!!
+ноду можно повысить до роли менеджера командой
+
+# docker node promote nl-test-02
+
+выполнять эту команду можно только с работающего менеджера. сука
+
+как найти спсоок менеджеров в сворме. ответ 
+# docker info
+
+
+и еще
+
+v# docker node ls
+ID                            HOSTNAME     STATUS    AVAILABILITY   MANAGER STATUS   ENGINE VERSION
+mhka9bbzhl8aw54evitmqenj3 *   nl-test-01   Ready     Active         Leader           23.0.6
+jzt8nty0ccei9ipe3r6v16afz     nl-test-02   Ready     Active         Reachable        23.0.6
+svkb5cc2qf3cz982cwbwwknt6     nl-test-03   Ready     Active         Reachable        23.0.6
+
+
+
+
+ с регистри прикол. 
+
+вот так запускать ненадо. потому что он сука будет хранить имадж локально на ноде.
+если нода сдохла то он сука стартанет пустой на другой ноде.тоесть от него толка нахуй ноль.
+# docker service create --name registry --publish published=5000,target=5000 registry:2
+
+надо запускать обязательно с вольюмом сетевым. например на гластерфс.
+# docker service create --name registry \
+                        --mount type=bind,source=/mnt/gluster/docker/local-registry/var,target=/var/lib/registry \
+                        --publish published=5000,target=5000 registry:2
+
+
+как вывести ноду и обрано ввветисти в кластер
+
+   98  docker node update --availability drain  nl-test-01
+   99  docker node ls
+  100  docker node update --availability active  nl-test-01
+
+
+
+скорсть разворота базы мукусула из дамапа - на локальный фс = 3м а на гластерфс раздел 4м
+ну нормал по скорости
+
