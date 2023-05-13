@@ -1,5 +1,20 @@
 gluster
 
+
+установка на основе : https://medium.com/running-a-software-factory/setup-3-node-high-availability-cluster-with-glusterfs-and-docker-swarm-b4ff80c6b5c3
+
+с чем я столкнулся когда устаналивал glsuterfs наоснове статьи
+ненадо в /etc/ftsab юзать точки монтирования через /dev/sdb
+у меняли линукс путался  в точках моонтирования вмето этого надо монтировать 
+через uuid вот таким образом:
+
+# cat /etc/fstab
+
+/dev/disk/by-uuid/9e04e1b0-2416-450d-9b8a-0550d151690 /gluster/bricks/2 xfs defaults 0 0
+
+
+--
+
 # cat /etc/fstab
 
 /dev/sdb   /gluster/bricks/1 xfs defaults 0 0
@@ -59,4 +74,55 @@ svkb5cc2qf3cz982cwbwwknt6     nl-test-03   Ready     Active         Reachable   
 
 скорсть разворота базы мукусула из дамапа - на локальный фс = 3м а на гластерфс раздел 4м
 ну нормал по скорости
+
+---
+добавляем новый brick и получаем ошибку
+
+GlusterFS Error volume add-brick: failed: Pre Validation failed on BRICK is already part of a volume
+
+рещение = https://www.jamescoyle.net/how-to/2234-glusterfs-error-volume-add-brick-failed-pre-validation-failed-on-brick-is-already-part-of-a-volume
+
+
+а именно
+
+Solution!
+The solution is to use setfattr to clear the hidden filesystem attributes containing GlusterFS information about the bricks previous life. Run the following commands on the server that has the drive that you’re trying to add as a new brick.
+
+# setfattr -x trusted.glusterfs.volume-id /mnt/brick1/data
+# setfattr -x trusted.gfid /mnt/brick1/data
+Of course, you should also ensure that the filesystem you’re adding is cleared, especially the .glusterfs hidden directory.
+
+# rm -rf /mnt/brick1/data/.glusterfs
+And that’s it! Try running the add-brick command again, and you should be in business.
+
+# gluster v add-brick data-volume replica 3 gluster3:/mnt/brick1/data
+
+
+---
+firewall порты которые надо открыть
+
+
+TCP and UDP ports 24007 and 24008 
+
+также в конфиге  настраиваются доп порты. 
+там указывается диапазон  доп портов.
+# cat /etc/glusterfs/glusterd.vol  | grep "\-port"
+    option transport.socket.listen-port 24007
+    option base-port 49152
+    option max-port  60999
+
+
+чтоб поменьше диапазон открывать на файрволле
+то надо в конфиге поменьше указывать диапазон
+==
+benchmark
+
+калстер на яндексе из трех нод.
+
+
+импорт некоего эталонного дампа на gluster раздел занимает 2м 27с
+а импорт на локальный диск unreplcated-ssd (размер диска 93GB ) заняло 2м
+тоесть glsuetr раздел всего на  20% медленее!
+причем zcat вобще никакой роли на скроость импорта невлияет.
+
 

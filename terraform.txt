@@ -4119,11 +4119,435 @@ disk_placement_group_id =  data.yandex_compute_disk_placement_group.dpg_names["d
 
 ====
 
+| null_resource
+
+
+рассмотрим готовый плейбук
+
+
+# cat main.tf
+
+variable "list3" {
+  description = "map"
+  type        = map(any)
+
+  default     = {
+      "disk1" = { 
+            "image_id" = "1212321dwfwe"
+            size     = "20"
+            type     = "network-hdd"
+      },
+
+      "disk2" = {
+            image_id = "1212321dwfwe"
+            size     = "10"
+            type     = "network-ssd"
+
+  }
+
+}
+}
+
+
+
+resource "null_resource" "list3" {
+  for_each = var.list3
+
+
+  triggers = {
+      value = 1
+
+   }
 
 
 
 
 
+
+}
+
+
+
+
+
+
+# cat provider.tf
+###################################
+##   general 
+##################################
+
+
+
+terraform {
+  required_providers {
+    null = {
+      source = "hashicorp/null"
+      version = "3.2.1"
+    }
+  }
+
+
+
+  backend "local" { }
+
+
+
+}
+
+provider "null" {
+  # Configuration options
+}
+
+
+
+
+
+
+так вот рассмотрим null_resource
+
+
+resource "null_resource" "list3" {
+  for_each = var.list3
+
+
+  triggers = {
+      value = 1
+
+   }
+
+
+
+
+
+
+}
+
+
+
+так вот в чем залупа. она состоит в том что конкретно в этом ресурсе 
+нихуя неработает dynamic блок. именно по архитектуре.
+
+
+а неработает dynamic потому что dynamic работает только для БЛОКОВ!!!
+а truggers это сука не блок!
+
+щас покажу что такое блок
+
+resource "yandex_compute_instance" "vm" {
+    allow_stopping_for_update = true
+    created_at                = "2023-05-04T13:35:35Z"
+    description               = "lxd-04  lxd сервер. "
+   
+...
+
+  secondary_disk {
+        auto_delete = false
+        device_name = "fhma7n7geru4phf39m1c"
+        disk_id     = "fhma7n7geru4phf39m1c"
+        mode        = "READ_WRITE"
+    }
+
+
+
+так вот secondary_disk это блок и поэтому к нему можно применить dynamic
+
+
+
+
+
+triggers = {
+      value = 1
+
+   }
+
+
+это сука не блок!!! я не знаю что это но это не блок. потому что формально у него есть знак "=".
+поэтому сука это неблок. и поэтому к нему dynamic неприменить. блядь
+
+как гворится умей правильно определять блок перед тобой  или нет
+
+
+| далее.
+
+еще раз публикую супер поленую штуку.
+по ней можно хорошо научтииться понимать
+
+for_each 
+
+for key in ...
+
+
+
+[vasya@lenovo 119]$ cat main.tf 
+#######
+
+variable "vasya" {
+    description = "1212"
+    type = string
+    default = "1"
+}
+
+
+output  "vasya" {
+  value = var.vasya
+
+}
+
+#########
+
+
+###
+
+variable "hero_thousand_faces" {
+  description = "map"
+  type        = map(string)
+  default     = {
+    neo      = "hero"
+    trinity  = "love interest"
+    morpheus = "mentor"
+  }
+}
+
+locals {
+
+ bios = [for key, value in var.hero_thousand_faces : "key=${key}, value=${value}"]
+}
+
+
+output "bios" {
+   value  = local.bios
+}
+
+output "bios2" {
+  value = {for key, value in var.hero_thousand_faces : "key=${key}" => "value=${value}"}
+
+}
+
+
+####
+
+
+variable "hero_thousand_faces2" {
+  description = "map"
+  type        = map(string)
+  default     = {
+    neo      = "hero"
+    trinity  = "love interest"
+    morpheus = "mentor"
+  }
+}
+
+
+
+locals {
+ bios3 ={ for key, value in var.hero_thousand_faces2 : key => value }
+}
+
+output  "bios3" {
+   value = local.bios3
+}
+
+
+###
+
+variable "p2" {
+    description = "1212"
+    type = map(any)
+    default = {
+                 disk2:{
+                         "dpg_name": "123"
+                         "size"    : "50"
+                 },
+
+                 disk3:{
+                         "dpg_name": ""
+                         "size"    : "10"
+                 },
+                 
+
+
+    } 
+}
+
+
+
+output  "p2" {
+  value = var.p2
+
+}
+
+
+output "p3" {
+  value = { for key, value in var.p2: key => value if value["dpg_name"] != ""  } 
+
+}
+
+
+
+
+
+###############################################################################################
+
+
+
+##################
+
+
+variable "dict1" {
+  description = "map"
+  type        = map(string)
+  default     = {
+    key1      = "value1"
+    key2      = "value2"
+
+  }
+}
+
+
+
+resource "null_resource" "dict1" {
+
+for_each = var.dict1
+
+
+  triggers = {
+    value = each.key
+  }
+
+}
+
+
+
+resource "null_resource" "dict2" {
+
+for_each = var.dict1
+
+
+  triggers = {
+    value = each.value
+  }
+
+}
+
+
+##################################
+
+
+
+variable "list1" {
+  description = "set"
+  type        = list(string)
+  default     = [
+      "value1",
+      "value2"
+  ] 
+}
+
+
+
+
+
+resource "null_resource" "list1" {
+  for_each = toset(var.list1)
+
+
+  triggers = {
+    value = each.key
+  }
+
+}
+
+
+output "list1" {
+   value = null_resource.list1
+
+}
+
+
+output "list1_for" {
+   value = [for key, value in null_resource.list1: "key=${key} , value=${value.id}"  ] 
+
+}
+
+output "list1_for2" {
+   value = [for key, value in null_resource.list1: "key=${key} , value=${value.triggers.value}"  ] 
+
+}
+
+
+
+
+variable "list3" {
+  description = "map"
+  type        = map(any)
+
+  default     = {
+      "disk1" = { 
+            "image_id" = "1212321dwfwe"
+            size     = "20"
+            type     = "network-hdd"
+      },
+
+      "disk2" = {
+            image_id = "1212321dwfwe"
+            size     = "10"
+            type     = "network-ssd"
+
+  }
+
+}
+}
+
+
+
+resource "null_resource" "list3" {
+  for_each = var.list3
+
+
+  triggers  = {
+      value = 1
+
+   }
+
+
+
+
+
+
+}
+
+
+
+
+
+
+$ cat provider.tf 
+
+###################################
+##   general 
+##################################
+
+
+
+terraform {
+  required_providers {
+    null = {
+      source = "hashicorp/null"
+      version = "3.2.1"
+    }
+  }
+
+
+
+  backend "local" { }
+
+
+
+}
+
+provider "null" {
+  # Configuration options
+}
 
 
 
