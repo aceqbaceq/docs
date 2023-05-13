@@ -262,3 +262,33 @@ cледующая насторкйка высталвяет приортет. к
 как при старте контейнера указат на ккаком сторадже ему сидеть? (если сторадже несколько )
 ---
 
+по поводу доступа в интернет с виртуалок lxd.
+спецом неразбиарался. но на сервере где стоит докер сворм. по дефолту 
+выход винет с lxc виртуалки незаработал.
+
+чтобы он заработал я вставил вот такое в iptables
+
+
+
+*filter
+#
+#  разрешаем трафику от lxc ходить в интернет
+#-A FORWARD  -j LOG
+-A FORWARD -i lxdbr0 -j ACCEPT
+-A FORWARD -o lxdbr0  -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+#
+
+*nat
+-A POSTROUTING -s 10.158.160.0/24 ! -o lxdbr0 -j MASQUERADE
+
+
+можно заметить что ест правило -j LOG
+его можно раскоментироать и ловить пакеты в  journalctl
+
+смотреть эти пакеты можно вот так
+
+# journalctl -k -f
+May 13 23:37:51 nl-test-01 kernel: IN=lxdbr0 OUT=eth0 PHYSIN=veth84e7737a MAC=00:16:3e:be:f2:d3:00:16:3e:bb:dd:d4:08:00 SRC=10.158.160.146 DST=172.16.10.1 LEN=84 TOS=0x00 PREC=0x00 TTL=63 ID=19253 DF PROTO=ICMP TYPE=8 CODE=0 ID=30810 SEQ=1 
+May 13 23:38:26 nl-test-01 kernel: IN=lxdbr0 OUT=eth0 PHYSIN=veth84e7737a MAC=00:16:3e:be:f2:d3:00:16:3e:bb:dd:d4:08:00 SRC=10.158.160.146 DST=172.16.10.1 LEN=84 TOS=0x00 PREC=0x00 TTL=63 ID=25641 DF PROTO=ICMP TYPE=8 CODE=0 ID=2131 SEQ=1 
+
+==
