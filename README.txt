@@ -1,4 +1,3 @@
-придурошный гитхаб уродует верстку так что надо смотреть этот файл в режиме RAW=https://raw.githubusercontent.com/aceqbaceq/docs/master/README.md
 
 
 $ docs
