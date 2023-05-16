@@ -980,6 +980,56 @@ command="/bin/bash -c 'echo Welcome $REMOTEUSER!' ",no-port-forwarding,no-X11-fo
 публичный ключ был использован. что- то такое и используется на гитхабе.
 
 ======
+новая реинкарнация работы с gitlab 
+а именно gitlab ci
+
+
+качаем gitlab runner: 
+идем вот сюда. и вводим ту версию ранера который нам нужен 
+https://gitlab.com/gitlab-org/gitlab-runner/-/tags?sort=updated_desc&search=v15.2
+
+тыкаем на кнопку "Release: v15.2.2"  и там вылезает целый список бинарников
+выбираем и качаем для ubuntu:
+https://gitlab.com/gitlab-org/gitlab-runner/-/releases/v15.2.2/downloads/packages/deb/gitlab-runner_amd64.deb
+
+
+скачали пакет. ставим его на хосте где собираемся делать деплой.
+# dpkg -i gitlab-runner*.deb
+
+идем на хост с гитлабом скажем в конкретную репу (будем покдлючать раннер конкретно для это репы):
+репа - settings - ci\cd -runners - specific runners.
+и там мы высматриваем url и токен. копируем. 
+теперь идем на хост с раннером и регистрируем его на нащем гитлаб сервре:
+
+
+(хост где будем делать деплой)# gitlab-runner register
+Runtime platform                                    arch=amd64 os=linux pid=3824 revision=6d07dd15 version=15.2.2
+Running in system-mode.                            
+                                                   
+Enter the GitLab instance URL (for example, https://gitlab.com/):
+https://git.way.net/
+Enter the registration token:
+GR1348941KWg
+Enter a description for the runner:
+[gitlab-erp-test]: runner for test environment deployed on yandex vm's
+Enter tags for the runner (comma-separated):
+vl-yandex-test
+Enter optional maintenance note for the runner:
+maintenance is in progress now
+Registering runner... succeeded                     runner=GR1348941KWgs8x-1
+Enter an executor: docker, parallels, shell, ssh, kubernetes, custom, docker-ssh, virtualbox, docker+machine, docker-ssh+machine:
+shell
+Runner registered successfully. Feel free to start it, but if it's running already the config should be automatically reloaded!
  
+Configuration (with the authentication token) was saved in "/etc/gitlab-runner/config.toml" 
+
+
+типа раннер написал что все окей он зарегался на гитлаю сервере.
+идем на гитлаб сервер. в репу. в репа - settings - ci\cd -runners - specific runners. и видим 
+что там теперь есть +1 раннер.
+
+
+
+
 
   

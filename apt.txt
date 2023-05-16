@@ -1075,3 +1075,15 @@ $ apt-get  install  mariadb-server=1:10.1.48-0ubuntu0.18.04.1
 =====
 $  apt show qemu-system-x86
 ==
+
+
+ошибка
+
+Failed to fetch Could not handshake: Error in the pull function
+
+решнение
+
+# apt-get clean all
+# apt-get update
+
+===
