@@ -1,0 +1,45 @@
+cgroups
+
+----
+
+есть две версии cgroup v1 и cgroup v2
+
+для того чтобы переключит линукс к cgroup v2
+то надо в grub прописать насройку кооторую надо подсмотреть в мануле от systemd
+в интернете написана куча статей о настройке которая неработает. потому что 
+у разных версий systemd своя настройка. итак настройка ищется тут
+
+# man systemd
+
+ systemd.unified_cgroup_hierarchy
+           When specified without an argument or with a true argument, enables the usage of unified cgroup hierarchy[8] (a.k.a. cgroups-v2). When specified with a false argument, fall
+           back to hybrid or full legacy cgroup hierarchy.
+
+           If this option is not specified, the default behaviour is determined during compilation (the --with-default-hierarchy= option). If the kernel does not support unified cgroup
+           hierarchy, the legacy hierarchy will be used even if this option is specified.
+
+
+
+далее нужно эту настроку вкорячить в grub
+# cat /etc/default/grub  | grep "GRUB_CMDLINE_LINUX="
+GRUB_CMDLINE_LINUX="systemd.unified_cgroup_hierarchy"
+
+далее 
+# update-grub
+
+тоода в grub.cfg будем иметь
+# cat /boot/grub/grub.cfg | grep systemd.unified_cgroup_hierarchy
+        linux	/boot/vmlinuz-5.10.0-051000-generic root=UUID=aa7152b0-f48f-4f20-ad1a-7e0c404584d3 ro systemd.unified_cgroup_hierarchy quiet splash $vt_handoff
+	        linux	/boot/vmlinuz-5.10.0-051000-generic root=UUID=aa7152b0-f48f-4f20-ad1a-7e0c404584d3 ro systemd.unified_cgroup_hierarchy quiet splash $vt_handoff
+	        linux	/boot/vmlinuz-5.10.0-051000-generic root=UUID=aa7152b0-f48f-4f20-ad1a-7e0c404584d3 ro recovery nomodeset dis_ucode_ldr systemd.unified_cgroup_hierarchy
+	        linux	/boot/vmlinuz-5.4.0-91-generic root=UUID=aa7152b0-f48f-4f20-ad1a-7e0c404584d3 ro systemd.unified_cgroup_hierarchy quiet splash $vt_handoff
+	        linux	/boot/vmlinuz-5.4.0-91-generic root=UUID=aa7152b0-f48f-4f20-ad1a-7e0c404584d3 ro recovery nomodeset dis_ucode_ldr systemd.unified_cgroup_hierarchy
+
+
+перезагржуаемся.
+елси все сработало (подключили cgroup v2) то 
+# mount | grep cgroup
+cgroup on /sys/fs/cgroup type cgroup2 (rw,nosuid,nodev,noexec,relatime)
+
+если несработало то остался cgroup v1 и будет на экране чтото типа tmpfs
+
