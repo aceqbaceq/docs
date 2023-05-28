@@ -152,6 +152,1519 @@ MariaDB [(none)]> select host,user,plugin,password from mysql.user;
 
 
 ======
+| replication
+| gtid
+
+как настроить slave replication репликацию
+
+в какой конфиг писать = cat /etc/mysql/mariadb.conf.d/50-server.cnf 
+
+||master||
+
+у меня
+[mariadb]
+server_id=1
+bind-address=0.0.0.0
+log-bin
+gtid_strict_mode=1
+log-bin = /var/log/mysql/binlogs/binlog
+
+
+в книге
+[mysqld]
+server-id=1
+bind-address = 0.0.0.0
+gtid_strict_mode=1
+log_bin=/var/log/mysql/mariadb-bin
+expire_logs_days=10
+sync_binlog = 1
+slave_compressed_protocol = 1
+binlog_format = row
+
+
+суммарный конфиг:
+
+# mkdir /var/log/mysql/binlogs
+# chown mysql.mysql  /var/log/mysql/binlogs
 
 
 
+[mariadb]
+server_id=1
+bind-address=0.0.0.0
+gtid_strict_mode=1
+log-bin
+log-bin = /var/log/mysql/binlogs/binlog
+expire_logs_days=10
+sync_binlog = 1
+slave_compressed_protocol = 1
+binlog_format = row
+
+
+# systemctl restart mariadb; systemctl status mariadb 
+
+
+> create user 'replication'@'10.113.151.143' identified by 'ieJug7pu7baamoh2Soph5eChe';
+> grant replication slave on *.* to 'replication'@'10.113.151.143';
+> FLUSH PRIVILEGES;
+
+
+backup
+
+# apt install -y mariadb-backup
+# mkdir -p ~/backup/01
+
+
+ставим qpress. вроде бы для сжатия базы он mariabackup ненужен.
+но всеже ставим на всякий случай. qpress нужен при выполнении --decompress (тоесть он точнопонадбится на slave ноде).
+но все же ставим и на мастере
+#  wget https://repo.percona.com/apt/percona-release_latest.$(lsb_release -sc)_all.deb
+#  dpkg -i /root/percona-release_latest.jammy_all.deb 
+#  apt-get update
+# apt-get -y install qpress    
+
+# mariabackup \
+         --defaults-file=/etc/mysql/my.cnf \
+         --backup \
+         --compress \
+         --target-dir=~/backup/01 \
+         --user=root
+
+
+# tar cvpzf ~/01.tar.gz  ~/backup/01
+# scp ~/01.tar.gz ...
+или
+# lxc file pull mar-3/root/01.tar.gz .
+# lxc file push ./01.tar.gz mar-4/root/
+
+
+
+
+
+
+
+
+
+||slave||
+у меня:
+[mariadb]
+server_id=2
+bind-address=0.0.0.0
+log_error=mariadb.err
+log_error=/var/log/mysql/mariadb.err
+
+
+
+
+
+в кнжке:
+[mysqld]
+server-id=3
+bind-address = 0.0.0.0
+slave_compressed_protocol = 1
+binlog_format = row
+read_only
+gtid_strict_mode=1
+
+
+в итоге:
+[mariadb]
+server_id=2
+bind-address=0.0.0.0
+slave_compressed_protocol = 1
+binlog_format = row
+read_only
+gtid_strict_mode=1
+log_error=/var/log/mysql/mariadb.err
+
+
+# systemctl restart mariadb; systemctl status mariadb
+# systemctl stop mariadb
+
+
+
+
+
+# systemctl stop mariadb
+# apt install -y mariadb-backup
+# rm -r /var/lib/mysql/*    # знак * обязательно иначе удалить и саму папку /var/lib/mysql
+# mkdir -p ~/backup/01
+#  tar xpvzf   ~/01.tar.gz  -C ~/backup/01
+
+
+#  wget https://repo.percona.com/apt/percona-release_latest.$(lsb_release -sc)_all.deb
+#  dpkg -i /root/percona-release_latest.jammy_all.deb 
+#  apt-get update
+# apt-get -y install qpress    # qpress нужен mariabackup при ввыполнении --decompress. иначе напишет что ей
+                               # нужен  qpress 
+
+
+# mariabackup --decompress \
+              --remove-original \
+              --target-dir=~/backup/01
+
+
+# mariabackup --prepare \
+              --target-dir=~/backup/01
+
+
+prepare запускаем только после decompress. иначе он бует писать что неможет найти файл backup-my.cnf
+
+# mariabackup --copy-back \
+   --target-dir=~/backup/01 \
+   --datadir=/var/lib/mysql
+
+
+
+
+
+# chown -R mysql:mysql /var/lib/mysql/
+
+# systemctl start mariadb; systemctl status mariadb;
+
+# cat /var/lib/mysql/xtrabackup_info | grep -i GTID
+
+binlog_pos = filename 'binlog.000001', position '820', GTID of the last change '0-1-3'
+
+значит GTID='0-1-3'
+
+
+MariaDB [(none)]> stop slave;
+MariaDB [(none)]> reset slave;
+MariaDB [(none)]> set global gtid_slave_pos = "0-1-3";
+MariaDB [(none)]> change master to master_host='10.113.151.222', master_port=3306,
+master_user='replication', master_password='ieJug7pu7baamoh2Soph5eChe', master_connect_retry=10,
+master_use_gtid=slave_pos;
+
+проверяем что устаолвен 'read_only'
+
+> show variables like "read_only";
++---------------+-------+
+| Variable_name | Value |
++---------------+-------+
+| read_only     | ON    |
++---------------+-------+
+
+
+MariaDB [(none)]> start slave;
+> select @@gtid_slave_pos;
+> show slave status\G;
+
+
+если данные активно реацлируется на slave 
+то на нем постоянно будем расти
+
+> select @@gtid_slave_pos;
++------------------+
+| @@gtid_slave_pos |
++------------------+
+| 0-1-2880         |
++------------------+
+
+
+прикольно что на мастере тоже есть gtid
+
+> SHOW GLOBAL VARIABLES LIKE '%gtid%';
++-------------------------+----------+
+| Variable_name           | Value    |
++-------------------------+----------+
+| gtid_binlog_pos         | 0-1-7633 |
+| gtid_binlog_state       | 0-1-7633 |
+| gtid_cleanup_batch_size | 64       |
+| gtid_current_pos        | 0-1-7633 |
+| gtid_domain_id          | 0        |
+| gtid_ignore_duplicates  | OFF      |
+| gtid_pos_auto_engines   |          |
+| gtid_slave_pos          |          |
+| gtid_strict_mode        | ON       |
+| wsrep_gtid_domain_id    | 0        |
+| wsrep_gtid_mode         | OFF      |
++-------------------------+----------+
+
+
+
+
+===========
+
+ошибка
+
+ [Warning] Could not increase number of max_open_files to more than 32768 (request: 128439)
+
+ как исправить. 
+ через drop-in файл
+
+# mkdir -p /etc/systemd/system/mariadb.service.d/ 
+# touch  /etc/systemd/system/mariadb.service.d/Limitnofile_custom.conf
+
+[Service]
+
+LimitNOFILE=131072
+
+
+незнаю что тут важно написать имя параметра в точности LimitNOFILE соблюдая большие буквы
+или то что число должно быть кратно 32768.
+но когда я написал вот так
+
+[Service]
+
+Limitnofile=130000
+
+нихера незаработало.
+так что обращаю внимание на точность соблюдения рецепта.
+
+
+
+# systemctl daemon-reload &&  systemctl restart mariadb ; systemctl status mariadb
+
+
+если все сработало то в выводе status болше ошибки 
+ [Warning] Could not increase number of max_open_files to more than 32768 (request: 128439)
+ быть не должно
+
+ ===
+ slowlog
+ slow log
+
+ при настройке slow log надо обязательно отключить опцию
+
+
+[mysqld]
+log_queries_not_using_indexes =0
+
+смысл ее в том что она логирует запросы которые исполльзуют FULLSCAN.
+вроде как выглядит идея красиво. только прикол в том что в логи будут попадать запросы длинной 0.000003с
+нахер они там нужны
+
+==
+slow log
+
+тако еще прикол - почемуто не все транзакции имеют поле дата.
+тоесть какието имеют каието нет.
+тоесть не вегда понятно в какйо день и какое вреомя трнзаакция случилась 
+пример
+
+один и тот же файл:
+
+# Time: 230525 17:56:10
+# User@Host: gt[gt] @  [192.168.5.206]
+# Thread_id: 74987  Schema: erp  QC_hit: No
+# Query_time: 0.000467  Lock_time: 0.000176  Rows_sent: 0  Rows_examined: 0
+# Rows_affected: 0  Bytes_sent: 1558
+# Tmp_tables: 1  Tmp_disk_tables: 0  Tmp_table_sizes: 0
+# Full_scan: Yes  Full_join: Yes  Tmp_table: Yes  Tmp_table_on_disk: No
+# Filesort: Yes  Filesort_on_disk: No  Merge_passes: 0  Priority_queue: No
+SET timestamp=1685026570;
+...
+
+# User@Host: gt[gt] @  [192.168.5.206]
+# Thread_id: 74987  Schema: erp  QC_hit: No
+# Query_time: 0.000081  Lock_time: 0.000029  Rows_sent: 0  Rows_examined: 0
+# Rows_affected: 0  Bytes_sent: 86
+# Full_scan: Yes  Full_join: No  Tmp_table: No  Tmp_table_on_disk: No
+# Filesort: Yes  Filesort_on_disk: No  Merge_passes: 0  Priority_queue: Yes
+SET timestamp=1685026570;
+...
+
+
+как видно одна запист имеет поле
+# Time: 230525 17:56:10
+
+а вторая нет.
+
+непонятно
+
+===
+
+cardinality
+
+это по русски количество уникальных строк в столбце таблицы.
+и эта характеристика прписывается в индексе. ну обычно ее можно посмотреть в индексе от столбца у таблицы.
+
+> show index from table_3;
++---------+------------+----------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+---------+
+| Table   | Non_unique | Key_name | Seq_in_index | Column_name | Collation | Cardinality | Sub_part | Packed | Null | Index_type | Comment | Index_comment | Ignored |
++---------+------------+----------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+---------+
+| table_3 |          1 | in_a     |            1 | a           | A         |           2 |     NULL | NULL   | YES  | BTREE      |         |               | NO      |
++---------+------------+----------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+---------+
+
+ну типа это примерное занчение. а не точное.
+так вот я выяснил еще из практики что вот мы вставляем новые стровки в столбик
+но кардиналити при этом показыает неверное у индекса.  я вствлял одни и теже строки и кардиналити рос.
+хотя строки одни и теже. и толко после того как  я  запусьил команду
+
+> analyze table table_3;
+
+только тогда  кардиналити в индексе стало коректным.
+
+вот пример
+
+MariaDB [db1]> select * from table_3 order by a asc;
++------+
+| a    |
++------+
+|    1 |
+|    1 |
+|    1 |
+|    2 |
++------+
+4 rows in set (0.001 sec)
+
+MariaDB [db1]> show index from table_3;
++---------+------------+----------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+---------+
+| Table   | Non_unique | Key_name | Seq_in_index | Column_name | Collation | Cardinality | Sub_part | Packed | Null | Index_type | Comment | Index_comment | Ignored |
++---------+------------+----------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+---------+
+| table_3 |          1 | in_a     |            1 | a           | A         |           4 |     NULL | NULL   | YES  | BTREE      |         |               | NO      |
++---------+------------+----------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+---------+
+1 row in set (0.000 sec)
+
+
+две уникальные строчки. а кардиналиьи 4.
+
+добавляем еще строчку
+
+MariaDB [db1]> insert into table_3 (a) values (1);
+Query OK, 1 row affected (0.056 sec)
+
+MariaDB [db1]> show index from table_3;
++---------+------------+----------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+---------+
+| Table   | Non_unique | Key_name | Seq_in_index | Column_name | Collation | Cardinality | Sub_part | Packed | Null | Index_type | Comment | Index_comment | Ignored |
++---------+------------+----------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+---------+
+| table_3 |          1 | in_a     |            1 | a           | A         |           5 |     NULL | NULL   | YES  | BTREE      |         |               | NO      |
++---------+------------+----------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+---------+
+1 row in set (0.001 sec)
+
+уже кардиналити 5
+
+ я удалили и пересозда индекс но это не помогло!
+
+ MariaDB [db1]> drop index in_a on table_3;
+Query OK, 0 rows affected (0.013 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+
+MariaDB [db1]> show index from table_3;
+Empty set (0.001 sec)
+
+MariaDB [db1]> create index in_a on table_3 (a);
+Query OK, 0 rows affected (0.019 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+
+MariaDB [db1]> show index from table_3;
++---------+------------+----------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+---------+
+| Table   | Non_unique | Key_name | Seq_in_index | Column_name | Collation | Cardinality | Sub_part | Packed | Null | Index_type | Comment | Index_comment | Ignored |
++---------+------------+----------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+---------+
+| table_3 |          1 | in_a     |            1 | a           | A         |           4 |     NULL | NULL   | YES  | BTREE      |         |               | NO      |
++---------+------------+----------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+---------+
+1 row in set (0.001 sec)
+
+MariaDB [db1]> select * from table_3 order by a asc;
++------+
+| a    |
++------+
+|    1 |
+|    1 |
+|    1 |
+|    1 |
+|    2 |
++------+
+5 rows in set (0.000 sec)
+
+
+и только когдя сделал anayze то все исправилось
+
+MariaDB [db1]> analyze table table_3 persistent  for all;
++-------------+---------+----------+-----------------------------------------+
+| Table       | Op      | Msg_type | Msg_text                                |
++-------------+---------+----------+-----------------------------------------+
+| db1.table_3 | analyze | status   | Engine-independent statistics collected |
+| db1.table_3 | analyze | status   | OK                                      |
++-------------+---------+----------+-----------------------------------------+
+2 rows in set (0.013 sec)
+
+MariaDB [db1]> show index from table_3;
++---------+------------+----------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+---------+
+| Table   | Non_unique | Key_name | Seq_in_index | Column_name | Collation | Cardinality | Sub_part | Packed | Null | Index_type | Comment | Index_comment | Ignored |
++---------+------------+----------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+---------+
+| table_3 |          1 | in_a     |            1 | a           | A         |           2 |     NULL | NULL   | YES  | BTREE      |         |               | NO      |
++---------+------------+----------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+---------+
+1 row in set (0.002 sec)
+
+
+
+===
+
+| размер базы
+
+SELECT table_schema AS "Database", 
+ROUND(SUM(data_length + index_length) / 1024 / 1024, 2) AS "Size (MB)" 
+FROM information_schema.TABLES 
+GROUP BY table_schema;
+
+===
+
+| пример ускорения запроса
+
+
+запрос
+
+root@mar-single-1:~/mysql/02# cat orig-an.sql 
+analyze
+(SELECT insurance_acceptance.*,
+            `order`.title AS 'order_title',
+            `order`.date AS 'order_date',
+            `order`.appraised_value,
+            `order`.service_id as order_service_id,
+            invoice.draw_date AS credit_invoice_draw_date,
+            waybill_insurance.service_id,
+            waybill_insurance.invoice_id,
+            waybill_insurance.sum_debit,
+            waybill_insurance.sum_credit,
+            waybill_insurance.pricing_debug,
+            service.title service_title,
+            company.client_id company_client_id
+            FROM insurance_acceptance USE INDEX (is_active_idx)
+            INNER JOIN waybill waybill_insurance ON (insurance_acceptance.waybill_id = waybill_insurance.waybill_id AND waybill_insurance.service_id IN (93,94,21,22))
+            INNER JOIN `order` ON (waybill_insurance.order_id = `order`.order_id)
+            INNER JOIN service ON (waybill_insurance.service_id = service.service_id)
+            INNER JOIN invoice ON (waybill_insurance.invoice_id = invoice.invoice_id)
+            INNER JOIN `account` client_account ON (invoice.from_account_id = client_account.account_id)
+            INNER JOIN `account` company_account ON (invoice.to_account_id = company_account.account_id)
+            INNER JOIN `company` ON (company_account.company_id = company.company_id)
+            LEFT OUTER JOIN waybill waybill_main ON waybill_main.order_id=`order`.order_id AND waybill_main.service_id IN (93,94)
+            LEFT OUTER JOIN insurance_acceptance acceptance_main ON acceptance_main.waybill_id=waybill_main.waybill_id AND acceptance_main.is_active=1
+            WHERE insurance_acceptance.status_id IN (1,13,21)
+            AND insurance_acceptance.is_active = 1
+            AND client_account.subject_id = 1403887
+            AND insurance_acceptance.invoice_from_client_id =  1403887
+            AND company.client_id IS NOT NULL
+            AND invoice.draw_date >= '2020-10-01'
+            AND `order`.date >= '2020-11-01'
+            AND insurance_acceptance.acceptance_number != ''
+            AND LENGTH(insurance_acceptance.acceptance_number) > 5
+            AND `order`.service_id IN (45,46,47,48,100,11662,333196,942285,1001790,2050499,2187663)
+            AND (waybill_insurance.parent_service_id NOT IN (93,94) OR waybill_insurance.parent_service_id IS NULL
+                OR (acceptance_main.status_id=7)
+            )
+            ORDER BY insurance_acceptance.status_date LIMIT 50) 
+            UNION
+            
+            (SELECT insurance_acceptance.*,
+            history.title AS 'order_title',
+            history.date AS 'order_date',
+            history.appraised_value,
+            history.service_id as order_service_id,
+            null AS credit_invoice_draw_date,
+            insurance_acceptance.service_id AS service_id,
+            waybill_history.invoice_id,
+            waybill_history.sum_debit,
+            waybill_history.sum_credit,
+            null AS pricing_debug,
+            service.title service_title,
+            company.client_id company_client_id
+            FROM insurance_acceptance 
+            INNER JOIN order_history history ON (history.order_id = insurance_acceptance.order_id 
+            AND history.revision_id = (SELECT MAX(oh.revision_id) FROM order_history oh INNER JOIN waybill_history wh ON oh.revision_id = wh.revision_id
+            WHERE oh.order_id = insurance_acceptance.order_id AND wh.invoice_id IS NOT NULL))
+            LEFT JOIN waybill_history ON history.revision_id = waybill_history.revision_id AND waybill_history.waybill_id = insurance_acceptance.waybill_id
+            LEFT JOIN service ON (insurance_acceptance.service_id = service.service_id)
+            LEFT JOIN `company` ON (insurance_acceptance.invoice_to_company_id = company.company_id)
+            LEFT OUTER JOIN waybill waybill_main ON waybill_main.order_id=`history`.order_id AND waybill_main.service_id IN (93,94)
+            LEFT OUTER JOIN insurance_acceptance acceptance_main ON acceptance_main.waybill_id=waybill_main.waybill_id AND acceptance_main.is_active=1
+            WHERE insurance_acceptance.status_id = 16
+            AND insurance_acceptance.is_active = 1
+            AND insurance_acceptance.service_id IN (93,94,21,22)
+            AND insurance_acceptance.invoice_from_client_id =  1403887
+            AND company.client_id IS NOT NULL 
+            AND history.report_date >= '2020-10-01'
+            AND history.date >= '2020-11-01'
+            AND insurance_acceptance.acceptance_number != ''
+            AND (waybill_history.parent_service_id NOT IN (93,94) OR waybill_history.parent_service_id IS NULL
+                OR (acceptance_main.status_id=7)
+            )
+            GROUP BY insurance_acceptance.entry_id
+            ORDER BY insurance_acceptance.status_date LIMIT 10)
+root@mar-single-1:~/mysql/02# 
+
+
+
+orig:
+
+exp
++------+--------------------+----------------------+-------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------------+---------+---------------------------------------------------------------+-------+----------------------------------------------------------------------------------------------------------------+
+| id   | select_type        | table                | type        | possible_keys                                                                                                                                                      | key                                             | key_len | ref                                                           | rows  | Extra                                                                                                          |
++------+--------------------+----------------------+-------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------------+---------+---------------------------------------------------------------+-------+----------------------------------------------------------------------------------------------------------------+
+|    1 | PRIMARY            | order                | ALL         | PRIMARY,fk_order_service_id_idx,date_idx,service_id                                                                                                                | NULL                                            | NULL    | NULL                                                          | 20195 | Using where; Using temporary; Using filesort                                                                   |
+|    1 | PRIMARY            | waybill_insurance    | ref         | PRIMARY,fk_waybill_order_id_idx,fk_waybill_service_id_idx,fk_waybill_parent_service_id_idx,fk_waybill_invoice_id_idx,service_waybill_contact_idx,order_service_idx | fk_waybill_order_id_idx                         | 4       | erp2.order.order_id                                           | 1     | Using where                                                                                                    |
+|    1 | PRIMARY            | service              | eq_ref      | PRIMARY                                                                                                                                                            | PRIMARY                                         | 4       | erp2.waybill_insurance.service_id                             | 1     |                                                                                                                |
+|    1 | PRIMARY            | invoice              | eq_ref      | PRIMARY,fk_invoice_from_account_id_idx,fk_invoice_to_account_id_idx,draw_date_is_credit_status_idx                                                                 | PRIMARY                                         | 4       | erp2.waybill_insurance.invoice_id                             | 1     | Using where                                                                                                    |
+|    1 | PRIMARY            | client_account       | eq_ref      | PRIMARY,subject_id                                                                                                                                                 | PRIMARY                                         | 4       | erp2.invoice.from_account_id                                  | 1     | Using where                                                                                                    |
+|    1 | PRIMARY            | waybill_main         | ref         | fk_waybill_order_id_idx,fk_waybill_service_id_idx,service_waybill_contact_idx,order_service_idx                                                                    | order_service_idx                               | 4       | erp2.order.order_id                                           | 1     | Using where; Using index                                                                                       |
+|    1 | PRIMARY            | acceptance_main      | ref         | fk_insurance_acceptance_waybill_id,is_active_idx,set_acceptance_number_idx                                                                                         | fk_insurance_acceptance_waybill_id              | 4       | erp2.waybill_main.waybill_id                                  | 2     | Using where                                                                                                    |
+|    1 | PRIMARY            | company_account      | eq_ref      | PRIMARY,fk_account_company_id_idx                                                                                                                                  | PRIMARY                                         | 4       | erp2.invoice.to_account_id                                    | 1     |                                                                                                                |
+|    1 | PRIMARY            | company              | range       | PRIMARY,fk_company_client_id_idx                                                                                                                                   | fk_company_client_id_idx                        | 5       | NULL                                                          | 2     | Using where; Using index; Using join buffer (flat, BNL join)                                                   |
+|    1 | PRIMARY            | insurance_acceptance | ref         | is_active_idx                                                                                                                                                      | is_active_idx                                   | 2       | const                                                         | 33572 | Using where                                                                                                    |
+|    2 | UNION              | insurance_acceptance | index_merge | fk_insurance_acceptance_status_id,is_active_idx,acceptance_number_idx,order_idx                                                                                    | fk_insurance_acceptance_status_id,is_active_idx | 4,2     | NULL                                                          | 169   | Using intersect(fk_insurance_acceptance_status_id,is_active_idx); Using where; Using temporary; Using filesort |
+|    2 | UNION              | history              | eq_ref      | PRIMARY,order_history_order_id_idx                                                                                                                                 | PRIMARY                                         | 8       | func                                                          | 1     | Using where                                                                                                    |
+|    2 | UNION              | waybill_history      | eq_ref      | PRIMARY                                                                                                                                                            | PRIMARY                                         | 12      | erp2.history.revision_id,erp2.insurance_acceptance.waybill_id | 1     |                                                                                                                |
+|    2 | UNION              | waybill_main         | ref         | fk_waybill_order_id_idx,fk_waybill_service_id_idx,service_waybill_contact_idx,order_service_idx                                                                    | order_service_idx                               | 4       | erp2.insurance_acceptance.order_id                            | 1     | Using where; Using index                                                                                       |
+|    2 | UNION              | service              | eq_ref      | PRIMARY                                                                                                                                                            | PRIMARY                                         | 4       | erp2.insurance_acceptance.service_id                          | 1     | Using where                                                                                                    |
+|    2 | UNION              | company              | range       | PRIMARY,fk_company_client_id_idx                                                                                                                                   | fk_company_client_id_idx                        | 5       | NULL                                                          | 2     | Using where; Using index; Using join buffer (flat, BNL join)                                                   |
+|    2 | UNION              | acceptance_main      | ref         | fk_insurance_acceptance_waybill_id,is_active_idx,set_acceptance_number_idx                                                                                         | fk_insurance_acceptance_waybill_id              | 4       | erp2.waybill_main.waybill_id                                  | 2     | Using where                                                                                                    |
+|    3 | DEPENDENT SUBQUERY | wh                   | ALL         | PRIMARY                                                                                                                                                            | NULL                                            | NULL    | NULL                                                          | 1     | Using where                                                                                                    |
+|    3 | DEPENDENT SUBQUERY | oh                   | eq_ref      | PRIMARY,order_history_order_id_idx                                                                                                                                 | PRIMARY                                         | 8       | erp2.wh.revision_id                                           | 1     | Using where                                                                                                    |
+| NULL | UNION RESULT       | <union1,2>           | ALL         | NULL                                                                                                                                                               | NULL                                            | NULL    | NULL                                                          | NULL  |                                                                                                                |
++------+--------------------+----------------------+-------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------------+---------+---------------------------------------------------------------+-------+----------------------------------------------------------------------------------------------------------------+
+
+anal
+> source /root/mysql/02/orig-an.sql
++------+--------------------+----------------------+-------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------------+---------+---------------------------------------------------------------+-------+----------+----------+------------+----------------------------------------------------------------------------------------------------------------+
+| id   | select_type        | table                | type        | possible_keys                                                                                                                                                      | key                                             | key_len | ref                                                           | rows  | r_rows   | filtered | r_filtered | Extra                                                                                                          |
++------+--------------------+----------------------+-------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------------+---------+---------------------------------------------------------------+-------+----------+----------+------------+----------------------------------------------------------------------------------------------------------------+
+|    1 | PRIMARY            | order                | range       | PRIMARY,fk_order_service_id_idx,date_idx,service_id                                                                                                                | date_idx                                        | 4       | NULL                                                          | 10097 | 20821.00 |    59.32 |      91.77 | Using index condition; Using where; Using temporary; Using filesort                                            |
+|    1 | PRIMARY            | waybill_insurance    | ref         | PRIMARY,fk_waybill_order_id_idx,fk_waybill_service_id_idx,fk_waybill_parent_service_id_idx,fk_waybill_invoice_id_idx,service_waybill_contact_idx,order_service_idx | fk_waybill_order_id_idx                         | 4       | erp2.order.order_id                                           | 1     | 3.11     |    56.71 |      24.08 | Using where                                                                                                    |
+|    1 | PRIMARY            | service              | eq_ref      | PRIMARY                                                                                                                                                            | PRIMARY                                         | 4       | erp2.waybill_insurance.service_id                             | 1     | 1.00     |   100.00 |     100.00 |                                                                                                                |
+|    1 | PRIMARY            | invoice              | eq_ref      | PRIMARY,fk_invoice_from_account_id_idx,fk_invoice_to_account_id_idx,draw_date_is_credit_status_idx                                                                 | PRIMARY                                         | 4       | erp2.waybill_insurance.invoice_id                             | 1     | 1.00     |    50.00 |     100.00 | Using where                                                                                                    |
+|    1 | PRIMARY            | client_account       | eq_ref      | PRIMARY,subject_id                                                                                                                                                 | PRIMARY                                         | 4       | erp2.invoice.from_account_id                                  | 1     | 1.00     |     0.01 |     100.00 | Using where                                                                                                    |
+|    1 | PRIMARY            | waybill_main         | ref         | fk_waybill_order_id_idx,fk_waybill_service_id_idx,service_waybill_contact_idx,order_service_idx                                                                    | order_service_idx                               | 4       | erp2.order.order_id                                           | 1     | 3.27     |    56.71 |      30.55 | Using where; Using index                                                                                       |
+|    1 | PRIMARY            | acceptance_main      | ref         | fk_insurance_acceptance_waybill_id,is_active_idx,set_acceptance_number_idx                                                                                         | fk_insurance_acceptance_waybill_id              | 4       | erp2.waybill_main.waybill_id                                  | 2     | 6.13     |    33.46 |      16.31 | Using where                                                                                                    |
+|    1 | PRIMARY            | company_account      | eq_ref      | PRIMARY,fk_account_company_id_idx                                                                                                                                  | PRIMARY                                         | 4       | erp2.invoice.to_account_id                                    | 1     | 1.00     |   100.00 |     100.00 |                                                                                                                |
+|    1 | PRIMARY            | company              | range       | PRIMARY,fk_company_client_id_idx                                                                                                                                   | fk_company_client_id_idx                        | 5       | NULL                                                          | 2     | 2.00     |   100.00 |      50.00 | Using where; Using index; Using join buffer (flat, BNL join)                                                   |
+|    1 | PRIMARY            | insurance_acceptance | ref         | is_active_idx                                                                                                                                                      | is_active_idx                                   | 2       | const                                                         | 33572 | 16787.00 |   100.00 |       0.00 | Using where                                                                                                    |
+|    2 | UNION              | insurance_acceptance | index_merge | fk_insurance_acceptance_status_id,is_active_idx,acceptance_number_idx,order_idx                                                                                    | fk_insurance_acceptance_status_id,is_active_idx | 4,2     | NULL                                                          | 169   | 0.00     |    50.09 |     100.00 | Using intersect(fk_insurance_acceptance_status_id,is_active_idx); Using where; Using temporary; Using filesort |
+|    2 | UNION              | history              | eq_ref      | PRIMARY,order_history_order_id_idx                                                                                                                                 | PRIMARY                                         | 8       | func                                                          | 1     | NULL     |   100.00 |       NULL | Using where                                                                                                    |
+|    2 | UNION              | waybill_history      | eq_ref      | PRIMARY                                                                                                                                                            | PRIMARY                                         | 12      | erp2.history.revision_id,erp2.insurance_acceptance.waybill_id | 1     | NULL     |   100.00 |       NULL |                                                                                                                |
+|    2 | UNION              | waybill_main         | ref         | fk_waybill_order_id_idx,fk_waybill_service_id_idx,service_waybill_contact_idx,order_service_idx                                                                    | order_service_idx                               | 4       | erp2.insurance_acceptance.order_id                            | 1     | NULL     |    56.71 |       NULL | Using where; Using index                                                                                       |
+|    2 | UNION              | service              | eq_ref      | PRIMARY                                                                                                                                                            | PRIMARY                                         | 4       | erp2.insurance_acceptance.service_id                          | 1     | NULL     |   100.00 |       NULL | Using where                                                                                                    |
+|    2 | UNION              | company              | range       | PRIMARY,fk_company_client_id_idx                                                                                                                                   | fk_company_client_id_idx                        | 5       | NULL                                                          | 2     | NULL     |   100.00 |       NULL | Using where; Using index; Using join buffer (flat, BNL join)                                                   |
+|    2 | UNION              | acceptance_main      | ref         | fk_insurance_acceptance_waybill_id,is_active_idx,set_acceptance_number_idx                                                                                         | fk_insurance_acceptance_waybill_id              | 4       | erp2.waybill_main.waybill_id                                  | 2     | NULL     |    33.46 |       NULL | Using where                                                                                                    |
+|    3 | DEPENDENT SUBQUERY | wh                   | ALL         | PRIMARY                                                                                                                                                            | NULL                                            | NULL    | NULL                                                          | 1     | NULL     |   100.00 |       NULL | Using where                                                                                                    |
+|    3 | DEPENDENT SUBQUERY | oh                   | eq_ref      | PRIMARY,order_history_order_id_idx                                                                                                                                 | PRIMARY                                         | 8       | erp2.wh.revision_id                                           | 1     | NULL     |   100.00 |       NULL | Using where                                                                                                    |
+| NULL | UNION RESULT       | <union1,2>           | ALL         | NULL                                                                                                                                                               | NULL                                            | NULL    | NULL                                                          | NULL  | 50.00    |     NULL |       NULL |                                                                                                                |
++------+--------------------+----------------------+-------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------------+---------+---------------------------------------------------------------+-------+----------+----------+------------+----------------------------------------------------------------------------------------------------------------+
+20 rows in set (11 min 3.265 sec)
+
+время 11m !!!
+
+
+самая проблема  в запросе это кусок
+LEFT OUTER JOIN insurance_acceptance acceptance_main ON acceptance_main.waybill_id=waybill_main.waybill_id AND acceptance_main.is_active=1
+
+в плане это кусок выглядит как
++------+--------------------+----------------------+-------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------------+---------+---------------------------------------------------------------+-------+----------------------------------------------------------------------------------------------------------------+
+| id   | select_type        | table                | type        | possible_keys                                                                                                                                                      | key                                             | key_len | ref                                                           | rows  | Extra                                                                                                          |
++------+--------------------+----------------------+-------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------------+---------+---------------------------------------------------------------+-------+----------------------------------------------------------------------------------------------------------------+
+|    1 | PRIMARY            | insurance_acceptance | ref         | is_active_idx                                                                                                                                                      | is_active_idx                                   | 2       | const                                                         | 33572 | Using where                                                                                                    |
++------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+хотя в колонке key и укаан идекс но в колонке extra неуказано что индекс будет использован.
+значит как я понимаю этот where будет испольнятся без индекса. а строк 33 000!
+
+поэтому надо сделать имзеения
+> create index in_1_1 on insurance_acceptance (waybill_id, is_active);
+> analyze table insurance_acceptance persistent for all;
+
+ии также делаем анализ остальных таббицы запроса
+
+> analyze table for имя_тфблицы persistent for all;
+для таблиц:
+insurance_acceptance 
+waybill 
+`order` 
+service 
+invoice 
+account
+company            
+order_history 
+waybill_history 
+
+
+тогда план меняется на:
++------+--------------------+----------------------+-------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------------+---------+---------------------------------------------------------------+--------+----------------------------------------------------------------------------------------------------------------+
+| id   | select_type        | table                | type        | possible_keys                                                                                                                                                      | key                                             | key_len | ref                                                           | rows   | Extra                                                                                                          |
++------+--------------------+----------------------+-------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------------+---------+---------------------------------------------------------------+--------+----------------------------------------------------------------------------------------------------------------+
+|    1 | PRIMARY            | insurance_acceptance | ALL         | is_active_idx                                                                                                                                                      | NULL                                            | NULL    | NULL                                                          | 100437 | Using where; Using temporary; Using filesort                                                                   |
+|    1 | PRIMARY            | waybill_insurance    | eq_ref      | PRIMARY,fk_waybill_order_id_idx,fk_waybill_service_id_idx,fk_waybill_parent_service_id_idx,fk_waybill_invoice_id_idx,service_waybill_contact_idx,order_service_idx | PRIMARY                                         | 4       | erp2.insurance_acceptance.waybill_id                          | 1      | Using where                                                                                                    |
+|    1 | PRIMARY            | service              | eq_ref      | PRIMARY                                                                                                                                                            | PRIMARY                                         | 4       | erp2.waybill_insurance.service_id                             | 1      |                                                                                                                |
+|    1 | PRIMARY            | order                | eq_ref      | PRIMARY,fk_order_service_id_idx,date_idx,service_id                                                                                                                | PRIMARY                                         | 4       | erp2.waybill_insurance.order_id                               | 1      | Using where                                                                                                    |
+|    1 | PRIMARY            | waybill_main         | ref         | fk_waybill_order_id_idx,fk_waybill_service_id_idx,service_waybill_contact_idx,order_service_idx                                                                    | order_service_idx                               | 4       | erp2.waybill_insurance.order_id                               | 3      | Using where; Using index                                                                                       |
+|    1 | PRIMARY            | invoice              | eq_ref      | PRIMARY,fk_invoice_from_account_id_idx,fk_invoice_to_account_id_idx,draw_date_is_credit_status_idx                                                                 | PRIMARY                                         | 4       | erp2.waybill_insurance.invoice_id                             | 1      | Using where                                                                                                    |
+|    1 | PRIMARY            | company_account      | eq_ref      | PRIMARY,fk_account_company_id_idx                                                                                                                                  | PRIMARY                                         | 4       | erp2.invoice.to_account_id                                    | 1      |                                                                                                                |
+|    1 | PRIMARY            | company              | range       | PRIMARY,fk_company_client_id_idx                                                                                                                                   | fk_company_client_id_idx                        | 5       | NULL                                                          | 2      | Using where; Using index; Using join buffer (flat, BNL join)                                                   |
+|    1 | PRIMARY            | client_account       | range       | PRIMARY,subject_id                                                                                                                                                 | subject_id                                      | 4       | NULL                                                          | 3      | Using where; Using index; Using join buffer (flat, BNL join)                                                   |
+|    1 | PRIMARY            | acceptance_main      | ref         | fk_insurance_acceptance_waybill_id,is_active_idx,set_acceptance_number_idx,in_1_1                                                                                  | in_1_1                                          | 6       | erp2.waybill_main.waybill_id,const                            | 3      | Using where                                                                                                    |
+|    2 | UNION              | insurance_acceptance | index_merge | fk_insurance_acceptance_status_id,is_active_idx,acceptance_number_idx,order_idx                                                                                    | fk_insurance_acceptance_status_id,is_active_idx | 4,2     | NULL                                                          | 169    | Using intersect(fk_insurance_acceptance_status_id,is_active_idx); Using where; Using temporary; Using filesort |
+|    2 | UNION              | history              | eq_ref      | PRIMARY,order_history_order_id_idx                                                                                                                                 | PRIMARY                                         | 8       | func                                                          | 1      | Using where                                                                                                    |
+|    2 | UNION              | waybill_history      | eq_ref      | PRIMARY                                                                                                                                                            | PRIMARY                                         | 12      | erp2.history.revision_id,erp2.insurance_acceptance.waybill_id | 1      |                                                                                                                |
+|    2 | UNION              | service              | eq_ref      | PRIMARY                                                                                                                                                            | PRIMARY                                         | 4       | erp2.insurance_acceptance.service_id                          | 1      | Using where                                                                                                    |
+|    2 | UNION              | company              | range       | PRIMARY,fk_company_client_id_idx                                                                                                                                   | fk_company_client_id_idx                        | 5       | NULL                                                          | 2      | Using where; Using index; Using join buffer (flat, BNL join)                                                   |
+|    2 | UNION              | waybill_main         | ref         | fk_waybill_order_id_idx,fk_waybill_service_id_idx,service_waybill_contact_idx,order_service_idx                                                                    | order_service_idx                               | 4       | erp2.insurance_acceptance.order_id                            | 3      | Using where; Using index                                                                                       |
+|    2 | UNION              | acceptance_main      | ref         | fk_insurance_acceptance_waybill_id,is_active_idx,set_acceptance_number_idx,in_1_1                                                                                  | in_1_1                                          | 6       | erp2.waybill_main.waybill_id,const                            | 3      | Using where                                                                                                    |
+|    3 | DEPENDENT SUBQUERY | oh                   | ref         | PRIMARY,order_history_order_id_idx                                                                                                                                 | order_history_order_id_idx                      | 4       | erp2.insurance_acceptance.order_id                            | 37     | Using index                                                                                                    |
+|    3 | DEPENDENT SUBQUERY | wh                   | ref         | PRIMARY                                                                                                                                                            | PRIMARY                                         | 8       | erp2.oh.revision_id                                           | 3      | Using where                                                                                                    |
+| NULL | UNION RESULT       | <union1,2>           | ALL         | NULL                                                                                                                                                               | NULL                                            | NULL    | NULL                                                          | NULL   |                                                                                                                |
++------+--------------------+----------------------+-------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------------+---------+---------------------------------------------------------------+--------+----------------------------------------------------------------------------------------------------------------+
+
+а время выполенния запроса теперь 0.4 с !!!!
+
+видно что наш новый индекс in_1_1 прмиеняется аж два раза ,
+для верхнего половинки union (верхний селект) и для нижней половинки union (нижний селект)
+
++------+--------------------+----------------------+-------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------------+---------+---------------------------------------------------------------+--------+----------------------------------------------------------------------------------------------------------------+
+| id   | select_type        | table                | type        | possible_keys                                                                                                                                                      | key                                             | key_len | ref                                                           | rows   | Extra                                                                                                          |
++------+--------------------+----------------------+-------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------------+---------+---------------------------------------------------------------+--------+----------------------------------------------------------------------------------------------------------------+
+|    1 | PRIMARY            | acceptance_main      | ref         | fk_insurance_acceptance_waybill_id,is_active_idx,set_acceptance_number_idx,in_1_1                                                                                  | in_1_1                                          | 6       | erp2.waybill_main.waybill_id,const                            | 3      | Using where                                                                                                    |
+|    2 | UNION              | acceptance_main      | ref         | fk_insurance_acceptance_waybill_id,is_active_idx,set_acceptance_number_idx,in_1_1                                                                                  | in_1_1                                          | 6       | erp2.waybill_main.waybill_id,const                            | 3      | Using where                                                                                                    |
++------+--------------------+----------------------+-------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------------+---------+---------------------------------------------------------------+--------+----------------------------------------------------------------------------------------------------------------+
+
+как я помню нижний селект отарбтывает мнговноеенно.
+тоесть моя задача была ускорит в верхнем селекте эту строку
+
+LEFT OUTER JOIN insurance_acceptance acceptance_main ON 
+acceptance_main.waybill_id=waybill_main.waybill_id AND acceptance_main.is_active=1
+
+именно она давала главное торможение
+
+а вот ее analyze план 
+после ускорения ( используем analyze format=json)
+            
+
+
+
+                "table": {
+                  "table_name": "acceptance_main",
+                  "access_type": "ref",
+                  "possible_keys": [
+                    "fk_insurance_acceptance_waybill_id",
+                    "is_active_idx",
+                    "set_acceptance_number_idx",
+                    "in_1_1"
+                  ],
+                  "key": "in_1_1",
+                  "key_length": "6",
+                  "used_key_parts": ["waybill_id", "is_active"],
+                  "ref": ["erp2.waybill_main.waybill_id", "const"],
+                  "r_loops": 109,
+                  "rows": 3,
+                  "r_rows": 1,
+                  "r_table_time_ms": 0.621893633,
+                  "r_other_time_ms": 0.871348066,
+                  "filtered": 100,
+                  "r_filtered": 100,
+                  "attached_condition": "trigcond(waybill_insurance.parent_service_id not in (93,94) or waybill_insurance.parent_service_id is null or acceptance_main.status_id = 7) and trigcond(trigcond(waybill_main.waybill_id is not null))"
+                }
+            
+
+
+видим что используется индекс   in_1_1
+                  "key": "in_1_1",
+
+
+видим что у этого индекса используются поля
+                  "used_key_parts": ["waybill_id", "is_active"],
+
+
+видим что в этом индексе ищется вхождение:
+                  "ref": ["erp2.waybill_main.waybill_id", "const"],
+
+
+что в точности соответвует то что в запросе
+            acceptance_main.waybill_id=waybill_main.waybill_id AND acceptance_main.is_active=1
+
+
+время выполенения этого блока:
+                  "r_table_time_ms": 0.621893633,
+                  "r_other_time_ms": 0.871348066,
+
+                  
+
+общее правило такое: 
+- смотрим план.ищем где укаано много строк.
+далее смотрим направо в графу "Extra" если там указан where или join 
+но при этом не указан индекс  значит жопа. надо исправлять
+- используем analyze format=json . он покажет время торможеия на каждом шаге плана
+
+
+
+
+==========
+
+ошибка
+
+May 27 23:29:29 mar-single-1 mariadbd[290]: 2023-05-27 23:29:29 0 [ERROR] Plugin 'InnoDB' registration as a STORAGE ENGINE failed.
+May 27 23:29:29 mar-single-1 mariadbd[290]: 2023-05-27 23:29:29 0 [Note] Plugin 'FEEDBACK' is disabled.
+May 27 23:29:29 mar-single-1 mariadbd[290]: 2023-05-27 23:29:29 0 [ERROR] Unknown/unsupported storage engine: InnoDB
+May 27 23:29:29 mar-single-1 mariadbd[290]: 2023-05-27 23:29:29 0 [ERROR] Aborting
+May 27 23:29:29 mar-single-1 systemd[1]: mariadb.service: Main process exited, code=exited, status=1/FAILURE
+May 27 23:29:29 mar-single-1 systemd[1]: mariadb.service: Failed with result 'exit-code'.
+May 27 23:29:29 mar-single-1 systemd[1]: Failed to start MariaDB 10.6.12 database server.
+
+
+
+решение 
+
+# systemctl stop mariadb
+
+далее удалить /var/lib/mysql
+и там надо удалить log файл. (имеется ввиду dblog)
+
+# systemctl start mariadb
+# systemctl status mariadb
+
+===
+
+analyze 
+одно плана
+
+
+
+              waybill 
+              parent_order 
+           LEFT JOIN waybill ON (`order`.order_id = waybill.order_id)
+              LEFT JOIN `order` parent_order ON (`order`.parent_id = parent_order.order_id AND `order`.service_id = 1001790)
+              LEFT JOIN waybill shipping ON (IFNULL(parent_order.order_id, `order`.order_id) = shipping.order_id AND shipping.service_id = 90)
+              LEFT JOIN account ON (`order`.account_id = account.account_id)
+              LEFT JOIN client ON (account.subject_id = client.client_id)
+              LEFT JOIN client_relation_history ON (client.client_id = client_relation_history.child_client_id
+              LEFT JOIN client parent_client ON (parent_client.client_id = IFNULL(client_relation_history.parent_client_id, client.client_id))
+              LEFT JOIN contact parent_client_contact ON (parent_client.contact_id = parent_client_contact.contact_id)
+              LEFT JOIN employee ON employee.user_id = parent_client.user_id
+              LEFT JOIN contact office ON office.contact_id = employee.office_contact_id
+              LEFT JOIN contact from_contact ON from_contact.contact_id = `order`.from_contact_id
+              LEFT JOIN contact to_contact ON to_contact.contact_id = `order`.to_contact_id
+              LEFT JOIN geo from_geo ON from_geo.geo_id = `order`.map_from_city_id
+              LEFT JOIN geo to_geo ON to_geo.geo_id = `order`.map_to_city_id
+              LEFT JOIN geo office_geo ON office_geo.geo_id = office.geo_id
+ 
+
+новый хороший план 
++------+-------------+-------------------------+--------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-------------------------+---------+---------------------------------+-------+----------+----------+------------+----------------------------------------------+
+| id   | select_type | table                   | type   | possible_keys                                                                                                                                                                            | key                     | key_len | ref                             | rows  | r_rows   | filtered | r_filtered | Extra                                        |
++------+-------------+-------------------------+--------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-------------------------+---------+---------------------------------+-------+----------+----------+------------+----------------------------------------------+
+|    1 | SIMPLE      | order                   | ALL    | fk_order_service_id_idx,fk_order_category_id_idx,report_date_idx,giveout_date_service_status_idx,inactive_clients_idx,status_service_fin_result_date_idx,service_id,in_2,in_3,in_4,in_13 | NULL                    | NULL    | NULL                            | 20821 | 20821.00 |   100.00 |      19.13 | Using where; Using temporary; Using filesort |
+|    1 | SIMPLE      | waybill                 | ref    | fk_waybill_order_id_idx,order_service_idx                                                                                                                                                | fk_waybill_order_id_idx | 4       | erp2.order.order_id             | 3     | 3.18     |   100.00 |     100.00 |                                              |
+|    1 | SIMPLE      | parent_order            | eq_ref | PRIMARY,in_order_service,in_12                                                                                                                                                           | PRIMARY                 | 4       | erp2.order.parent_id            | 1     | 0.02     |   100.00 |     100.00 | Using where                                  |
+|    1 | SIMPLE      | shipping                | ref    | fk_waybill_order_id_idx,fk_waybill_service_id_idx,service_waybill_contact_idx,order_service_idx                                                                                          | order_service_idx       | 8       | func,const                      | 1     | 1.00     |   100.00 |     100.00 | Using where                                  |
+|    1 | SIMPLE      | account                 | eq_ref | PRIMARY                                                                                                                                                                                  | PRIMARY                 | 4       | erp2.order.account_id           | 1     | 1.00     |   100.00 |     100.00 |                                              |
+|    1 | SIMPLE      | client                  | eq_ref | PRIMARY                                                                                                                                                                                  | PRIMARY                 | 4       | erp2.account.subject_id         | 1     | 1.00     |   100.00 |     100.00 | Using where; Using index                     |
+|    1 | SIMPLE      | client_relation_history | ref    | PRIMARY,fk_client_relation_history_child_client_id_idx                                                                                                                                   | PRIMARY                 | 4       | erp2.client.client_id           | 1     | 0.00     |   100.00 |     100.00 | Using where                                  |
+|    1 | SIMPLE      | parent_client           | eq_ref | PRIMARY,fk_client_user_id_idx                                                                                                                                                            | PRIMARY                 | 4       | func                            | 1     | 1.00     |   100.00 |      97.69 | Using where                                  |
+|    1 | SIMPLE      | employee                | ref    | fk_employee_user_id_idx,fk_employee_office_contact_id_idx                                                                                                                                | fk_employee_user_id_idx | 5       | erp2.parent_client.user_id      | 1     | 1.00     |   100.00 |     100.00 | Using where                                  |
+|    1 | SIMPLE      | office                  | eq_ref | PRIMARY,fk_contact_geo_id_idx                                                                                                                                                            | PRIMARY                 | 4       | erp2.employee.office_contact_id | 1     | 1.00     |    56.50 |      53.28 | Using where                                  |
++------+-------------+-------------------------+--------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-------------------------+---------+---------------------------------+-------+----------+----------+------------+----------------------------------------------+
+
+
+
+старый плохой план
++------+-------------+-------------------------+--------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-------------------------+---------+---------------------------------+-------+-------------------------------------------------+
+| id   | select_type | table                   | type   | possible_keys                                                                                                                                                                            | key                     | key_len | ref                             | rows  | Extra                                           |
++------+-------------+-------------------------+--------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-------------------------+---------+---------------------------------+-------+-------------------------------------------------+
+|    1 | SIMPLE      | employee                | ALL    | fk_employee_user_id_idx,fk_employee_office_contact_id_idx                                                                                                                                | NULL                    | NULL    | NULL                            | 182   | Using where; Using temporary; Using filesort    |
+|    1 | SIMPLE      | office                  | eq_ref | PRIMARY,fk_contact_geo_id_idx                                                                                                                                                            | PRIMARY                 | 4       | erp2.employee.office_contact_id | 1     | Using where                                     |
+|    1 | SIMPLE      | order                   | ALL    | fk_order_service_id_idx,fk_order_category_id_idx,report_date_idx,giveout_date_service_status_idx,inactive_clients_idx,status_service_fin_result_date_idx,service_id,in_2,in_3,in_4,in_13 | NULL                    | NULL    | NULL                            | 20821 | Using where; Using join buffer (flat, BNL join) |
+|    1 | SIMPLE      | waybill                 | ref    | fk_waybill_order_id_idx,order_service_idx                                                                                                                                                | fk_waybill_order_id_idx | 4       | erp2.order.order_id             | 3     |                                                 |
+|    1 | SIMPLE      | parent_order            | eq_ref | PRIMARY,in_order_service,in_12                                                                                                                                                           | PRIMARY                 | 4       | erp2.order.parent_id            | 1     | Using where                                     |
+|    1 | SIMPLE      | shipping                | ref    | fk_waybill_order_id_idx,fk_waybill_service_id_idx,service_waybill_contact_idx,order_service_idx                                                                                          | order_service_idx       | 8       | func,const                      | 1     | Using where                                     |
+|    1 | SIMPLE      | account                 | eq_ref | PRIMARY                                                                                                                                                                                  | PRIMARY                 | 4       | erp2.order.account_id           | 1     |                                                 |
+|    1 | SIMPLE      | client                  | eq_ref | PRIMARY                                                                                                                                                                                  | PRIMARY                 | 4       | erp2.account.subject_id         | 1     | Using where; Using index                        |
+|    1 | SIMPLE      | client_relation_history | ref    | PRIMARY,fk_client_relation_history_child_client_id_idx                                                                                                                                   | PRIMARY                 | 4       | erp2.client.client_id           | 1     | Using where                                     |
+|    1 | SIMPLE      | parent_client           | eq_ref | PRIMARY,fk_client_user_id_idx                                                                                                                                                            | PRIMARY                 | 4       | func                            | 1     | Using where                                     |
++------+-------------+-------------------------+--------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-------------------------+---------+---------------------------------+-------+-------------------------------------------------+
+
+
+
+новый план
+> source /root/mysql/03/orig-an.sql
++---------+---------------+----------+-------------+
+| ym      | sum_debit     | volume   | realization |
++---------+---------------+----------+-------------+
+| 2023-04 | 28189601.5400 | 8304.348 |     3394.56 |
++---------+---------------+----------+-------------+
+1 row in set (0.659 sec)
+
+старый план
+> source /root/mysql/03/orig-an.sql
++---------+---------------+----------+-------------+
+| ym      | sum_debit     | volume   | realization |
++---------+---------------+----------+-------------+
+| 2023-04 | 28189601.5400 | 8304.348 |     3394.56 |
++---------+---------------+----------+-------------+
+1 row in set (32.377 sec)
+
+
+
+
+новый план
+| {
+  "query_block": {
+    "select_id": 1,
+    "r_loops": 1,
+    "r_total_time_ms": 650.1737211,
+    "filesort": {
+      "sort_key": "if(`order`.service_id = 1001790,date_format(`order`.report_date,'%Y-%m'),if(date_format(`order`.report_date,'%Y-%m') = date_format(`order`.giveout_date,'%Y-%m'),date_format(`order`.giveout_date,'%Y-%m'),if(date_format(`order`.giveout_date,'%d') <= if(date_format(`order`.giveout_date,'%c') = 1,15,10),date_format(`order`.giveout_date - interval 1 month,'%Y-%m'),date_format(`order`.giveout_date,'%Y-%m'))))",
+      "r_loops": 1,
+      "r_total_time_ms": 0.010820549,
+      "r_used_priority_queue": false,
+      "r_output_rows": 1,
+      "r_buffer_size": "472",
+      "r_sort_mode": "sort_key,rowid",
+
+
+
+
+
+
+
+      "temporary_table": {
+        "table": {
+          "table_name": "order",
+          "access_type": "ALL",
+          "possible_keys": [
+            "fk_order_service_id_idx",
+            "fk_order_category_id_idx",
+            "report_date_idx",
+            "giveout_date_service_status_idx",
+            "inactive_clients_idx",
+            "status_service_fin_result_date_idx",
+            "service_id",
+            "in_2",
+            "in_3",
+            "in_4",
+            "in_13"
+          ],
+          "r_loops": 1,
+          "rows": 20821,
+          "r_rows": 20821,
+          "r_table_time_ms": 35.97328376,
+          "r_other_time_ms": 37.04338319,
+          "filtered": 100,
+          "r_filtered": 19.13452764,
+          "attached_condition": "`order`.`status` in ('store','sf','trip','dep_store','closed') and (`order`.service_id = 46 and (`order`.category_id not in (4177,4178,4179) or `order`.category_id is null) or `order`.service_id = 11662 or `order`.service_id = 333196 or `order`.service_id = 100 or `order`.service_id = 46 and `order`.category_id = 4177 or `order`.service_id = 46 and `order`.category_id = 4178 or `order`.service_id = 46 and `order`.category_id = 4179 or `order`.service_id = 1001790) and (`order`.service_id <> 1001790 and (`order`.report_date between '2023-04-01 00:00:00.000000' and '2023-04-30 23:59:59.000000' and `order`.giveout_date between '2023-04-01 00:00:00.000000' and '2023-05-10 23:59:59.000000' or `order`.report_date < '2023-04-01 00:00:00' and `order`.giveout_date between '2023-04-11 00:00:00.000000' and '2023-05-10 23:59:59.000000') or `order`.service_id = 1001790 and `order`.report_date between '2023-04-01 00:00:00.000000' and '2023-04-30 23:59:59.000000')"
+        },
+
+
+
+  из этого 
+           "r_loops": 1,
+           "r_rows": 20821,
+видно чтоб это был select.
+потмоу что только у него идет такая выборку тучи строк за 1 loop
+строки выбирали без ирдекса потому что
+            "access_type": "ALL",
+
+
+
+
+        "table": {
+          "table_name": "waybill",
+          "access_type": "ref",
+          "possible_keys": ["fk_waybill_order_id_idx", "order_service_idx"],
+          "key": "fk_waybill_order_id_idx",
+          "key_length": "4",
+          "used_key_parts": ["order_id"],
+          "ref": ["erp2.order.order_id"],
+          "r_loops": 3984,
+          "rows": 3,
+          "r_rows": 3.177459839,
+          "r_table_time_ms": 76.61924326,
+          "r_other_time_ms": 65.93940162,
+          "filtered": 100,
+          "r_filtered": 100
+        },
+
+
+тут вроде тоже всеобычно
+
+
+
+
+
+        "table": {
+          "table_name": "parent_order",
+          "access_type": "eq_ref",
+          "possible_keys": ["PRIMARY", "in_order_service", "in_12"],
+          "key": "PRIMARY",
+          "key_length": "4",
+          "used_key_parts": ["order_id"],
+          "ref": ["erp2.order.parent_id"],
+          "r_loops": 12662,
+          "rows": 1,
+          "r_rows": 0.024956563,
+          "r_table_time_ms": 11.60759066,
+          "r_other_time_ms": 10.29223212,
+          "filtered": 100,
+          "r_filtered": 100,
+          "attached_condition": "trigcond(`order`.service_id = 46 and (`order`.category_id not in (4177,4178,4179) or `order`.category_id is null) or `order`.service_id = 11662 or `order`.service_id = 333196 or `order`.service_id = 100 or `order`.service_id = 46 and `order`.category_id = 4177 or `order`.service_id = 46 and `order`.category_id = 4178 or `order`.service_id = 46 and `order`.category_id = 4179 or `order`.service_id = 1001790 and (parent_order.service_id = 46 and (parent_order.category_id not in (4177,4178,4179) or parent_order.category_id is null) or parent_order.service_id = 11662 or parent_order.service_id = 333196 or parent_order.service_id = 100 or parent_order.service_id = 46 and parent_order.category_id = 4177 or parent_order.service_id = 46 and parent_order.category_id = 4178 or parent_order.service_id = 46 and parent_order.category_id = 4179)) and trigcond(trigcond(`order`.service_id = 1001790 and `order`.parent_id is not null))"
+        },
+
+
+тут все как обычно
+
+
+
+
+
+        "table": {
+          "table_name": "shipping",
+          "access_type": "ref",
+          "possible_keys": [
+            "fk_waybill_order_id_idx",
+            "fk_waybill_service_id_idx",
+            "service_waybill_contact_idx",
+            "order_service_idx"
+          ],
+          "key": "order_service_idx",
+          "key_length": "8",
+          "used_key_parts": ["order_id", "service_id"],
+          "ref": ["func", "const"],
+          "r_loops": 12645,
+          "rows": 1,
+          "r_rows": 1,
+          "r_table_time_ms": 118.1388654,
+          "r_other_time_ms": 17.2581996,
+          "filtered": 100,
+          "r_filtered": 100,
+          "attached_condition": "trigcond(ifnull(parent_order.order_id,`order`.order_id) = shipping.order_id)"
+        },
+
+вот это непонятно
+      "ref": ["func", "const"],
+
+
+строчка для этго куска из скрипта
+LEFT JOIN waybill shipping ON 
+(IFNULL(parent_order.order_id, `order`.order_id) = shipping.order_id AND 
+shipping.service_id = 90)
+
+походу это все прясняет. тоесть из диска читаются строки котоыре  равны константе
+и еще чтото связанное с фугкцией. а функцию мы видим IFNULL
+
+
+
+        "table": {
+          "table_name": "account",
+          "access_type": "eq_ref",
+          "possible_keys": ["PRIMARY"],
+          "key": "PRIMARY",
+          "key_length": "4",
+          "used_key_parts": ["account_id"],
+          "ref": ["erp2.order.account_id"],
+          "r_loops": 12645,
+          "rows": 1,
+          "r_rows": 1,
+          "r_table_time_ms": 15.51612031,
+          "r_other_time_ms": 1.188380973,
+          "filtered": 100,
+          "r_filtered": 100
+        },
+
+
+аналогично тму что ниже
+
+
+
+
+
+        "table": {
+          "table_name": "client",
+          "access_type": "eq_ref",
+          "possible_keys": ["PRIMARY"],
+          "key": "PRIMARY",
+          "key_length": "4",
+          "used_key_parts": ["client_id"],
+          "ref": ["erp2.account.subject_id"],
+          "r_loops": 12645,
+          "rows": 1,
+          "r_rows": 1,
+          "r_table_time_ms": 36.14160058,
+          "r_other_time_ms": 1.066939879,
+          "filtered": 100,
+          "r_filtered": 100,
+          "attached_condition": "trigcond(trigcond(`account`.subject_id is not null))",
+          "using_index": true
+        },
+
+
+таблца client
+доступ по инедксу. столбец client_id
+число выбранных считанных с дискс строк 12645*1, чиатли строки чтобы они были равны erp2.account.subject_id
+прошло через фильтр where 100%
+
+
+
+        "table": {
+          "table_name": "client_relation_history",
+          "access_type": "ref",
+          "possible_keys": [
+            "PRIMARY",
+            "fk_client_relation_history_child_client_id_idx"
+          ],
+          "key": "PRIMARY",
+          "key_length": "4",
+          "used_key_parts": ["child_client_id"],
+          "ref": ["erp2.client.client_id"],
+          "r_loops": 12645,
+          "rows": 1,
+          "r_rows": 0.004349545,
+          "r_table_time_ms": 36.26720175,
+          "r_other_time_ms": 18.54786229,
+          "filtered": 100,
+          "r_filtered": 100,
+          "attached_condition": "trigcond(client_relation_history.date_start <= cast(`order`.report_date as date) and (client_relation_history.date_end >= cast(`order`.report_date as date) or client_relation_history.date_end is null) and trigcond(`client`.client_id is not null))"
+        },
+
+
+все агалогично то  что ниже. 
+но есть один интеренсный момент. строка
+                     "r_rows": 0.004349545,
+непонятно. как это ? за реквест было найдено меньше чем 1 строка?
+что за хуйня?
+скорей всего это значит вот что =>
+                     "r_loops": 12645,
+показывает сколько оббрашейний было к этой таблице. тоесть к ней обрашались 12545 раз.
+каждый раз к ней обращаст спрашивая есть ли такая то строка как вот в этом столбце. 
+тоесть брали строку из столбца erp2.client.client_id и искали ее в этой таблице. таких обращенйи было 12545.
+ТАК ВОТ! в итоге берут то колчество строк которое было найдено и делят на то колчиество обращений которые сделали!
+все таблицы ниже они показыают 
+                     "r_rows": 1
+это значит что при кажом обращении такая строка в этой табице была! поэтому срденее значение 1.
+а в нашем случае дохрена было кейсов когда то что искали в нашей таблце нет!!! 
+поэтому получается из 12545 случаев поиска только малая часть нашлас в нашей таблице. если 
+тоеть r_rows вроде как полуается это средеен колчиество строк котрое было найдено отсносиельно числа запросов
+
+
+правда тогда вобще нихуя епонятно вот из этого примера (отойду в строну)
+
+> select * from t10 where id=399;
++-----+
+| id  |
++-----+
+| 399 |
++-----+
+
+
+> analyze format=json select * from t10 where id=399;
+| {
+  "query_block": {
+    "select_id": 1,
+    "r_loops": 1,
+    "r_total_time_ms": 0.004862801,
+    "table": {
+      "table_name": "t10",
+      "access_type": "const",
+      "possible_keys": ["PRIMARY"],
+      "key": "PRIMARY",
+      "key_length": "4",
+      "used_key_parts": ["id"],
+      "ref": ["const"],
+      "r_loops": 0,
+      "rows": 1,
+      "r_rows": null,
+      "filtered": 100,
+      "r_filtered": null,
+      "using_index": true
+    }
+  }
+} |
+
+
+совренно непонятно как это интерпеттировать:
+
+      "r_loops": 0,
+      "rows": 1,
+      "r_rows": null
+
+ттпа небыло ниодного цикла поиска? 
+и не было найдено ни одной строки? что за хуйня??!?!?
+
++------+-------------+-------+-------+---------------+---------+---------+-------+------+--------+----------+------------+-------------+
+| id   | select_type | table | type  | possible_keys | key     | key_len | ref   | rows | r_rows | filtered | r_filtered | Extra       |
++------+-------------+-------+-------+---------------+---------+---------+-------+------+--------+----------+------------+-------------+
+|    1 | SIMPLE      | t10   | const | PRIMARY       | PRIMARY | 4       | const | 1    | NULL   |   100.00 |       NULL | Using index |
++------+-------------+-------+-------+---------------+---------+---------+-------+------+--------+----------+------------+-------------+
+1 row in set (0.000 sec)
+
+
+а вот этот пример выгдяит совершенно понянтно
+
+> create table t4 (a int);
+
+
+> select a from t4 where a=1;
++------+
+| a    |
++------+
+|    1 |
++------+
+
+> analyze select a from t4 where a=1;
++------+-------------+-------+------+---------------+------+---------+------+------+--------+----------+------------+-------------+
+| id   | select_type | table | type | possible_keys | key  | key_len | ref  | rows | r_rows | filtered | r_filtered | Extra       |
++------+-------------+-------+------+---------------+------+---------+------+------+--------+----------+------------+-------------+
+|    1 | SIMPLE      | t4    | ALL  | NULL          | NULL | NULL    | NULL | 3    | 3.00   |   100.00 |      33.33 | Using where |
++------+-------------+-------+------+---------------+------+---------+------+------+--------+----------+------------+-------------+
+
+> analyze format=json select a from t4 where a=1;
++--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| ANALYZE                                                                                                                                                                                                                                                                                                                                                                                                            |
++--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| {
+  "query_block": {
+    "select_id": 1,
+    "r_loops": 1,
+    "r_total_time_ms": 0.031119746,
+    "table": {
+      "table_name": "t4",
+      "access_type": "ALL",
+      "r_loops": 1,
+      "rows": 3,
+      "r_rows": 3,
+      "r_table_time_ms": 0.016627583,
+      "r_other_time_ms": 0.007882531,
+      "filtered": 100,
+      "r_filtered": 33.33333333,
+      "attached_condition": "t4.a = 1"
+    }
+  }
+} |
+
+тоеесть был 1 цикл поиска.
+тип посика был full scan тоесть мы неискали строку которая удвловтвероряет какомуто 
+условию мы прото брали любую строку.
+было выбрано строк 3 штуки. 
+получается число выбрарных строк = 3. количетсво поисковых циклов =1 
+получаем r_rows = (общее число выбранных строк) \(количество цисклов поика) = 3\1 =3
+совпдаает с
+
+      "r_rows": 3,
+
+
+что иентеересно что у нас есть два типа разнцых соверщенно процессов!
+первый процесс это мы выбираем строки в память из таблицы. это назыается r_loop.
+и выбранные стрроки идут в r_rows.
+так вот а есть последбущая обработка выбранных строк. и это соврешенно другой процесс. отдеьный. 
+и вот where он неприяенсят на стадии выборки строк из таблицы!!! хотя казалось бы что он должен быть там.
+нихуя. where прмиенсят толкьо тогдк кода строки уже выбраны из диска и сидят в памти. и статиксикпо where
+идет в соврщенно другое место
+
+      "r_filtered": 33.33333333,
+      "attached_condition": "t4.a = 1"
+
+в строке attached_condition указыается условие  where. 
+и сколко where отфильтровал из строк кторые лежали в буфере присыается в r_filtered  
+
+тоесть подучаеся поразительная вещь. есть процесс чтения строк из диска в память. и на этой стадии where 
+не прмиенсятеся.не участвует. какзлось бы надо уже при чтении строк учитыать where но нихуя. 
+строки вначле читаются с диска в памяти. и колиество чтрок прочитанных идет в статиктику
+     "r_loops":1
+     "r_rows": 3,
+
+
+а уже потом когда они оказалси в памтия. то к ним начаинается прмиенстьяс where.
+и эта стиатсика идет в
+
+      "r_filtered": 33.33333333,
+      "attached_condition": "t4.a = 1"
+
+причем r_rows это среднее колчство строк прочитанных за один цикл выборки . так получатеся.
+берется общее число прочитанных строк и делится на число циклов выборки.
+
+
+
+посмотрим на наш основной пример. на его план в формет таблицы
+
+MariaDB [erp2]> source /root/mysql/03/2.sql
++------+-------------+-------------------------+--------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-------------------------+---------+---------------------------------+-------+----------+----------+------------+----------------------------------------------+
+| id   | select_type | table                   | type   | possible_keys                                                                                                                                                                            | key                     | key_len | ref                             | rows  | r_rows   | filtered | r_filtered | Extra                                        |
++------+-------------+-------------------------+--------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-------------------------+---------+---------------------------------+-------+----------+----------+------------+----------------------------------------------+
+|    1 | SIMPLE      | order                   | ALL    | fk_order_service_id_idx,fk_order_category_id_idx,report_date_idx,giveout_date_service_status_idx,inactive_clients_idx,status_service_fin_result_date_idx,service_id,in_2,in_3,in_4,in_13 | NULL                    | NULL    | NULL                            | 20821 | 20821.00 |   100.00 |      19.13 | Using where; Using temporary; Using filesort |
+|    1 | SIMPLE      | waybill                 | ref    | fk_waybill_order_id_idx,order_service_idx                                                                                                                                                | fk_waybill_order_id_idx | 4       | erp2.order.order_id             | 3     | 3.18     |   100.00 |     100.00 |                                              |
+|    1 | SIMPLE      | parent_order            | eq_ref | PRIMARY,in_order_service,in_12                                                                                                                                                           | PRIMARY                 | 4       | erp2.order.parent_id            | 1     | 0.02     |   100.00 |     100.00 | Using where                                  |
+|    1 | SIMPLE      | shipping                | ref    | fk_waybill_order_id_idx,fk_waybill_service_id_idx,service_waybill_contact_idx,order_service_idx                                                                                          | order_service_idx       | 8       | func,const                      | 1     | 1.00     |   100.00 |     100.00 | Using where                                  |
+|    1 | SIMPLE      | account                 | eq_ref | PRIMARY                                                                                                                                                                                  | PRIMARY                 | 4       | erp2.order.account_id           | 1     | 1.00     |   100.00 |     100.00 |                                              |
+|    1 | SIMPLE      | client                  | eq_ref | PRIMARY                                                                                                                                                                                  | PRIMARY                 | 4       | erp2.account.subject_id         | 1     | 1.00     |   100.00 |     100.00 | Using where; Using index                     |
+|    1 | SIMPLE      | client_relation_history | ref    | PRIMARY,fk_client_relation_history_child_client_id_idx                                                                                                                                   | PRIMARY                 | 4       | erp2.client.client_id           | 1     | 0.00     |   100.00 |     100.00 | Using where                                  |
+|    1 | SIMPLE      | parent_client           | eq_ref | PRIMARY,fk_client_user_id_idx                                                                                                                                                            | PRIMARY                 | 4       | func                            | 1     | 1.00     |   100.00 |      97.69 | Using where                                  |
+|    1 | SIMPLE      | employee                | ref    | fk_employee_user_id_idx,fk_employee_office_contact_id_idx                                                                                                                                | fk_employee_user_id_idx | 5       | erp2.parent_client.user_id      | 1     | 1.00     |   100.00 |     100.00 | Using where                                  |
+|    1 | SIMPLE      | office                  | eq_ref | PRIMARY,fk_contact_geo_id_idx                                                                                                                                                            | PRIMARY                 | 4       | erp2.employee.office_contact_id | 1     | 1.00     |    56.50 |      53.28 | Using where                                  |
++------+-------------+-------------------------+--------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-------------------------+---------+---------------------------------+-------+----------+----------+------------+----------------------------------------------+
+
+а именно сроку с client_relation_history которая нас ввела вступор со своим непонятным
+"r_rows": 0.004349545,
+
+
+
++------+-------------+-------------------------+--------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-------------------------+---------+---------------------------------+-------+----------+----------+------------+----------------------------------------------+
+| id   | select_type | table                   | type   | possible_keys                                                                                                                                                                            | key                     | key_len | ref                             | rows  | r_rows   | filtered | r_filtered | Extra                                        |
++------+-------------+-------------------------+--------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-------------------------+---------+---------------------------------+-------+----------+----------+------------+----------------------------------------------+
+|    1 | SIMPLE      | client_relation_history | ref    | PRIMARY,fk_client_relation_history_child_client_id_idx                                                                                                                                   | PRIMARY                 | 4       | erp2.client.client_id           | 1     | 0.00     |   100.00 |     100.00 | Using where                                  |
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+значит мы видим что в табице r_rows вообще = 0.
+тоесть в табличной форме analyze все округляет.
+
+получается!!!! что r_rows это не общее число строк которые было прочитано на этом шаге. это полная хуйня!!
+хуйняполнейшая суки бляди.    это срднее количество строк котрое было прочитано за 1 цикл r_loop!
+вот что это такое!! а чтобы узнать общее число строк которое было считано надо знать r_loop 
+и умножить его на r_rows ! вот суки. а в книгах пишут полную хуйню. 
+
+еще раз сравним табличны вид analyze и его json вид
+
+  "table": {
+          "table_name": "client_relation_history",
+          "access_type": "ref",
+          "possible_keys": [
+            "PRIMARY",
+            "fk_client_relation_history_child_client_id_idx"
+          ],
+          "key": "PRIMARY",
+          "key_length": "4",
+          "used_key_parts": ["child_client_id"],
+          "ref": ["erp2.client.client_id"],
+          "r_loops": 12645,
+          "rows": 1,
+          "r_rows": 0.004349545,
+          "r_table_time_ms": 36.26720175,
+          "r_other_time_ms": 18.54786229,
+          "filtered": 100,
+          "r_filtered": 100,
+          "attached_condition": "trigcond(client_relation_history.date_start <= cast(`order`.report_date as date) and (client_relation_history.date_end >= cast(`order`.report_date as date) or client_relation_history.date_end is null) and trigcond(`client`.client_id is not null))"
+        },
+
+
+    таблицный получается полная хуня. воще неинфомратциный.
+    надо юзать толко json формат!!!
+
+
+  теперь занчение r_rows и его загадноый вид когда он меньше 1 разгадан!
+
+
+
+толкко еще остаются вопросы.  если where вобще неучитыася при считывании строк из диска.
+то тогда по каким условиям строки считываются  с диска? непонятно зачем считывать сдиска бесолезные строки 
+чтобы потом их уже в пмяти фильрвать по where если можно сразу учитыать where  при счтытвании с диска или из индекса.
+а получается что когда делаем join и мускул ищет в таблице занчение на оснвое строки из первой таблицы то поемуто 
+на этой стадии это учитыватся в при счиытании строк с таблицы. дебидизм какойто.
+
+
+и еще остается вот эта загка
+
+> analyze format=json select * from t10 where id=399;
+| {
+  "query_block": {
+    "select_id": 1,
+    "r_loops": 1,
+    "r_total_time_ms": 0.004862801,
+    "table": {
+      "table_name": "t10",
+      "access_type": "const",
+      "possible_keys": ["PRIMARY"],
+      "key": "PRIMARY",
+      "key_length": "4",
+      "used_key_parts": ["id"],
+      "ref": ["const"],
+      "r_loops": 0,
+      "rows": 1,
+      "r_rows": null,
+      "filtered": 100,
+      "r_filtered": null,
+      "using_index": true
+    }
+  }
+} |
+
+считываем по индексу. почему же тоода "r_loops" = 0
+неонятно.
+полчается что "r_rows": null, 
+и сооствтеегнно r_loop * r_rows = nul * 0 = ?
+тоесть типа хуй знает сколько строк было считано. а ведь тем не менее у нас была считана 1 строка из таблцы
+непонятно нихуя сука.
+
+
+тем не менее. все таки остаеимся при таком правиле что : если мы хотим узнать сколько строк
+было считано из таблицы то 
+
+общее число стчиатнынх строк = (r_loops) * (r_rows)
+
+где r_loops количство  обращений к таблице
+r_rows среднее значение числа строк считанных из таблицы за одно обращение !!!!  озуеть!!! ка к оги все запутали суки
+
+
+
+
+
+
+
+
+
+
+
+
+
+вовзращаеимся к нащему примеру обратно:
+
+        "table": {
+          "table_name": "parent_client",
+          "access_type": "eq_ref",
+          "possible_keys": ["PRIMARY", "fk_client_user_id_idx"],
+          "key": "PRIMARY",
+          "key_length": "4",
+          "used_key_parts": ["client_id"],
+          "ref": ["func"],
+          "r_loops": 12645,
+          "rows": 1,
+          "r_rows": 1,
+          "r_table_time_ms": 22.04059886,
+          "r_other_time_ms": 1.85290321,
+          "filtered": 100,
+          "r_filtered": 97.69078687,
+          "attached_condition": "parent_client.client_id = ifnull(client_relation_history.parent_client_id,`client`.client_id) and parent_client.user_id is not null"
+        },
+
+
+
+все агалогично то  что ниже. 
+
+
+
+        "table": {
+          "table_name": "employee",
+          "access_type": "ref",
+          "possible_keys": [
+            "fk_employee_user_id_idx",
+            "fk_employee_office_contact_id_idx"
+          ],
+          "key": "fk_employee_user_id_idx",
+          "key_length": "5",
+          "used_key_parts": ["user_id"],
+          "ref": ["erp2.parent_client.user_id"],
+          "r_loops": 12353,
+          "rows": 1,
+          "r_rows": 1,
+          "r_table_time_ms": 81.03471898,
+          "r_other_time_ms": 48.89083086,
+          "filtered": 100,
+          "r_filtered": 100,
+          "attached_condition": "employee.office_contact_id is not null"
+        },
+
+
+
+из таблицы "employee"            
+              "table_name": "employee",
+
+читали по ееному индексу
+          "key": "fk_employee_user_id_idx",
+
+который неUNIQUE.тоесть одному занчению в таблице есть нескоько
+значений. поэтмуо указно не "eq_ref" а "ref"
+          "access_type": "ref",
+
+в индексе использовали вот этот столбик
+          "used_key_parts": ["user_id"],
+
+искали используя значение в столбике
+          "ref": ["erp2.parent_client.user_id"],
+
+количество таких поисков было 
+          "r_loops": 12353,
+неочен понятно но якобы каждый раз находили тлоько одну строку. 
+          "r_rows": 1,
+непоняното . а елси бы  в какойто раз нашли две строки . как бы они это обозначили?
+
+также для найдденной строки применялос доп условие филтрации
+          "attached_condition": "employee.office_contact_id is not null"
+
+в итоге от надйенных 12353 строк было отфильтровано (тоесть скольв итоге прошло фильтр успешно) 100% строк
+          "r_filtered": 100,
+
+
+
+
+
+
+        "table": {
+          "table_name": "office",
+          "access_type": "eq_ref",
+          "possible_keys": ["PRIMARY", "fk_contact_geo_id_idx"],
+          "key": "PRIMARY",
+          "key_length": "4",
+          "used_key_parts": ["contact_id"],
+          "ref": ["erp2.employee.office_contact_id"],
+          "r_loops": 12353,
+          "rows": 1,
+          "r_rows": 1,
+          "r_table_time_ms": 5.044910609,
+          "r_other_time_ms": 9.659755703,
+          "filtered": 56.49983978,
+          "r_filtered": 53.28260342,
+          "attached_condition": "office.geo_id in (558,593,21094450,150,35,36,615,634,638,149,21068127,43,633,21321624,596)"
+          }
+
+
+
+разбор этого куска:
+строчка из плана:    LEFT JOIN contact office ON office.contact_id = employee.office_contact_id
+перепишем строчку:    LEFT JOIN contact office ON employee.office_contact_id = office.contact_id 
+левая таблица result set и столбик employee.office_contact_id
+ правая таблица contact   и столбик contact_id
+  вот и в плане написано сращиваем по столбцу  
+    "ref": ["erp2.employee.office_contact_id"]
+
+
+
+получается обарщались к таблцице "office"
+"access_type": "eq_ref",  = означает что читали из нее по внешнему запрому. то есть снаружи приходило
+значение которое надо ыло найти в этой табллице. также означает что в этой таблцие искали по уникалному индексу
+это значит что на любое вхождение находилась только одна строка.
+искали по индксу с именем "primary"
+в этом индесе искали по столбику "contact_id"
+"ref": ["erp2.employee.office_contact_id"], = значения которые искали приетали из столбика employee.office_contact_id
+тоесть брали одну строку из employee.office_contact_id и ее искали в "office"
+"r_loops": 12353, = число обрашений к этой таблце office при посике было 12353 раза. 
+"r_rows": 1,  = каждый раз находиили только одну строку
+
+таким образом было из этой таблицы найдено и выбрано 12353 строки
+но это еще не конец
+
+"attached_condition": "office.geo_id in (558,593,21094450,150,35,36,615,634,638,149,21068127,43,633,21321624,596)"  =
+= помимо поиска строки совпадающей с заданынм значением из  employee.office_contact_id было еще наложено
+доп условие коорое прписано в этой строке.
+так вот всеэти  12353 строки оони прошли доп фильтрацию (тоесть до этого была выборка а еще была фильттрация)
+и фильтррацию прошли только 53%  об этом написано здесь
+
+"r_filtered": 53.28260342,
+
+
+учттывая что мне быол сказано что план пищется по вермени снизу то что первое а сверху то что послденее
+пока что получается как то наборот чтоли. 
+
+
+
+
+
+
+
+      }
+    }
+  }
+} |
+
+
+LEFT JOIN waybill ON (`order`.order_id = waybill.order_id)
+              LEFT JOIN `order` parent_order ON (`order`.parent_id = parent_order.order_id AND `order`.service_id = 1001790)
+              LEFT JOIN waybill shipping ON (IFNULL(parent_order.order_id, `order`.order_id) = shipping.order_id AND shipping.service_id = 90)
+              LEFT JOIN account ON (`order`.account_id = account.account_id)
+              LEFT JOIN client ON (account.subject_id = client.client_id)
+              LEFT JOIN client_relation_history ON (client.client_id = client_relation_history.child_client_id
+              LEFT JOIN client parent_client ON (parent_client.client_id = IFNULL(client_relation_history.parent_client_id, client.client_id))
+              LEFT JOIN contact parent_client_contact ON (parent_client.contact_id = parent_client_contact.contact_id)
+              LEFT JOIN employee ON employee.user_id = parent_client.user_id
+       
+              LEFT JOIN contact from_contact ON from_contact.contact_id = `order`.from_contact_id
+              LEFT JOIN contact to_contact ON to_contact.contact_id = `order`.to_contact_id
+              LEFT JOIN geo from_geo ON from_geo.geo_id = `order`.map_from_city_id
+              LEFT JOIN geo to_geo ON to_geo.geo_id = `order`.map_to_city_id
+              LEFT JOIN geo office_geo ON office_geo.geo_id = office.geo_id
+
+
+=====
