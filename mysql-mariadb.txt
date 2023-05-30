@@ -588,6 +588,34 @@ MariaDB [db1]> show index from table_3;
 +---------+------------+----------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+---------+
 1 row in set (0.002 sec)
 
+===
+logrotate
+
+по дефолту с mariadb ставит  logorate скрипт  
+/etc/logrotate.d/mariadb
+
+прикол в том что он коректно отарабтаыет толко если для root@localhost 
+доступ к мускула идет без пароя а через unix_socket
+
+так что надо это учитыать
+
+
+проверить как щас дела у мукула с атуентфикаей root
+
+> select user,host,password,plugin  from  mysql.user where User="root";
++------+-----------+----------+-------------+
+| User | Host      | Password | plugin      |
++------+-----------+----------+-------------+
+| root | localhost |          | unix_socket |
+| root | %         |          | unix_socket |
++------+-----------+----------+-------------+
+2 rows in set (0,001 sec)
+
+
+как поменять на unix_socket если щас стоит парольный тип досутпа
+
+> ALTER USER root@`localhost` IDENTIFIED VIA unix_socket;
+
 
 
 ===

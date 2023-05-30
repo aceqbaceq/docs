@@ -1,0 +1,99 @@
+vmware-linux.txt
+
+нажимаем на значок vmware в меню
+и если мы обновили ядро то вылезает таблица что 
+
+>>> vmware gnu c compiler (10.2) was not found  <<<<<
+
+перво наперво надо 
+
+# sudo apt install -y linux-headers-$(uname -r)
+# apt-get install -y build-essential
+
+
+тепер  надо поставить gcc 10 версии.
+как это сделать:
+
+# sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+# sudo apt-get update
+# sudo apt install gcc-10
+
+
+у меня add-apt-repository нихуя неработает. 
+пишет что 
+
+>> gpg: unknown option `import-export' <<
+>> gpg: invalid import options  <<
+>> Failed to add key.  <<
+
+
+как эту хцйню побороть непонятно.
+
+выход такой что поставить ppa репозиторий руками.
+как это сделаь описано тут = https://blog.zackad.dev/en/2017/08/17/add-ppa-simple-way.html
+значит идем по ссылке  в этот ppa репозиторий. откуда ее взть. она вылеезет сама
+
+
+# sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+ Toolchain test builds; see https://wiki.ubuntu.com/ToolChain
+
+ More info: https://launchpad.net/~ubuntu-toolchain-r/+archive/ubuntu/test
+Press [ENTER] to continue or Ctrl-c to cancel adding it.
+
+gpg: unknown option `import-export'
+gpg: invalid import options
+Failed to add key.
+
+
+ссылка = https://launchpad.net/~ubuntu-toolchain-r/+archive/ubuntu/test
+
+значит идем поссылке.
+там будет раздел "Technical details about this PPA"
+тыкаем на него раскроется меню. там указано то что надо внести в apt конфиг:
+
+deb https://ppa.launchpadcontent.net/ubuntu-toolchain-r/test/ubuntu YOUR_UBUNTU_VERSION_HERE main 
+deb-src https://ppa.launchpadcontent.net/ubuntu-toolchain-r/test/ubuntu YOUR_UBUNTU_VERSION_HERE main 
+
+идем в /etc/apt/sources.list.d
+
+создаем
+
+# touch gcc-10.list
+
+deb https://ppa.launchpadcontent.net/ubuntu-toolchain-r/test/ubuntu bionic main 
+deb-src https://ppa.launchpadcontent.net/ubuntu-toolchain-r/test/ubuntu bionic main
+
+еще надо импортовать ключ.
+фингерпинт от ключа ищем там же не веб странцие
+
+Fingerprint:
+60C317803A41BA51845E371A1E9377A2BA9EF27F
+
+
+имортруем ключ:
+# sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys    60C317803A41BA51845E371A1E9377A2BA9EF27F
+
+
+все репу мы прописали
+
+# apt-get update
+# sudo apt install gcc-10
+
+все gcc версии 10 мы поставили.
+
+если нажмем на значок vmware то он уже не бует рукгаться что ему нужен gcc.
+он напишет что ему надо накомпилить модулей. типа install или неинсталл.
+нажимать install бесполезно. он напишет что мол начал комплтьить модули а сам сука нихуя не будет
+делать. закрывам vmware идем в команднуб строку и там вбиваем
+
+# sudo vmware-modconfig --console --install-all
+
+оно скомпиилрует наконец модули.
+
+длаее рестартует службу
+
+# systemctl restart vmware
+
+все. готово. теперь можно жмакать значок vmware все дрлжно запуститься.
+
+

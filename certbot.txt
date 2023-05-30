@@ -972,6 +972,7 @@ https://www.ssllabs.com/ssltest/analyze.html?d=paidsupport.example.kz&latest
 $ /usr/sbin/nginx -s reload
 ====
 как псмотреть список сертификатов
+list certificates
 
 # certbot certificates
 
