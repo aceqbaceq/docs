@@ -282,8 +282,16 @@ cледующая насторкйка высталвяет приортет. к
 можно смотреть сколько жрет цпу каждый lxd контейнер через 
 
 # systemd-cgtop
+----
+прикольный сайт по lxd
 
+https://blog.simos.info/how-to-add-multi-line-raw-lxc-configuration-to-lxd/
 -----
+это кусок связан с тем как внести raw.lxc параметр в конфиг lxd контейнера
+
+printf 'lxc.cgroup.devices.allow = a\nlxc.mount.auto=proc:rw sys:rw\nlxc.cap.drop=\nlxc.apparmor.profile=unconfined' | lxc config set mycontainer raw.lxc -
+
+------
 ?????
 
 как сробрать котнейнер с hdd+ssd стораджами
@@ -291,3 +299,316 @@ cледующая насторкйка высталвяет приортет. к
 как при старте контейнера указат на ккаком сторадже ему сидеть? (если сторадже несколько )
 ---
 
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+какойто кусок команд про lxd
+начало блока
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+# lxd init
+Would you like to use LXD clustering? (yes/no) [default=no]: 
+Do you want to configure a new storage pool? (yes/no) [default=yes]: no
+Would you like to connect to a MAAS server? (yes/no) [default=no]: 
+Would you like to create a new local network bridge? (yes/no) [default=yes]: 
+What should the new bridge be called? [default=lxdbr0]: 
+What IPv4 address should be used? (CIDR subnet notation, “auto” or “none”) [default=auto]: 
+What IPv6 address should be used? (CIDR subnet notation, “auto” or “none”) [default=auto]: 
+Would you like LXD to be available over the network? (yes/no) [default=no]: 
+Would you like stale cached images to be updated automatically? (yes/no) [default=yes] 
+Would you like a YAML "lxd init" preseed to be printed? (yes/no) [default=no]: yes
+config: {}
+cluster: null
+networks:
+- config:
+    ipv4.address: auto
+    ipv6.address: auto
+  description: ""
+  managed: false
+  name: lxdbr0
+  type: ""
+storage_pools: []
+profiles:
+- config: {}
+  description: ""
+  devices:
+    eth0:
+      name: eth0
+      nictype: bridged
+      parent: lxdbr0
+      type: nic
+  name: default
+
+
+  ==
+
+
+#  lxc storage create st-pool-1-ussd  lvm source=vg01-ussd lvm.thinpool_name=LXDPool
+
+при этом можем получить ошибки:
+Error: Volume group is not empty
+или 
+Error: Volume group "vg01-ussd" is already used by LXD
+
+первая ошибка вылезет если внутри этгого thinpool недолжно быть ничего. иначе он напишет что пошел нахер volume group непустой.
+на самом деле он хочет сказать что thin volume внури должен быть пустой.
+
+вторая хер знает почему. 
+
+в итоге если такое вылезло то запускаем вот так:
+
+# lxc storage create st-pool-1-ussd lvm source=vg01-ussd lvm.vg.force_reuse=true lvm.use_thinpool=true lvm.thinpool_name=LXDPool
+
+
+
+# lxc storage list
++----------------+--------+-----------+-------------+---------+---------+
+|      NAME      | DRIVER |  SOURCE   | DESCRIPTION | USED BY |  STATE  |
++----------------+--------+-----------+-------------+---------+---------+
+| st-pool-1-ussd | lvm    | vg01-ussd |             | 0       | CREATED |
++----------------+--------+-----------+-------------+---------+---------+
+
+
+# lxc profile device add  default root disk path=/ pool=st-pool-1-ussd
+
+
+
+
+
+root@lxd-01:/home/krivosheev# 
+root@lxd-01:/home/krivosheev# 
+root@lxd-01:/home/krivosheev# 
+root@lxd-01:/home/krivosheev# lxd init --dump
+config:
+  images.auto_update_interval: "0"
+networks:
+- config:
+    ipv4.address: 10.228.56.1/24
+    ipv4.nat: "true"
+    ipv6.address: none
+  description: ""
+  name: lxdbr0
+  type: bridge
+  project: default
+storage_pools:
+- config:
+    lvm.thinpool_name: LXDPool
+    lvm.vg_name: vg01-ussd
+    source: vg01-ussd
+    volatile.initial_source: vg01-ussd
+  description: ""
+  name: st-pool-1-ussd
+  driver: lvm
+profiles:
+- config: {}
+  description: Default LXD profile
+  devices:
+    eth0:
+      name: eth0
+      network: lxdbr0
+      type: nic
+    root:
+      path: /
+      pool: st-pool-1-ussd
+      type: disk
+  name: default
+projects:
+- config:
+    features.images: "true"
+    features.networks: "true"
+    features.networks.zones: "true"
+    features.profiles: "true"
+    features.storage.buckets: "true"
+    features.storage.volumes: "true"
+  description: Default LXD project
+  name: default
+
+root@lxd-01:/home/krivosheev# 
+
+
+
+===
+походу этой командой можно укзаывать какие папки в контйнере монтирвовать в какой пул
+
+# lxc profile device add  default root disk path=/ pool=st-pool-1-ussd
+
+в данном случае указывается что "/" в контйенере надо монтроватв  в пул st-pool-1-ussd
+
+==
+ошибка
+
+
+# lxc start vm_name
+error:newuidmap binary is missing
+
+
+это значит что в контейнере нехатает нужным пакетов
+ршение
+
+# root@lxd-01:/home/krivosheev# apt-get install uidmap
+
+===
+вобщем приколп полнкнейий. 
+
+вот мы поставили себе lxd из snap
+в состав пакетв входит утилита lxd.migrate
+но она нерабоатет пишет
+
+=> Connecting to source server
+error: Unable to connect to the source LXD: Get "http://unix.socket/1.0": dial unix /var/lib/lxd/unix.socket: connect: no such file or directory
+[root@lenovo ~]# systemctl list-units | grep lxd
+
+
+рещенние такое. смотри версию нашего lxd
+
+# snap list
+
+lxd                   5.13-cea5ee2     24758  latest/stable    canonical✓
+
+потом идем на страницу релизов
+https://github.com/lxc/lxd/releases
+
+и оттуда руками качаем эту же утилиту.
+wget https://github.com/lxc/lxd/releases/download/lxd-5.13/bin.linux.lxd-migrate
+
+запускаем ее и о чудов все заработало.
+я так понимаю что пробем в том что  lxd.migrate из снапа она там заизолррованан инеимеет доступа к сокету 
+на локальном хосте.
+
+вот такоп прикол.
+
+
+также чтобы зараотало надо прерставит lxd чтобы в настройках иницлизации было укзаано что он 
+дложено быть доступен по сети!!!!
+===
+мигарция
+
+нужно на сервере lxd куда будем импортиррова контейнер создать токен 
+чрез который можно на клиенте аутентифицироваься перед ним
+
+# lxc config trust add
+
+
+и тут я нактнулся на очень важный момент. 
+он спросит в какой папке на хосте лежит будущий "/"
+так вот он будет копировать только эту точку монтрования а если у нее есть там
+суботчки монтиорвания то он их нетронет. поэтому для копронрования субточек монтрования 
+нужно их указать 
+напрмиер у нас вот так подмонтрированы папаки на хосте:
+ /mnt/mysql
+ /mnt/mysql/var/lib/mysql
+ /mnt/mysql/boot
+
+ мы прям так и указыаем а он сам пойму куда их нужно скопррвать в контейнер. это очень важный момент.
+ иначе у нас небудет хватать папок на фс контйенера
+
+
+
+когда импортровали в контенер и запустили его то надо 
+- переимновать /etc/ftsab в fstab.bak
+- удалить cloud-init
+   # apt-get purge cloud*
+- устанвоить hostame
+   # hostnamectl hostname vasya123
+- проермть что сервисы при стопе\старте контейнера автоматом запускаются сами
+
+
+после переноса вм с мускулом в контйенер он нехотел запускаться 
+и выдвалва в логах ошиюку
+
+[ERROR] Unknown/unsupported storage engine: InnoDB
+
+решение - нужно удалить лог файл базы
+
+# rm /var/lib/mysql/ib_logfile0
+# rm /var/lib/mysql/ib_logfile1 
+
+нашел это ренеие тут - https://serverfault.com/questions/379714/unknown-unsupported-storage-engine-innodb-mysql-ubuntu
+
+
+==
+microceph
+
+
+# microceph.ceph status
+  cluster:
+    id:     d64966ad-7849-4b7b-a2f9-79461128965c
+    health: HEALTH_OK
+ 
+  services:
+    mon: 3 daemons, quorum lxd-02,lxd-03,lxd-04 (age 7m)
+    mgr: lxd-02(active, since 8m), standbys: lxd-03, lxd-04
+    osd: 3 osds: 3 up (since 6m), 3 in (since 6m)
+ 
+  data:
+    pools:   1 pools, 1 pgs
+    objects: 2 objects, 577 KiB
+    usage:   70 MiB used, 279 GiB / 279 GiB avail
+    pgs:     1 active+clean
+
+
+
+
+# microceph status
+MicroCeph deployment summary:
+- lxd-02 (10.103.1.27)
+  Services: mds, mgr, mon, osd
+  Disks: 1
+- lxd-03 (10.103.1.24)
+  Services: mds, mgr, mon, osd
+  Disks: 1
+- lxd-04 (10.103.1.13)
+  Services: mds, mgr, mon, osd
+  Disks: 1
+
+
+
+
+# microceph.ceph osd tree
+ID  CLASS  WEIGHT   TYPE NAME        STATUS  REWEIGHT  PRI-AFF
+-1         0.27237  root default                              
+-2         0.09079      host lxd-02                           
+ 0         0.09079          osd.0        up   1.00000  1.00000
+-3         0.09079      host lxd-03                           
+ 1         0.09079          osd.1        up   1.00000  1.00000
+-4         0.09079      host lxd-04                           
+ 2         0.09079          osd.2        up   1.00000  1.00000
+
+
+
+# lxc cluster list
+
+
+# lxc storage list
++--------+--------+-------------+---------+---------+
+|  NAME  | DRIVER | DESCRIPTION | USED BY |  STATE  |
++--------+--------+-------------+---------+---------+
+| remote | ceph   |             | 1       | CREATED |
++--------+--------+-------------+---------+---------+
+
+# lxc launch images:ubuntu/22.04 c1 --storage remote
+
+
+
+# lxc list
++------+---------+---------------------+------+-----------+-----------+----------------+
+| NAME |  STATE  |        IPV4         | IPV6 |   TYPE    | SNAPSHOTS |    LOCATION    |
++------+---------+---------------------+------+-----------+-----------+----------------+
+| c1   | RUNNING | 240.27.0.241 (eth0) |      | CONTAINER | 0         | lxd-cluster-01 |
++------+---------+---------------------+------+-----------+-----------+----------------+
+| c2   | RUNNING | 240.24.0.124 (eth0) |      | CONTAINER | 0         | lxd-03         |
++------+---------+---------------------+------+-----------+-----------+----------------+
+| c3   | RUNNING | 240.13.0.30 (eth0)  |      | CONTAINER | 0         | lxd-04         |
++------+---------+---------------------+------+-----------+-----------+----------------+
+
+--
+как перенсти вм с одного сервера на другой
+
+https://www.cyberciti.biz/faq/how-to-movemigrate-lxd-vm-to-another-host-on-linux/
+
+но бываюи  ип роблемы что хочты не видят друг доргуа тогда
+
+# lxc copy php/snap0 lxd-02:php --verbose  --mode relay
+---
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+какойто кусок команд про lxd
+конец блока
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@

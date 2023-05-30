@@ -1028,8 +1028,36 @@ Configuration (with the authentication token) was saved in "/etc/gitlab-runner/c
 идем на гитлаб сервер. в репу. в репа - settings - ci\cd -runners - specific runners. и видим 
 что там теперь есть +1 раннер.
 
+====
+как задавать в гитлабе путь к .gitlab-ci.yml файлу если он 
+лежит в другой группе и другом проекте
 
 
+1) .gitlab-ci.yml@iac/gitlab-ci/cicd/
+
+здесь 
+.gitlab-ci.yml = имя файла
+iac = имя группы (по ихнему namespace)
+gitlab-ci = имя субгруппы
+cicd = имя проекта
+
+
+
+2) /iac/gitlab-ci/cicd.git
+это путь к файлу который лежит на локальной ФС на виртуалке где крутится гитлаб
+
+
+
+3) .my-custom-file.yml@namespace/sub-group1/sub-group2/another-project:refname
+
+.my-custom-file.yml = имя файла
+namespace = имя группы
+sub-group1 = имя субгруппы
+sub-group2 = имя субгруппы
+another-project = имя проекта
+refname = номер комита или тэг. типа того
+
+===
 
 
   

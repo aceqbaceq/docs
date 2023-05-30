@@ -1696,3 +1696,109 @@ LEFT JOIN waybill ON (`order`.order_id = waybill.order_id)
 
 
 =====
+| index  , rebuild indexes
+
+как пеерстроить все индексы для задданной таблицы
+
+> OPTIMIZE TABLE имя_табл
+
+====
+| INSERT
+
+INSERT INTO person (first_name, last_name) VALUES ('John', 'Doe');
+===
+union
+
+как он делается
+
+(select)
+union
+(select)
+
+вопрос как для этого реквеста псмотреть explain
+а очень просто
+
+explain 
+(select)
+union
+(select)
+
+===
+|explain
+|analyze
+
+explain запрос = эта штука пишет нам план по которому будет действоать мускул. выполняется мгновенно
+потому что сам запрос при этом не выполняется.
+
+analyze запрос = исполняется запрос (поэтому работает медленно). и рисует по какому плану 
+он действовал. и там еще подробности выполенения плана.
+
+
+но в целом и то и другое это хуйня. надо юзать с ключом format=json
+вот там уже реально подробности
+
+
+MariaDB [db1]> select * from table_1 limit 1;
++---+------+
+| a | b    |
++---+------+
+| 5 | J    |
++---+------+
+1 row in set (0.012 sec)
+
+MariaDB [db1]> explain select * from table_1 limit 1;
++------+-------------+---------+------+---------------+------+---------+------+------+-------+
+| id   | select_type | table   | type | possible_keys | key  | key_len | ref  | rows | Extra |
++------+-------------+---------+------+---------------+------+---------+------+------+-------+
+|    1 | SIMPLE      | table_1 | ALL  | NULL          | NULL | NULL    | NULL | 25   |       |
++------+-------------+---------+------+---------------+------+---------+------+------+-------+
+1 row in set (0.001 sec)
+
+MariaDB [db1]> analyze select * from table_1 limit 1;
++------+-------------+---------+------+---------------+------+---------+------+------+--------+----------+------------+-------+
+| id   | select_type | table   | type | possible_keys | key  | key_len | ref  | rows | r_rows | filtered | r_filtered | Extra |
++------+-------------+---------+------+---------------+------+---------+------+------+--------+----------+------------+-------+
+|    1 | SIMPLE      | table_1 | ALL  | NULL          | NULL | NULL    | NULL | 25   | 1.00   |   100.00 |     100.00 |       |
++------+-------------+---------+------+---------------+------+---------+------+------+--------+----------+------------+-------+
+1 row in set (0.001 sec)
+
+MariaDB [db1]> explain format=json  select * from table_1 limit 1;
+| {
+  "query_block": {
+    "select_id": 1,
+    "table": {
+      "table_name": "table_1",
+      "access_type": "ALL",
+      "rows": 25,
+      "filtered": 100
+    }
+  }
+} |
+
+
+MariaDB [db1]> analyze format=json  select * from table_1 limit 1;
+                                                                                                                                                                                                                                                           |
+| {
+  "query_block": {
+    "select_id": 1,
+    "r_loops": 1,
+    "r_total_time_ms": 0.063087868,
+    "table": {
+      "table_name": "table_1",
+      "access_type": "ALL",
+      "r_loops": 1,
+      "rows": 25,
+      "r_rows": 1,
+      "r_table_time_ms": 0.026666029,
+      "r_other_time_ms": 0.018218721,
+      "filtered": 100,
+      "r_filtered": 100
+    }
+  }
+} |
+
+
+=================================================
+
+
+

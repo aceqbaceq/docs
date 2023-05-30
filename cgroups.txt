@@ -43,3 +43,9 @@ cgroup on /sys/fs/cgroup type cgroup2 (rw,nosuid,nodev,noexec,relatime)
 
 если несработало то остался cgroup v1 и будет на экране чтото типа tmpfs
 
+---
+
+юзерские утилиты для работы с cgroup V1 (далее v1) это libcgroup и его пакет в убунту cgroup-tools.
+так вот когда актививровали V2 то про этот пакет надо заббыть.
+
+---

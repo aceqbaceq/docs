@@ -130,3 +130,108 @@ benchmark
 общий вывод: диски на яндексе нормуль по скорости под гластер.
 
 ===
+# glusterfs -N --volfile-id ta-vol -f /var/lib/glusterd/vols/thin-arbiter.vol --brick-port 24007 --xlator-option ta-vol-server.transport.socket.listen-port=24007
+
+
+
+
+# sudo gluster volume create testvol replica 2 thin-arbiter 1 transport tcp test-gluster-0{1..2}.glusternet:/opt/gluster-vols/vol-01  test-gluster-03.glusternet:/var/lib/glusterd/vols/thin-arbiter.vol
+ 
+volume create: testvol: success: please start the volume to access data
+
+
+glusterfs 
+   реузултатты
+   
+   
+Operations performed:  6000 Read, 4000 Write, 12800 Other = 22800 Total
+Read 93.75Mb  Written 62.5Mb  Total transferred 156.25Mb  (12.515Mb/sec)
+  800.93 Requests/sec executed
+
+Test execution summary:
+    total time:                          12.4854s
+    total number of events:              10000
+    total time taken by event execution: 5.3137
+    per-request statistics:
+         min:                                  0.01ms
+         avg:                                  0.53ms
+         max:                                 15.33ms
+         approx.  95 percentile:               1.41ms
+
+Threads fairness:
+    events (avg/stddev):           10000.0000/0.00
+    execution time (avg/stddev):   5.3137/0.00
+
+
+и тот же папка но без гластера
+   Operations performed:  6000 Read, 4000 Write, 12800 Other = 22800 Total
+Read 93.75Mb  Written 62.5Mb  Total transferred 156.25Mb  (326.72Mb/sec)
+20909.92 Requests/sec executed
+
+Test execution summary:
+    total time:                          0.4782s
+    total number of events:              10000
+    total time taken by event execution: 0.0904
+    per-request statistics:
+         min:                                  0.00ms
+         avg:                                  0.01ms
+         max:                                  0.20ms
+         approx.  95 percentile:               0.01ms
+
+Threads fairness:
+    events (avg/stddev):           10000.0000/0.00
+    execution time (avg/stddev):   0.0904/0.00
+
+
+
+
+ fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=test --filename=test --bs=4k --iodepth=64 --size=3000M --readwrite=rnd --rwmixread=75
+
+==
+какой то лог команд по гластеру
+
+[root@srv ~]# gluster volume remove-brick VOL1 replica 2 ng1:/mnt/storage1/glusterfs/arbiter1 force
+Remove-brick force will not migrate files from the removed bricks, so they will no longer be available on the volume.
+Do you want to continue? (y/n) y
+volume remove-brick commit force: success
+
+[root@srv ~]# gluster volume remove-brick VOL1 replica 1 ng3:/mnt/storage1/glusterfs/brick1 force
+Remove-brick force will not migrate files from the removed bricks, so they will no longer be available on the volume.
+Do you want to continue? (y/n) y
+volume remove-brick commit force: success
+[root@srv ~]# gluster volume info
+  
+Volume Name: VOL1
+Type: Distribute
+Volume ID: 02ff2995-7307-4f3d-aa24-862edda7ce81
+Status: Stopped
+Snapshot Count: 0
+Number of Bricks: 1
+Transport-type: tcp
+Bricks:
+Brick1: ng1:/mnt/storage1/glusterfs/brick1
+Options Reconfigured:
+features.scrub: Active
+features.bitrot: on
+cluster.self-heal-daemon: enable
+storage.linux-io_uring: off
+client.event-threads: 4
+performance.cache-max-file-size: 50MB
+performance.parallel-readdir: on
+network.inode-lru-limit: 200000
+performance.md-cache-timeout: 600
+performance.cache-invalidation: on
+performance.stat-prefetch: on
+features.cache-invalidation-timeout: 600
+features.cache-invalidation: on
+performance.cache-size: 2048MB
+performance.client-io-threads: on
+nfs.disable: on
+transport.address-family: inet
+[root@srv ~]# gluster peer detach ng3
+All clients mounted through the peer which is getting detached need to be remounted using one of the other active peers in the trusted storage pool to ensure client gets notification on any changes done on the gluster configuration and if the same has been done do you want to proceed? (y/n) y
+peer detach: success
+[root@srv ~]# gluster volume delete VOL1
+Deleting volume will erase all information about the volume. Do you want to continue? (y/n) y
+volume delete: VOL1: success
+===

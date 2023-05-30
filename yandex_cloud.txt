@@ -724,3 +724,91 @@ Disk stats (read/write):
 
 
 
+===
+|как создатт диск
+
+yc compute disk create   --name "test-lvm" --description "lvm hdd болванка" --size 15G
+
+====
+| как создать снэпшот
+
+yc compute snapshot create   --name  "snap-distr-hdd-lvm "  --disk-id  fhmci6utmn2ole1qupjo  --description "это заготовка шаблон болванка внутри lvm вольюм"
+
+===
+| yc db, 
+| назначение прав
+yc ydb database  --id etnfjlci95aku951u4hq set-access-bindings --access-binding role ydb.admin --service-account-id ajedmc2r652cfhgkhl1o
+
+
+===
+| static key , create
+yc iam access-key create        \
+           --service-account-id  ajedmc2r652cfhgkhl1o  \
+           --folder-id  b1gnaqbm3b48e5d97fjj           \
+           --description "статик ключ для доступа на aws подобные ресурсы"
+===
+| добавлени права акаунта на папку
+
+yc resource-manager folder add-access-binding --id b1gnaqbm3b48e5d97fjj \
+  --role admin \
+  --service-account-id  aje5na0qfqnci747bgs5
+===
+| 93GB SSD
+| скорость
+
+ssd 93GB 
+xfs
+лин чиение 100МБ\с
+лин запись 82МБ\с
+
+iops = 9 900
+на вот такое тесте
+[global]
+name=nvme-rand-read
+time_based
+ramp_time=5
+runtime=60
+readwrite=randread
+random_generator=lfsr
+bs=4k
+ioengine=libaio
+direct=1
+numjobs=2
+iodepth=16
+group_reporting=1
+size=30000M
+randrepeat=1
+
+[nvme0]
+new_group
+filename=/mnt/vdb/01/test
+
+
+два диска в raid0
+лин запись 100МБ\с
+скорость iops чтения 10 000 iops
+
+
+четыер диска в raid0
+лин запись 100МБ\с
+скорость iops чтения 10 000 iops
+
+
+
+93x3 =279GB
+Чтение iops 75000
+Запись iops 16800
+bamdwidth Чтение 330 МБ/с
+bandwidth запись 246 МБ/с
+цена 2 455р но их надо брать два чтобы в raid0 тоесть в сумме где то 5 000р 
+
+
+для сраврнеиния такойже диск обычный ssd 279GB 
+даст скосрот
+Чтение iops 9000
+Запись iops 9000
+bamdwidth Чтение 135 МБ/с
+bandwidth запись 135 МБ/с
+цена 3 300р
+
+===

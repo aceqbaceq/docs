@@ -43,3 +43,18 @@ cb5297e4dae6   localhost:5000/mysql:1   "docker-entrypoint.s…"   43 hours ago 
 [vasya@lenovo temp]$ 
 
 ====
+приолна фича докера. 
+$ docker stats 
+
+
+показаывает сколько цпу , памяти, io  потребялет щас контйеер
+
+$ docker stats имя_конт
+CONTAINER ID   NAME       CPU %     MEM USAGE / LIMIT     MEM %     NET I/O      BLOCK I/O       PIDS
+fe755ca936d6   gt-php73   0.01%     22.28MiB / 15.39GiB   0.14%     701kB / 0B   100MB / 200MB   8
+
+
+
+прикол!
+
+===
