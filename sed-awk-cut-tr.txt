@@ -1,0 +1,27 @@
+sed-awk-cut
+
+
+здесь все про эти хрени
+
+
+|как сделать так чтобы каждое слово обрамить в кавычки
+
+$ sed 's/[^ ][^ ]*/"&"/g' filename
+
+$ cat 1.txt
+john Doe
+
+$ sed 's/[^ ][^ ]*/"&"/g' 1.txt 
+"john" "Doe"
+
+
+| как заменить все "enter" (\n) на пробелы
+
+$ cat 1.txt 
+john 
+Doe
+
+$ tr '\n' ' ' < 1.txt 
+john  Doe 
+
+
