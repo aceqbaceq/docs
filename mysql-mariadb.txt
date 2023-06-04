@@ -214,6 +214,10 @@ backup
 # apt install -y mariadb-backup
 # mkdir -p ~/backup/01
 
+вместо mariadb-backup
+
+
+
 
 ставим qpress. вроде бы для сжатия базы он mariabackup ненужен.
 но всеже ставим на всякий случай. qpress нужен при выполнении --decompress (тоесть он точнопонадбится на slave ноде).
@@ -380,6 +384,19 @@ MariaDB [(none)]> start slave;
 | wsrep_gtid_domain_id    | 0        |
 | wsrep_gtid_mode         | OFF      |
 +-------------------------+----------+
+
+
+
+также хотел добавит что вместо mariadb-backup
+можно поставить percona xtra backup
+
+запускать бэкап тогда вот так
+
+$ xtrabackup --backup --compress --compress-threads=2 \
+--target-dir=/data/compressed/
+
+число тредов это число цпу на компе
+
 
 
 
@@ -1800,13 +1817,2620 @@ MariaDB [db1]> analyze format=json  select * from table_1 limit 1;
 
 =================================================
 
-размер таблиц
+размер таблиц в базе
+упорядочивает по размеру таблиц
 
- SELECT table_schema as `DB`, table_name AS `Table`, 
-    ->   ROUND(((data_length + index_length) / 1024 / 1024), 2) `Size (MB)` 
-    ->   FROM information_schema.TABLES 
-    ->   ORDER BY (data_length + index_length) DESC;
+
+>  SELECT table_schema as `DB`, table_name AS `Table`,
+           ROUND(((data_length + index_length) / 1024 / 1024), 2) `Size (MB)`
+           FROM information_schema.TABLES  
+           WHERE table_schema="имя_базы"       
+           ORDER BY (data_length + index_length) DESC
+
+упорядвичоваем по имени таблиц
+
+>  SELECT table_schema as `DB`, table_name AS `Table`,
+           ROUND(((data_length + index_length) / 1024 / 1024), 2) `Size (MB)`
+           FROM information_schema.TABLES  
+           WHERE table_schema="имя_базы"       
+           ORDER BY table_name
+
 
 =====================================================
 
 
+| analyze table
+
+как для нескольких таблиц сразу
+
+> analyze table t1,t2,t3 persistent for all
+
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+| TRIGGERS
+
+
+КАК создать новый триггер на основе уже сущетвующего триггера.
+дело в том что если была таблица и мы ее переименовали и после этого создали 
+новую через команду
+
+> create table new like old;
+то новая таблица небудет содержать триггеров от старой. триггеры будут по прежнему 
+прикреплены к старой.
+как их перекрепить к новой неясно. поэтому выбрать путь такой что мы берем каждый триггер из старой 
+таблрцы и создаем по аналогиии такой же новый.
+
+
+
+
+таблицы которые я менял:
+
+> show tables like "%old%";
++----------------------+
+| Tables_in_db (%old%) |
++----------------------+
+| clientold            |
+| invoice_options_old  |
+| oldorder             |
++----------------------+
+
+====================================
+
+
+
+список триггеров в таблице oldorder
+
+> SHOW TRIGGERS WHERE `Table` = "oldorder"\G
+
+
+*************************** 1. row ***************************
+             Trigger: order_BINS
+*************************** 2. row ***************************
+             Trigger: order_BUPD
+*************************** 3. row ***************************
+             Trigger: order_AUPD
+
+
+еще спмсок триггеров у таблицы можно посмтреть вот так
+> SELECT      ACTION_STATEMENT
+FROM        INFORMATION_SCHEMA.TRIGGERS
+WHERE       TRIGGER_SCHEMA = 'Db_name'
+AND         EVENT_OBJECT_TABLE = "table_name";
+
+а еще можно получить вот так
+
+> select event_object_schema as database_name,
+       event_object_table as table_name,
+       trigger_name,
+       action_order,
+       action_timing,
+       event_manipulation as trigger_event,
+       action_statement as 'definition'
+from information_schema.triggers 
+where trigger_schema not in ('sys','information_schema', 
+                             'mysql', 'performance_schema')
+order by database_name,
+         table_name;
+
+
+
+
+теперь узнаем какой командой создать каждый из них
+> SHOW CREATE TRIGGER имя_триггреа
+
+
+
+******************************order_BINS*************************************
+> SHOW CREATE TRIGGER order_BINS \G
+
+ CREATE DEFINER=`kompaniets`@`localhost` TRIGGER `order_BINS` BEFORE INSERT ON `oldorder` FOR EACH ROW BEGIN
+
+        SET @need_set_title = (NEW.title = '');
+        SET @need_set_from_city = (NEW.map_from_city_id IS NULL OR NOT NEW.map_from_city_id);
+        SET @need_set_to_city = (NEW.map_to_city_id IS NULL OR NOT NEW.map_to_city_id);
+
+        IF @need_set_title OR @need_set_from_city OR @need_set_to_city THEN
+
+
+                SELECT
+
+                        IF(map_virtual.to_geo_id = NEW.map_from_city_id,
+                            NEW.map_from_city_id,
+                                IF(cover_geo.geo_id IS NULL OR NEW.service_id IN (1,717145), geo.geo_id, cover_geo.geo_id)),
+
+                        IF(cover_geo.geo_id IS NULL OR NEW.service_id IN (1,717145), IFNULL(geo.code, 'XXX'), IFNULL(cover_geo.code, 'XXX')),
+
+                        geo.parent_id
+                INTO
+                        @map_from_city_id,
+                        @code_from,
+                        @from_country_id
+                FROM contact
+                        LEFT JOIN geo ON geo.geo_id = contact.geo_id
+                        LEFT JOIN map ON map.to_geo_id = contact.geo_id AND map.`type` = 'coverage'
+                        LEFT JOIN geo AS cover_geo ON cover_geo.geo_id = map.from_geo_id
+                        LEFT JOIN map AS map_virtual ON map_virtual.from_geo_id = IFNULL(cover_geo.geo_id, contact.geo_id) AND map_virtual.`type` = 'virtual'
+                WHERE contact.contact_id = IF(NEW.service_id = 717145, NEW.operation_storehouse_id, NEW.from_contact_id)
+                GROUP BY contact.contact_id;
+
+
+                SELECT
+
+                        IF(map_virtual.to_geo_id = NEW.map_to_city_id,
+                            NEW.map_to_city_id,
+                            IF(cover_geo.geo_id IS NULL OR NEW.service_id IN (1,717145), geo.geo_id, cover_geo.geo_id)),
+
+                        IF(cover_geo.geo_id IS NULL OR NEW.service_id IN (1,717145), IFNULL(geo.code, 'XXX'), IFNULL(cover_geo.code, 'XXX')),
+
+                        geo.parent_id
+                INTO
+                        @map_to_city_id,
+                        @code_to,
+                        @to_country_id
+                FROM contact
+                        LEFT JOIN geo ON geo.geo_id = contact.geo_id
+                        LEFT JOIN map ON map.to_geo_id = contact.geo_id AND map.`type` = 'coverage'
+                        LEFT JOIN geo AS cover_geo ON cover_geo.geo_id = map.from_geo_id
+                        LEFT JOIN map AS map_virtual ON map_virtual.from_geo_id = IFNULL(cover_geo.geo_id, contact.geo_id) AND map_virtual.`type` = 'virtual'
+                WHERE contact.contact_id = IF(NEW.service_id = 717145, NEW.operation_storehouse_id, NEW.to_contact_id)
+                GROUP BY contact.contact_id;
+
+
+                IF @need_set_from_city THEN
+                        SET NEW.map_from_city_id = @map_from_city_id;
+                END IF;
+
+
+                IF @need_set_to_city THEN
+                        SET NEW.map_to_city_id = @map_to_city_id;
+                END IF;
+
+
+                IF @need_set_title THEN
+                        INSERT INTO order_counter (id) VALUES (NULL);
+                        IF NEW.service_id = 717145 THEN
+                                SET NEW.title = CONCAT(@code_from, '-ОТВ-', LAST_INSERT_ID(), '/', DATE_FORMAT(CURRENT_TIMESTAMP, '%y'));
+                        ELSEIF NEW.service_id = 1 THEN
+                                SET NEW.title = CONCAT(@code_from, '-Х-', LAST_INSERT_ID(), '/', DATE_FORMAT(CURRENT_TIMESTAMP, '%y'));
+                        ELSEIF NEW.service_id NOT IN (717145, 1) THEN
+                                SET @country_prefix = IF(3152713 IN (@from_country_id, @to_country_id), 'KZ-', '');
+
+                                SELECT contact_options.code
+                                INTO @storehouse_code
+                                FROM contact_options
+                                WHERE contact_options.contact_id = NEW.giveout_storehouse_id;
+
+                                SET NEW.title = CONCAT(
+                                        @country_prefix, 
+                                        @code_from, 
+                                        '-',
+                                        @code_to, 
+                                        IF(@storehouse_code IS NOT NULL AND @storehouse_code != '', CONCAT('(', @storehouse_code, ')'), ''), 
+                                        '-',
+                                        LAST_INSERT_ID(),
+                                        '/',
+                                        DATE_FORMAT(CURRENT_TIMESTAMP, '%y')
+                                );
+                        END IF;
+                END IF;
+
+        END IF;
+
+        IF NEW.main_account_id IS NULL OR NEW.main_account_id = '' THEN
+                SET NEW.main_account_id = NEW.account_id;
+        END IF;
+
+END
+
+******************************order_BINS*************************************
+
+
+значит sql скрипт который создаст этот триггер будет несколько другой:
+
+DELIMITER |
+CREATE TRIGGER ...
+...
+BEGIN
+...
+END|
+DELIMITER ;
+
+
+
+тоесть
+
+
+ $ cat order_BINS.sql 
+DELIMITER |
+CREATE DEFINER=`kompaniets`@`localhost` TRIGGER `order_BINS_1` BEFORE INSERT ON `order` FOR EACH ROW BEGIN
+
+        SET @need_set_title = (NEW.title = '');
+        SET @need_set_from_city = (NEW.map_from_city_id IS NULL OR NOT NEW.map_from_city_id);
+        SET @need_set_to_city = (NEW.map_to_city_id IS NULL OR NOT NEW.map_to_city_id);
+
+        IF @need_set_title OR @need_set_from_city OR @need_set_to_city THEN
+
+
+                SELECT
+
+                        IF(map_virtual.to_geo_id = NEW.map_from_city_id,
+                            NEW.map_from_city_id,
+                                IF(cover_geo.geo_id IS NULL OR NEW.service_id IN (1,717145), geo.geo_id, cover_geo.geo_id)),
+
+                        IF(cover_geo.geo_id IS NULL OR NEW.service_id IN (1,717145), IFNULL(geo.code, 'XXX'), IFNULL(cover_geo.code, 'XXX')),
+
+                        geo.parent_id
+                INTO
+                        @map_from_city_id,
+                        @code_from,
+                        @from_country_id
+                FROM contact
+                        LEFT JOIN geo ON geo.geo_id = contact.geo_id
+                        LEFT JOIN map ON map.to_geo_id = contact.geo_id AND map.`type` = 'coverage'
+                        LEFT JOIN geo AS cover_geo ON cover_geo.geo_id = map.from_geo_id
+                        LEFT JOIN map AS map_virtual ON map_virtual.from_geo_id = IFNULL(cover_geo.geo_id, contact.geo_id) AND map_virtual.`type` = 'virtual'
+                WHERE contact.contact_id = IF(NEW.service_id = 717145, NEW.operation_storehouse_id, NEW.from_contact_id)
+                GROUP BY contact.contact_id;
+
+
+                SELECT
+
+                        IF(map_virtual.to_geo_id = NEW.map_to_city_id,
+                            NEW.map_to_city_id,
+                            IF(cover_geo.geo_id IS NULL OR NEW.service_id IN (1,717145), geo.geo_id, cover_geo.geo_id)),
+
+                        IF(cover_geo.geo_id IS NULL OR NEW.service_id IN (1,717145), IFNULL(geo.code, 'XXX'), IFNULL(cover_geo.code, 'XXX')),
+
+                        geo.parent_id
+                INTO
+                        @map_to_city_id,
+                        @code_to,
+                        @to_country_id
+                FROM contact
+                        LEFT JOIN geo ON geo.geo_id = contact.geo_id
+                        LEFT JOIN map ON map.to_geo_id = contact.geo_id AND map.`type` = 'coverage'
+                        LEFT JOIN geo AS cover_geo ON cover_geo.geo_id = map.from_geo_id
+                        LEFT JOIN map AS map_virtual ON map_virtual.from_geo_id = IFNULL(cover_geo.geo_id, contact.geo_id) AND map_virtual.`type` = 'virtual'
+                WHERE contact.contact_id = IF(NEW.service_id = 717145, NEW.operation_storehouse_id, NEW.to_contact_id)
+                GROUP BY contact.contact_id;
+
+
+                IF @need_set_from_city THEN
+                        SET NEW.map_from_city_id = @map_from_city_id;
+                END IF;
+
+
+                IF @need_set_to_city THEN
+                        SET NEW.map_to_city_id = @map_to_city_id;
+                END IF;
+
+
+                IF @need_set_title THEN
+                        INSERT INTO order_counter (id) VALUES (NULL);
+                        IF NEW.service_id = 717145 THEN
+                                SET NEW.title = CONCAT(@code_from, '-ОТВ-', LAST_INSERT_ID(), '/', DATE_FORMAT(CURRENT_TIMESTAMP, '%y'));
+                        ELSEIF NEW.service_id = 1 THEN
+                                SET NEW.title = CONCAT(@code_from, '-Х-', LAST_INSERT_ID(), '/', DATE_FORMAT(CURRENT_TIMESTAMP, '%y'));
+                        ELSEIF NEW.service_id NOT IN (717145, 1) THEN
+                                SET @country_prefix = IF(3152713 IN (@from_country_id, @to_country_id), 'KZ-', '');
+
+                                SELECT contact_options.code
+                                INTO @storehouse_code
+                                FROM contact_options
+                                WHERE contact_options.contact_id = NEW.giveout_storehouse_id;
+
+                                SET NEW.title = CONCAT(
+                                        @country_prefix, 
+                                        @code_from, 
+                                        '-',
+                                        @code_to, 
+                                        IF(@storehouse_code IS NOT NULL AND @storehouse_code != '', CONCAT('(', @storehouse_code, ')'), ''), 
+                                        '-',
+                                        LAST_INSERT_ID(),
+                                        '/',
+                                        DATE_FORMAT(CURRENT_TIMESTAMP, '%y')
+                                );
+                        END IF;
+                END IF;
+
+        END IF;
+
+        IF NEW.main_account_id IS NULL OR NEW.main_account_id = '' THEN
+                SET NEW.main_account_id = NEW.account_id;
+        END IF;
+
+END|
+DELIMITER ;
+
+
+еще важно заметить что в рамках одной базы не может быть двух триггеров с одним именем. и неважно 
+что они прикреплены к разным таблицам. поэтому если создаем триггер  на основе уже существуюзего 
+триггггера то новый триггер должен иметь другое имя.
+
+
+
+смотрим какие триггеры у таблицы clientold
+MariaDB [db]> SHOW TRIGGERS WHERE `Table` = "clientold"\G
+*************************** 1. row ***************************
+             Trigger: create_client
+*************************** 2. row ***************************
+             Trigger: client_AUPD
+*************************** 3. row ***************************
+             Trigger: delete_client
+
+
+
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+
+| dump
+
+$ mysqldump  -R -E --triggers --single-transaction имя_базы| gzip > /root/mysql/gd-site-db-fullbackup.sql.gz
+
+-----------
+
+| rename table
+
+> RENAME TABLE old_table TO backup_table, new_table TO old_table;
+----
+| show
+
+вот когда мы select делаем то мы можем выбирать where фильтр
+а когда делаем show 
+то такое мудачество что там  зависит от того что стоит за show
+в 
+
+> show processlist 
+нельзя добавить where
+
+ а вот в 
+
+ > show triggers;
+  можно
+
+> show triggers where Timing like "AFTER"\G
+
+===
+
+| foreign key
+
+если есть таблица как узнать все таблицы котрые ссылаются на эту таблицу через foregn key
+
+
+SELECT 
+  TABLE_NAME,COLUMN_NAME,CONSTRAINT_NAME, REFERENCED_TABLE_NAME,REFERENCED_COLUMN_NAME
+FROM
+  INFORMATION_SCHEMA.KEY_COLUMN_USAGE
+WHERE
+  REFERENCED_TABLE_SCHEMA = '<database>' AND
+  REFERENCED_TABLE_NAME = '<table>';
+
+===
+
+| количество строк в таблице
+
+
+способ мгновенный. но недает точный результат
+
+> show table status like '<TABLE NAME>' \G
+
+====
+
+| JOIN
+
+
+как работает join.
+рассмотрим inner join. 
+
+рассмотрим джоин двух таблицы
+
+
+
+mysql> select count(*) from account_access;
++----------+
+| count(*) |
++----------+
+|      290 |
++----------+
+
+
+mysql> select count(*) from bank_detail;
++----------+
+| count(*) |
++----------+
+|      626 |
++----------+
+
+
+
+эти две таблицы имеют общий столбик. только он называтся по разному в каждой.
+
+account_access (account_id)
+bank_detail (identification_account_id)
+
+
+
+
+
+как работает иннер джоин. он берет таблицу ту у которой меньше всего строк.
+потом он читает с этой таблицы все строки (да да именно все строки читает), 
+когда он уже прочитал все строки в память то он от них отбрасывет те строки в которых account_id = NULL
+тут важно отметить что обрасывание происходит не на моменте считывания строк нет. все строки из таблицы
+будут прочитана. а уже находясь в памяти от отбрасывает.  поэому если в таблице 1 0000 0000 строк то они будут все 
+прочитаны в память. без этого никак.  после этого  берется каждая строка которая осталась а точнее берутся строки  в столбце
+по которому идет срашивание (строка в столбце конечно же вырождается до ячейки)  и потом каждая ячейка ищется 
+уже во второй таблице. 
+
+положим у нас в первой таблице 100 строк а  во второй 200 строк.
+значит читается 100 строк из первой таблицы в память. а потом берется первая ячейка в столбце account_id из 
+этих 100 строк и ищется во второй таблице. если находится то ок результат пишется в резултирующую таблицу. потом берется
+вторая ячейка из 100 строк и ищется во второй таблице и так 100 таких циклов.  отсюда понятно 
+почему данные вначале читаются из той таблицв которая имеет меьше строк потому что  есть разница
+
+считать 100 строк и потом  их искать во другой таблце
+или считать 200 строк и потом их искать в другой таблице
+
+поэтму в случае двух таблиц неважно какая с какой джойгится.  планировщик всегда будет  считывать ту в которой меньщше 
+строк  а потом искать эьти строки во вторйо таблице.
+
+посморим на анализ такго джоина
+
+
+> analyze format=json select aa.account_id  from account_access aa  inner  join bank_detail  bd on ( aa.account_id = bd.identification_account_id );
+
+| {
+  "query_block": {
+    "select_id": 1,
+    "r_loops": 1,
+    "r_total_time_ms": 0.725095048,
+
+
+
+    "table": {
+      "table_name": "aa",
+      "access_type": "index",
+      "possible_keys": ["fk_account_access_account_id_idx"],
+      "key": "fk_account_access_account_id_idx",
+      "key_length": "5",
+      "used_key_parts": ["account_id"],
+      "r_loops": 1,
+      "rows": 287,
+      "r_rows": 290,
+      "r_table_time_ms": 0.433329826,
+      "r_other_time_ms": 0.078135736,
+      "filtered": 100,
+      "r_filtered": 16.20689655,
+      "attached_condition": "aa.account_id is not null",
+      "using_index": true
+    },
+
+
+
+    "table": {
+      "table_name": "bd",
+      "access_type": "ref",
+      "possible_keys": ["fk_bank_detail_identification_account_id_idx"],
+      "key": "fk_bank_detail_identification_account_id_idx",
+      "key_length": "4",
+      "used_key_parts": ["identification_account_id"],
+      "ref": ["db.aa.account_id"],
+      "r_loops": 47,
+      "rows": 1,
+      "r_rows": 0.021276596,
+      "r_table_time_ms": 0.175520774,
+      "r_other_time_ms": 0.012482651,
+      "filtered": 100,
+      "r_filtered": 100,
+      "using_index": true
+    }
+
+
+
+  }
+} |
+
+
+
+
+план изложен. присутпаю к комментированию
+
+ у нас одна account_access имеет 290 строк (смотри выше)
+ а bank_detail 626 строк.
+ поэтому ожидается что будет считаны 290 строк из account_aacccess
+ и они будут искать уже в bank_detail
+
+
+
+
+
+| {
+  "query_block": {
+    "select_id": 1,
+    "r_loops": 1,
+    "r_total_time_ms": 0.725095048,
+
+
+
+    "table": {
+      "table_name": "aa",
+      "access_type": "index",
+      "possible_keys": ["fk_account_access_account_id_idx"],
+      "key": "fk_account_access_account_id_idx",
+      "key_length": "5",
+      "used_key_parts": ["account_id"],
+      "r_loops": 1,
+      "rows": 287,
+      "r_rows": 290,
+      "r_table_time_ms": 0.433329826,
+      "r_other_time_ms": 0.078135736,
+      "filtered": 100,
+      "r_filtered": 16.20689655,
+      "attached_condition": "aa.account_id is not null",
+      "using_index": true
+    },
+
+
+во первых отсюда видно  что в распечатке плана  то что делается первее идет сверху
+а то что делается в последнюю очередь идет внизу.
+значит в этом блоке написано что было обраение к таблице aa (account_access)
+строки из нее читались по индексу, в индексе использовался для этого столббец account_id
+в целом так как нам надо при джине прочитать все строки из таблицы в целом использование индекса вобщем то 
+мало что дает. просто через индекс это будет чуть быстрее (почему хз).
+
+"r_loops": 1,  = говорит о том что к таблице обращались всего 1 раз
+"r_rows": 290, =  этот показатель r_rows сука это хитрая вещь.
+везде пишут что это число строк которые было прочитано из таблицы суммарная. на самом деле это полная хуйня.
+этот показатель показывает нечто совсем другое ( о чем я постоянно забываю ) он показывает сколько В СРЕДНЕМ 
+за один цикл поиска было прочитано строк с диска. тоесть это величина не измеренная а высчитанная.
+берется общее число прочитанных строк с диска (которые мы незнаем и нам его не говорят суки) и делят его 
+на число циклов считыаения r_loops и это число уже нам рисуют в выводе.
+
+поскольку r_loops=1 тоесть число цикловы считыания равно 1. и посольку на говорят что r_rows =290 
+то 290 *1 = 290 строк было суммарно прочитано с диска. еще раз подчеркну что обшее число считанных строк 
+с диска мы не взяли из r_rows а получили через "r_rows" * "r_loops"
+
+двигаем дальше 290 общее число считанных строк совпдаает с размером таблицы и с теорией которую я изложил.
+
+ужже после того как строки были прочитаны в память часть из них была отфилрованна обракована 
+отброшена об этом говорит вот что 
+
+"r_filtered": 16.20689655,  = говорит о том что из числа прочианны строк часть была отброшена и осталос только 16.2%
+
+
+что прикольно. если "r_rows" показыает СРЕДНЕЕЕ АРИФМ ЧИСЛО считанных строк за цикл чтения
+то количество строк прочитанных в ШТУКАХ
+то "r_filtered" уже ни с каким циклами не связано и показыает абсолютное число причем в процентах
+он показывает число осталвнных строк после применения фильтра в ПРОЦЕНТАХ ! тоесть после прмиенения фильтра
+осталсь 16% от числа считанных строк.
+
+
+"attached_condition": "aa.account_id is not null",    = это указано условие по котррому работал фильтр.
+еще раз подчеркну что фильтр применяется не до того как строки прочитаны а только после того как они прочитаны
+и уже сидят в памяти
+
+получается что из 290 прочитанных строк те которые NOT NULL оказалось 16.2 процента это 47 строк 
+в штуках.
+
+получетс что r_* поазатели они имеют аболюто разные размерности величин. где это среднее
+где то это процент. где то это абсолютное число. тоесть полный пиздец. реальнр. 
+
+
+
+    "table": {
+      "table_name": "bd",
+      "access_type": "ref",
+      "possible_keys": ["fk_bank_detail_identification_account_id_idx"],
+      "key": "fk_bank_detail_identification_account_id_idx",
+      "key_length": "4",
+      "used_key_parts": ["identification_account_id"],
+      "ref": ["db.aa.account_id"],
+      "r_loops": 47,
+      "rows": 1,
+      "r_rows": 0.021276596,
+      "r_table_time_ms": 0.175520774,
+      "r_other_time_ms": 0.012482651,
+      "filtered": 100,
+      "r_filtered": 100,
+      "using_index": true
+    }
+
+
+далее комп брал каждую из 47 строк и искал ее в таблице bd тоесть bank_detail.
+
+
+"r_loops": 47,  = это говорит о том что к таблице обращалсиь 47 раз
+
+"ref":    = это говорит о том что поиск в таблице велся на основе ячейки из другой таблицы.
+
+"ref": ["db.aa.account_id"],  = это говорит о том что другая таблица это aa  = account_access у нее берется 
+ячейка из столбца account_id и ее значение ищется в этой таблице. 
+
+"r_rows": 0.021276596,  =  как я уже сказал выше то величина не измеряемая а калькулируемая.
+берется общее число считанных строк   за все циклы r_loops и делится на число циклом r_loops
+значит если умножим одно на другое мы узнаем сколько по факту строк суммарно было считано с диска 
+ 47 *  0.021276596 = 1  то получим что в итоге было счтана 1 одна строка.
+
+
+так а какжет так велся то поиск. быо 47 запросов а считана тлоько одна строка. тоесть 
+скажем берем первое число из первой таблицы из числа 47 строк. наример число 5 и ищем его во второй таблице.
+это пошел первый цикл поиска. но как можно искать во второй таблице если нужно для этого прочитать все
+строки из второй и потом уже в памяти сравнивать. но мы же видим что по факту была считана только одна строка  с диска.
+ответ в том что можно искать значения в таблице в столбике если для этого столика есть индекс. таким образом 
+можно сразу понять есть ли в столбице второй таблицы то или иное значение без считыания фактически столбцов второй
+таблицы с диска. досаттчно посмтрет в индексе а индекс уже лежит в памяти. таким образом если бы 
+индекс у столбца identification_account_id неыло бы индекса то r_rows был бы вот такой ==> число 
+столбуов во второй таблице 626 делим на 47 циклов поиска тогда
+
+626 : 47 = 13,319148936 тоесть  r_rows былбы
+
+r_rows = 13,319148
+
+
+
+
+итак поиск без считвания строк с диска возможен если у нас есть идекс для столбика.
+поскльку мы знаем что 
+
+"r_loops": 47,
+"r_rows": 0.021276596,
+
+то 47 * 0.021276596 = 1
+
+тоесть в итоге было найдено было всего 1 совпдаение.
+
+  }
+} |
+
+
+а теперт посмтрим чтоже выдал результата запроса
+
+> select aa.account_id  from account_access aa  inner  join bank_detail  bd on ( aa.account_id = bd.identification_account_id );
++------------+
+| account_id |
++------------+
+|         87 |
++------------+
+
+
+тоесь да . в обоих таблицах общая только одна строка.
+
+
+
+тут возикает интетенсый вопрос . вот ут нас есть блок обрашения к таблице ( какойто там )
+
+
+
+
+    "table": {
+      "table_name": "bd",
+      "access_type": "ref",
+      "possible_keys": ["fk_bank_detail_identification_account_id_idx"],
+      "key": "fk_bank_detail_identification_account_id_idx",
+      "key_length": "4",
+      "used_key_parts": ["identification_account_id"],
+      "ref": ["db.aa.account_id"],
+      "r_loops": 47,
+      "rows": 1,
+      "r_rows": 0.021276596,
+      "r_table_time_ms": 0.175520774,
+      "r_other_time_ms": 0.012482651,
+      "filtered": 100,
+      "r_filtered": 100,
+      "using_index": true
+    }
+
+
+    и нам надо его деширофать.
+нам был хотелоь понять это блок который вызыван чем select или join или еще чем.
+и тут важный момент - select \ join и прочая хрень это лишь внешний скриптой язык фронтедовый к мускулу
+а блоки из планера это уже работа внутренних механизом и хреновин мускула. суь в том что фротнтенд котманды
+непонятно на какие внутренний блоки мускула распадаются. это важно понять.
+тоесть условно говорят просто селект взоывает два таких блока а select joib вызовет 4 таких блока
+и какой блок отнести к селекут а какой к джоину это еще хрнео поймешь. тоже самое как если полсать 1 человека
+на базар для двух лиц. и сропсть сколько время он потратил на одного и надругого. как это вычитать если часть
+оперций отноися к обоим лицам.
+
+ясно только то что каждый блок это обращение к таблице точнее к той структуре которая  в памяти мускула отвечает за таблицу.
+сама табица лежит на диске. это надо различать. так вот  при обрашении к струтурруре таблицы ищется некоторое значение
+которео приелетло еще надо разбираться откуда и если у столбика есть индекс то поиск идет по инедксу которйы в памяти
+и если есть совпдаение в индесе то только тогда идет считыание уже с диска где лежат данные таблицы. 
+
+теоесть еще раз . такой блок показыает скольк было обращений (циклов)  к  памяти мускула где лежат метаданные 
+от таблицы. если там быд нужнй индекс то им пользовались. при обращении обычно чтото ищут. если индекса нет
+то тгда надо счтать в память все стоки с диска и уже там искать. если индекс есть то читать с диска ничо ненадо
+можно искать в индексе который в памяти. также в этой секци будет написано то что искали. скажем
+эта строчка "ref": ["db.aa.account_id"], говоит о том что искали некоторео значение которые взяли из столбка
+account_id из таблицы account. тоемть блок говорит о том то чтото ищут по заказу от когото, если еть индекс
+юзают его. если индекса нет читают все строки с длиска. если еть индекс и есть совпдание то толкь тогда чиают с диска.
+поэтому если есть индекс то обращений может быть дохера (число циклов)  а считанных строк мало потому что если мало совппдений
+то это вищно в индексе. и читаются только строки котоыре совпаои с поиском.
+
+
+еще очень интеемный момент- что хранится в индексе? возмьем простой индекс для прмиера. когда у нас индкс по 
+одному столбику и этот столбик это числа. хранятся ли эти числа прям в индексе. ответ да.
+тогда српрашивается если мы нашли в таблице по индексу совпадеие для столбика то нахер нам читать при этом
+эту строку ведь у нас в индексе записано значение которые мы искали. прикол в том что мы искали строчку целиком 
+в которой ячейка по одному столбтку совпдаает с искомым значением.  тоест у нас есть строка в исходной базе
+у котрой есть заданная ячейка мы ищем в другой таблице есть ли эта же ячейка в некотором столбец. индекс гвоорит что есть.
+но нам то нужна не ячейка а нам нужна  строка из второй таблицы так что индекс хранит адрес на диске где 
+лежит эта строка в томичисле содержащая эту ячейку. прикол в том что индекс нехранит строку целиком. он хранит
+только одну ячейку из этой строки. поэтому найдя ячейку в индексе который  в памяти нам посде этого надо пойти на
+диск и сделать считыание с диска этой строки.
+
+
+
+как раобоатет inner join для трех таблиц. ну так то суть понятна. 
+есть два вариант когда все три таблицы имеют аналогичный столбец  . тода понятно надо взять столбец этот в каждой таблице
+и псмотреть где есть пересечение эьтих трех столбцов. скажем это строка 2 и 5. значит тогда берем
+из трех таблиц строку номер 2 и слепить вместе все их столбики. 
+тоже самое со строй 5. получим в итоге две строки но у новой таблицы будет дохера столбиков.
+подчркну что строк будет всего две.  просто в них будет дохера столбиков. 
+
+
+
+пример. три таблицы
+
+mysql> select * from t1;
++------+------+
+| a    | b    |
++------+------+
+|    1 | a    |
+|    2 | b    |
++------+------+
+
+mysql> select * from t2;
++------+------+
+| a    | c    |
++------+------+
+|    1 | a    |
+|    3 | q    |
++------+------+
+
+mysql> select * from t3;
++------+------+
+| a    | d    |
++------+------+
+|    1 | a    |
+|    4 | z    |
++------+------+
+
+
+будем их соденияь по столбцу "a"
+видно что по нему у нас тлоько одна общая строка - когда "a" =1.
+значии в сумманой таблице будет 1 строка. но  у нее будет дрхера строблбцлов.
+смотрим
+
+mysql> select * from t1 inner join t2 on (t1.a=t2.a) inner join t3 on (t1.a=t3.a);
++------+------+------+------+------+------+
+| a    | b    | a    | c    | a    | d    |
++------+------+------+------+------+------+
+|    1 | a    |    1 | a    |    1 | a    |
++------+------+------+------+------+------+
+
+
+как видим строчка одна . та где a=1.
+а вот столбики прилеены со всех таблиц
+
+таким образром inner join он число строк в суммарной таблице уменьшает а вот число столбцов 
+жиреет в бока.
+
+если у нас  три таблицы неимеют общего столбика то надо чтобы тогда была одна таблицы из трех у которой
+есть по столбику из кажой оставшейся тоесть
+
+a (id), b(id, vasya)  c(vasya)
+
+вот такие три таблицы можно с джойнить.
+
+
+вот такие три таблицы
+
+mysql> select * from a;
++------+
+| id   |
++------+
+|    1 |
+|    2 |
++------+
+
+mysql> select * from b;
++------+-------+
+| id   | vasya |
++------+-------+
+|    1 | a     |
+|    4 | z     |
++------+-------+
+
+mysql> select * from c;
++-------+
+| vasya |
++-------+
+| a     |
+| q     |
++-------+
+
+mysql> select * from  a  inner join b on (a.id=b.id) inner join c on (b.vasya=c.vasya);
++------+------+-------+-------+
+| id   | id   | vasya | vasya |
++------+------+-------+-------+
+|    1 |    1 | a     | a     |
++------+------+-------+-------+
+
+
+получается что inner join он находит общие строки в том смысле что не вся строка совпдаает 
+а только по заданному столбику в этой строке. то бишь в ячйке. а потом он берет каждую такую строку
+из кажой таблицы и вместе их содеиняет горизонталтно. причем одинакоые столбцы по кторым он искал 
+он их не схлопвает нет. они остаются каждй в своей позиции.
+
+чтоб так как вверу название ятсолбиков сопвпадают то с непривычки как то это путает. поэтому пример полегче
+
+
+
+mysql> select * from a1;
++------+
+| id   |
++------+
+|    1 |
+|    2 |
++------+
+
+
+
+mysql> select * from b1;
++------+-------+
+| id_1 | vasya |
++------+-------+
+|    1 | a     |
+|    4 | z     |
++------+-------+
+
+
+mysql> select * from c1;
++---------+
+| vasya_1 |
++---------+
+| a       |
+| q       |
++---------+
+
+
+> select * from  a1  inner join b1 on (a1.id=b1.id_1) inner join c1 on (b1.vasya=c1.vasya_1);
++------+------+-------+---------+
+| id   | id_1 | vasya | vasya_1 |
++------+------+-------+---------+
+|    1 |    1 | a     | a       |
++------+------+-------+---------+
+
+
+суьт в том что ни один столбик ни из одной из таблиц непропадает . каждый войдет в 
+сумманую таблицу.
+
+
+
+
+это кстати обьясняет вот такую вещь.
+беру этот пример
+
+
+mysql> select * from  a  inner join b on (a.id=b.id) inner join c on (b.vasya=c.vasya);
++------+------+-------+-------+
+| id   | id   | vasya | vasya |
++------+------+-------+-------+
+|    1 |    1 | a     | a     |
++------+------+-------+-------+
+
+
+пробую сделать вот так
+> select id  from  a  inner join b on (a.id=b.id) inner join c on (b.vasya=c.vasya);
+ERROR 1052 (23000): Column 'id' in field list is ambiguous
+
+
+говори поше нахер
+
+потому что он непонимает какой из id столбиков я хочу посмтреть.
+потому что левый id отсноистя к исхоной табице "a" а правый id относистя к таблице b.
+тогда делаем вот так
+
+> select b.id  from  a  inner join b on (a.id=b.id) inner join c on (b.vasya=c.vasya);
++------+
+| id   |
++------+
+|    1 |
++------+
+
+и нет проблем!
+
+
+
+итак джин трех таблиц
+
+
+
+есть три таблицы
+
+
+
+mysql> select count(*) from account_access;
++----------+
+| count(*) |
++----------+
+|      290 |
++----------+
+
+
+mysql> select count(*) from bank_detail;
++----------+
+| count(*) |
++----------+
+|      626 |
++----------+
+
+
+
+
+
+mysql> select count(*) from account;
++----------+
+| count(*) |
++----------+
+|    78385 |
++----------+
+
+
+у них увсех есть общий столбик. он назыается  account_id либо identification_account_id
+
+значит алсюолютно без разницы как мы пропием в реквесте запрос
+
+SELECT account_id   
+FROM  `account_access` aa  
+INNER JOIN `account` a  ON ( aa.account_id = a.account_id ) 
+INNER JOIN `bank_detail` bd  ON  ( aa.account_id = bd.identification_account_id );
+
+
+
+
+SELECT account_id   
+FROM  `account` a  
+INNER JOIN `account_access` aa  ON (  a.account_id = aa.account_id ) 
+INNER JOIN `bank_detail` bd     ON  ( a.account_id = bd.identification_account_id );
+
+
+
+
+SELECT a.account_id   
+FROM  `account` a  
+INNER JOIN `account_access` aa  ON ( a.account_id = aa.account_id ) 
+INNER JOIN `bank_detail` bd     ON ( a.account_id = bd.identification_account_id );
+
+они все отработают по одному плану
+
+
+а план будет такой. мускул найдет таблицу в которой менше вего строк . это account_access
+далее как "aa".
+
+он считет с диска все ее строки. справивтся нахера читать строки если значение accoun_id ячейки 
+уже есь в индексе. ответ такой что мы сраивем не ячейки а в конечном итоге строки. так что 
+нам надо чиать именно строки для всех таблиц ксати. просто первая чиатется целиком тоесть все строки. а другие будут чатться
+только для для тех строк где еть совдпание . (еси бы небыло индеков то и там бы читались все строки).
+
+потом берертся каждая строка точнее в этой стрке берется анчение ячейки в столбце account_id 
+и далее идет обращение к одной из оставшихся таблиц. там по индексу ищется есть ли совдпание по этой ячейке.
+еси ест то эта строка чиытается в память. если нет то ничего не счиытется с диска. (считется только индекс но он уже 
+лежит в памяти).  таких циклов поика в воторой таблице будет ровно столкььо сколько строк в перво таблце минус 
+ее строки с NULL. если у нас в таблице accunt_access 290 строк из них только 47 не NULL то во втоорой таблцие 
+будет сделано 47 циклов поиска. в итоге мы полуичим какоето число строк которое сопвдпло между первой и второй таблцей
+в ячейкках в стобце account_id .скажем таких строк 5.  после этого берется именн толко эти 5 строк . значение ячеекк 
+в столблец acccount_id и именно они ищутся уже в треттьей таблице прием поо индексу этой третьек таблицы. 
+поэтому при втоором поиске нам насрать на размер третьей таблцы ( при наличии в троетей таблице индекса) нам толко
+важно солкьо строк у нас пресеклось между первой и второй. находится это прсечение . и это и есть ответ. 
+точнее этоесть толко номер астрок. а потом уже с кажой таблицы буорется эти строки и их столбцы склеиваются.
+
+таким оразом если у всех таблиц есть нужные индкексы тогда время  джоина завиаисит от того соклько строк 
+есть в самой мелкоей таблице + сколько получиолось строк на пересечении первой и второй . а вотна размер троетьей таблицы
+нам полностю пелвать хоть миллиард строк. главное повторю счто бы у всех атблицы были нужные индексы. 
+
+ > select aa.account_id, a.account_id, bd.identification_account_id   from account_access aa  inner join bank_detail bd on ( aa.account_id = bd.identification_account_id ) inner join account a on (a.acco
++------------+------------+---------------------------+
+| account_id | account_id | identification_account_id |
++------------+------------+---------------------------+
+|         87 |         87 |                        87 |
++------------+------------+---------------------------+
+
+
+план
+
+| {
+  "query_block": {
+    "select_id": 1,
+    "r_loops": 1,
+    "r_total_time_ms": 0.781174374,
+
+
+    "table": {
+      "table_name": "aa",
+      "access_type": "index",
+      "possible_keys": ["fk_account_access_account_id_idx"],
+      "key": "fk_account_access_account_id_idx",
+      "key_length": "5",
+      "used_key_parts": ["account_id"],
+      "r_loops": 1,
+      "rows": 287,
+      "r_rows": 290,
+      "r_table_time_ms": 0.443957572,
+      "r_other_time_ms": 0.098981314,
+      "filtered": 100,
+      "r_filtered": 16.20689655,
+      "attached_condition": "aa.account_id is not null and aa.account_id is not null",
+      "using_index": true
+    },
+
+итак план читаем сверху вниз.
+таблица aa была считана по индексу все ее строки. можно было бы читать и без индекса потмоу что 
+строки то в индексе не хранися. а прочитать их надо все. таблица aa самая мелкая поэтому прочитали именно  ее.
+прочитали за один цикл  "r_loops": 1,  срденее число прочиатлнных с диска строк "r_rows": 290, 
+значит всего было прочиатно по факту 1 * 290  = 290 строк
+из них после фиольтрации осталвсь "r_filtered": 16.20689655, всего 16% строк. это где то 47 строк.
+
+
+
+
+    "table": {
+      "table_name": "bd",
+      "access_type": "ref",
+      "possible_keys": ["fk_bank_detail_identification_account_id_idx"],
+      "key": "fk_bank_detail_identification_account_id_idx",
+      "key_length": "4",
+      "used_key_parts": ["identification_account_id"],
+      "ref": ["db.aa.account_id"],
+      "r_loops": 47,
+      "rows": 1,
+      "r_rows": 0.021276596,
+      "r_table_time_ms": 0.188911134,
+      "r_other_time_ms": 0.013526627,
+      "filtered": 100,
+      "r_filtered": 100,
+      "using_index": true
+    },
+
+
+далее мускул полез в таблицу bd . точнее не втаблицу а в свою память там где хранятся метаданные этой таблоицы.
+лазил мускул 47 раз . тоесть ровно столько соклько строк мы выбрали и отфлиальтрвали из таблицы aa. "r_loops": 47,
+при каждом обращении мы искали во такое значение "db.aa.account_id" это ячека в столбце account_id из таблицы aa
+из числа тех 47 строк. по порядоку. искали мы эту ячейку по индексу. так как ячеки в индекса хранятся ( нестроки целиком
+в индексе хрантся а ячейки ) то лазить на диск для этого нам ненадо. нам надо только если есть совпадение. 
+для такого совдпадения мы строку уже будет чиатьт. видно что было 47 циклов поиска но среднее число прочитанных с диска
+строк "r_rows": 0.021276596,  это ознчаает что совдападений было мало. инлекс показыает что такой ячейки у него в столбце
+accoutnt_id нет. так скольк оже строк в иттге совпало ? ( "r_rows": 0.021276596,)  * ("r_loops": 47,) = 1
+получем что совпала толко 1 строка. и она была прочитана. 
+значит между aa таблцией и bd таблицей вышло толко 1 совпдаение. получается что теперь толкьо надо 
+проверить есть ли эта строка в тртьей таблице
+
+
+
+
+    "table": {
+      "table_name": "a",
+      "access_type": "eq_ref",
+      "possible_keys": ["PRIMARY"],
+      "key": "PRIMARY",
+      "key_length": "4",
+      "used_key_parts": ["account_id"],
+      "ref": ["db.aa.account_id"],
+      "r_loops": 1,
+      "rows": 1,
+      "r_rows": 1,
+      "r_table_time_ms": 0.015809801,
+      "r_other_time_ms": 0.005833914,
+      "filtered": 100,
+      "r_filtered": 100,
+      "using_index": true
+    }
+
+
+видим что что мускула лазил в метаданые в своей памяти для третьей таблицв всего 1 раз.
+"r_loops": 1,
+потмоу что на прпдыддщем шаге всего 1 строка совпала. посольку наша результрующся таблица (result set) 
+ спрдыдщуего шага уже содержит и все столбцы с перовй таблицы и все столбцы со второй таблицы то насне должна
+ смущать строка  "ref": ["db.aa.account_id"], она говорит что запрос на поиск был из таблицы aa ее столбика account_id
+ на самом деле был запрос из result set в котоором был этот стобик ( это еще один камень в дебильность разрабов мускула котоыре не могут рисовать наормальный понятный план.)
+ итак был один цикл поиска "r_loops": 1  и срденее число найдыннех строк   и прочитынных "r_rows": 1,
+ знаит в итоге было прочитанно 1 * 1  = 1 строка. 
+ значит в финальном result set у нас всего 1 строка. что и выидно в ввыводе
+
+ дебилизм ситации в том что получаетсы вот из этой записи
+
+     "ref": ["db.aa.account_id"],
+
+никдга нельзя понять из какой таблицы на самом деле шел реквест  в эту таблицу. мы толкьо знаем 
+типа столбик а вот откуда он прилеел хуй занет толи из таблицы aa то ли из result set.
+
+
+
+  }
+} |
+
+
+
+на десерт план того как выполнлся джоин трех таблиц
+у которыех нет единого общего столбика
+
+> analyze format=json select *  from  a  inner join b on (a.id=b.id) inner join c on (b.vasya=c.vasya);
+
+
+
+mysql> select * from a;
++------+
+| id   |
++------+
+|    1 |
+|    2 |
++------+
+
+mysql> select * from b;
++------+-------+
+| id   | vasya |
++------+-------+
+|    1 | a     |
+|    4 | z     |
++------+-------+
+
+mysql> select * from c;
++-------+
+| vasya |
++-------+
+| a     |
+| q     |
++-------+
+2 rows in set (0,00 sec)
+
+
+
+получается у нас есть центральяна таблица
+
+
++------+-------+
+| id   | vasya |
++------+-------+
+|    1 | a     |
+|    4 | z     |
++------+-------+
+
+
+левый ее строблбик есть в левой таблице
+а правй ее стобик есть в правой 
+
+
+получается что только такая строка из b попадет в финальный расклад когда левое занчение есть в леовой табице
+и одновеменно с этим ее правое занчение еть в правой таблице тоесть
+
+берем строку
+
+
++------+-------+
+| id   | vasya |
++------+-------+
+|    1 | a     |
+-----------------
+
+
+если в левой таблице есть 1 а в правой таблице есть a одновременно с этим то такая строка 
+точно входит уже в финашльный результат.
+
+
+
+щас нарисую более прикольный пример
+
++-------+--------------+---------+
+|table a|     table b  | table c |
++-------+------+------+----------+
+|id_a   | id   | vasya|  kuku    |
++-------+------+------+----------+
+|   1   |   1  | a    | a        |
+|   6   |   4  | z    | f        |
+|   9   |   5  | q    | g        |
++------+-------+-----------------+
+
+и вот видно что только строка 
+
+
++------+-------+
+| id   | vasya |
++------+-------+
+|    1 | a     |
+-----------------
+
+из таблицы b имеет и слева такую цифру и справ такую же букву
+осталные нет. 
+
+я все пытаюсь на айти аналогию логики склейки трех таблицы кода у нас нет едтного столблца на все
+три таблицы. аналогия получается такая по мне что у нас как бутто все равно есть некий универсальный единый столюик
+на три таблицы
+
+
++--------------+
+|     table b  |
++------+-------+
+| id   | vasya | 
++-------+------+
+| a    | a     |
+|   4  | z     | 
+|   5  | q     |
++-------+------+
+
+
+ унас как бы получается что наш столбик он имеет две кодировки . и что средня таблица как раз владеет
+ этим ключом пперекодровки 
+
+
+для леов йтаблицы у нас стробик это 
+
+
+|   a  | 
+|   4  |  
+|   5  |
++-------+
+
+
+
+для правйо это столбик
+
+
+| a     |
+| z     | 
+| q     |
++------+
+
+но на саоммо деле это как бы один и тот же столбик только он перекодирован.
+
+тоесь как бы можно взять 
+
+| a     |
+| z     | 
+| q     |
++------+
+
+
+перекодировать его в столбик
+
+
+
+|   a  | 
+|   4  |  
+|   5  |
++-------+
+
+вставить  в правую таблицу и у нас как бы получается три таблицы с единым столбиком на все три таблицы.
+просто еще раз хочу сказать что у нас какбы в самой праваой таблице наш стобик перекодирован . 
+тоесть условно говоря в двух таблцах у нас английские буквы в этом столбике а в правом русские. 
+ну и мы как бы понимаем о чем идет речь. 
+
+поэтому врроде как  в целом я понял физ смысл сращивания трез таблиц когда  у них фрмально нет 
+единого столбтка
+
+тость еще раз . кога сращивам три таблицы у которых формлаьно получается есть две табицы у которые общий столбик
+а в третьей таблице его нет. но он там как бы есть просто он записан в перекодированной форме. 
+и тогда заача сводится к сращиванию трех таблиц по единому столбику
+
+
++-------+--------------+---------+
+|table a|     table b  | table c |
++-------+------+------+----------+
+|id_a   | id   | vasya|  kuku    |
++-------+------+------+----------+
+|   1   |   1  | a    | a        |
+|   6   |   4  | z    | f        |
+|   9   |   5  | q    | g        |
++------+-------+-----------------+
+
+оесть если мы примем как основной столбик с цифрами
+
+
+1
+4
+5
+
+то тогда перая и вторая таблица имеют этот единый стобик а третья как бы нет.
+но исползуя вторую таблицу как правило перекодирования мы можем сказать что  a в третьей 
+таблице это как бы 1 ну и остальные буквы по аналогии. поэтому третья таблица как бы тожеимеет 
+этот же столбик
+
+поэтмоу иполучсется что из табицы b водут только те строки для котоых и слева  и справа однвоеменнно 
+есть такой же ключ.
+
+тоесть скаже мвозьмеп трутью строку из b = (5, q)
+чтбы эта строка вошла в фигальное ршение нао чтобы в таблице слева было 5 в какойто строке  ( мы помнимчто строки 
+неимеют номеров их можно тасовать как кубик рубик) и чтобы в стаблице права было в какойто строке q.
+тоода это будет подхдядщая стрчка.
+
+
+
+щас я нарисую джоин для 5 таблиц в которых нет единого столбика для всех одинкоговоо.
+ и сразу станет все понятнро
+
+
+
++-------+-------------+----------+---------+---------+----------------+
+|table a|     table b |       table c      | table d | table e        |
++-------+------+------+----------+---------+---------+--------+-------+
+|id_a   | id_b | ch_b |  ch_c    |  id_c   | id_d    |  id_e  | ch_e  |
++-------+------+------+----------+---------+---------+--------+-------+
+|   1   |   1  | a    | a        |  6      |  6      |  6     |  s    |
+|   6   |   4  | z    | f        |  9      |  8      |  9     |  q    |
+|   9   |   5  | q    | g        |  12     |  15     |  8     |  w    |
++------+-------+-----------------+---------+---------+--------+-------+
+
+
+вот у нас 5 таблиц.
+
+
+в иттогу у нас только одна верхняя строка будет в финальном result set
+а джони будет выглядеть вотак
+
+
+select * 
+from  table_a a
+inner join table_b b ( a.id_a = b.id_b)
+inner join table_c c ( b.ch_b = c.ch_c)
+inner join table_d d ( c.id_c = d.id_d)
+inner join table_e e ( d.id_d = e.id_e)
+
+
+строка которая в итоге попадет в финальрый result set  ее ячейки должны удоляеть условию
+
+ ( a.id_a = b.id_b) AND ( b.ch_b = c.ch_c) AND ( c.id_c = d.id_d) AND ( d.id_d = e.id_e)
+
+кода у нас  3 табицы и единый столбик то это вырождается в 
+
+ ( a.id_a = b.id_b) AND ( b.id_b = c.id_c)
+
+или это вырождается в
+
+ ( a.id_a = b.id_b = c.id_c)
+
+
+
+возвращаемся к примеру. 
+резултатт
+> select *  from  a  inner join b on (a.id=b.id) inner join c on (b.vasya=c.vasya);
++------+------+-------+-------+
+| id   | id   | vasya | vasya |
++------+------+-------+-------+
+|    1 |    1 | a     | a     |
++------+------+-------+-------+
+
+
+план
+> explain  select *  from  a  inner join b on (a.id=b.id) inner join c on (b.vasya=c.vasya);
++------+-------------+-------+-------+---------------+------+---------+------+------+--------------------------------------------------------+
+| id   | select_type | table | type  | possible_keys | key  | key_len | ref  | rows | Extra                                                  |
++------+-------------+-------+-------+---------------+------+---------+------+------+--------------------------------------------------------+
+|    1 | SIMPLE      | a     | index | i_1           | i_1  | 5       | NULL | 2    | Using index                                            |
+|    1 | SIMPLE      | c     | index | i_4           | i_4  | 2       | NULL | 2    | Using index; Using join buffer (flat, BNL join)        |
+|    1 | SIMPLE      | b     | ALL   | i_2,i_3       | NULL | NULL    | NULL | 2    | Using where; Using join buffer (incremental, BNL join) |
++------+-------------+-------+-------+---------------+------+---------+------+------+--------------------------------------------------------+
+
+
+
+анализ
+> analyze format=json select *  from  a  inner join b on (a.id=b.id) inner join c on (b.vasya=c.vasya);
+
+ {
+  "query_block": {
+    "select_id": 1,
+    "r_loops": 1,
+    "r_total_time_ms": 0.103712296,
+
+
+    "table": {
+      "table_name": "a",
+      "access_type": "ALL",
+      "r_loops": 1,
+      "rows": 2,
+      "r_rows": 2,
+      "r_table_time_ms": 0.031632395,
+      "r_other_time_ms": 0.009065398,
+      "filtered": 100,
+      "r_filtered": 100
+    },
+
+ у нас счиались все строки из табл а
+
+    "block-nl-join": {
+      "table": {
+        "table_name": "b",
+        "access_type": "ALL",
+        "r_loops": 1,
+        "rows": 2,
+        "r_rows": 2,
+        "r_table_time_ms": 0.008337341,
+        "r_other_time_ms": 0.010043743,
+        "filtered": 100,
+        "r_filtered": 100
+      },
+      "buffer_type": "flat",
+      "buffer_size": "65",
+      "join_type": "BNL",
+      "attached_condition": "b.`id` = a.`id`",
+      "r_filtered": 25
+    },
+
+
+считались все строки из таблицы b 
+и они с помощью спец буфера начали сверяться
+и после  отфильтрования осталось  25%
+прчим видно что сравагивалась табл а и табл б
+
+
+    "block-nl-join": {
+      "table": {
+        "table_name": "c",
+        "access_type": "ALL",
+        "r_loops": 1,
+        "rows": 2,
+        "r_rows": 2,
+        "r_table_time_ms": 0.006218244,
+        "r_other_time_ms": 0.025134386,
+        "filtered": 100,
+        "r_filtered": 100
+      },
+      "buffer_type": "incremental",
+      "buffer_size": "130",
+      "join_type": "BNL",
+      "attached_condition": "c.vasya = b.vasya",
+      "r_filtered": 50
+    }
+
+а здесь срванивалас таблица "c" с табицей b
+
+  }
+} |
+
+непоняно а где описано как сверялся потом первый resul set со вторым result set
+
+
+поле этого я создал все нужыне индексы и вот как изменился план 
+этгого же запроса
+
+
+
+ {
+  "query_block": {
+    "select_id": 1,
+    "r_loops": 1,
+    "r_total_time_ms": 0.097440657,
+
+
+
+    "table": {
+      "table_name": "a",
+      "access_type": "index",
+      "possible_keys": ["i_1"],
+      "key": "i_1",
+      "key_length": "5",
+      "used_key_parts": ["id"],
+      "r_loops": 1,
+      "rows": 2,
+      "r_rows": 2,
+      "r_table_time_ms": 0.024974202,
+      "r_other_time_ms": 0.009869654,
+      "filtered": 100,
+      "r_filtered": 100,
+      "using_index": true
+    },
+
+
+счиаталист все строки из a
+
+    "block-nl-join": {
+      "table": {
+        "table_name": "c",
+        "access_type": "index",
+        "possible_keys": ["i_4"],
+        "key": "i_4",
+        "key_length": "2",
+        "used_key_parts": ["vasya"],
+        "r_loops": 1,
+        "rows": 2,
+        "r_rows": 2,
+        "r_table_time_ms": 0.007138188,
+        "r_other_time_ms": 0.009558186,
+        "filtered": 100,
+        "r_filtered": 100,
+        "using_index": true
+      },
+      "buffer_type": "flat",
+      "buffer_size": "65",
+      "join_type": "BNL",
+      "r_filtered": 100
+    },
+
+
+получается что из c тоже были считаны все строки. это пздц
+потому что    ( "r_rows": 2,)  *    ( "r_loops": 1,) = 2
+и     "r_filtered": 100 
+
+тоесть из трех таблиц "a" и "c" были прочитаны целиком
+
+    "block-nl-join": {
+      "table": {
+        "table_name": "b",
+        "access_type": "ALL",
+        "possible_keys": ["i_2", "i_3"],
+        "r_loops": 1,
+        "rows": 2,
+        "r_rows": 2,
+        "r_table_time_ms": 0.009428037,
+        "r_other_time_ms": 0.026085477,
+        "filtered": 100,
+        "r_filtered": 100
+      },
+      "buffer_type": "incremental",
+      "buffer_size": "76",
+      "join_type": "BNL",
+      "attached_condition": "b.vasya = c.vasya and b.`id` = a.`id`",
+      "r_filtered": 12.5
+ 
+
+наскольо я понимаю и третья талица была прочитана  в память целиком!
+
+и вот наконец то чудо
+
+      "attached_condition": "b.vasya = c.vasya and b.`id` = a.`id`",
+      "r_filtered": 12.5
+ 
+
+    }
+  }
+
+
+по мне если мы сравнивем "b" с "c"  и "a" с "c" 
+ тогда надо быол читать одну таблицу b целиком.
+а с другими сравнвать по ингдексам. это же сука корочео по времени !
+нашли бы слева result set и справа result set и потом его уже бы сравнили 
+методом перебора.
+либо статитика плана неполная. либо алгоритм дебилный. он полностью закачивает 
+внурь себя три таблицы
+
+
+надо потсмртеь еще раз на трех больших по размеру таблицах . он там тоже все три 
+будет  в себя засасыавть ?
+
+
+ВНИМАНИЕ ! очент важная инфо про joins
+
+если мы хотим чтобы у нас джоин двух таблиц ( для простоты двух а так дейвтуеи и на боьльшее число)
+выполнятся по индексам а не чтобы в плане было написано ужасный приговор BNL LOOOP который очень долгий
+то требования минимальные для двух таблиц такие:
+
+надо чтобы в обоих таблицах был создан индекс по тому столбику по которому мы джойнимся
+и надо чтобы в двух таблицах был PRIMARY ключ причем неважно что этот ключ относится к столбику по которому
+мы джойнимся или к какотому то леовму столбику.  либо вместо primary ключа надо чтобы для какойтого столбика
+было сразу два условия в свойствах столбика укзано NOT NULL + для этго столбика создан UNIQUE KEY.
+тогда джоин для этих таблиц будет идти без записи BNL в планере. 
+
+пример.
+
+
+
+
+create table ab1 ( 
+                   a int,
+                   b int,
+                   key b (`b`)
+                  ) engine=innodb;
+
+
+
+create table ab2 (
+                   a int NOT NULL,
+                   b int,
+                   unique key a (`a`),
+                   key b (`b`)
+                  ) engine=innodb;
+
+
+
+explain  
+SELECT * 
+FROM ab1   
+INNER JOIN ab2   
+    ON (ab1.b = ab2.b);
+
+
+
+explain  format=json
+SELECT * 
+FROM ab1   
+INNER JOIN ab2   
+    ON (ab1.b = ab2.b);
+
+
+drop table ab1, ab2;
+
+
+
++------+-------------+-------+------+---------------+------+---------+-----------+------+-------------+
+| id   | select_type | table | type | possible_keys | key  | key_len | ref       | rows | Extra       |
++------+-------------+-------+------+---------------+------+---------+-----------+------+-------------+
+|    1 | SIMPLE      | ab1   | ALL  | b             | NULL | NULL    | NULL      | 1    | Using where |
+|    1 | SIMPLE      | ab2   | ref  | b             | b    | 5       | db2.ab1.b | 1    | Using index |
++------+-------------+-------+------+---------------+------+---------+-----------+------+-------------+
+                                                                                                                                                                                                                                                                                                                                                                                                    |
+
+
+| {
+  "query_block": {
+    "select_id": 1,
+    "table": {
+      "table_name": "ab1",
+      "access_type": "ALL",
+      "possible_keys": ["b"],
+      "rows": 1,
+      "filtered": 100,
+      "attached_condition": "ab1.b is not null"
+    },
+    "table": {
+      "table_name": "ab2",
+      "access_type": "ref",
+      "possible_keys": ["b"],
+      "key": "b",
+      "key_length": "5",
+      "used_key_parts": ["b"],
+      "ref": ["db2.ab1.b"],
+      "rows": 1,
+      "filtered": 100,
+      "using_index": true
+    }
+  }
+} |
+
+
+
+в этом римере таблица ab2 имеет солбика "a" котоыйр NOT NULL
+и для него также пропмсано UNIQUE key.
+
+
+причем мы джойнимяс не по столбтку "a" а по дргому столбку.
+
+
+выще я написао что обе таблицы должны тметь условия . на самом деле только одна. вторая таблица в планере.
+вторая таблица этобоычно таблица у которой меньше строк. вобщем чтобы недумать лучше чтобы уловие было в обоих таблицах.
+тогда все чик пибабум.
+
+
+
+===
+
+|query
+| запрос
+
+был запрос
+
+analyze format=json
+
+    (
+                         SELECT account.subject_id AS client_id
+                         FROM account
+                         WHERE 1 
+                            AND account.type_id = 21
+                            AND account.account_id IN (
+                                   SELECT DISTINCT `order`.account_id
+                                   FROM storage
+                                       LEFT JOIN cargo USING (cargo_id)
+                                       LEFT JOIN `order` USING (order_id)
+                                   WHERE `order`.account_id IN (SELECT account.account_id
+                     FROM client
+                     LEFT JOIN account ON (account.subject_id = client.client_id)
+                     LEFT JOIN employee curator ON (curator.user_id = client.user_id)
+                            LEFT JOIN contact curator_office ON (curator_office.contact_id = curator.office_contact_id) 
+                     WHERE 1
+                         AND client.is_collecting = 0
+                          AND account.type_id = 21
+                          AND curator_office.geo_id = 35)
+                                       AND !`order`.no_invoice
+                                       AND `order`.status = 'closed'
+                                       AND GREATEST(
+                                          CAST(`storage`.amount_start_total AS SIGNED),
+                                          (
+                                              CAST(`storage`.amount_start_total AS SIGNED)
+                                              + CAST(`storage`.amount_in AS SIGNED)
+                                              - CAST(`storage`.amount_out AS SIGNED)
+                                          )
+                                       ) > CAST(`storage`.amount_draw AS SIGNED)
+                            )
+                     )
+                     UNION DISTINCT
+                     (
+                         SELECT account.subject_id AS client_id
+                         FROM account
+                         WHERE 1 
+                            AND account.type_id = 21
+                            AND account.account_id IN (
+                                   SELECT DISTINCT `order`.account_id
+                                   FROM storage_service
+                                       LEFT JOIN waybill USING (waybill_id)
+                                       LEFT JOIN `order` USING (order_id)
+                                   WHERE `order`.account_id IN (SELECT account.account_id
+                     FROM client
+                     LEFT JOIN account ON (account.subject_id = client.client_id)
+                     LEFT JOIN employee curator ON (curator.user_id = client.user_id)
+                            LEFT JOIN contact curator_office ON (curator_office.contact_id = curator.office_contact_id) 
+                     WHERE 1
+                         AND client.is_collecting = 0
+                          AND account.type_id = 21
+                          AND curator_office.geo_id = 35)
+                                       AND !`order`.no_invoice
+                                   GROUP BY IFNULL(waybill.parent_waybill_id, waybill.waybill_id)
+                                   HAVING SUM(storage_service.amount) > 0
+                            )
+                     )
+
+
+
+выпонлнялся 17 минут
+
+
+ускорил запрос  стало (15с)
+как ускорил:
+ - обрезал `order`
+ - исправил query вот так:
+     -  создал индекс  ( > create index in_cust_1 on `order` (no_invoice,status); )
+     - и вставил FORCE INDEX (in_cust_1)
+тоесть было
+       LEFT JOIN `order`  USING (order_id)
+стало
+       LEFT JOIN `order` FORCE INDEX (in_cust_1) USING (order_id)
+
+
+
+
+
+
+новый кьюри:
+explain   format=json
+    (
+                SELECT account.subject_id AS client_id
+                FROM account
+                WHERE 1 
+                AND account.type_id = 21
+                AND account.account_id IN (
+                    SELECT DISTINCT `order`.account_id
+                    FROM storage
+                        LEFT JOIN cargo USING (cargo_id)
+                        LEFT JOIN `order` FORCE INDEX (in_cust_1) USING (order_id)
+                    WHERE `order`.account_id IN (SELECT account.account_id
+            FROM client
+            LEFT JOIN account ON (account.subject_id = client.client_id)
+            LEFT JOIN employee curator ON (curator.user_id = client.user_id)
+                LEFT JOIN contact curator_office ON (curator_office.contact_id = curator.office_contact_id) 
+            WHERE 1
+                AND client.is_collecting = 0
+                    AND account.type_id = 21
+                 AND curator_office.geo_id = 35)
+                        AND !`order`.no_invoice
+                        AND `order`.status = 'closed'
+                        AND GREATEST(
+                        CAST(`storage`.amount_start_total AS SIGNED),
+                        (
+                            CAST(`storage`.amount_start_total AS SIGNED)
+                            + CAST(`storage`.amount_in AS SIGNED)
+                            - CAST(`storage`.amount_out AS SIGNED)
+                        )
+                        ) > CAST(`storage`.amount_draw AS SIGNED)
+                )
+            )
+            UNION DISTINCT
+            (
+                SELECT account.subject_id AS client_id
+                FROM account
+                WHERE 1 
+                AND account.type_id = 21
+                AND account.account_id IN (
+                    SELECT DISTINCT `order`.account_id
+                    FROM storage_service
+                        LEFT JOIN waybill USING (waybill_id)
+                        LEFT JOIN `order` USING (order_id)
+                    WHERE `order`.account_id IN (SELECT account.account_id
+            FROM client
+            LEFT JOIN account ON (account.subject_id = client.client_id)
+            LEFT JOIN employee curator ON (curator.user_id = client.user_id)
+                LEFT JOIN contact curator_office ON (curator_office.contact_id = curator.office_contact_id) 
+            WHERE 1
+                AND client.is_collecting = 0
+                    AND account.type_id = 21
+                 AND curator_office.geo_id = 35)
+                        AND !`order`.no_invoice
+                    GROUP BY IFNULL(waybill.parent_waybill_id, waybill.waybill_id)
+                    HAVING SUM(storage_service.amount) > 0
+                )
+            )
+
+
+
+до изменений кусок из плана выглядел так
+
+"table": {
+                "table_name": "order",
+                "access_type": "ref",
+                "possible_keys": [
+                  "PRIMARY",
+                  "fk_order_account_id_idx",
+                  "orders_to_draw_idx",
+                  "inactive_clients_idx",
+                  "status_service_fin_result_date_idx"
+                ],
+                "key": "fk_order_account_id_idx",
+                "key_length": "4",
+                "used_key_parts": ["account_id"],
+                "ref": ["newlove.account.account_id"],
+                "r_loops": 28784,
+                "rows": 20,
+                "r_rows": 97.487,
+                "r_total_time_ms": 32421,
+                "filtered": 100,
+                "r_filtered": 43.445,
+                "attached_condition": "((`order`.no_invoice = 0) and (`order`.`status` = 'closed'))"
+              },
+
+
+после измеений кусок из плана выглядел уже вот  так
+
+
+
+       "table": {
+                "table_name": "order",
+                "access_type": "eq_ref",
+                "possible_keys": ["in_cust_1"],
+                "key": "in_cust_1",
+                "key_length": "6",
+                "used_key_parts": ["no_invoice", "status", "order_id"],
+                "ref": ["const", "const", "newlove.cargo.order_id"],
+                "r_loops": 281415,
+                "rows": 1,
+                "r_rows": 0.978,
+                "r_total_time_ms": 1724.6,
+                "filtered": 100,
+                "r_filtered": 100,
+                "index_condition": "(`order`.`status` = 'closed')"
+              },
+
+
+
+
+полный новый план:
+
+| {
+  "query_block": {
+    "union_result": {
+      "table_name": "<union1,4>",
+      "access_type": "ALL",
+      "r_loops": 1,
+      "r_rows": 22,
+      "query_specifications": [
+        {
+          "query_block": {
+            "select_id": 1,
+            "r_loops": 1,
+            "r_total_time_ms": 4983.8,
+            "duplicates_removal": {
+              "table": {
+                "table_name": "storage",
+                "access_type": "ALL",
+                "possible_keys": ["fk_storage_cargo_id_idx"],
+                "r_loops": 1,
+                "rows": 622397,
+                "r_rows": 617977,
+                "r_total_time_ms": 1611,
+                "filtered": 100,
+                "r_filtered": 45.538,
+                "attached_condition": "(greatest(cast(`storage`.amount_start_total as signed),((cast(`storage`.amount_start_total as signed) + cast(`storage`.amount_in as signed)) - cast(`storage`.amount_out as signed))) > cast(`storage`.amount_draw as signed))"
+              },
+              "table": {
+                "table_name": "cargo",
+                "access_type": "eq_ref",
+                "possible_keys": ["PRIMARY", "fk_cargo_order_id_idx"],
+                "key": "PRIMARY",
+                "key_length": "4",
+                "used_key_parts": ["cargo_id"],
+                "ref": ["newlove.storage.cargo_id"],
+                "r_loops": 281415,
+                "rows": 1,
+                "r_rows": 1,
+                "r_total_time_ms": 953.13,
+                "filtered": 100,
+                "r_filtered": 100
+              },
+              "table": {
+                "table_name": "order",
+                "access_type": "eq_ref",
+                "possible_keys": ["in_cust_1"],
+                "key": "in_cust_1",
+                "key_length": "6",
+                "used_key_parts": ["no_invoice", "status", "order_id"],
+                "ref": ["const", "const", "newlove.cargo.order_id"],
+                "r_loops": 281415,
+                "rows": 1,
+                "r_rows": 0.978,
+                "r_total_time_ms": 1724.6,
+                "filtered": 100,
+                "r_filtered": 100,
+                "index_condition": "(`order`.`status` = 'closed')"
+              },
+              "table": {
+                "table_name": "account",
+                "access_type": "eq_ref",
+                "possible_keys": [
+                  "PRIMARY",
+                  "account_type_subject_idx",
+                  "type_id_balance_idx"
+                ],
+                "key": "PRIMARY",
+                "key_length": "4",
+                "used_key_parts": ["account_id"],
+                "ref": ["newlove.order.account_id"],
+                "r_loops": 275212,
+                "rows": 1,
+                "r_rows": 1,
+                "r_total_time_ms": 94.005,
+                "filtered": 100,
+                "r_filtered": 100,
+                "attached_condition": "(account.type_id = 21)"
+              },
+              "table": {
+                "table_name": "account",
+                "access_type": "eq_ref",
+                "possible_keys": [
+                  "PRIMARY",
+                  "account_type_subject_idx",
+                  "type_id_balance_idx",
+                  "i_subj"
+                ],
+                "key": "PRIMARY",
+                "key_length": "4",
+                "used_key_parts": ["account_id"],
+                "ref": ["newlove.order.account_id"],
+                "r_loops": 275212,
+                "rows": 1,
+                "r_rows": 1,
+                "r_total_time_ms": 13.448,
+                "filtered": 100,
+                "r_filtered": 100,
+                "attached_condition": "(account.type_id = 21)"
+              },
+              "table": {
+                "table_name": "client",
+                "access_type": "eq_ref",
+                "possible_keys": ["PRIMARY", "fk_client_user_id_idx", "i_10"],
+                "key": "PRIMARY",
+                "key_length": "4",
+                "used_key_parts": ["client_id"],
+                "ref": ["newlove.account.subject_id"],
+                "r_loops": 275212,
+                "rows": 1,
+                "r_rows": 1,
+                "r_total_time_ms": 97.014,
+                "filtered": 100,
+                "r_filtered": 23.427,
+                "attached_condition": "((`client`.is_collecting = 0) and (`client`.user_id is not null))"
+              },
+              "table": {
+                "table_name": "curator",
+                "access_type": "ref",
+                "possible_keys": [
+                  "fk_employee_user_id_idx",
+                  "fk_employee_office_contact_id_idx"
+                ],
+                "key": "fk_employee_user_id_idx",
+                "key_length": "5",
+                "used_key_parts": ["user_id"],
+                "ref": ["newlove.client.user_id"],
+                "r_loops": 64475,
+                "rows": 1,
+                "r_rows": 1,
+                "r_total_time_ms": 121.87,
+                "filtered": 100,
+                "r_filtered": 100,
+                "attached_condition": "(curator.office_contact_id is not null)"
+              },
+              "table": {
+                "table_name": "curator_office",
+                "access_type": "eq_ref",
+                "possible_keys": ["PRIMARY", "fk_contact_geo_id_idx"],
+                "key": "PRIMARY",
+                "key_length": "4",
+                "used_key_parts": ["contact_id"],
+                "ref": ["newlove.curator.office_contact_id"],
+                "r_loops": 64475,
+                "rows": 1,
+                "r_rows": 1,
+                "r_total_time_ms": 20.694,
+                "filtered": 100,
+                "r_filtered": 5.8674,
+                "attached_condition": "(curator_office.geo_id = 35)"
+              }
+            }
+          }
+        },
+        {
+          "query_block": {
+            "select_id": 4,
+            "r_loops": 1,
+            "r_total_time_ms": 15916,
+            "table": {
+              "table_name": "<subquery5>",
+              "access_type": "ALL",
+              "possible_keys": ["distinct_key"],
+              "r_loops": 1,
+              "rows": 32312,
+              "r_rows": 21,
+              "r_total_time_ms": 0.1039,
+              "filtered": 100,
+              "r_filtered": 100,
+              "materialized": {
+                "unique": 1,
+                "query_block": {
+                  "select_id": 5,
+                  "r_loops": 1,
+                  "r_total_time_ms": 15913,
+                  "having_condition": "(tmp_field > 0)",
+                  "temporary_table": {
+                    "table": {
+                      "table_name": "storage_service",
+                      "access_type": "ALL",
+                      "possible_keys": [
+                        "waybill_id_cargo_id_draw_waybill_id",
+                        "fk_storage_service_waybill_id_idx"
+                      ],
+                      "r_loops": 1,
+                      "rows": 32312,
+                      "r_rows": 33254,
+                      "r_total_time_ms": 70.621,
+                      "filtered": 100,
+                      "r_filtered": 100
+                    },
+                    "table": {
+                      "table_name": "waybill",
+                      "access_type": "eq_ref",
+                      "possible_keys": [
+                        "PRIMARY",
+                        "fk_waybill_order_id_idx",
+                        "order_service_idx"
+                      ],
+                      "key": "PRIMARY",
+                      "key_length": "4",
+                      "used_key_parts": ["waybill_id"],
+                      "ref": ["newlove.storage_service.waybill_id"],
+                      "r_loops": 33254,
+                      "rows": 1,
+                      "r_rows": 1,
+                      "r_total_time_ms": 9108.3,
+                      "filtered": 100,
+                      "r_filtered": 100
+                    },
+                    "table": {
+                      "table_name": "order",
+                      "access_type": "eq_ref",
+                      "possible_keys": [
+                        "PRIMARY",
+                        "fk_order_account_id_idx",
+                        "orders_to_draw_idx",
+                        "in_cust_1"
+                      ],
+                      "key": "PRIMARY",
+                      "key_length": "4",
+                      "used_key_parts": ["order_id"],
+                      "ref": ["newlove.waybill.order_id"],
+                      "r_loops": 33254,
+                      "rows": 1,
+                      "r_rows": 1,
+                      "r_total_time_ms": 6272,
+                      "filtered": 100,
+                      "r_filtered": 99.594,
+                      "attached_condition": "(`order`.no_invoice = 0)"
+                    },
+                    "duplicates_removal": {
+                      "table": {
+                        "table_name": "account",
+                        "access_type": "eq_ref",
+                        "possible_keys": [
+                          "PRIMARY",
+                          "account_type_subject_idx",
+                          "type_id_balance_idx",
+                          "i_subj"
+                        ],
+                        "key": "PRIMARY",
+                        "key_length": "4",
+                        "used_key_parts": ["account_id"],
+                        "ref": ["newlove.order.account_id"],
+                        "r_loops": 33119,
+                        "rows": 1,
+                        "r_rows": 1,
+                        "r_total_time_ms": 205.7,
+                        "filtered": 100,
+                        "r_filtered": 100,
+                        "attached_condition": "(account.type_id = 21)"
+                      },
+                      "table": {
+                        "table_name": "client",
+                        "access_type": "eq_ref",
+                        "possible_keys": [
+                          "PRIMARY",
+                          "fk_client_user_id_idx",
+                          "i_10"
+                        ],
+                        "key": "PRIMARY",
+                        "key_length": "4",
+                        "used_key_parts": ["client_id"],
+                        "ref": ["newlove.account.subject_id"],
+                        "r_loops": 33119,
+                        "rows": 1,
+                        "r_rows": 1,
+                        "r_total_time_ms": 119.99,
+                        "filtered": 100,
+                        "r_filtered": 74.667,
+                        "attached_condition": "((`client`.is_collecting = 0) and (`client`.user_id is not null))"
+                      },
+                      "table": {
+                        "table_name": "curator",
+                        "access_type": "ref",
+                        "possible_keys": [
+                          "fk_employee_user_id_idx",
+                          "fk_employee_office_contact_id_idx"
+                        ],
+                        "key": "fk_employee_user_id_idx",
+                        "key_length": "5",
+                        "used_key_parts": ["user_id"],
+                        "ref": ["newlove.client.user_id"],
+                        "r_loops": 24729,
+                        "rows": 1,
+                        "r_rows": 1,
+                        "r_total_time_ms": 69.156,
+                        "filtered": 100,
+                        "r_filtered": 100,
+                        "attached_condition": "(curator.office_contact_id is not null)"
+                      },
+                      "table": {
+                        "table_name": "curator_office",
+                        "access_type": "eq_ref",
+                        "possible_keys": ["PRIMARY", "fk_contact_geo_id_idx"],
+                        "key": "PRIMARY",
+                        "key_length": "4",
+                        "used_key_parts": ["contact_id"],
+                        "ref": ["newlove.curator.office_contact_id"],
+                        "r_loops": 24729,
+                        "rows": 1,
+                        "r_rows": 1,
+                        "r_total_time_ms": 15.421,
+                        "filtered": 100,
+                        "r_filtered": 36.94,
+                        "attached_condition": "(curator_office.geo_id = 35)"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "table": {
+              "table_name": "account",
+              "access_type": "eq_ref",
+              "possible_keys": [
+                "PRIMARY",
+                "account_type_subject_idx",
+                "type_id_balance_idx"
+              ],
+              "key": "PRIMARY",
+              "key_length": "4",
+              "used_key_parts": ["account_id"],
+              "ref": ["<subquery5>.account_id"],
+              "r_loops": 21,
+              "rows": 1,
+              "r_rows": 1,
+              "r_total_time_ms": 3.5975,
+              "filtered": 100,
+              "r_filtered": 100,
+              "attached_condition": "(account.type_id = 21)"
+            }
+          }
+        }
+      ]
+    }
+  }
+} |
+
+
+после я еще изменил,
+
+я заметил кусок
+
+  "table": {
+                      "table_name": "order",
+                      "access_type": "eq_ref",
+                      "possible_keys": [
+                        "PRIMARY",
+                        "fk_order_account_id_idx",
+                        "orders_to_draw_idx",
+                        "in_cust_1"
+                      ],
+                      "key": "PRIMARY",
+                      "key_length": "4",
+                      "used_key_parts": ["order_id"],
+                      "ref": ["newlove.waybill.order_id"],
+                      "r_loops": 33254,
+                      "rows": 1,
+                      "r_rows": 1,
+                      "r_total_time_ms": 6272,
+                      "filtered": 100,
+                      "r_filtered": 99.594,
+                      "attached_condition": "(`order`.no_invoice = 0)"
+                    },
+
+
+и создал +1 индекс
+> create index in_cust_2 on `order` (order_id,no_invoice);
+
+и заменил строку
+   LEFT JOIN `order` USING (order_id)
+на
+   LEFT JOIN `order` FORCE INDEX (in_cust_1) USING (order_id)
+
+секция в плане превратилась в 
+
+"table": {
+                      "table_name": "order",
+                      "access_type": "ref",
+                      "possible_keys": ["in_cust_2"],
+                      "key": "in_cust_2",
+                      "key_length": "5",
+                      "used_key_parts": ["order_id", "no_invoice"],
+                      "ref": ["newlove.waybill.order_id", "const"],
+                      "r_loops": 33254,
+                      "rows": 1,
+                      "r_rows": 0.9959,
+                      "r_total_time_ms": 1844.6,
+                      "filtered": 100,
+                      "r_filtered": 100
+                    },
+
+
+и запрос стал выполнться за 10с 
+
+видно что в этом куске используется оба столбика из нового индекса  "used_key_parts": ["order_id", "no_invoice"],
+единстенное что почемкто в плане ненаписано что "used index"
+
+
+
+ обновленный план:
+
+| {
+  "query_block": {
+    "union_result": {
+      "table_name": "<union1,4>",
+      "access_type": "ALL",
+      "r_loops": 1,
+      "r_rows": 22,
+      "query_specifications": [
+        {
+          "query_block": {
+            "select_id": 1,
+            "r_loops": 1,
+            "r_total_time_ms": 3233.1,
+            "duplicates_removal": {
+              "table": {
+                "table_name": "storage",
+                "access_type": "ALL",
+                "possible_keys": ["fk_storage_cargo_id_idx"],
+                "r_loops": 1,
+                "rows": 622397,
+                "r_rows": 617977,
+                "r_total_time_ms": 1255.9,
+                "filtered": 100,
+                "r_filtered": 45.538,
+                "attached_condition": "(greatest(cast(`storage`.amount_start_total as signed),((cast(`storage`.amount_start_total as signed) + cast(`storage`.amount_in as signed)) - cast(`storage`.amount_out as signed))) > cast(`storage`.amount_draw as signed))"
+              },
+              "table": {
+                "table_name": "cargo",
+                "access_type": "eq_ref",
+                "possible_keys": ["PRIMARY", "fk_cargo_order_id_idx"],
+                "key": "PRIMARY",
+                "key_length": "4",
+                "used_key_parts": ["cargo_id"],
+                "ref": ["newlove.storage.cargo_id"],
+                "r_loops": 281415,
+                "rows": 1,
+                "r_rows": 1,
+                "r_total_time_ms": 561.64,
+                "filtered": 100,
+                "r_filtered": 100
+              },
+              "table": {
+                "table_name": "order",
+                "access_type": "eq_ref",
+                "possible_keys": ["in_cust_1"],
+                "key": "in_cust_1",
+                "key_length": "6",
+                "used_key_parts": ["no_invoice", "status", "order_id"],
+                "ref": ["const", "const", "newlove.cargo.order_id"],
+                "r_loops": 281415,
+                "rows": 1,
+                "r_rows": 0.978,
+                "r_total_time_ms": 877.9,
+                "filtered": 100,
+                "r_filtered": 100,
+                "index_condition": "(`order`.`status` = 'closed')"
+              },
+              "table": {
+                "table_name": "account",
+                "access_type": "eq_ref",
+                "possible_keys": [
+                  "PRIMARY",
+                  "account_type_subject_idx",
+                  "type_id_balance_idx"
+                ],
+                "key": "PRIMARY",
+                "key_length": "4",
+                "used_key_parts": ["account_id"],
+                "ref": ["newlove.order.account_id"],
+                "r_loops": 275212,
+                "rows": 1,
+                "r_rows": 1,
+                "r_total_time_ms": 25.927,
+                "filtered": 100,
+                "r_filtered": 100,
+                "attached_condition": "(account.type_id = 21)"
+              },
+              "table": {
+                "table_name": "account",
+                "access_type": "eq_ref",
+                "possible_keys": [
+                  "PRIMARY",
+                  "account_type_subject_idx",
+                  "type_id_balance_idx",
+                  "i_subj"
+                ],
+                "key": "PRIMARY",
+                "key_length": "4",
+                "used_key_parts": ["account_id"],
+                "ref": ["newlove.order.account_id"],
+                "r_loops": 275212,
+                "rows": 1,
+                "r_rows": 1,
+                "r_total_time_ms": 12.25,
+                "filtered": 100,
+                "r_filtered": 100,
+                "attached_condition": "(account.type_id = 21)"
+              },
+              "table": {
+                "table_name": "client",
+                "access_type": "eq_ref",
+                "possible_keys": ["PRIMARY", "fk_client_user_id_idx", "i_10"],
+                "key": "PRIMARY",
+                "key_length": "4",
+                "used_key_parts": ["client_id"],
+                "ref": ["newlove.account.subject_id"],
+                "r_loops": 275212,
+                "rows": 1,
+                "r_rows": 1,
+                "r_total_time_ms": 43.413,
+                "filtered": 100,
+                "r_filtered": 23.427,
+                "attached_condition": "((`client`.is_collecting = 0) and (`client`.user_id is not null))"
+              },
+              "table": {
+                "table_name": "curator",
+                "access_type": "ref",
+                "possible_keys": [
+                  "fk_employee_user_id_idx",
+                  "fk_employee_office_contact_id_idx"
+                ],
+                "key": "fk_employee_user_id_idx",
+                "key_length": "5",
+                "used_key_parts": ["user_id"],
+                "ref": ["newlove.client.user_id"],
+                "r_loops": 64475,
+                "rows": 1,
+                "r_rows": 1,
+                "r_total_time_ms": 99.217,
+                "filtered": 100,
+                "r_filtered": 100,
+                "attached_condition": "(curator.office_contact_id is not null)"
+              },
+              "table": {
+                "table_name": "curator_office",
+                "access_type": "eq_ref",
+                "possible_keys": ["PRIMARY", "fk_contact_geo_id_idx"],
+                "key": "PRIMARY",
+                "key_length": "4",
+                "used_key_parts": ["contact_id"],
+                "ref": ["newlove.curator.office_contact_id"],
+                "r_loops": 64475,
+                "rows": 1,
+                "r_rows": 1,
+                "r_total_time_ms": 15.514,
+                "filtered": 100,
+                "r_filtered": 5.8674,
+                "attached_condition": "(curator_office.geo_id = 35)"
+              }
+            }
+          }
+        },
+        {
+          "query_block": {
+            "select_id": 4,
+            "r_loops": 1,
+            "r_total_time_ms": 6589.5,
+            "table": {
+              "table_name": "<subquery5>",
+              "access_type": "ALL",
+              "possible_keys": ["distinct_key"],
+              "r_loops": 1,
+              "rows": 32312,
+              "r_rows": 21,
+              "r_total_time_ms": 0.101,
+              "filtered": 100,
+              "r_filtered": 100,
+              "materialized": {
+                "unique": 1,
+                "query_block": {
+                  "select_id": 5,
+                  "r_loops": 1,
+                  "r_total_time_ms": 6589.3,
+                  "having_condition": "(tmp_field > 0)",
+                  "temporary_table": {
+                    "table": {
+                      "table_name": "storage_service",
+                      "access_type": "ALL",
+                      "possible_keys": [
+                        "waybill_id_cargo_id_draw_waybill_id",
+                        "fk_storage_service_waybill_id_idx"
+                      ],
+                      "r_loops": 1,
+                      "rows": 32312,
+                      "r_rows": 33254,
+                      "r_total_time_ms": 38.49,
+                      "filtered": 100,
+                      "r_filtered": 100
+                    },
+                    "table": {
+                      "table_name": "waybill",
+                      "access_type": "eq_ref",
+                      "possible_keys": [
+                        "PRIMARY",
+                        "fk_waybill_order_id_idx",
+                        "order_service_idx"
+                      ],
+                      "key": "PRIMARY",
+                      "key_length": "4",
+                      "used_key_parts": ["waybill_id"],
+                      "ref": ["newlove.storage_service.waybill_id"],
+                      "r_loops": 33254,
+                      "rows": 1,
+                      "r_rows": 1,
+                      "r_total_time_ms": 4493.9,
+                      "filtered": 100,
+                      "r_filtered": 100
+                    },
+                    "table": {
+                      "table_name": "order",
+                      "access_type": "ref",
+                      "possible_keys": ["in_cust_2"],
+                      "key": "in_cust_2",
+                      "key_length": "5",
+                      "used_key_parts": ["order_id", "no_invoice"],
+                      "ref": ["newlove.waybill.order_id", "const"],
+                      "r_loops": 33254,
+                      "rows": 1,
+                      "r_rows": 0.9959,
+                      "r_total_time_ms": 1844.6,
+                      "filtered": 100,
+                      "r_filtered": 100
+                    },
+                    "duplicates_removal": {
+                      "table": {
+                        "table_name": "account",
+                        "access_type": "eq_ref",
+                        "possible_keys": [
+                          "PRIMARY",
+                          "account_type_subject_idx",
+                          "type_id_balance_idx",
+                          "i_subj"
+                        ],
+                        "key": "PRIMARY",
+                        "key_length": "4",
+                        "used_key_parts": ["account_id"],
+                        "ref": ["newlove.order.account_id"],
+                        "r_loops": 33119,
+                        "rows": 1,
+                        "r_rows": 1,
+                        "r_total_time_ms": 52.567,
+                        "filtered": 100,
+                        "r_filtered": 100,
+                        "attached_condition": "(account.type_id = 21)"
+                      },
+                      "table": {
+                        "table_name": "client",
+                        "access_type": "eq_ref",
+                        "possible_keys": [
+                          "PRIMARY",
+                          "fk_client_user_id_idx",
+                          "i_10"
+                        ],
+                        "key": "PRIMARY",
+                        "key_length": "4",
+                        "used_key_parts": ["client_id"],
+                        "ref": ["newlove.account.subject_id"],
+                        "r_loops": 33119,
+                        "rows": 1,
+                        "r_rows": 1,
+                        "r_total_time_ms": 53.969,
+                        "filtered": 100,
+                        "r_filtered": 74.667,
+                        "attached_condition": "((`client`.is_collecting = 0) and (`client`.user_id is not null))"
+                      },
+                      "table": {
+                        "table_name": "curator",
+                        "access_type": "ref",
+                        "possible_keys": [
+                          "fk_employee_user_id_idx",
+                          "fk_employee_office_contact_id_idx"
+                        ],
+                        "key": "fk_employee_user_id_idx",
+                        "key_length": "5",
+                        "used_key_parts": ["user_id"],
+                        "ref": ["newlove.client.user_id"],
+                        "r_loops": 24729,
+                        "rows": 1,
+                        "r_rows": 1,
+                        "r_total_time_ms": 49.008,
+                        "filtered": 100,
+                        "r_filtered": 100,
+                        "attached_condition": "(curator.office_contact_id is not null)"
+                      },
+                      "table": {
+                        "table_name": "curator_office",
+                        "access_type": "eq_ref",
+                        "possible_keys": ["PRIMARY", "fk_contact_geo_id_idx"],
+                        "key": "PRIMARY",
+                        "key_length": "4",
+                        "used_key_parts": ["contact_id"],
+                        "ref": ["newlove.curator.office_contact_id"],
+                        "r_loops": 24729,
+                        "rows": 1,
+                        "r_rows": 1,
+                        "r_total_time_ms": 13.359,
+                        "filtered": 100,
+                        "r_filtered": 36.94,
+                        "attached_condition": "(curator_office.geo_id = 35)"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "table": {
+              "table_name": "account",
+              "access_type": "eq_ref",
+              "possible_keys": [
+                "PRIMARY",
+                "account_type_subject_idx",
+                "type_id_balance_idx"
+              ],
+              "key": "PRIMARY",
+              "key_length": "4",
+              "used_key_parts": ["account_id"],
+              "ref": ["<subquery5>.account_id"],
+              "r_loops": 21,
+              "rows": 1,
+              "r_rows": 1,
+              "r_total_time_ms": 0.0718,
+              "filtered": 100,
+              "r_filtered": 100,
+              "attached_condition": "(account.type_id = 21)"
+            }
+          }
+        }
+      ]
+    }
+  }
+} |
+
+
+===
