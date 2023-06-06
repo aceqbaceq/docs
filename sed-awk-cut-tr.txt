@@ -28,3 +28,100 @@ john  Doe
 | как вставть неколько пробелов  в кажой строке
 
 sed -i -e 's/^/     /' <file>
+
+
+
+| curl 
+
+интересный кейс
+
+
+человек на маке делал git clone https://
+и ему писало что мол  сертификат неверный.
+
+что оказалось - что у человека на ноутбуке в файле который хранит сертификаты от 
+корневых центров сертфиикации хуеввый. его заменили и все заколосилось.
+
+как это можно проверить
+
+
+набираем curl
+
+$ curl -I -v https://ya.ru
+* Rebuilt URL to: https://ya.ru/
+*   Trying 5.255.255.242...
+* TCP_NODELAY set
+* Connected to ya.ru (5.255.255.242) port 443 (#0)
+* ALPN, offering h2
+* ALPN, offering http/1.1
+* successfully set certificate verify locations:
+*   CAfile: /etc/ssl/certs/ca-certificates.crt
+  CApath: /etc/ssl/certs
+* TLSv1.3 (OUT), TLS handshake, Client hello (1):
+* TLSv1.3 (IN), TLS handshake, Server hello (2):
+* TLSv1.3 (IN), TLS Unknown, Certificate Status (22):
+* TLSv1.3 (IN), TLS handshake, Unknown (8):
+* TLSv1.3 (IN), TLS Unknown, Certificate Status (22):
+* TLSv1.3 (IN), TLS handshake, Certificate (11):
+* TLSv1.3 (IN), TLS Unknown, Certificate Status (22):
+* TLSv1.3 (IN), TLS handshake, CERT verify (15):
+* TLSv1.3 (IN), TLS Unknown, Certificate Status (22):
+* TLSv1.3 (IN), TLS handshake, Finished (20):
+* TLSv1.3 (OUT), TLS change cipher, Client hello (1):
+* TLSv1.3 (OUT), TLS Unknown, Certificate Status (22):
+* TLSv1.3 (OUT), TLS handshake, Finished (20):
+* SSL connection using TLSv1.3 / TLS_AES_256_GCM_SHA384
+* ALPN, server accepted to use h2
+* Server certificate:
+*  subject: C=RU; ST=Moscow; L=Moscow; O=Yandex LLC; CN=*.xn--d1acpjx3f.xn--p1ai
+*  start date: Feb  1 12:45:35 2023 GMT
+*  expire date: Aug  1 20:59:59 2023 GMT
+*  subjectAltName: host "ya.ru" matched cert's "ya.ru"
+*  issuer: C=BE; O=GlobalSign nv-sa; CN=GlobalSign ECC OV SSL CA 2018
+*  SSL certificate verify ok.
+
+
+и вот  унего написано какой файл он юзает с корневыми центрами сертификации и какую папку
+
+*   CAfile: /etc/ssl/certs/ca-certificates.crt
+  CApath: /etc/ssl/certs
+
+
+на маке эта строка выглядит даже еще проще
+
+*   CAfile: /etc/ssl/cert.pem
+  CApath: none
+
+
+тоесть мак юзает вообще только один файл.
+
+
+берем curl и прям ему говорим что мол для корневых центров сертификаци юзай такой то файл
+
+
+$ curl -I -v https://ya.ru  --cacert /tmp/23/cert.pem --capath none
+* Rebuilt URL to: https://ya.ru/
+*   Trying 77.88.55.242...
+* TCP_NODELAY set
+* Connected to ya.ru (77.88.55.242) port 443 (#0)
+* ALPN, offering h2
+* ALPN, offering http/1.1
+* successfully set certificate verify locations:
+*   CAfile: /tmp/23/cert.pem
+  CApath: none
+
+
+
+вот ради этих опций козырных
+
+--cacert
+--capath
+
+я  и написал.
+
+тоесть берем с того говнняого компа его файлы и папки подсовываем в наш курл и проверяем
+релально ли там качественные файлы с ертфикиатами коренвых центров или нет.
+
+в мое случае подвердилось что там было гавно
+
+----
