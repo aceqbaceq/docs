@@ -742,3 +742,19 @@ https://www.cyberciti.biz/faq/how-to-movemigrate-lxd-vm-to-another-host-on-linux
 какойто кусок команд про lxd
 конец блока
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+
+| docker
+
+как сделать так чтобы можно было внуиири lxd конетенра запускат докер
+
+скажем есть контйенер openconnect
+
+тогда
+
+
+# lxc config set openconnect  security.nesting=true security.syscalls.intercept.mknod=true  security.syscalls.intercept.setxattr=true
+
+# lxc restart openconnect
+
+===
