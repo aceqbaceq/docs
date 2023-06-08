@@ -243,4 +243,156 @@ Restart=always
 
 
 
+===
+memcache
+memcached
+
+
+как его запустить на компе чтобы было несколько инстансов.
+
+
+останаливаем и дизейблим исходный memcahced
+
+# systemctl disable memcached
+
+создаем новый unit файло для systemd
+
+# cat /etc/systemd/system/memcached@.service
+
+
+[Unit]
+Description=memcached daemon for %i
+After=network.target
+Documentation=man:memcached(1)
+
+[Service]
+ExecStart=/usr/share/memcached/scripts/systemd-memcached-wrapper /etc/memcached_%i.conf
+PrivateTmp=true
+ProtectSystem=full
+NoNewPrivileges=true
+PrivateDevices=true
+CapabilityBoundingSet=CAP_SETGID CAP_SETUID CAP_SYS_RESOURCE
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+MemoryDenyWriteExecute=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictRealtime=true
+RestrictNamespaces=true
+PIDFile=/var/run/memcached/memcached_%i.pid
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+
+
+его собственно можно созать из юнит файла исходного мемкэш.
+главное заменить строки:
+
+Description=memcached daemon for %i
+ExecStart=/usr/share/memcached/scripts/systemd-memcached-wrapper /etc/memcached_%i.conf
+PIDFile=/var/run/memcached/memcached_%i.pid
+
+
+
+
+далее создаем конфиг файлы  для инстаносв мемкэша
+
+
+# cat /etc/memcached_api-test.conf | grep -v '#'
+
+-d
+logfile /var/log/memcached_2.log
+-m 64
+-p 11311
+-u memcache
+-l 127.0.0.1
+-P /var/run/memcached/memcached_api-test.pid
+
+
+
+# cat /etc/memcached_api-prod.conf | grep -v '#'
+
+-d
+logfile /var/log/memcached_1.log
+-m 64
+-p 11211
+-u memcache
+-l 127.0.0.1
+-P /var/run/memcached/memcached_api-prod.pid
+
+
+эти два файоа отличаются только индивдуальным портом 
+-p 11311
+и индивидуальным pid файлом
+-P /var/run/memcached/memcached_api-prod.pid
+
+
+порты понятное дело можно выбиать какие угодно.
+а вот с пид файлами и с именами конфигом мемкеша есть тонкость (memcached_api-test.conf, memcached_api-prod.conf)
+
+
+дело в том что в systemd юните мы указали:
+
+ExecStart=/usr/share/memcached/scripts/systemd-memcached-wrapper /etc/memcached_%i.conf
+PIDFile=/var/run/memcached/memcached_%i.pid
+
+что такое %i ?  это имя инстансов.  щас покажу. кога мы создали юнит файл.
+и создали конфиги под инстансы мемекеша. можно приступать к их запуску
+
+# systemctl daemon-reload
+
+#systemctl  enable  memcached@api-prod
+#systemctl  start  memcached@api-prod
+# systemctl status  memcached@api-prod
+
+
+
+#systemctl  enable  memcached@api-test
+#systemctl  start  memcached@api-test
+# systemctl status  memcached@api-test
+
+так вот api-test и api-prod это имена инстаносов с точки зрения systemd.
+мы их прдидумываем заранее. и в соотвестии с их именами 
+мы и создали 
+memcached_api-test.conf, 
+memcached_api-prod.conf 
+и  также в них указали путь к pid файл как 
+-P /var/run/memcached/memcached_api-prod.pid
+-P /var/run/memcached/memcached_api-test.pid
+
+
+
+таким образом плучим два инстарса. каждый из них слушает свой порт
+
+# systemctl status  memcached@api-prod
+● memcached@api-prod.service - memcached daemon for api-prod
+     Loaded: loaded (/etc/systemd/system/memcached@.service; enabled; vendor preset: enabled)
+     Active: active (running) since Mon 2023-05-29 20:27:40 MSK; 4s ago
+       Docs: man:memcached(1)
+   Main PID: 1749678 (memcached)
+      Tasks: 10 (limit: 19067)
+     Memory: 1.7M
+        CPU: 39ms
+     CGroup: /system.slice/system-memcached.slice/memcached@api-prod.service
+             └─1749678 /usr/bin/memcached -m 64 -p 11211 -u memcache -l 127.0.0.1 -P /var/run/memcached/memcached_api-prod.pid
+
+
+
+# systemctl status  memcached@api-test
+● memcached@api-test.service - memcached daemon for api-test
+     Loaded: loaded (/etc/systemd/system/memcached@.service; enabled; vendor preset: enabled)
+     Active: active (running) since Mon 2023-05-29 20:27:37 MSK; 11s ago
+       Docs: man:memcached(1)
+   Main PID: 1749664 (memcached)
+      Tasks: 10 (limit: 19067)
+     Memory: 1.7M
+        CPU: 39ms
+     CGroup: /system.slice/system-memcached.slice/memcached@api-test.service
+             └─1749664 /usr/bin/memcached -m 64 -p 11311 -u memcache -l 127.0.0.1 -P /var/run/memcached/memcached_api-test.pid
+
+
+
+
+===
 

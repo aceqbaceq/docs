@@ -240,6 +240,136 @@ https://openschoolsolutions.org/how-to-backup-lxd-containers/
 lxd + lvm
 
 https://www.pither.com/simon/blog/2018/09/28/lxd-lvm-thinpool-setup
+
+а от себя добавлю вот что:
+значит инициируем lxd
+
+# lxd init
+
+он  там спрашивает хотим ли мы создаь новый thin pool
+или будем юзать уже созданный.
+
+я значит создал руками thin pool вот так
+тоесть можно создать thin pool 
+уже на сущетвующем vgs надо лищь чтоб было какоето колиество свободных блоков на нем. у меня было.
+итак создал thin pool
+
+# lvcreate -L 10G -T vg-ssd-Heewu1aa/lxd-thinpool
+
+после этого он никак его не мог увидеть
+
+
+# lxd init
+Would you like to use LXD clustering? (yes/no) [default=no]: 
+Do you want to configure a new storage pool? (yes/no) [default=yes]: stor-pool-1
+Invalid input, try again.
+
+Do you want to configure a new storage pool? (yes/no) [default=yes]: yes
+Name of the new storage pool [default=default]: stor-pool-1
+Name of the storage backend to use (btrfs, dir, lvm) [default=btrfs]: lvm
+Create a new LVM pool? (yes/no) [default=yes]: no
+Name of the existing LVM pool or dataset: lxd-thinpool
+
+The LVM thin provisioning tools couldn't be found. LVM can still be used
+without thin provisioning but this will disable over-provisioning,
+increase the space requirements and creation time of images, containers
+and snapshots.
+
+If you wish to use thin provisioning, abort now, install the tools from
+your Linux distribution and run "lxd init" again afterwards.
+
+Do you want to continue without thin provisioning? (yes/no) [default=yes]: ^C
+
+
+
+я проблва указывать имя и как vg-ssd-Heewu1aa/lxd-thinpool
+и как lxd-thinpool
+
+
+выяснилось что надо поставить пакет
+# apt-get -y install thin-provisioning-tools
+
+после этого стадия lxd init  проходит дальше
+
+но все равно в итоге как бы пошел нахуй
+
+# lxd init
+Would you like to use LXD clustering? (yes/no) [default=no]: 
+Do you want to configure a new storage pool? (yes/no) [default=yes]: 
+Name of the new storage pool [default=default]: st-pool-1
+Name of the storage backend to use (btrfs, dir, lvm) [default=btrfs]: lvm
+Create a new LVM pool? (yes/no) [default=yes]: no
+Name of the existing LVM pool or dataset: vg-ssd-Heewu1aa/lxd-thinpool
+Would you like to connect to a MAAS server? (yes/no) [default=no]: no
+Would you like to create a new local network bridge? (yes/no) [default=yes]: yes
+What should the new bridge be called? [default=lxdbr0]: 
+What IPv4 address should be used? (CIDR subnet notation, “auto” or “none”) [default=auto]: auto
+What IPv6 address should be used? (CIDR subnet notation, “auto” or “none”) [default=auto]: none
+Would you like LXD to be available over the network? (yes/no) [default=no]: no
+Would you like stale cached images to be updated automatically? (yes/no) [default=yes] no
+Would you like a YAML "lxd init" preseed to be printed? (yes/no) [default=no]: no
+Error: Failed to create storage pool 'st-pool-1': Failed to run: vgs --noheadings -o lv_count vg-ssd-Heewu1aa/lxd-thinpool: Invalid volume group name vg-ssd-Heewu1aa/lxd-thinpool.
+  Run `vgs --help' for more information.
+
+
+тогда создал предварително руками lxd storage
+# lxc storage create st-pool-1  lvm source=vg-ssd-Heewu1aa lvm.thinpool_name=lxd-thinpool
+Storage pool st-pool-1 created
+
+# lxc storage list
++-----------+-------------+--------+-----------------+---------+
+|   NAME    | DESCRIPTION | DRIVER |     SOURCE      | USED BY |
++-----------+-------------+--------+-----------------+---------+
+| st-pool-1 |             | lvm    | vg-ssd-Heewu1aa | 0       |
++-----------+-------------+--------+-----------------+---------+
+
+
+после этого инициировал lxd
+указав что нехочу создавать сторадж
+
+# lxd init
+Would you like to use LXD clustering? (yes/no) [default=no]: 
+Do you want to configure a new storage pool? (yes/no) [default=yes]: no
+Would you like to connect to a MAAS server? (yes/no) [default=no]: no
+Would you like to create a new local network bridge? (yes/no) [default=yes]: 
+What should the new bridge be called? [default=lxdbr0]: 
+What IPv4 address should be used? (CIDR subnet notation, “auto” or “none”) [default=auto]: 
+What IPv6 address should be used? (CIDR subnet notation, “auto” or “none”) [default=auto]: none
+Would you like LXD to be available over the network? (yes/no) [default=no]: no
+Would you like stale cached images to be updated automatically? (yes/no) [default=yes] no
+Would you like a YAML "lxd init" preseed to be printed? (yes/no) [default=no]: no
+
+
+после этого надо обяснить lxd какой сторадж использовать по умполчанию
+
+# lxc profile device add default root disk path=/ pool=st-pool-1
+где st-pool-1 это то что показыает команда
+
+# lxc storage list
++-----------+-------------+--------+-----------------+---------+
+|   NAME    | DESCRIPTION | DRIVER |     SOURCE      | USED BY |
++-----------+-------------+--------+-----------------+---------+
+| st-pool-1 |             | lvm    | vg-ssd-Heewu1aa | 0       |
++-----------+-------------+--------+-----------------+---------+
+
+
+
+
+после этого успешный запуско контейнера 
+
+# lxc launch ubuntu:18.04 sphinx2 
+
+либо если хочется то имя сторджа можно укзаать всегда руками
+
+
+# lxc launch ubuntu:18.04 sphinx2 -s st-pool-1
+
+
+еще раз ползной окзаалось ссылка 
+- https://askubuntu.com/questions/1222407/setup-lxd-storage-thin-pool-on-an-existing-lvm-volume-group-of-the-host
+
+
+
 ---
 есть эфемерные кнтейнеры которые будут удалены при стопе  автоматом
 ----
