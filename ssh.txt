@@ -1666,3 +1666,38 @@ ssh-keygen -fl /etc/ssh/key.pub
 кстати сразу видно какой приватный ключ используется === -i /home/vasya/.vagrant.d/insecure_private_key
 
 
+
+
+----------
+ssh
+windows
+proxy
+putty
+plink
+
+как в виновсе войти по ssh через прокси хост
+
+=> putty.exe -proxycmd "plink.exe vasya@81.163.39.39 -P 22 -nc 10.10.10.10:22 -i c:\Users\vasya\.ssh\fire.ppk " vasya@10.10.10.10  -i c:\Users\vasya\.ssh\fire.ppk
+
+----------
+ssh
+tunnel
+windows
+putty
+proxy
+plink
+
+
+как пробросить порт через ssh+proxy например к мускулу
+в командной строке :
+
+putty.exe -ssh -proxycmd "plink.exe vasya@81.163.39.93 -P 22 -nc 10.10.10.10:22 -i c:\Users\vasya\.ssh\fire.ppk "  vasya@10.10.10.10  -i c:\Users\vasya\.ssh\fire.ppk   -L  127.0.0.1:3307:10.10.10.10:3306
+
+пробросится порт на локальный 3307
+
+
+там правда еще на экране терминал ssh открывается. которой по идее ненужен. чтобы экран с shell  не пявлялся надо 
+добавить ключ -N
+
+
+-----------

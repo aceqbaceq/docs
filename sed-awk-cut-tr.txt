@@ -125,3 +125,16 @@ $ curl -I -v https://ya.ru  --cacert /tmp/23/cert.pem --capath none
 в мое случае подвердилось что там было гавно
 
 ----
+| sed
+
+как заменить в папке во всех *.py файлах SELECT на SELECT SQL_NO_CACHE
+причем неважно каким буквами написано слово select маленькими или большими
+
+вот команда для замены в одном файле
+# sed -i 's/[s,S][e,E][l,L][e,E][c,C][t,T] /SELECT SQL_NO_CACHE /g' ./module_cargo.py
+
+а вот как поменять в целой папке
+# find /folder  -type f  -name "*.py" -exec    sed -i 's/[s,S][e,E][l,L][e,E][c,C][t,T] /SELECT SQL_NO_CACHE /g'  {} \;
+
+---
+

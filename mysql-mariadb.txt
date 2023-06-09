@@ -1837,6 +1837,14 @@ size table
            WHERE table_schema="имя_базы"       
            ORDER BY table_name
 
+==========================================
+| size 
+| rows
+
+посмотреть сколько строк в каждой таблице в базе. очень удобно
+
+> SELECT table_name,TABLE_ROWS   FROM INFORMATION_SCHEMA.TABLES    WHERE TABLE_SCHEMA = 'db2' order by table_rows desc;
+
 
 =====================================================
 
