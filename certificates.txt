@@ -1,0 +1,16 @@
+certificates
+
+| 
+
+проблема:
+$ git clone https://git.fo.net/vl/site.git
+Cloning into 'site'...
+fatal: unable to access 'https://git.fo.net/vl/site.git/': server certificate verification failed. CAfile: /etc/ssl/certs/ca-certificates.crt CRLfile: none
+
+
+решение:
+sudo apt-get update
+sudo apt-get install apt-transport-https ca-certificates -y 
+sudo update-ca-certificates
+
+===

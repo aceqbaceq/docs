@@ -74,7 +74,7 @@ $ sudo mkfs.ext4 /dev/mapper/vg02-lvol0
 
 # vgdisplay
 
-#vgextend vg01 /dev/sde1
+# vgextend vg01 /dev/sde1
   Volume group "vg01" successfully extended
 
 # lvextend vg01/lvol0 -L 98G
@@ -151,3 +151,116 @@ mythinpool = название создаваемого пула
 но для lxd это ненадо. он сам будет их создавать.
 
 ===
+| ubuntu failed to connect to lvmetad
+| failure
+
+после перезагрузки линукс послал нахуй со словами
+
+ubuntu failed to connect to lvmetad
+
+как это лечить. идем в /etc/lvm/lvm.conf
+находим там секцию general и вставляем туда волшебную фразу 
+
+  use_lvmetad = 0
+
+
+
+# cat /etc/lvm/lvm.conf | grep "global {" -A 10 
+global {
+
+  use_lvmetad = 0
+
+
+после этого надо примонтировать эти диски на какойто live cd и пересоздать initrd
+и тогда шарманка обратно заведется
+
+==
+|snapshot
+
+создать снэпшот
+
+# sudo lvcreate -s -n snap-erp-demo-2022-11-29 -L 49G ubuntu-vg/ubuntu-lv
+
+на снэпшоте  будут лежать блоки оригиналььные с нашего массива. поэтому  при создании снэпшота ненужно 
+отмонтировать точку монтровагия. ибо на нашем оригинальном диске будут лежть всегда самые последние актульные данные.
+
+каждый раз когда мы хотим пистаь на наш оригиналный диск то lvm берет оригинальый блок и сует его на снэпшот раздел.
+а на наш оригналрный диск сует новый блок. поэтому снэпшот удаляется мгновенно. при этом мы на оригинальном диске
+имеет наши последние данные. а вот восстанввится до оригинала это уже процесс.  lvm надо брать блоки с снэпшот раздела
+и обратно записывать на наш оригиналный диск. 
+
+для этого надо отмонтроваться. 
+и запустиь кманаду
+
+# lvconvert --merge vg00/lvol1_snap
+
+если у нас наш lv не отмонтрорван то линукс пощлеь нас нахуй фразой
+
+lvcenvert Can't merge until origin volume is closed
+
+проверяем отмонтрован ли у нас раздел через 
+
+# df -h
+# mount
+
+у меня все было отмонтровано однако эта сука продолжала так писать.
+
+пришлось преерегрузитться. далее вот что.  если у нас монтроуется наш раздел то он уже будет выглядеть как 
+исходный (original) и в бекграунд режиме будет идти прозрачное сливание.
+как определить что слитвание закончено.
+
+# lvs vg-ssd-Heewu1aa/xfs-mysql-2
+  LV          VG              Attr       LSize   Pool Origin Data%  Meta%  Move Log Cpy%Sync Convert
+  xfs-mysql-2 vg-ssd-Heewu1aa Owi-aos--- 230,00g             5,31   
+
+
+  вот эта цифра 5,31 она будет уменьшаьбся
+  пока не исчезнет это значит что снэпшот слит. 
+
+  только после этого можно создавать новый снэпшот. а если попровбат создать +1 снэпшот
+  во время того как он сливается то получим нахуй
+
+  Snapshots of an origin that has a merging snapshot are not supported.
+
+  а вот хорошая стьатья про эту ебалу с merge для lvm
+
+  https://www.claudiokuenzler.com/blog/1070/lvm-restore-logical-volume-merging-snapshot-will-occur-on-next-activation
+  ===
+  | snapshot 
+
+  еще раз как его сздать
+
+  # lvcreate -s -n snap-mysql11-2023-08-14  -L 20G vg-ssd-Heewu1aa/xfs-mysql-2
+
+  ==
+  | lvm
+  | snapshot
+  | xfs
+
+  снял снэпшот. и нихуя не могу его примонтровать
+
+  # mount -t xfs -o ro /dev/vg01-hdd-Afgt56/snap-root2  /root/snapshot_mounted/
+mount: /root/snapshot_mounted: wrong fs type, bad option, bad superblock on /dev/mapper/vg01--hdd--Afgt56-snap--root2, missing codepage or helper program, or other error.
+
+
+окзывается
+https://learn.redhat.com/t5/Platform-Linux/How-to-Mounting-an-XFS-LVM-snapshot/td-p/287
+
+
+ dmesg command and you notice the following:
+[86803.183360] XFS (dm-1): Filesystem has duplicate UUID 9e92f93c-1b03-4383-b753-ae4b449b6864 - can't mount
+If you didn’t notice that, and checked /var/log/messages you would see something similar:
+Feb 25 11:05:14 localhost kernel: XFS (dm-1): Filesystem has duplicate UUID 9e92f93c-1b03-4383-b753-ae4b449b6864 - can't mount
+
+There are 2 things that you can do:
+[1] Mount the filesystem without using its UUID
+mount -o nouuid mount /dev/mapper/VG_DB-SNAP_MARIA /backups/maria/
+or:
+[2] Change the UUID of the snapshot LVM
+xfs_repair -L /dev/mapper/VG_DB-SNAP_MARIA
+xfs_admin -U $(uuidgen) /dev/mapper/VG_DB-SNAP_MARIA
+mount /dev/mapper/VG_DB-SNAP_MARIA /backups/maria/
+
+охуеть
+
+=======

@@ -632,3 +632,44 @@ flush rules delete
 # iptable -X -t filter
 # iptables -X -t nat
 ----
+| save
+| сохранить правила при перезагрузке
+
+ubuntu 
+
+ставим пакет 
+
+$ sudo apt-get install iptables-persistent
+
+он спросит при устанвоке куда надо сохранить текущие правила
+и ооткуда потом их читать при загрузке
+по дефолту  это 
+
+# ls -1 /etc/iptables/rules.v4 
+/etc/iptables/rules.v4
+
+
+проверяем что служба стоит в автозагрузке
+
+# systemctl is-enabled netfilter-persistent.service
+enabled
+
+
+насколько я понял эта служба толкьо читает правила из файла при загрузке.
+но чего она неделает она не сохраняет автоматом правила при ребуте. а жаль
+
+====
+
+| NAT
+
+*filter
+# LXD
+-A FORWARD -o lxdbr0 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+-A FORWARD -i lxdbr0  -j ACCEPT
+COMMIT
+
+*nat
+-A POSTROUTING -s 10.199.160.0/24 ! -o  lxdbr0 -j MASQUERADE
+COMMIT
+
+===

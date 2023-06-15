@@ -1613,12 +1613,154 @@ pip 20.3.4 from /home/vasya/.local/lib/python2.7/site-packages/pip (python 2.7)
 потому что ыает что pip покзывает что он для python-3
 
 ----
+| list
+| intersect
+
+задача есть list и надо найти есть ли пересечения со списком
+
+!/usr/bin/python
+
+import sys
+import collections
+
+
+i_min=50000          
+bad_account_id=[
+4005556,
+4005550,
+4005544,
+4005538,
+4005533,
+3992314,
+3992313,
+3990514,
+3990507,
+3990501,
+3990494,
+3990489,
+3990482,
+3990472,
+3989891,
+3989890,
+3989883,
+3896752,
+3896751,
+3072203,
+3026365,
+2719223,
+2682160,
+2678435,
+2661899,
+2661588,
+2640027,
+2630711,
+2630525,
+2630359,
+2630345,
+2630222,
+2630208,
+2630145,
+2630132,
+2629869,
+2291738,
+2255326,
+2255212,
+2255165,
+2061990,
+1955250,
+1955249,
+1946305,
+1938712,
+1928827,
+1651887,
+1651886,
+1646097,
+1646096
+]  # bad_account_id == accounts that intersect payment_gateway table
+
+
+
+
+  result = collections.Counter([i]) & collections.Counter(bad_account_id)
+  if len(result) != 0:
+     print "intersection exists"
+
+
+
+тут полезно заметиь как обьявить большой спмсок в виде столбика
+также полезно то что когда мы ссмотрим пересечение переменной i и списка 
+то пременную надо тоже превратить в список через [i]
+
+===
+
+| запись в файл
+
+$ cat 1.py 
+
+#!/usr/bin/python
+import sys
+import os.path
 
 
 
 
 
+current_dir = os.getcwd()
+suffix = "/account.settings"
+path = current_dir
+path += suffix
+print "settings file path = %s" % (path)
+check_file = os.path.isfile(path)
+
+if check_file== True:
+  print "settings file is found"
+  f = open("%s" % path, "w")
+  f.write("111")
+  f.close()
+
+
+else:
+  print "settings file is not found"
+  f = open('%s' % path, 'w')
+  f.write("222")
+
+  #open and read the file after the appending:
+  f = open('%s' % path, "r") 
+  print(f.read())
+  f.close()
 
 
 
+===
 
+| как импортировать переменную из файла
+
+ответ через модуль.
+создаем файл
+
+$ cat vasya.py
+i = 15.5
+
+
+
+тогда уже в нашем main.py
+
+
+from vasya import *
+print "i= %s" %(i)
+
+
+===
+
+| query mysql
+
+как делать много строчный query
+ответ надо юзать три двойные кавычки
+
+
+query  = ("""INSERT INTO %s " % cfg['mysql.table']
+              "('hostname', 'timestamp', 'metric', 'average', 'peakhigh', 'peaklow', 'gsamp', 'zsamp', 'nsamp')"
+              "VALUES ( %s, %s, %s, %s, %s, %s, %s, %s, %s )"""
+             ) 
+
+===

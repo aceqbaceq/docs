@@ -6299,3 +6299,19 @@ $ cinnamon --replace -d :0.0
 красота!
 
 ====
+| snap
+
+отключчить автоматическое оновление снапов
+
+sudo systemctl stop snapd.service
+sudo systemctl mask snapd.service
+
+чтоб вернуть обоатно
+
+sudo systemctl unmask snapd.service
+sudo systemctl start  snapd.service
+sudo snap refresh
+
+приэтом сами снапы родолжают работать !
+
+===

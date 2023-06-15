@@ -609,12 +609,13 @@ wget https://github.com/lxc/lxd/releases/download/lxd-5.13/bin.linux.lxd-migrate
 также чтобы зараотало надо прерставит lxd чтобы в настройках иницлизации было укзаано что он 
 дложено быть доступен по сети!!!!
 ===
-мигарция
+migrate
+миграция
 
 нужно на сервере lxd куда будем импортиррова контейнер создать токен 
 чрез который можно на клиенте аутентифицироваься перед ним
 
-# lxc config trust add
+# lxc config trust add 
 
 
 и тут я нактнулся на очень важный момент. 
@@ -758,3 +759,60 @@ https://www.cyberciti.biz/faq/how-to-movemigrate-lxd-vm-to-another-host-on-linux
 # lxc restart openconnect
 
 ===
+| clone
+
+у нас есть хост на нем контйенер.
+мы хотим его склонировать на этт же хост. и запустить
+
+# lxc copy --stateless cont1 cont2
+
+====
+| iptables
+
+мы хотим чтобы контейнеры lxd могли ходит в интернет. тогда надо в iptables 
+всавтиь правила
+
+
+*filter
+# LXD
+-A FORWARD -o lxdbr0 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+-A FORWARD -i lxdbr0  -j ACCEPT
+COMMIT
+
+*nat
+-A POSTROUTING -s 10.199.160.0/24 ! -o  lxdbr0 -j MASQUERADE
+COMMIT
+
+
+lxdbr0 = наш lxd бридж
+ 10.199.160.0/24 = диапазон ip адресов бриджа
+
+ чтобы правила сохранились при перезашузке надо 
+
+
+ставим пакет 
+
+$ sudo apt-get install iptables-persistent
+
+он спросит при устанвоке куда надо сохранить текущие правила
+и ооткуда потом их читать при загрузке
+по дефолту  это 
+
+# ls -1 /etc/iptables/rules.v4 
+/etc/iptables/rules.v4
+
+вот туда наши правила и добавлявем
+
+проверяем что служба стоит в автозагрузке
+
+# systemctl is-enabled netfilter-persistent.service
+enabled
+
+
+насколько я понял эта служба толкьо читает правила из файла при загрузке.
+но чего она неделает она не сохраняет автоматом правила при ребуте. а жаль
+
+
+===
+
+
