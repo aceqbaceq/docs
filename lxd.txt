@@ -815,4 +815,150 @@ enabled
 
 ===
 
+| size
 
+охуенная важная вещь
+
+если мы юзаем lxd и сторадж у него на базе lvm 
+то при создании контейнера он на thin pool создает lvX и у него есть размер. и этот размер будет виден 
+внутри контейнера как размер root partition. обычно по  дефолту lxd создает lv размером 10GB.
+
+если мы хотим увелчитьть размер диска под контейнер то ни в коем случае нельзя лазить на lvm руками с хоста
+напримем потому что если у нас lxd работает через snap то у него там исползуются свои встроенные верссиии lvm 
+итд и тп. а надо оппросить сам lxd чтобы он измнил размер lv вот таким образом
+
+
+# lxc config device set CONTAINER_ANME  root size 60GB
+
+
+вот так выгдядит lv в котором крутится контейнер
+
+# lvs
+  LV                                                                      VG      Attr       LSize  Pool         Origin Data%  Meta%  Move Log Cpy%Sync Convert
+  containers_pec--mult                                                    vg02    Vwi-aotz-k 55.88g lxd-thinpool        17.79                                  
+  lxd-thinpool                                                            vg02    twi-aotz-- 92.80g                     12.08  14.51                           
+
+
+
+или вот так чтобы глаза не ломать
+
+# lvs vg02/containers_pec--mult
+  LV                   VG   Attr       LSize  Pool         Origin Data%  Meta%  Move Log Cpy%Sync Convert
+  containers_pec--mult vg02 Vwi-aotz-k 55.88g lxd-thinpool        30.60
+
+
+lv называется  containers_pec--mult имеет размер 55.88g из которго занято 30.60%
+
+
+
+
+====
+| profile
+| storage
+
+задача такая - унас есть сторадж. и мы хотим его удалить. 
+прблема в том что если на нем чото лежит то хер мы его удалим.
+надо все что на нем либр удалить либо перенести.
+
+вот срисок стораджей
+
+# lxc storage list
++-----------+--------+--------------------------------------------------+-------------+---------+---------+
+|   NAME    | DRIVER |                      SOURCE                      | DESCRIPTION | USED BY |  STATE  |
++-----------+--------+--------------------------------------------------+-------------+---------+---------+
+| default   | dir    | /var/snap/lxd/common/lxd/storage-pools/default   |             | 1       | CREATED |
++-----------+--------+--------------------------------------------------+-------------+---------+---------+
+| st-pool-3 | dir    | /var/snap/lxd/common/lxd/storage-pools/st-pool-3 |             | 16      | CREATED |
++-----------+--------+--------------------------------------------------+-------------+---------+---------+
+
+
+смотрим что лежит на одном из стораджей
+
+# lxc storage show st-pool-3
+config:
+  source: /var/snap/lxd/common/lxd/storage-pools/st-pool-3
+description: ""
+name: st-pool-3
+driver: dir
+used_by:
+- /1.0/instances/cakephp7-2
+- /1.0/instances/cent7
+- /1.0/instances/cent8
+- /1.0/instances/cent9
+- /1.0/instances/first
+- /1.0/instances/local-kub-01
+- /1.0/instances/local-kub-02
+- /1.0/instances/local-kub-03
+- /1.0/instances/mar-1
+- /1.0/instances/mar-1/snapshots/snap0
+- /1.0/instances/mar-2
+- /1.0/instances/mar-2/snapshots/snap0
+- /1.0/instances/mar-single
+- /1.0/instances/phpcake
+- /1.0/instances/phpcake2
+- /1.0/profiles/default
+status: Created
+locations:
+- none
+
+видно что на нем лежит несолкько инстансов - то бищь контейнеров
+и один профиль.
+
+инстаны надо либо удплить либо перенести на другой страдж командй
+
+# lxc move CONTAINER_NAME -s новый_сторадж
+
+с профилем потруднее. особенно с дефолтовым профилем. 
+его нельяз удалить. непонятно как пренести. едиснтенное что его можно как бы зачистить
+
+# printf 'config: {}\ndevices: {}' | lxc profile edit default
+
+после этого lxc storage list в графе "used by" должен показать ноль. 
+только после этого мжно удалить сторадж
+
+====
+| remove 
+| purge
+
+как правильно удалять пакет
+
+толкьо вот так
+
+$ snap remove --purge lxd
+
+нужен флаг --purge 
+иначе эта пдала будет чтототам сохранять в какйо снэпшот.и это будет ужасно долго!
+
+====
+| specific version
+
+как поствть конкретную версию 
+
+ванчале смотрим какие весрии для пакета есть
+
+# snap info lxd
+
+channels:
+  latest/stable:    5.14-7072c7b  2023-06-01 (24918) 178MB -
+  latest/candidate: 5.14-7072c7b  2023-05-29 (24918) 178MB -
+  latest/beta:      ↑                                      
+  latest/edge:      git-6bdccb9   2023-06-20 (25013) 181MB -
+  5.14/stable:      –                                      
+  5.14/candidate:   5.14-7072c7b  2023-05-31 (24918) 178MB -
+  5.14/beta:        ↑                                      
+  5.14/edge:        ↑                                      
+  5.13/stable:      5.13-8e2d7eb  2023-05-31 (24846) 174MB -
+  5.13/candidate:   ↑                                      
+  5.13/beta:        ↑                                      
+  5.13/edge:        ↑                                      
+  5.0/stable:       5.0.2-838e1b2 2023-01-25 (24322) 117MB -
+  5.0/candidate:    5.0.2-838e1b2 2023-01-18 (24322) 117MB -
+
+
+во второй колонке стоит знак "-" это значит что 5.14/stable:  еще неготов.
+
+в итоге ставим что есть
+
+# snap install lxd --channel=5.14/candidate
+
+===

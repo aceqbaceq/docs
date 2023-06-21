@@ -347,3 +347,12 @@ $ openssl rsa -in s1.key -check
 
 
 
+===
+| get cert 
+
+вот мы стучиися на https как нам выкачать сертификат с той стороны
+
+
+openssl s_client -connect {HOSTNAME}:{PORT} -showcerts
+
+==

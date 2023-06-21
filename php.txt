@@ -1,0 +1,409 @@
+| timezone
+
+как php и php-fpm определяют для себя таймзону. 
+как они потом эту таймзону ипользуют мало понятно кроме того что php-fpm пишет  в свои 
+логи используя время на основе своей таймзоны.
+
+значит таймзона задается в конфигах php\php-fpm в файле php.ini в настройке 
+
+# cat /etc/php/7.3/fpm/php.ini  | grep timezone
+date.timezone =
+
+если эта настройка незадана то берет ту таймзону которая находится на хосте.
+но определяет он эту таймзону очень интересно. значит согласно эксперимнтам 
+я выяснил это происходит вот как. php\php-fpm смотрит в файл /etc/localtime
+и пытается из него опрееделить тайзону. иногда получается иногда не получается. 
+когда php\php-fpm получсется опредеить зону то он ее берет. а если не получается
+то php\php-fpm берет себе зону UTC тогда.
+
+показываю на практике.
+делаю таймзону America/Bahia
+как я делаю таймзону. можно вызывать 
+
+# dpkg-reconfigure tzdata
+как оно работает. оно создает симлинк из /usr/share/zoneinfo/... в /etc/localtime
+это бинарный файл в котором как я понял упор идет на время.
+плюс правится файл /etc/timezone. это текстовый файл в котором написано название зоны в форме букв.
+сразу скажу что мои эксперименты и посик в интернете показало что файл /etc/timezone вобще никакого 
+значение неимеет. вообще. из того что я нашел только якобы java читает этот файл. остальные все читают 
+только файл /etc/localtime
+
+так вот я просто беру и сам руками создаю симлинк в /etc/localtime
+как на компе на хосет проверить что таймзона выставилась
+две команды
+
+# date
+Tue Jun 20 19:00:35 -03 2023
+
+# timedatectl 
+               Local time: Tue 2023-06-20 19:00:38 -03
+           Universal time: Tue 2023-06-20 22:00:38 UTC
+                 RTC time: n/a
+                Time zone: America/Bahia (-03, -0300)
+System clock synchronized: yes
+              NTP service: inactive
+          RTC in local TZ: no
+
+
+итак я выставил зону America/Bahia , тость которая UTC -03
+
+теперь смотрим какую таймзону покажет php\php-fpm
+
+# php -i | grep timezone
+Default timezone => America/Sao_Paulo
+date.timezone => no value => no value
+
+
+# php-fpm7.3   -i | grep timezone
+Default timezone => America/Sao_Paulo
+date.timezone => no value => no value
+
+
+итак теперь смотрю в интерете  America/Sao_Paulo это UTC -03 
+тоесть название зоны пхп определило неверно но по факту  в виде UTC -03 зона определна правильно.
+
+
+
+выставляю на хосте следущую зону  Europe/Helsinki 
+# stat /etc/localtime 
+  File: /etc/localtime -> /usr/share/zoneinfo/Europe/Helsinki
+
+
+
+# php -i | grep timezone
+Default timezone => Europe/Helsinki
+date.timezone => no value => no value
+
+# php-fpm7.3   -i | grep timezone
+Default timezone => Europe/Helsinki
+date.timezone => no value => no value
+
+
+видим что пхп схватило таймзону верно.
+
+сразу добавлю что как только мы поменяли /etc/localtime 
+то мгновенно php\php-fpm обновляет свою таймзону. тоесть перезапускать ничего ненужно.
+и на самом хосте - как только мы поменяли /etc/localtime то сразу мгновенно таймзона меняется
+
+
+устанавливаю следующую таймзону на хосте
+# stat /etc/localtime 
+  File: /etc/localtime -> /usr/share/zoneinfo/Antarctica/Casey
+
+# php -i | grep timezone
+Default timezone => UTC
+date.timezone => no value => no value
+
+# php-fpm7.3   -i | grep timezone
+Default timezone => UTC
+date.timezone => no value => no value
+
+
+и вот он случай когда пхп не смог определить что же за зона на хосте
+и тогда пхп у себя выставляет UTC таймзону.
+
+
+ОТСЮДА я делаю важный вывод - нельзя полагаться на то что php\php-fpm сможет правильно 
+определеить таймзону считывая ее из  настроек на хосте.
+
+
+какой же выход? а выход такой что надо  в конфиге php\php-fpm напрямую вписать таймзону.
+если это сделать то пхп ненужно будет пытаться опрееделить тааймзону ища их  в настройках хоста.
+
+за это отвечает настройка 
+
+date.timezone = 
+
+название список тайм зон которые понимает пхп можно найти тут - https://www.php.net/manual/en/timezones.php
+значит оттуда мы видим что пхп понимает тайм зону Antarctica/Casey 
+проставим еее в конфиги
+
+настройка для cli
+# cat /etc/php/7.3/cli/php.ini |  grep timezone | grep -v ";"
+date.timezone = "Antarctica/Casey"
+
+настройка для php-fpm
+# cat /etc/php/7.3/fpm/php.ini|  grep timezone | grep -v ";"
+date.timezone = "Antarctica/Casey"
+
+
+# php -i | grep timezone
+Default timezone => Antarctica/Casey
+date.timezone => Antarctica/Casey => Antarctica/Casey
+
+
+# php-fpm7.3   -i | grep timezone
+Default timezone => Antarctica/Casey
+date.timezone => Antarctica/Casey => Antarctica/Casey
+
+
+вот! как только мы в явном виде происали в конфиге таймзону то пхп отлично принял эту зону.
+при том что перезапускать php-fpm сервис даже ненадо. оно срабатывает мгновенно.
+
+
+и вот еще пример
+я сменил на хосте зону на Europe/Budapest
+
+# timedatectl 
+               Local time: Wed 2023-06-21 00:22:59 CEST
+           Universal time: Tue 2023-06-20 22:22:59 UTC
+                 RTC time: n/a
+                Time zone: Europe/Budapest (CEST, +0200)
+System clock synchronized: yes
+              NTP service: inactive
+          RTC in local TZ: no
+
+
+# php -i | grep timezone
+Default timezone => Antarctica/Casey
+date.timezone => Antarctica/Casey => Antarctica/Casey
+
+# php-fpm7.3   -i | grep timezone
+Default timezone => Antarctica/Casey
+date.timezone => Antarctica/Casey => Antarctica/Casey
+
+и мы видим то что как только у нас в конфиге php\php-fpm 
+таймзона прописана в явном виде то пхп абсолютно плюет на изменение тайм зоны на хосте.
+
+
+ОТСЮДА я делаю второй вывод - чтобы настроиь и забыть - надо в явном виде в php\php-fpm 
+прописать тайм зону. тогда можно точо быть уверенным что в пхп будет верная тааймзона
+и плюс пхп будет плевать на таймзону на хосте
+
+единственное что я пока непонимаю чем различается тайм зона в "date.timezone"
+от таймзоны пропсианной в "default timezone"
+
+пока я вижу только то что если мы прописали "date.timezone" то автоматом такая же таймзона 
+пропиывается в "default timezone"
+
+у меня ощущеие что настройка из которой пхп читает настройку зоны из default timezone а default_timezone
+читает из date.timezone 
+
+значит я даже узнал функцию php через позволяет показать чему равно "default_timezone"
+ну тоесть можно конечно ее узнать через 
+
+# php -i | grep timezone
+но это чисто сисадминский подход
+а если мы хотим это узнаь в скрипте по програмистски то юзаем пхп функцию  date_default_timezone_get
+
+пример
+
+покывазыаю чему равно зона на хосте
+# stat /etc/localtime 
+  File: /etc/localtime -> /usr/share/zoneinfo/Europe/Berlin
+
+при этом в конфиге php не задана date.timezone
+значит пхп будет пытаться прочитать зону из настроек хоста.
+
+# php -i | grep timezone
+Default timezone => Europe/Berlin
+date.timezone => no value => no value
+
+вот видно что date.timezone незадан. и что default timezone = Europe/Berlin
+
+а теперь прочитаем эту же перемнную через date_default_timezone_get
+
+# cat php3.php 
+<?php
+
+    echo "date.timezone: " . ini_get('date.timezone') . "\n";
+    echo 'date_default_timezone_get: ' . date_default_timezone_get();
+
+
+?>
+
+
+# php php3.php 
+date.timezone: 
+date_default_timezone_get: Europe/Berlin
+
+
+правда эта функция она несколко хитрая. если до нее была запущена функция  date_default_timezone_get которая
+поменяла таймзону то тогда  date_default_timezone_get покажет уже не default timezone 
+а как бы сказать текущую зону.
+пример
+
+
+# cat php4.php 
+<?php
+date_default_timezone_set('America/Los_Angeles');
+
+echo "date_default_timezone_get=" . date_default_timezone_get() . "\n";
+
+
+# php php4.php 
+date_default_timezone_get=America/Los_Angeles
+
+тоесть я бы сказал что date_default_timezone_get покзывает не дефолт таймзону а текущую таймзону
+
+
+
+===
+
+| .
+
+что значит "." в echo 
+
+это оператор concatenate
+
+<?php
+$a = "Hello ";
+$b = $a . "World!"; // now $b contains "Hello World!"
+
+$a = "Hello ";
+$a .= "World!";     // now $a contains "Hello World!"
+?>
+
+====
+
+| ini_get
+
+эта штука позволяет считать значение найстрокаи из php.ini файла конфига
+
+ini_get(string $option): string|false
+
+
+
+прмиер программы которая считыает из php.ini конфига настройку date.timezone
+
+<?php
+
+if (ini_get('date.timezone')) {
+    echo "date.timezone: " . ini_get('date.timezone') . "\n";
+}
+
+?>
+
+====
+
+
+| php-fpm 
+| nginx
+| error log
+| 500 
+
+php-fpm ошибки vs php-fpm php ошибки
+
+если у нас ошибка http 500 это значит что где то на сервере к которому обращется nginx
+произошел сбой. соответвенно мы хотим знать детали сбоя. обычно таким сервером является php-fpm
+
+значит по дефолту факт 500 ошибки будет в access логе нжинкса
+
+/var/log/nginx/access.log
+
+а вот детали того что сломалсь на сервере php-fpm должны быть в error логе нжикса  
+
+/var/log/error.log
+
+но бывает так что там пусто. что за прикол?
+
+отвечаю:
+
+для того тобы были видны детали ошибки на php-fpm в errror логе нжинкса  надо в конфиге php-fpm
+всего активроироватодну опцию
+
+log_errors = On
+
+вот зедсь 
+
+
+# cat /etc/php/7.0/fpm/php.ini
+
+
+[PHP]
+
+error_reporting = E_ALL & ~E_DEPRECATED & ~E_STRICT
+
+display_errors = Off
+
+display_startup_errors = On
+
+log_errors = On
+#error_log = /var/log/php-errors.log
+
+log_errors_max_len = 1024
+
+ignore_repeated_errors = Off
+
+ignore_repeated_source = Off
+
+report_memleaks = On
+
+
+track_errors = Off
+
+
+html_errors = On
+
+
+тогда php-fpm логиурет детали крупных ошибок которые на нем происходят в том числе 500
+и выдает их на свой stderr. по факту они прилетают на нжинкс а он их уже сует в свой error.log
+
+
+если мы хотим чтобы ошибка была на экране браузера то 
+
+display_errors = On
+
+
+а если мы укажем файл 
+
+error_log = /var/log/php-errors.log
+
+то ошибки перестанут валитсь в жинкс. они будут валтся в отдельный файл error_log = /var/log/php-errors.log
+
+причем ВАЖНО рикол в том что пхп сам сука создавать его небудет. если мы укажем но не создадим причем с правлными правами
+то он по преженму будет послыать ошибку в жинкс.
+а вот если создадим рукми да еще  с правами
+
+# touch /var/log/php-errors.log
+# chown www-data.www-data /var/log/php-errors.log
+
+где www-data это юзер под которым крутится php-fpm
+
+поэтому если у нас в жинкс его error лог пустой при возникновении 500 ошибок
+это может иметь две причины либо
+
+
+log_errors = OFF
+
+либо
+
+
+log_errors = On
+error_log = /var/log/php-errors.log
+
+
+
+ксати есть еще один файл в php-fpm
+$ cat php-fpm.conf | grep -v ";"
+
+
+
+[global]
+pid = /run/php/php7.0-fpm.pid
+
+error_log = /var/log/php7.0-fpm.log
+
+
+там тоже какйото лог указан.
+на самом деле нам этот лог нахер не всрался.
+
+это уже как бы нстройки самого fpm серверар.
+
+error_log = /var/log/php7.0-fpm.log
+
+в нем обычно ошибки котоыре нам совсем неинтеренсы
+
+$ sudo tail -f php7.0-fpm.log
+[20-Jun-2023 17:57:46] NOTICE: [pool www] child 2728497 exited with code 0 after 7290.703203 seconds from start
+[20-Jun-2023 17:57:46] NOTICE: [pool www] child 2742430 started
+[20-Jun-2023 17:57:47] NOTICE: [pool www] child 2728501 exited with code 0 after 7291.983776 seconds from start
+[20-Jun-2023 17:57:47] NOTICE: [pool www] child 2742431 started
+[20-Jun-2023 17:58:26] NOTICE: [pool www] child 2728574 exited with code 0 after 7314.178213 seconds from start
+[20-Jun-2023 17:58:26] NOTICE: [pool www] child 2742456 started
+[20-Jun-2023 17:59:10] NOTICE: [pool www] child 2728605 exited with code 0 afte
+
+
+
+
+

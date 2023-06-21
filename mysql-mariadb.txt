@@ -26,6 +26,13 @@ MariaDB [(none)]> select host,user,plugin,password from mysql.user;
 что интересно что если в поле plugin стоит пусто 
 то это считается что вход наод делать через пассворд.
 
+==
+| slow
+
+отклчюить slow query log
+
+[mysqld]
+slow_query_log  = 0
 
 ===
 |старт в режиме когда грант тейблс отключены (single user режим)
