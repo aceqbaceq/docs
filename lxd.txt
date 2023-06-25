@@ -792,7 +792,7 @@ lxdbr0 = наш lxd бридж
 
 ставим пакет 
 
-$ sudo apt-get install iptables-persistent
+$ sudo apt-get install -y iptables-persistent
 
 он спросит при устанвоке куда надо сохранить текущие правила
 и ооткуда потом их читать при загрузке
@@ -962,3 +962,97 @@ channels:
 # snap install lxd --channel=5.14/candidate
 
 ===
+| nfs 
+| nfs server
+
+ставим nfs сервер внутрь lxd  контейнера
+
+
+/// как поставит nfs сервер ///
+/// начало блока            ///
+значит если ставим его внутрь lxd то контейнер надо запускать с особыми опциями. иначе 
+незаработает
+
+# lxc launch local:dcfe2a671f1d nfs-02   -c security.privileged=true -c raw.apparmor="mount fstype=rpc_pipefs, mount fstype=nfsd,"
+
+(параметры подсмотрел вот здесь = https://github.com/HSBawa/nfs-server-on-linux-container)
+
+супер важна вот эта вот запятаая на конце. без нее выдаст ошибку:
+raw.apparmor="mount fstype=rpc_pipefs, mount fstype=nfsd,"
+
+
+либо если контейнер уже запуще без спец параметров надо его оставоить и зайти в редактор конфига
+контйнера и в раздел config: добавить опции
+
+# lxc config edit имя_контейнера
+
+config:
+  raw.apparmor: mount fstype=rpc_pipefs, mount fstype=nfsd,
+  security.privileged: "true"
+
+опять же повторю супер важна запятая в конце
+
+
+# mkdir /var/nfs
+# chown nobody:nogroup /var/nfs
+# apt-get install -y nfs-kernel-server
+
+# cat << EOF >> /etc/exports
+/var/nfs    172.16.102.0/24(rw,sync,no_subtree_check,no_root_squash)
+EOF
+
+
+/var/nfs = папка на сервере которую мы расшариваем
+172.16.102.0/24 = клиенты которым можно подключаться
+no_root_squash = эта опция нужна потому что при копировании файлов 
+клиент также и устанавливает пермишнс на копируемый файл. так вот 
+по дефолту на nfs сервере запрещено в расшаренной папке уставливать
+владельцем файла пользователя root. и когда мы под рутом копируем файла
+на nfs папку то клиентский линукс неможет установить владельцем файла рута.
+и вылезает ошибка. вот чтобы рут мог стаовиться владельцем файлов и папок
+в nfs папке испольщуется опция no_root_squash
+
+
+# exportfs -a
+если lxd контейнер запущен без спец параметров то на этом этапе вылезет ошибка
+exportfs does not support NFS export
+
+
+# systemctl enable nfs-server
+# systemctl start nfs-server
+
+как посмотреть какие шары наш nfs сервер опубликовал. 
+
+первый способ
+
+# exportfs -v
+/var/nfs        172.16.102.0/24(rw,wdelay,no_root_squash,no_subtree_check,sec=sys,rw,no_root_squash,no_all_squash)
+/var/nfs2       172.16.102.0/24(rw,wdelay,no_root_squash,no_subtree_check,sec=sys,rw,no_root_squash,no_all_squash)
+
+второй способ
+
+# showmount -e localhost
+Export list for localhost:
+/var/nfs2 172.16.102.0/24
+/var/nfs  172.16.102.0/24
+
+кстати в случае nfs шары называются экспортами
+
+
+как подключаться к nfs серверу тоесть как проверить как примаунтить на другом сервере 
+эти NFS шары:
+
+ставим nfs-client
+# apt-get install nfs-common
+после этого nfs папку можно монтировать через mount 
+
+# mount -t nfs  test-nfs-01.mk.local:/var/nfs /mnt/nfs
+или
+# mount IP_nfs_сервера:/var/nfs/general /nfs/general
+
+где 
+/var/nfs/general = в точности путь к папке шары на nfs сервере
+
+
+/// как поставит nfs сервер ///
+/// конец блока             ///

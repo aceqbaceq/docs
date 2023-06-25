@@ -1,0 +1,901 @@
+kubernetes
+helm
+elasticsearrch
+
+
+  
+  значит что я в итоге выяснил на счет 
+  устновки elasticsearch через helm.
+  установил то что 
+  
+  во первых что helm почемуто игнориует насйтрокйи в файле values.yaml
+  поэтому запускаем установку вот так
+  
+#   helm install el10 elastic/elasticsearch --set replicas=1 --set resources.requests.memory=1Gi --set volumeClaimTemplate.storageClassName=managed-nfs-storage --set volumeClaimTemplate.resources.requests.storage=5Gi
+
+во вторых что единстыенный способ прописать pv которые будет
+использоват эластик это только через storageclass. и никак иначе.
+а значит надо сделать nfs provisioner.
+сейчас он у меня падает как только к нему обращется pvc.
+
+задача - написать устойчтвый нормальый nfs provisioner
+
+я вот этот nfs provisioner никак нехотел запускаться.
+оказалось что вся жопа заключается в той штуке которую
+я уже давно немог понять. в том что мы когда куб инициализируем
+мы указываем там сеть для подов 
+
+# kubeadm init  --pod-network-cidr=10.252.0.0/16 ...
+
+и эту сеть по идее потом должен использоваться flannel
+по всем конфигам фланнеля он ее недолжен использовать так как куб
+нифига непрописывает эту сеть в настройки фланнеля , в конфигах 
+фланнеля всегда фигурирует другая сеть. но по факту каким то неведомым
+образом фланенль все таки использует именно 10.252.0.0/16 хотя
+в его настройках указано совсем другое. тоест связь работает как мы и 
+указали в kubeadm init хотя непонятно как такое возможно ибо в конфигах
+фланнеля указан другая ip сеть которая по дефолту прописана в 
+yaml фланнеля. так вот . эта штука нифига немешала однаков в конец
+концов она вылезла!!! именно из за этого несовпдаения файл provisioner.go
+(который я толком непонял толи принадлежит самому кубу толи конкретно
+nfs provisiner пакету который мы ставим) выходит на ошибку
+
+# kubectl logs nfs3-nfs-client-provisioner-5c6c68fb6b-nlgww --previous
+F1026 12:27:13.801481       1 provisioner.go:180] Error getting server version: Get https://10.96.0.1:443/version?timeout=32s: dial tcp 10.96.0.1:443: i/o timeout
+
+рещение - чтобы в кубе ничего не пересустанавливать
+надо зайти на mapping для flannel в кубе
+и поменять там сеть с 10.244.0.0\16 на ту которую мы
+указали в kubeadm init 10.252.0.0\16
+
+И ТОГДА СРАЗУ И ПОДЫ nfs provisoner заработают и pvc сразу
+перейдут в состояние bound !!!!
+
+а как от этого дерьма уберечься изначально  - это надо устанавлвать 
+фланнель не из yaml из интернета. а скачать его на комп
+отредактировать там параметры сети руками чтобы они были равны
+
+--pod-network-cidr=10.252.0.0/16
+
+и только потом ставить flannel.
+
+
+как отредактировать mapping для flannel в кубе
+
+# kubectl edit cm -n kube-system kube-flannel-cfg
+# edit the configuration by changing network from 10.244.0.0/16 to 10.252.0.0/16
+# kubectl delete pod -n kube-system -l app=flannel
+
+ура!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  
+  но на этом прикшючения незакончились.
+  pvc теперь успешно крепится к pv.
+  
+  но под с эластиком незапускается.
+  почему 
+  
+  потому что вот что пишет ошибка в поде который не может запуститься
+  
+  # kubectl describe pods elasticsearch-master-0
+Events:
+  Type     Reason            Age    From               Message
+  ----     ------            ----   ----               -------
+  Warning  FailedScheduling  4h27m  default-scheduler  0/3 nodes are available: 3 Insufficient cpu.
+
+тоесть оно говорит что мол нет нод потому что на них нет достаточно 
+цпу ресурса.
+
+выясним сколько cpu требует под эластика под себя.
+  
+# helm get  all el10 | grep cpu
+    cpu: 1000m
+    cpu: 1000m
+            cpu: 1000m
+            cpu: 1000m
+
+el10 - это имя инсталляции эластика через helm
+
+из доков следует что 1000m = 1 ядро.
+таким одразом как я понимаю под эластика требует под себя ядро.
+прям типа резервирует.(навскидку это меня смущает. мне ненужна никакая
+заранее резервация цпу. )
+
+
+теперь смотрим сколько cpu уже зарезервивано на дата нодах
+
+# kubectl describe nodes test-data-02
+
+ Resource           Requests    Limits
+  --------           --------    ------
+  cpu                100m (10%)  100m (10%)
+  memory             50Mi (2%)   50Mi (2%)
+  ephemeral-storage  0 (0%)      0 (0%)
+  hugepages-2Mi      0 (0%)      0 (0%)
+
+на test-data-02 есть 1 ядро. (это я знаю заранее) и из них 10%
+ужк зарезервировано. 
+поэому как я понимаю под неразворачивается так как нет cpu ресурса 
+под него единолично.
+
+как прописываются ресурсы
+
+cpu ,  1 ядро = 1000m = 1
+memory , 1GB = 1Gi = 1024 Mi
+
+с чем столкнулся. во первых прежде всео нужно удалять pvc  а только 
+затем pv. так вот если удаляешь инсталляицю в helm
+
+# helm delete el10
+то почему то все удаляется кроме pvc.
+их приходится удалять руками
+
+далее  я выяснил что эластик 7.7.1 он минимум жрет 430МБ если его 
+пустой запустить.
+
+
+вот так я пока запускаю elasticsearech установку
+
+# helm install el10 elastic/elasticsearch \
+-f values.yaml \
+--set replicas=1 \
+--set resources.requests.memory=2Gi \
+--set volumeClaimTemplate.storageClassName=nfs-client \
+--set volumeClaimTemplate.resources.requests.torage=5Gi \
+
+узнал из справки helm то если настройки конфликтуют превалируют опции
+которые стоят правее всего. тоест берется левая настройка потом на нее
+сверху накладывается сосед справа и все что конфлитукт оно перетирает
+
+ настройка replica в values.yaml
+ это не реплики в смысле рпелик эластика . нет!
+ это реплики в смысле ReplicaSet куба. 
+ поэтому replica=1 означает что будет развернуть 1 под.
+ а реплика = 0 означает что будует развернуто 0 подов.
+
+
+\\значит эластик пока незаработал.
+
+
+что важно сказать 
+в эластике естьнастройка bootstrap_memory_lock=true
+о чем она. она дает команду эластику при старте попробовать 
+всю память процесса пометить особым образом чтобы  витоге 
+он всегда висел в памяти и не попал никогда в свап. для этого
+используется систесный вызов mlockall. если у эластика это получается
+то хорошо если нет то он просто грузится дальше.
+чем хороша эта настройка это тем что тогда ненужно на виртуалке 
+на которой крутится эластик дизейблить свап. это хорошо.
+
+причем когда применяют насйтроку bootstrap_memory_lock=true
+тогда нередко меняют настройку ulimit. в целом это неочень понятно.
+дело в том что ulimit это встроенная функция в bash ( проверяется 
+это командой typa -a ulimit ) и ее назначение это ограничить максимальное
+использование того или иного вида ресурса для процесса который запускается из bash для данного пользователя. получается если 
+мы запустили из bash кучу процессов под пользователем vasya то эта 
+группа процессов неможет использовать ресурсов хоста больше чем
+задано. еще раз какие ключевые моменты ulimit. во первых процесс
+должен быть запущен из bash. но ведь далеко невсе процессы запускаются
+из bash например сервисы которые запускатся из systemd они запускаются
+не из bash и в том числе elasticsearch. то есть если процесс запущен
+не из bash к нему ограничения ulimit некасаются. поэтому к примеру
+непонятно, если мы запустили elstivcsearch из systemd то каким
+боком к нему относится ограничение ulimit. возникает
+интересный вопрос - как определить что процесс был запущен из bash.
+(научиться это определять и посмотреть эластик из systemd он в итоге
+запущен из bash ?)
+так вот про ulimit. процесс дожлн быть запущен из bash, процесс запущен
+от некоторого пользователя. тогда на него а точнее нетолько на него
+а на всю группу в целом которая была запущена под этим пользователем
+и все они были запущены из bash накладывается ограничения прописанные
+в ulimit. ограничения ulimit можно изменять как из командной строки
+так и в файле limits.conf
+в частности в ulimit можно указать чтобы юзер немог залочить в памяти
+больше такого то обьема. залочить это значит что эта память всегда
+будет в памяти и непопадет в свап никогда. тут опять же важно понять
+что ulimit лишь ограничивает и все. но чтобы эта память реально
+непопала в свап надо еще чтобы процесс сделал вызов к системному
+вызову mlockall, установка лимита через ulimit это еще не все дело
+этого недостаточно это лишь указатель ограничения сверху. а вызов 
+mlockall должно делать сам процесс.  как видно конечно есть некотоая 
+связь между bootstrap_memory_lock=true и ulimit но по мне это только
+если эластик запускается из bash.
+итак еще раз ulimit прописывает ограничение использования ресурсов хоста 
+1) для пользователя
+2) процесс от имени эттго пользователя должен быть запущен 
+из bash
+3) ограничение указывает суммарную цифру всумме не для одного
+процесса запущенного из баш и от имени данного пользователя а для 
+всех таких процессов в сумме. для группы таких процессов.
+
+
+  
+
+
+
+ulimit в лиеуксе
+docker + ulimit
+docker run --net=host -e "bootstrap_memory_lock=true" --ulimit memlock=-1:-1 -v ~/.data/:/usr/share/elasticsearch/data/ --name ES elasticsearch:7.7.1
+
+память будет отожрана java min - java max и плюс 
+остальными частями процесса. скажем если java max = 1GB
+то в итоге процесс в памяти занимает 1.3ГБ например
+
+мой эластик в кубе падает с ошибкой
+  "Native controller process has stopped - no new native processes can be started" }
+
+я запустил эластик в докере и он упал с такойже ощибкой пока я не втсавил
+в докер такую опцию -e "discovery.type=single-node" из доков эластика 
+ # docker ... -e "discovery.type=single-node" ...
+
+поэтому в кубе эластк может падает потому что там только одна нода
+стартует и другие он неможет найти ? как задать в хельм эту опцию
+надо узнать.
+
+еще надо вот эти оппции отработаь
+
+esJavaOpts: "-Xmx800m -Xms100m"
+
+resources:
+  requests:
+    cpu: "100m"
+    memory: "300Mi"
+  limits:
+    cpu: "900m"
+    memory: "900Mi"
+
+из того что здесь написано джава heap может быть от 100 до 800МБ макс.
+а размер всего процесса может быть от 300 до 900 МБ.
+тут тоже надо все продумать
+
+думаю надо вначале дать процессу памяти точно чтобы ему хватило.
+и если все равно будет падать то уже смотреть в сторону
+опций дискаверинга
+
+\\
+
+
+ 
+ в итоге эластик заработал!
+ 
+ при вот такой установке
+ 
+# helm install el13 elastic/elasticsearch \
+ -f values.yaml \
+ --set volumeClaimTemplate.storageClassName=nfs-client \
+ --set volumeClaimTemplate.resources.requests.storage=5Gi
+
+values.yaml имеет вот такой состав
+
+
+
+
+# cat values.yaml | grep -v '#'
+
+---
+clusterName: "elasticsearch"
+nodeGroup: "master"
+
+masterService: ""
+
+roles:
+  master: "true"
+  ingest: "true"
+  data: "true"
+
+replicas: 1
+minimumMasterNodes: 1
+
+esMajorVersion: ""
+
+esConfig: {}
+
+extraEnvs: []
+
+envFrom: []
+
+secretMounts: []
+
+image: "docker.elastic.co/elasticsearch/elasticsearch"
+imageTag: "7.7.1"
+imagePullPolicy: "IfNotPresent"
+
+podAnnotations: {}
+
+labels: {}
+
+esJavaOpts: "-Xmx1g -Xms1g"
+
+resources:
+  requests:
+    cpu: "1000m"
+    memory: "2Gi"
+  limits:
+    cpu: "1000m"
+    memory: "2Gi"
+
+initResources: {}
+
+sidecarResources: {}
+
+networkHost: "0.0.0.0"
+
+volumeClaimTemplates:
+  - metadata:
+      name: elasticsearch-master
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 5Gi
+      storageClassName: nfs-client
+
+
+rbac:
+  create: false
+  serviceAccountName: ""
+
+podSecurityPolicy:
+  create: false
+  name: ""
+  spec:
+    privileged: true
+    fsGroup:
+      rule: RunAsAny
+    runAsUser:
+      rule: RunAsAny
+    seLinux:
+      rule: RunAsAny
+    supplementalGroups:
+      rule: RunAsAny
+    volumes:
+      - secret
+      - configMap
+      - persistentVolumeClaim
+
+persistence:
+  enabled: true
+  annotations: {}
+
+extraVolumes: []
+
+extraVolumeMounts: []
+
+extraContainers: []
+
+extraInitContainers: []
+
+priorityClassName: ""
+
+antiAffinityTopologyKey: "kubernetes.io/hostname"
+
+antiAffinity: "hard"
+
+nodeAffinity: {}
+
+podManagementPolicy: "Parallel"
+
+protocol: http
+httpPort: 9200
+transportPort: 9300
+
+service:
+  labels: {}
+  labelsHeadless: {}
+  type: ClusterIP
+  nodePort: ""
+  annotations: {}
+  httpPortName: http
+  transportPortName: transport
+  loadBalancerIP: ""
+  loadBalancerSourceRanges: []
+
+updateStrategy: RollingUpdate
+
+maxUnavailable: 1
+
+podSecurityContext:
+  fsGroup: 1000
+  runAsUser: 1000
+
+securityContext:
+  capabilities:
+    drop:
+    - ALL
+  runAsNonRoot: true
+  runAsUser: 1000
+
+terminationGracePeriod: 120
+
+sysctlVmMaxMapCount: 262144
+
+readinessProbe:
+  failureThreshold: 3
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  successThreshold: 3
+  timeoutSeconds: 5
+
+clusterHealthCheckParams: "wait_for_status=green&timeout=1s"
+
+schedulerName: ""
+
+imagePullSecrets: []
+nodeSelector: {}
+tolerations: []
+
+ingress:
+  enabled: false
+  annotations: {}
+  path: /
+  hosts:
+    - chart-example.local
+  tls: []
+
+nameOverride: ""
+fullnameOverride: ""
+
+masterTerminationFix: false
+
+lifecycle: {}
+
+sysctlInitContainer:
+  enabled: true
+
+keystore: []
+
+fsGroup: ""
+
+
+что непонятно это что helm из values.yaml 
+неможет прочитать вот эти параметры
+
+
+--set volumeClaimTemplate.storageClassName=nfs-client
+--set volumeClaimTemplate.resources.requests.storage=5Gi
+
+и их приходится насильно добавлять в строку.
+
+это какойто дебилизм.
+
+
+
+
+
+  
+  ---------------------------------------------------------------
+  вопрос >юзер спейс права под которым процесс работает в одном проснтранстсве
+  и другом. чтоб процесс не мог вылезти из pid пронстратснва
+  
+  -------------------
+  
+  
+значит быстрые вопросы
+1) связь с подом идет по pod IP. ура
+2) что там еще за service ip итп
+3) как из пода логи вытащить наружу
+4) научиться с обьемом памяти и цпу лимитами под эластик задавать
+6) чтоя еще выяснмл. что nfs provisioner он несоздает на nfs сервере
+новые папки которые он экспортирует. нет. он создает внутри папки
+которую я экспортировал одну заранее кучу подпапок которые и есть
+pv для подов. что очень круто. с точки зрения самого nfs сервера.
+тоесть получается что провижионер он незаходит на сервер и ничего там
+неменеяет. это очень круто.
+7) также я выяснил походу пьесы что helm эластик так настроен что 
+он мастер ноды эластика  размещает только на разных дата нодах куба.
+тоесть небудет запущено две мастер ноды эластика на одной дата ноде куба.
+
+на этом этапе я случайно стер куб на test-kub-01 через
+apt-get purge kube*. Но! - при этом убунту сохранил все конфиги
+поэтому  что я обратно накатил пакеты apt install -y kubelet kubeadm kubectl и все поды появились и завелись. и системные и обычные.
+ура.
+ 
+
+
+отсюда супер важный вывод - надо чтобы в кластере куба
+было несколько контроль панелей . чтобы если одну сломаешь то другие 
+все спасают, и еще надо чтобы кластер etcd был вообще отдельно 
+чтобы туда вообще нелазить через сеанс ssh. тогда куб будет надежный.
+
+
+наконец заработал кластер из 3-ех нод. каждая мастер.
+мастер ставится только на отдельный куб дата ноду.
+
+заметил в свойствах пода вот такую переменную
+
+# kubectl describe pod ...
+
+  Environment:
+      node.name:                     elasticsearch-master-2 
+      cluster.initial_master_nodes:  elasticsearch-master-0,elasticsearch-master-1,elasticsearch-master-2,
+      discovery.seed_hosts:          elasticsearch-master-headless
+
+я имею ввиду discovery.seed_hosts: elasticsearch-master-headless
+
+из описания эластика эта переменная юзается на дата нодах 
+чтобы указать мастеров. обычно юзается Ip адрес. но походу тут юзается
+dns имя.
+
+так вот что выяснилось интересное.
+
+во первых я узнал какой домен прописывает куб для подов в их /etc/hosts
+
+если под имеет имя то его полное доменное имя = 
+
+имя-пода.elasticsearch-master-headless.default.svc.cluster.local
+
+ну может потому что данные под входит в состав headless service 
+или как он там назыавется.
+так вот я подключился к coredns через nslookup
+и  посмотрел какой ip имеет dns имя elasticsearch-master-headless
+
+и оказалос что он имеет сразу три IP , ровно те IP которые имеют
+три мастера.
+
+> elasticsearch-master-headless.default.svc.cluster.local
+
+
+Name:   elasticsearch-master-headless.default.svc.cluster.local
+Address: 10.252.1.17
+Name:   elasticsearch-master-headless.default.svc.cluster.local
+Address: 10.252.3.2
+Name:   elasticsearch-master-headless.default.svc.cluster.local
+Address: 10.252.2.20
+>
+
+это супер удобно с точки зрения масштабирования эластика.
+в конфиге при добавилении нового мастера на других нодах ничего
+менять ненужно , переменная 
+
+discovery.seed_hosts: elasticsearch-master-headless
+
+останется такойже. просто в DNS надо будет к этой dns имени 
+присобачить +1 IP адрес.
+
+класно!
+
+единственное что мне неочень понятно. 
+1) что за типа DNS записи имеет это имя. 
+ответ: если при запросу одного dns имени вылезает несколько ip
+это значит что на dns сервере прписано несколько A записей с одним
+dns именем и разными ip.
+
+2) эластик как клиент он в итоге понимает ли что данная запист имеет
+несколько IP или он берет первую попавшуются или как.
+неочень понятно тогда какой из кучки полученных ip юзает клиент.
+ответ: какой ip из полученного списка будет юзать клиент зависит от самого
+клиента. какието клиенты используют всегда первый в списке какието 
+пробуют первый если он недступен то второй. какието берут рандомный.
+получается что лучше всегда счиать что клиент тупой и он возьмет 
+первый в списке. так вот dns сервер может сам по себе каждый раз 
+возвращать список в котором IP располжены рандомно тогда самый тупой клиент в итоге будет иметь фейловер. я проверил кубовый coredns 
+возрвщает список IP в рандомном порядке.  теперь понятно что в таком
+случае эластик будет работать хорошо и нода будет рапортовать к разным
+мастерам. то есть есть фейловер и обрашения к разным мастерам.
+
+
+я создал в эластие два индекса,
+потом я удалил эластик через helm 
+при этом в кубе остаются pvc.
+так вот потом я накатил эластик обоатно через helm
+и данные сохранились.
+
+далее если я удаляю pvc которые оппираются на strage classs то pv исчезает автомтом.
+
+в чем яубеждаюсь уже неодин раз. конфиг хельма он использует структуры
+похожие на структуры куба но они отличаются. изза это путаницы 
+ошибки. 
+
+пример 
+
+в кубе
+
+volumeClaimTemplates:
+- metadata:
+    name: pv-data
+  spec:
+    accessModes: 
+      - ReadWriteOnce
+    resources:
+      requests:
+        storage: 50Mi
+		
+в values.yaml helm-а
+
+volumeClaimTemplate:
+  accessModes: [ "ReadWriteOnce" ]
+  storageClassName: "nfs-client"
+  resources:
+    requests:
+      storage: 1Gi
+
+хотя бы даже взять то что в кубе оканчивается на templates
+а в хельме на template.
+
+тоесть зачастуб нельзя взять конфиг из куба и напрямую
+накатить в конфиг хельма
+
+значит как я продвинулся дальше.
+я узнал что чтобы мне опубликовать раздельно мастер ноды
+и раздельно дата ноды то мне надо делат два релиза хельма
+
+# helm install el13 elastic/elasticsearch -f ./values-master.yaml
+# helm install el13-data elastic/elasticsearch  -f ./values-data.yaml
+
+
+вначале я публику только мастеров а потом публикую только дата ноды.
+для этого использую два разных файла с насройками
+
+самая главная разница файла с настройками мастеров с файлом настроек
+дата нод
+
+///
+основные настройки values.yaml для мастеров:
+
+clusterName: "elasticsearch"
+nodeGroup: "master"
+
+masterService: ""
+///
+
+
+///
+основные настройки values.yaml для дата нод:
+
+clusterName: "elasticsearch"
+nodeGroup: "data"
+
+masterService: "elasticsearch-master"
+
+antiAffinity: "soft"
+///
+
+nodegroup это по момему хрень самого хельма.
+важно другое на дата нодах в masterService:
+мы указываем clusterName и nodeGroup разделив их минусом. 
+
+masterService: "elasticsearch-master"
+
+nodegroup указваыем тот который в конфиге хельма для мастеров.
+именно благодаря masterService дата ноды смогут найти мастер ноды.
+
+
+ну и еще одна настройка antiAffinity: "soft" она дает то что 
+при запуске подов куб небудет против чтобы несколько штук дата 
+подов работали на одном куб хосте, потому что в конфиге мастеров
+antiAffinity: "hard" и это приводит к тому что куб недает запустить
+более одного пода мастер эластика на одном куб хосте
+
+
+
+ну а так собственно вот основные настройки которые я менял в 
+файлах values.yaml для мастера и дата нод
+
+\\\
+# cat ./values-masters.yaml
+
+
+# grep -v '#'  values-master.yaml
+---
+clusterName: "elasticsearch"
+nodeGroup: "master"
+
+masterService: ""
+
+roles:
+  master: "true"
+  ingest: "true"
+  data: "true"
+
+replicas: 3
+minimumMasterNodes: 2
+
+...
+
+esJavaOpts: "-Xmx1g -Xms1g"
+
+resources:
+  requests:
+    cpu: "500m"
+    memory: "1.4Gi"
+  limits:
+    cpu: "1000m"
+    memory: "1.6Gi"
+
+...
+
+volumeClaimTemplate:
+  accessModes: [ "ReadWriteOnce" ]
+  storageClassName: "nfs-client"
+  resources:
+    requests:
+      storage: 1Gi
+
+
+antiAffinity: "hard"
+\\\
+
+
+\\\
+# cat ./values-datas.yaml
+
+
+# grep -v '#'  values-data.yaml
+
+---
+clusterName: "elasticsearch"
+nodeGroup: "data"
+
+masterService: "elasticsearch-master"
+
+roles:
+  master: "false"
+  ingest: "true"
+  data: "true"
+
+replicas: 3
+
+esJavaOpts: "-Xmx1g -Xms1g"
+
+resources:
+  requests:
+    cpu: "500m"
+    memory: "1.4Gi"
+  limits:
+    cpu: "1000m"
+    memory: "1.6Gi"
+
+
+
+volumeClaimTemplate:
+  accessModes: [ "ReadWriteOnce" ]
+  storageClassName: "nfs-client"
+  resources:
+    requests:
+      storage: 1Gi
+
+
+antiAffinity: "soft"
+\\\
+
+
+
+значит в настройках мы укаываем размер Java heap
+а еще указываем размер процесса в целом. так вот по моим
+наблюдениям размер процесса целиком на 30% а лучше на 40% больше 
+чем размер java heap. скажем если -Xmx1g то memory: надо ставить"1.4Gi"
+
+
+
+
+
+=================================
+провел такой эксперимент
+в папке  с маунт понитами куда смотрит локал провижионер
+там все маунт поинты одинакового размера.
+
+в итоге провижионер создал в кубе PV одинакого размера.
+потом я зашел на ноду руками отмонтировал одну из точек монтирования
+расширил ее у подмонтировал обратно, но размер PV в кубе остался
+таким же самым. так что условно говоря после создания PV его бекенд 
+менять бесполезно.
+
+=======================
+важное дополненеи!
+
+вот есть у нас SS (statefull set) в котором прописано естсетвенно
+параметры будущего пода.
+
+и мы там прописали что хотим подключить внутрь пода диск , то есть PV
+
+и скажем этот PV относится к сторадж классу  pv-localdisks-100
+
+и мы это делаем как ? вот так:
+
+ containers:
+      - name: elasticsearch
+	  ...
+	  
+	volumeMounts:
+        - name: data
+          mountPath: /usr/share/elasticsearch/data
+
+...
+
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+      labels:
+        app: es-5
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName:  pv-localdisks-100g
+      resources:
+        requests:
+          storage: 100Gi
+
+
+
+тоесть у нас есть шаблон  'data' который ищет PV который относятся к сторадж классу
+pv-localdisks-100g
+
+и к8 на основе шаблона data находит PV и пробросит его внутрь пода 
+в папку /usr/share/elasticsearch/data
+
+далльше самое интересное.
+мы хотим внутрь пода пробрросить еще +1PV который относится к тому же самому 
+storage class -> pv-localdisks-100g
+
+моя идея была как это сделать вот такая:
+приведу тот кусочек который я поменял
+
+
+	volumeMounts:
+        - name: data
+          mountPath: /usr/share/elasticsearch/data
+        - name: data
+          mountPath: /usr/share/elasticsearch/data2
+		  
+		  
+потому что  я считал что то что прописано в секции volumeClaimTemplates:
+это шаблон для поиска. а раз у нас +1 PV относится к тому же самому сторадж классу
+то достатоноч будет указать доп папку для монтирования и все.
+
+ОДНАКО! я был неправ. по факту к8 пытался примонтироавть один и тот же PV сразу
+в две папки одновременно.
+
+таким образом я был неправ на счет секции volumeClaimTemplates:
+она задает нешаблон для поиска, она задает сразу параметр конкретного PV.
+так что если мы хотим поключить 2 PV то в секции volumeClaimTemplates: 
+должно быть два вхождения и посрать к однму они относятся сторадж классу или нет.
+
+таким образом работающий вариант выгляди так
+
+
+ containers:
+      - name: elasticsearch
+	  ...
+	  
+	volumeMounts:
+        - name: data
+          mountPath: /usr/share/elasticsearch/data
+        - name: data2
+          mountPath: /usr/share/elasticsearch/data2
+
+...
+
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+      labels:
+        app: es-5
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName:  pv-localdisks-100g
+      resources:
+        requests:
+          storage: 100Gi
+
+  - metadata:
+      name: data2
+      labels:
+        app: es-5
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName:  pv-localdisks-100g
+      resources:
+        requests:
+          storage: 100Gi
+
+
+соответвенно если мы заходим пробрсить внутрь пода 10 PV 
+то в секции volumeClaimTemplates: 
+должно быть 10 вхождений.
+
+
+
+============================================
+
+
+  
+  

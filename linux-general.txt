@@ -6315,3 +6315,25 @@ sudo snap refresh
 приэтом сами снапы родолжают работать !
 
 ===
+| ip
+| proc
+
+как узнать ip на компе неимея команды ip 
+используя только proc
+
+
+# cat /proc/net/fib_trie
+
+===
+| apt-get update
+
+вылвзииит ошибка
+
+E: dpkg was interrupted, you must manually run 'sudo dpkg --configure -a' to correct the problem. 
+
+
+решение
+dpkg --configure -a
+
+
+
