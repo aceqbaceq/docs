@@ -890,7 +890,7 @@ port =22
 username = vasya
 print proxy diagnostic = yes
 command to send = 
-= plink.exe -v -ssh %user@%proxyhost -P %proxyport -nc %host:%port   -i "c:\Users\vasya\.ssh\foxy.ppk"
+= plink.exe -v -ssh %user@%proxyhost -P %proxyport -nc %host:%port   -i "c:\Users\vasya\.ssh\vasya.ppk"
 
 
 конекктимся. готово.
@@ -1699,5 +1699,143 @@ putty.exe -ssh -proxycmd "plink.exe vasya@81.163.39.93 -P 22 -nc 10.10.10.10:22 
 там правда еще на экране терминал ssh открывается. которой по идее ненужен. чтобы экран с shell  не пявлялся надо 
 добавить ключ -N
 
+----------
+| config
 
+как посмтреть настйроки на sshd сервере
+
+# sshd -T
 -----------
+| ssh_exchange_identification: Connection closed by remote host
+
+итак стучимся на хост ssh а в ответ такая хуйня
+ко виноват и что делать
+
+
+ я столкнулся с такой ошибкой когда стучался на ssh хост через другой ssh хост
+ тоесть я иду на хост "B" через хост "A" (ssh proxy/ ssh tunnel)
+
+ я --->  "A" ----> "B"
+
+ так вот в чем была проблема в моем случае это в том что я указал в 
+ ssh конфиге на своем компе неверный IP компа "B"
+ поэтому до хоста "A" конект проходил успешно. а с хоста "A" конект шел в никуда.
+
+
+ теперь важные моменты как траблшутить ssh конект коода он идет 
+через ssh proxy/ssh tunnel
+
+1. важный момент на прокси ssh сервеере в логах ssh даже при успешном конекте 
+до хоста B никакой инфо НЕТ. тоесть
+
+(хост "A") # journalctl -f -u ssh
+он будет пустой!!!! поэтому какието логи искать на прокси ssh бесолезно.
+я потыкася в инетет и пришео к выводу что чтобы както это логрировать надо както
+изощренно мудить.
+
+
+2. логи о ssh будут только на хосте "B"  при успешном конкете будет запись
+
+Jun 27 15:44:44 nl-test-05 sshd[2215]: Accepted publickey for vasya from 172.16.10.1 port 33586 ssh2: RSA SHA256:SVN6k7AI9km/72M7XyPJdb5WtMHItT9G89nJBo9Esi8
+Jun 27 15:44:44 nl-test-05 sshd[2215]: pam_unix(sshd:session): session opened for user vasya(uid=1000) by (uid=0)
+d
+
+ПОЭТОМУ я хочу сказать что если есть прлблема с конектом до ssh хоста через прокси ssh
+хост то основной дебаг остатется делать только на стороне клиента!
+
+
+привожу примео конфига ssh на стороне клиента
+
+есть два вариант анастрйоки как мы подключаемся через прокси.
+
+1) ProxyJump nl-proxy-01-test
+2) ProxyCommand           ssh -q -A vasya@nl-proxy-01-test nc %h %p
+
+ProxyJump работае на более новых версиях sshd
+а ProxyCommand на более старых
+
+итак два аривнта конфига
+
+1)
+Host nl-test-05  172.16.10.21
+HostName 172.16.10.21
+IdentityFile ~/.ssh/vasya
+ProxyJump nl-proxy-01-test
+Port 22
+User vasya
+ForwardAgent yes
+
+
+
+2)
+Host nl-test-05  172.16.10.21
+HostName 172.16.10.21
+IdentityFile ~/.ssh/vasya
+ProxyCommand           ssh -q -A vasya@nl-proxy-01-test nc %h %p
+Port 22
+User vasya
+ForwardAgent yes
+
+
+так вот что я хочу скзать дебаг делаем через вот так
+
+
+$ ssh -vvv nl-test-05
+
+
+и если мы используем ProxyCommand  то дебаг будет мегаубогий.
+а вот если мы юзаем ProxyJump то дебаг будет очень даже информативный.
+
+
+вот еще моментик.
+как выгядит вход по парою и как по RSA ключу
+
+
+Jun 27 15:40:00 nl-test-05 sshd[1155]: Accepted password for vasya from 172.16.10.1 port 53980 ssh2
+Jun 27 15:40:00 nl-test-05 sshd[1155]: pam_unix(sshd:session): session opened for user vasya(uid=1000) by (uid=0)
+
+
+
+
+Jun 27 15:41:03 nl-test-05 sshd[1252]: Accepted publickey for vasya from 172.16.10.1 port 48000 ssh2: RSA SHA256:SVN6k7AI9km/72M7XyPJdb5WtMHItT9G89nJBo9Esi8
+Jun 27 15:41:03 nl-test-05 sshd[1252]: pam_unix(sshd:session): session opened for user vasya(uid=1000) by (uid=0)
+
+
+вот и все. смотрим дебаг пытается понять
+
+-------
+
+| MaxStartups
+
+в лоагх sshd можно заметить вот такое
+
+# journalctl -u ssh --since today | grep Max
+
+июн 27 08:12:30 vl-proxy-test sshd[828]: error: beginning MaxStartups throttling
+июн 27 08:12:30 vl-proxy-test sshd[828]: drop connection #10 from [197.26.19.193]:38230 on [10.120.1.10]:22 past MaxStartups
+
+июн 27 08:12:33 vl-proxy-test sshd[828]: exited MaxStartups throttling after 00:00:03, 10 connections dropped
+
+
+о чем эта хрень.
+
+смотрим в конифг sshd
+
+# sshd -T  | grep -i max
+maxstartups 10:30:100
+
+что значать эти цифры
+
+10: Number of unauthenticated connections before we start dropping
+
+30: Percentage chance of dropping once we reach 10 (increases linearly for more than 10)
+
+1000: Maximum number of connections at which we start dropping everything
+
+тоетсть это типа некая такая DDos защита чтоли
+
+
+
+запись будет и  journalctl -u ssh и  в /var/log/auth.log
+
+====

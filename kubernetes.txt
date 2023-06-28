@@ -17094,7 +17094,37 @@ Labels:         app=web
 а состояние системного поды оверлейной сети будет failure так что тут надо с двух 
 сторон смотреть
 
+| stuck
+| terminate
 
+если под висит бесконечно в статусе "terminate"
+то его надо убить рукам 
+
+# kubectl delete pod <PODNAME> --grace-period=0 --force --namespace <NAMESPACE>
+или 
+# kubectl delete pod POD_NAME --grace-period=0 --force -n NAMESPACE_NAME
+
+
+| runtime
+
+как узнать какой тип конейнеризации используется на к8. говоря по заумному
+кккой рантайм.
+
+ответ надо посмореть в настройках кубелета
+
+/usr/local/bin/kubelet
+--v=2
+--node-ip=10.42.147.39
+--hostname-override=nl-k8-01
+--bootstrap-kubeconfig=/etc/kubernetes/bootstrap-kubelet.conf
+--config=/etc/kubernetes/kubelet-config.yaml
+--kubeconfig=/etc/kubernetes/kubelet.conf
+--container-runtime=remote
+--container-runtime-endpoint=unix:///var/run/containerd/containerd.sock
+--runtime-cgroups=/system.slice/containerd.service
+
+
+здесь райнтайм это containerd
 
 
 | deployment
@@ -17118,3 +17148,444 @@ paused и rollback это прикольно
 они их "перекачивает" с одной реплики в другую. по дефолту поды досутпны только по сети только внутри куба 
 плюс если под убили а другой создали то поменлся один из IP в этой групппе подов. поэтому service(svc)
 дает единый IP кооторый неменяется. плюс он пробрасывает порт наружу хоста.
+
+про деплой. в отличие от rs наш деплой при обновлении шаблона пода  в его манифесте
+он сразу начинает обновлять свои поды. и у него есть две стратегии обновления подов.
+одна стратегия это когда он полностью удаляет все старые поды
+и только после этого начинает создавать новые. эта стратегия в манифесте
+прописывается вот так
+
+  replicas: 1  
+  strategy:
+    type: Recreate
+ 
+
+вторая стратегия это когда он понемног создает новые поды и понемног удаляет старые
+подые. эта стратегия в конфиге прописывется вот так
+
+replicas: 3  
+strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+
+
+пр maxsurge и  maxUnavailable 
+если кратно для чего они
+
+maxSurge: 2        # how many pods we can add at a time
+maxUnavailable: 0  # maxUnavailable define how many pods can be unavailable
+                         # during the rolling update
+
+но это если кратно и малопонятно   а так надо говорить отдельно для этого смотри "kubernetes PV.txt" файл, там я это расписал.
+
+
+по поводу того как откатывать поды в деплое к предыдущему релизу.
+с одной стороны можно зайти в манифест деплоя и руками скажем поправить обратно 
+версии имаджей на предыдующую версию. по мне метод норм. а можно сделать по другому.
+дело в том что деплой  у нас обноавляется как? он создает новый rs в нем приавбяеляет
+число реплик в старой rs убавляет до нуля. так вот по окончании процесса обновления
+он старую реплику неудаляет. она так и болтается в к8. по дефолту таких реплик деплой
+хранит толи 3 толи 10 штук. можно задать чтобы он это хранил и больше.вот
+хоршая статья про это (https://learnk8s.io/kubernetes-rollbacks)
+так вот можно увелчить это число, для этого в манифесте деплоя надо вписать
+
+ replicas: 3
+  revisionHistoryLimit: 100
+
+
+а вот доказетельство
+
+# kubectl get rs
+NAME                                DESIRED   CURRENT   READY   AGE
+depl3-599bb89957                    2         2         2       14s
+depl3-9759cc7f6                     0         0         0       40h
+depl3-fc57c9788                     0         0         0       40h
+
+это rs принадлежщие деплою.видно что висит один рабочий rs с текущими
+подами и два старых rs без подов.
+
+
+инетересыйн вопрос хранит ли в своем манифесте деплой список старых rs
+ответ нет. как он их находит  - находит он их просто - во первых он их владелец, 
+во вторых они rs имеют теже лейблы которые прописаны в селекторе деплоя.
+окей - деплой знает про свою кучу rs. как он определяет в какой последовательности
+эти rs он создавал. ответ такой что эта инфа содержится в аннотации rs
+в аннотации есть поле "revision"
+по нему деплой понимает какой rs был опубликован за каким
+
+это текущий последний rs
+# kubectl describe rs  depl3-599bb89957  | head
+Name:           depl3-599bb89957
+Annotations:    
+                deployment.kubernetes.io/revision: 3
+
+
+
+это прердыдущий rs
+# kubectl describe rs  depl3-9759cc7f6  | head | grep revision
+                deployment.kubernetes.io/revision: 2
+
+это самый старый rs
+# kubectl describe rs  depl3-fc57c9788  | head | grep revision
+                deployment.kubernetes.io/revision: 1
+
+
+с этим разобрались. теперь вопрос как нам откатсят на преддущую версию подов
+используя это ?так занчит еще раз покажу какой rs щас последний и какая версия
+имаджа там стоит
+
+# kubectl describe rs  depl3-599bb89957  | grep -E "revision|Image"
+                deployment.kubernetes.io/revision: 3
+    Image:        nginx:1.7.6
+
+
+а вотпредыдущая версия rs
+
+# kubectl describe rs  depl3-9759cc7f6  |  grep -E "revision|Image"
+                deployment.kubernetes.io/revision: 2
+    Image:        nginx:1.7.9
+
+
+откатвытеися на предудущю весрию подов
+# kubectl rollout undo deployment/depl3  --to-revision=2
+deployment.apps/depl3 rolled back
+
+
+вот такая у нас была ситуация
+
+# kubectl get rs
+NAME                                DESIRED   CURRENT   READY   AGE
+depl3-599bb89957                    2         2         2       14s
+depl3-9759cc7f6                     0         0         0       40h
+depl3-fc57c9788                     0         0         0       40h
+
+
+вот такая у нас стала ситуация
+
+# kubectl get rs | grep -E "NAME|depl3"
+NAME                                DESIRED   CURRENT   READY   AGE
+depl3-599bb89957                    0         0         0       10m
+depl3-9759cc7f6                     2         2         2       40h
+depl3-fc57c9788                     0         0         0       40h
+
+
+
+вот такие номера ревизий были
+
+# kubectl describe rs  depl3-599bb89957  | head
+Name:           depl3-599bb89957
+Annotations:    
+                deployment.kubernetes.io/revision: 3
+
+
+
+# kubectl describe rs  depl3-9759cc7f6  | head | grep revision
+                deployment.kubernetes.io/revision: 2
+
+# kubectl describe rs  depl3-fc57c9788  | head | grep revision
+                deployment.kubernetes.io/revision: 1
+
+
+
+а вот такие стали
+# kubectl describe rs  depl3-599bb89957  | grep -E "revision|Image"
+                deployment.kubernetes.io/revision: 3
+    Image:        nginx:1.7.6
+
+# kubectl describe rs  depl3-9759cc7f6  |  grep -E "revision|Image"
+                deployment.kubernetes.io/revision: 4
+    Image:        nginx:1.7.9
+
+
+
+видно что тот rs куда деплой перешел в результате роллоута у него прибавилась 
+версия ревизии. была 2 а стала 4. 
+
+вот такая схемотехника. поэтому по номеру ревизии всегда можно 
+узнать какая реплика сет былв прошлый раз и позапрошлый раз.
+внезависимости скачем ли мы по репликам через роллоут или мы просто накатыавем
+новые версии деплоя одну за одной.
+
+тоесть как происходит rollout - деплой просто берет и перекачивает поды из 
+одной rs  в другую. вот так просто. тоесть он уменшает число подов в текущй rs
+и увелчиивает в одной из старых rs. и прибалвяет номер ревизии в той реплике
+которая текущая.
+
+едиснвтенное что над помнить что если после такого роллоута  нам надо 
+в нашем текстовом файле манифеста деплоя поменять номера имаджей на текущий.
+а то будет несоовтасвие манифетса на к8 и  у нас на компе с которого мы разворачивали
+этот деплой.
+
+процесс деплоя и рооллоута в динамике (тоесть сколько подов уже обновлено)
+можно наблдать  перидически вызывая 
+
+# kubectl get rs
+
+а можно через комкнду
+# kubectl rollout status deployment/depl
+
+елинстевеное что эта команда ебнутая. показыает некоеректные резултатты. 
+об этом подробно в "kubernetes PV.txt" я расписал.
+
+поэтому да - вопрс как наблюдать динамику сколько подов обновлено при деплое 
+или роллоуте - я рекомендую неюзать команду  kubectl rollout status deployment/depl 
+а юзать банально   kubectl get rs
+
+еще вот такая команда есть, это еще одна ебанутая команда
+# kubectl rollout history deployment/depl3
+deployment.apps/depl3 
+REVISION  CHANGE-CAUSE
+1         <none>
+3         <none>
+4         <none>
+
+
+она по идее должна показывать чтото типа такого
+kubectl rollout history deployment/app
+REVISION  CHANGE-CAUSE
+1         kubectl create --filename=deployment.yaml --record=true
+2         kubectl apply --filename=deployment.yaml --record=true
+
+но она такого никогда непокаже потому что для этого надо при накатке 
+деплоя в командной строке указать доп флаг --record
+
+# kubectl apply -f deployment.yaml --record
+или вот так
+# kubectl apply -f deployment.yaml --record=true
+
+так вот проблема в том что если мы хотим задать этот флаг в манифесте деплоя
+то в нем такой опции нет. так что пошел нахуй называется.
+еще я не знаю нужно ли при каждлом вызове деплоя вставлять этот флаг 
+или достатно только один раз.
+
+
+продолжаю про деплоймент.
+важная вещь - положим новая версия деплоя неправильная неудачная.
+как ее откатить?
+
+показываю
+
+вот текущая версия имаджа у подов
+# kubectl describe rs depl3-fc57c9788 | grep -i image
+ Image:          nginx:1.13.10
+
+изменили деплой. накатываем неущствующую версию жинкс
+
+
+# kubectl get pod | grep -E "NAME|depl3"
+NAME                                      READY   STATUS         RESTARTS        AGE
+depl3-554ddc4978-4vf4t                    0/1     ErrImagePull   0               5s
+depl3-7c7f7bb655-h8465                    1/1     Running        0               2m36s
+depl3-7c7f7bb655-jl8xw                    1/1     Running        0               2m24s
+
+
+смотрим в дескрайб пода
+Error: ImagePullBackOff
+
+
+# kubectl get rs | grep depl3
+depl3-554ddc4978                    1         1         0       3m29s
+depl3-7c7f7bb655                    2         2         2       6m1s
+
+
+понятно что где "2" это старая rs а где  "1" 
+
+а вот что к слову показывает status деплоя
+# kubectl rollout status deploy depl3
+Waiting for deployment "depl3" rollout to finish: 1 out of 2 new replicas have been updated...
+
+
+откатываем деплой обратно (та самая команда)
+
+# kubectl rollout   undo  deploy depl3
+deployment.apps/depl3 rolled back
+
+смотрим что стало с rs
+
+
+вот так было на момент херового деплоя
+depl3-554ddc4978                    1         1         0       3m29s
+depl3-7c7f7bb655                    2         2         2       6m1s
+
+
+вот так стало после rollout
+# kubectl get rs | grep depl3
+depl3-554ddc4978                    0         0         0       7m42s
+depl3-7c7f7bb655                    2         2         2       10m
+
+
+
+
+# kubectl describe deploy depl3 | grep NewReplicaSet:
+NewReplicaSet:   depl3-7c7f7bb655 (2/2 replicas created)
+
+таким образом rollout меняет обратно ту активную реплику сет на предыдущую.
+вот так работает rolloout. на херовой rs число подов сдувается до нуля. а на предыдущей
+rs надувается до максимума.
+
+едиснтвенное что мне непонятно почему при этом неудаляется стремная реплика?
+
+
+щая я проверю а можно ли таким же rollout октатить успешный деплой?
+итак имеем
+
+# kubectl describe deploy depl3 | grep NewReplicaSet:
+NewReplicaSet:   depl3-7c7f7bb655 (2/2 replicas created)
+
+# kubectl describe rs  depl3-7c7f7bb655  | grep  -i image
+    Image:        nginx:1.13.10
+
+делаем успешный деплой
+# kubectl describe deploy depl3 | grep NewReplicaSet:
+NewReplicaSet:   depl3-8bfccfcbf (2/2 replicas created)
+
+# kubectl describe rs  depl3-8bfccfcbf    | grep  -i image
+    Image:        nginx:1.7.6
+
+откатываем через rollout
+# kubectl rollout undo deploy depl3
+deployment.apps/depl3 rolled back
+
+проверяем деплой
+# kubectl describe deploy depl3 | grep NewReplicaSet:
+NewReplicaSet:   depl3-7c7f7bb655 (2/2 replicas created)
+
+# kubectl describe rs   depl3-7c7f7bb655     | grep  -i image
+    Image:        nginx:1.13.10
+
+итак да - rollout deploy откатывает версию подов на -1 релиз
+внезависиомсти был ли текущий релиз успешным или нет.
+
+получается это просто укороченная версия команды
+# kubectl rollout undo deployment/depl3  --to-revision=2
+
+понятно.
+
+
+
+продллжаю про депйломент и его свойства
+я уже скзаал что деплой обновляет поды по двум сценариям.
+повторюсь. одинц сценарйи это recreate
+A deployment defined with a strategy of type Recreate will terminate all the running instances then recreate them with the newer version.
+тоесть вначале удаляются полнстью все старые поды и  только после этого создаются 
+новые поды.
+The recreate strategy is a dummy deployment which consists of shutting down version A then deploying version B after version A is turned off. This technique implies downtime of the service that depends on both shutdown and boot duration of the application.
+
+еще про rollout там есть rollout pause
+
+# kubectl rollout pause deploy depl3
+deployment.apps/depl3 paused
+
+что это дает. работающие поды будут продолжать работать 
+как я понял новые обновления деплоя перестанут работать.
+также ( я непроверял) если процесс деплоя идет и в это время ставим пауузу
+то как я понимаю то накатка оставшихся подов прекращается.
+
+следущий момент соупуствующий это port-forward
+эта штука которая позволяет настроить порт форвардинг проксирования  с локального
+локалхоста до пода
+
+вот у меня есть под   whoami
+
+# curl 10.233.80.216
+Hostname: whoami-deploy-1-75d55b64f6-gqldp
+IP: 10.233.80.216   (<=== ip пода)
+RemoteAddr: 10.233.66.128:58432   (<==== src ip нашего пакета)
+
+
+# kubectl port-forward   whoami-deploy-1-75d55b64f6-gqldp  4545:80
+Forwarding from 127.0.0.1:4545 -> 80
+Forwarding from [::1]:4545 -> 80
+Handling connection for 4545
+
+этой командой мы пробрасываем порт 4545 с нашего локалхоста в порт 80 на удаленном поде.
+
+# netstat -tnlp | grep 4545
+tcp        0      0 127.0.0.1:4545          0.0.0.0:*               LISTEN      2395642/kubectl     
+
+#  curl localhost:4545
+Hostname: whoami-deploy-1-75d55b64f6-gqldp
+IP: 10.233.80.216
+RemoteAddr: 127.0.0.1:47906
+
+
+единственое что мне непоняпонтяно  нахер этот порт форвард надо.
+потому что с любой ноды к8 можно напрямую через овелейную сесть достучаться 
+до любого пода. непонятно
+
+
+еще одна полезняшка. как в сервисе изменить селектор под которым он работает
+и ищет поды
+
+# kubectl patch service my-app -p '{"spec":{"selector":{"version":"v1.0.0"}}}'
+
+еще полезняшка как зайти в под
+
+# kubectl exec --stdin --tty  название_пода -- /bin/bash
+
+двигаю  дальше.
+если унас есть деплоймент. и в нем мы пропишем подключение PV
+через PVC а этот PV имеет режим ReadWriteOnce который означает то что
+этот PV можно монтировать только на одной ноде и  поды которые крутятся
+на этой ноде могут ее себе монтировать. но поды на другой ноде
+уже не могут ее монтировать. так вот если запустить деплоймент
+и число реплик равно 2 и больше то деплоймент будет стараться раскидвать 
+поды по разным нодам и деплой при этом плевал что у нас получится ситуация
+что на одной ноде под смортирует себе PV а ана другой ноде под уже получит отлуп
+и в логах пода будет запись
+
+Multi-Attach error for volume Volume is already used by pod(s)
+
+так вот это именно потому что деплой плевал на требования PV что все поды 
+дожны быть на одной ноде. эта ошибка об этом. реешение такое - надо 
+заставить к8 создавать поды на одной ноде. тогда никакой проблемы примонтиовать 
+этот PV хоть на 100 000 подов нет. для того чтобы заставить к8 создавать поды
+на одной ноде надо в манифест деплоя добавить NodeSelector
+
+пример деплой с NodeSelector
+
+apiVersion: apps/v1
+kind: Deployment
+
+
+metadata:
+  name: depl3
+
+
+spec:
+  replicas: 10
+  revisionHistoryLimit: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 5
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: nginx3
+
+
+  template:
+    metadata:
+      labels:
+        app: nginx3
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: nl-test-02
+      containers:
+      - name: nginx
+        image: nginx:1.7.6
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: data
+          mountPath: "/usr/share/nginx/html"
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: pvc-02
+
+
+

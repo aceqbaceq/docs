@@ -117,3 +117,42 @@ f0dfc0b32c60   nginx          "/docker-entrypoint.…"   25 hours ago   Up 25 ho
 и в целом вся докер щарманка
 
 ---
+| enntrypoint
+
+как переобрпеделить entrypoint у имаджа.
+потому что его надо перебить чтобы войти в командную стрлку
+оказывается
+
+$ docker run -it --rm --entrypoint sh   image_id
+
+ура!
+
+===
+
+| sphinx
+
+$ docker run -it \
+             --rm  \
+             -v ./config/sphinx/sphinx.conf:/opt/sphinx/conf/sphinx.conf \
+             -v ./data/sphinx/index:/opt/sphinx/index/ \
+             -v ./data/sphinx/logs:/var/log/sphinx/ \
+             --entrypoint sh   \
+             --add-host mariadb:172.18.0.2   \
+             --network fastrans_lan  \
+             -e SQL_PASS=rootpass \
+             -e SQL_DB=db  \
+             ef56fdfad70d
+
+
+
+  вот такой интересный пример.
+  -v = это мы монтруем папки с хоста
+  --entrypoint sh   = это мы переопределяем entrypoint 
+  --add-host mariadb:172.18.0.2  = это мы добавляем запись в /etc/hosts
+  --network fastrans_lan  = это мы встаялем контейнер в определенную докер сеть
+  -e SQL_PASS=root123   = это мы задачем переменную окружения
+ 
+
+==
+
+  

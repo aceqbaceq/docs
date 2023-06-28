@@ -1,5 +1,39 @@
 kubespray
 
+новый материал
+
+
+| предвариельные требования к хостам
+
+- минималный обьем оперативки на мастере чтобы кубспрей нахер не послал это 1500MB
+minimal_master_memory_mb параметр в kubespray
+
+- если ставим к8 внутрь lxd контейнеров то на самом головном хосте 
+надо скоректировать sysctl
+
+$ cat /etc/sysctl.conf  | grep -v '#'
+kernel.panic = 10
+kernel.panic_on_oops = 1
+vm.overcommit_memory = 1
+
+и надо также на на головном хосте подгрузить модули 
+
+$ cat /etc/modules-load.d/modules.conf  | grep -v '#'
+
+br_netfilter
+ip_vs
+ip_vs_rr
+ip_vs_wrr
+ip_vs_sh
+nf_conntrack
+
+# systemctl restart systemd-modules-load.service
+
+
+
+
+================
+старый материал
 kubespray
 
 https://github.com/kubernetes-sigs/kubespray.git

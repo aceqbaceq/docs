@@ -406,3 +406,31 @@ memcached_api-prod.conf
 то его нельзя даже руками запустить. внаале надо сделаь unmask!!
 
 ==
+| systemd-resolved Using degraded feature set TCP instead of UDP for DNS server
+
+весь лог journalctl забит такой хуйней.
+
+Using degraded feature set TCP instead of UDP for DNS server
+
+решение. 
+
+1) удаляем /etc/resolv.conf
+ибо это симлинк
+
+2) создаем заново пустой файл с контентом
+
+# cat /etc/resolv.conf
+nameserver  8.8.8.8
+search .
+
+3) add DNSSEC=no to /etc/systemd/resolved.conf
+
+
+4) перезагружаемся
+
+подучем нахуй профит
+
+решение нашел здесь https://github.com/systemd/systemd/issues/13432
+==
+
+

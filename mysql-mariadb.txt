@@ -4685,3 +4685,12 @@ MARIADB_AUTO_UPGRADE=1
 пиздец
 
 ===
+| bin
+| bin log
+
+как отключить bin log
+
+[mysqld]
+skip-log-bin
+disable_log_bin
+==

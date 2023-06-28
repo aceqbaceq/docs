@@ -1,0 +1,504 @@
+k8<-- ceph
+
+здесь будет описано как соединить ceph и k8
+
+ceph 
+
+с  него можно забирать дисковое пространство либо в форме
+блочных устройств RBD (/dev/rbdX) которое надо еще потом отформатировать.
+а можно в форме готовой ФС CephFS.
+
+
+насколько я понял к8 разработало некую схему прокладку для того чтобы
+создатели стораджей могли писать типа драйвер соотвствующей некоторым схемам
+и стадартам фреймам. тогда создателяем к8 ненужно менять код к8 под этот сторадж.
+ибо драйвер по стандарту уже ловко умеет связваться с к8. таким макаром
+они развязали себя от необходимости совать код драйвера от стораджа кажлый раз 
+в к8.  в к8 есть некий универсльный драйвер в к8. мы его неменяем. а создатели
+стораджей пишут суб драйвер который уже будет звонить на универсльный драйвер.
+таким образом создаетли к8 в шоколаде. они уже все написали. а мудота легла
+на создателей стораджей. этот стандарт называется CSI.
+
+
+ставим все что нужно в к8. 
+( ставлю на основе этой статьи https://itnext.io/provision-volumes-from-external-ceph-storage-on-kubernetes-and-nomad-using-ceph-csi-7ad9b15e9809 )
+
+ставим helm
+#  curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3
+
+# chmod +x ./get_helm.sh
+Downloading https://get.helm.sh/helm-v3.12.1-linux-amd64.tar.gz
+Verifying checksum... Done.
+Preparing to install helm into /usr/local/bin
+helm installed into /usr/local/bin/helm
+
+
+Create a namespace for Ceph CSI
+# kubectl create namespace ceph-csi-rbd; 
+
+
+Cloning Ceph CSI and switching to v3.3.1.
+# git clone https://github.com/ceph/ceph-csi.git;
+# cd ceph-csi;
+# git checkout v3.3.1;
+
+ move to rbd chart.
+# cd charts/ceph-csi-rbd;
+
+таким макаром мы будем щас ставить именно rbd драйвер ceph.
+это значит что мы будем вытаскивать импортировать с ceph блочные устрйства.
+забегая вперед скажу что нам руками форматировать эти блочные устройства ненужно.
+это автоматом сделает драйвер. нам в под будет подсовываться уже отформатрованной 
+блочое устйроство то есть папка.
+
+создаем файл с  переменными для хельма.
+для этого надо зайти на ceph и выяснить некотоыре моменты
+
+итак зашли на ceph ноду
+для начала надо выяснить cluster_id у цеф
+# microceph.ceph -s
+  cluster:
+    id:     2f48afc6-22a3-4688-a09f-4d8a011bb7da
+
+либо можно еще узнать вот так
+# microceph.ceph   fsid;
+2f48afc6-22a3-4688-a09f-4d8a011bb7da
+
+узнали cluster_id
+
+
+# microceph.ceph   mon  dump
+epoch 4
+fsid 2f48afc6-22a3-4688-a09f-4d8a011bb7da
+last_changed 2023-06-22T18:26:56.404865+0000
+created 2023-06-22T18:19:09.236944+0000
+min_mon_release 17 (quincy)
+election_strategy: 1
+0: [v2:172.16.10.10:3300/0,v1:172.16.10.10:6789/0] mon.nl-test-01
+1: [v2:172.16.10.11:3300/0,v1:172.16.10.11:6789/0] mon.nl-test-02
+2: [v2:172.16.10.12:3300/0,v1:172.16.10.12:6789/0] mon.nl-test-03
+dumped monmap epoch 4
+
+мы узнали IP адреса мониторов:
+172.16.10.10:6789
+172.16.10.11:6789
+172.16.10.12:6789
+
+тепеорь мы готовы создать файл с переменными для хельма
+
+# cat <<EOF > ceph-csi-rbd-values.yaml
+csiConfig:
+  - clusterID: "2f48afc6-22a3-4688-a09f-4d8a011bb7da"
+    monitors:
+      - "172.16.10.10:6789"
+      - "172.16.10.11:6789"
+      - "172.16.10.12:6789"
+provisioner:
+  name: provisioner
+  replicaCount: 2
+EOF
+
+
+теперь через helm ставим CSI драйвер от ceph на k8
+
+# helm install  \
+           --namespace ceph-csi-rbd  ceph-csi-rbd \
+           --values ceph-csi-rbd-values.yaml \
+           ./;
+
+
+потсмртеть статус устаовки
+# helm status ceph-csi-rbd -n ceph-csi-rbd;
+NAME: ceph-csi-rbd
+LAST DEPLOYED: Tue Jun 27 22:23:19 2023
+NAMESPACE: ceph-csi-rbd
+STATUS: deployed
+REVISION: 1
+TEST SUITE: None
+NOTES:
+Examples on how to configure a storage class and start using the driver are here:
+https://github.com/ceph/ceph-csi/tree/devel/examples/rbd
+
+
+также можно посмтреть что же helm поставил в к8, какие элементы
+
+# helm template --namespace ceph-csi-rbd   ceph-csi-rbd  --values ceph-csi-rbd-values.yaml   ./ | grep kind:
+kind: ServiceAccount
+kind: ServiceAccount
+kind: ConfigMap
+kind: ConfigMap
+kind: ClusterRole
+kind: ClusterRole
+kind: ClusterRoleBinding
+  - kind: ServiceAccount
+  kind: ClusterRole
+kind: Role
+kind: RoleBinding
+  - kind: ServiceAccount
+  kind: Role
+kind: Service
+kind: Service
+kind: DaemonSet
+kind: Deployment
+kind: CSIDriver
+
+видно что устанавливается deployment
+посмотрим статус раскатки подов этого деплоймента
+
+# kubectl rollout status deployment ceph-csi-rbd-provisioner -n ceph-csi-rbd;
+
+по дефолту деплой имеет scale=2.(replicas=2)
+тут же хочу сказат что про очень важный момент.
+деплой порождает ровно одну rs. ни больше ни меньше.всегда 
+тольку одну rs. при обновлении деплоя порождается тоже ровно одна новая rs.
+а в старой rs число подов (scale) уменьшается до нуля.
+отсьюда первый важный вывод деплой никогда не порождает две rs или три rs.
+rs всегда одна. всегда. следущий момент деплой в своем теле содержит шаблон 
+ровно одного пода. ни двух ни трех. только шаблон одного пода может быть в деплое.
+тоже самое конечно распостраняется и на rs. тоесть rs которую порождает deploy
+она в себе содержит шаблон только для одного пода. два пода неможет быть в шаблоне
+rs. когда я говорю что один шаблон пода я имею ввиду одну разновидность пода.
+да у этого пода могут быть реплики то есть копии то есть клоны. но главное то 
+что все поды которые породила rs они одни и теже. условно говорят пусть шаблон 
+пода состоит из 1 контейнера. (потому что под может состоять из кучи контейнеров об этом 
+ниже). пусть это конейтенр жинкс. значит rs будет в себе содержать шаблон только для пода
+жинкс и мускула там не будет. в виде контенера в том же поде может быть а в виде 
+отделного пода нет. replicas в манифесте деплоя и в свою очередь в rs которую 
+он порождает как раз описывает число клонов подов из одного шаблона. 
+Поэтому возвращаеся обратно наверх параметр replicas в деплое не имеет никакого
+отношения к числу rs которые он породит. rs всегда одна. это имеет отношение к количетву
+клонов пода из шаблона в теле манифеста деплоя.  значит я возвращаюсь еще выше
+деплой драйвера CIS по дефолту имеет replicas=2. это значит что будет создано 
+два одинаковых клона из шаблона деплоя.  манифест деплоя таков что там прописано 
+что поды немогут быть запущены на одной ноде. также я напомн что поды деплоя 
+они не могут быть запущены по дефолту на ноде контроль панелей. поэтому получается что 
+чтобы два пода из шаблоа успешно были запущены надо иметь ДВЕ дата ноды.
+в моей конкретной инсталляции у меня была только ОДНА дата нода. поэтому я налету
+изменил scale(replicas) у этого деплоя
+
+# kubectl scale deploy ceph-csi-rbd-provisioner  -n ceph-csi-rbd   --replicas=1;
+
+
+еще раз подчеркну всю уебищность вот этой опции --replicas=1
+она интуитивно как бы намкает как бы мы меняем количество replica set в штуках.
+но еще раз подчеркну что эта оеци неимеет отношения к числу rs. она описывает число
+клонов ПОДОВ.вот такой тупой здец от к8 создателей.
+
+также поулчается что еслт у нас скажем 10 дата нод. то взможно имеет смысл наоборот
+увелчить число реплик тоесть число клонов подов из шаблона этого деплоя для увелчения
+редунданси ну и вообще - там же реквесты на эьих поды летят через service и он 
+их по round robin распределяет. так что и нагрузка по цпу на каждый под будет меньше.
+
+ а теперь покажу всю эту цепочку. деплой, rs, поды.
+
+# kubectl  get deploy     -n  ceph-csi-rbd ;
+NAME                       READY   UP-TO-DATE   AVAILABLE   AGE
+ceph-csi-rbd-provisioner   1/1     1            1           69m
+
+# kubectl  get    rs    -n  ceph-csi-rbd ;
+NAME                                  DESIRED   CURRENT   READY   AGE
+ceph-csi-rbd-provisioner-664d59dfcb   1         1         1       69m
+
+тоеть мы видим один деплой и один rs
+
+а вот самое интересное то про поды этого деплоя
+# kubectl  get   pods      -n  ceph-csi-rbd ;
+NAME                                        READY   STATUS    RESTARTS   AGE
+ceph-csi-rbd-provisioner-664d59dfcb-j2qhc   7/7     Running   0          70m
+
+и вот тут я хочу заострить внимание на вот эту колонку  READY
+                                                         7/7
+
+что она значит. она не значит что у нас семь подов запущено. нет .
+это тоже такая неудчаня х*ня от к8 создатейл. под у нас один ceph-csi-rbd-provisioner-664d59dfcb-j2qhc  а 7\7 означает что под
+состоит из 7 контейнеров. а 7\7 означает что все они живы здоровы.
+
+так что депйло у нас один. rs у нас всегда один. replicas означает сколько клонов
+подов будет наштамповано из шаблона деплоя.  в данном случае я выбрал replicas=1
+и в итоге запуен один под. а 7\7 означает что внутри пода имеется 7 контейнеров.
+
+
+ксатти количество подов наглядино покзывается именно в rs
+# kubectl  get    rs    -n  ceph-csi-rbd ;
+NAME                                  DESIRED   CURRENT   READY   AGE
+ceph-csi-rbd-provisioner-664d59dfcb   1         1         1       69m
+
+мы видим что оно равно 1.
+
+
+теперь нам надо вернуться на ceph и там поделать делов
+
+создаем пул
+# microceph.ceph osd pool create KubePool2 20
+
+20 = это число PG (ceph Placement Groups) об этом читай отдельно
+
+
+посмотреть список пулов
+# microceph.ceph osd pool ls
+.mgr
+k8s
+kubePool
+cephfs_data
+cephfs_metadata
+KubePool2
+
+initialize the pool as block device.
+# microceph.rbd pool init KubePool2
+
+чтобы получить доступ к пулу нужен юзер. создаем его
+
+# microceph.ceph auth get-or-create-key client.k8ceph mds 'allow *' mgr 'allow *' mon 'allow *' osd 'allow * pool=KubePool2' | tr -d '\n' | base64;
+QVFENWRwdGtQeDc1TEJBQVFuTlY4OFg2RytYd1RmbTdGTVBhRkE9PQ==
+
+в данном случае был создан юзер "k8ceph" с правами доступа к пулу "KubePool2"
+
+имя юзера тоже нужно перекодировать в base64
+
+# echo "k8ceph" | tr -d '\n' | base64;
+azhjZXBo
+
+
+креды этого юзера надо внести в к8
+# cat  << EOF  > ceph-admin-secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ceph-admin
+  namespace: default
+type: kubernetes.io/rbd
+data:
+  userID: azhjZXBo
+  userKey: QVFENWRwdGtQeDc1TEJBQVFuTlY4OFg2RytYd1RmbTdGTVBhRkE9PQ==
+EOF
+
+замечу что name: ceph-admin не совпдаает с "k8ceph"
+и то что этот секрет лежит не в неймспейсе -n  ceph-csi-rbd  а в дефолтовом неймспейсе.
+незнаю почему так
+
+нкатыаем это в к8.
+# kubectl apply -f ceph-admin-secret.yaml
+
+# kubectl get secret
+NAME         TYPE                DATA   AGE
+ceph-admin   kubernetes.io/rbd   2      19s
+
+
+# kubectl describe secret ceph-admin
+Name:         ceph-admin
+Namespace:    default
+Labels:       <none>
+Annotations:  <none>
+
+Type:  kubernetes.io/rbd
+
+Data
+====
+userID:   6 bytes
+userKey:  40 bytes
+
+# kubectl get secret ceph-admin -o yaml
+apiVersion: v1
+data:
+  userID: azhjZXBo
+  userKey: QVFENWRwdGtQeDc1TEJBQVFuTlY4OFg2RytYd1RmbTdGTVBhRkE9PQ==
+kind: Secret
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"v1","data":{"userID":"azhjZXBo","userKey":"QVFENWRwdGtQeDc1TEJBQVFuTlY4OFg2RytYd1RmbTdGTVBhRkE9PQ=="},"kind":"Secret","metadata":{"annotations":{},"name":"ceph-admin","namespace":"default"},"type":"kubernetes.io/rbd"}
+  creationTimestamp: "2023-06-28T00:02:13Z"
+  name: ceph-admin
+  namespace: default
+  resourceVersion: "46282"
+  uid: 7a61a076-72a6-46df-b177-07c8f1731606
+type: kubernetes.io/rbd
+
+
+
+
+теперь все гоотово чтобы создать StorageClass
+в него надо подставить ceph cluster_id
+и имя pool
+
+# cat  <<EOF  > ceph-rbd-sc.yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: ceph-rbd-sc
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+provisioner: rbd.csi.ceph.com
+parameters:
+   clusterID: 2f48afc6-22a3-4688-a09f-4d8a011bb7da
+   pool: KubePool2
+   imageFeatures: layering
+   csi.storage.k8s.io/provisioner-secret-name: ceph-admin
+   csi.storage.k8s.io/provisioner-secret-namespace: default
+   csi.storage.k8s.io/controller-expand-secret-name: ceph-admin
+   csi.storage.k8s.io/controller-expand-secret-namespace: default
+   csi.storage.k8s.io/node-stage-secret-name: ceph-admin
+   csi.storage.k8s.io/node-stage-secret-namespace: default
+reclaimPolicy: Delete
+allowVolumeExpansion: true
+mountOptions:
+   - discard
+EOF
+
+
+накатыаем этот сторадж класс
+# kubectl apply -f ceph-rbd-sc.yaml
+storageclass.storage.k8s.io/ceph-rbd-sc created
+
+
+все мы развернули провижионер для PV из ceph.
+работать он будет так - мы будем запрашивать из ceph блочное устройство.
+потом его драйвеп CIS автоматом форматирует и в под монтируутеся уже раздел 
+который лежит на этом блочном устройстве в папку в поде. фс по деолфту ext4
+я так понял это можно настраивать.
+
+создаем PVC и POD
+
+# cat <<EOF > pvc+pod.yaml   
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: pvc-ceph-1
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10M
+  storageClassName: ceph-rbd-sc
+---    
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-1
+spec:
+  containers:
+  - name:  ceph-rbd-pod-pvc-sc
+    image: busybox
+    command: ["sleep", "infinity"]
+    volumeMounts:
+    - mountPath: /mnt/ceph_rbd
+      name: volume
+  volumes:
+  - name: volume
+    persistentVolumeClaim:
+      claimName: pvc-ceph-1
+EOF
+
+
+накатывам на к8
+# kubectl apply -f pvc+pod.yaml 
+persistentvolumeclaim/pvc-ceph-1 created
+pod/pod-1 created
+
+
+проверяем
+# kubectl get pvc
+NAME         STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS   AGE
+pvc-ceph-1   Bound    pvc-17301f2b-c448-4ec5-bab7-c35cbf62cf28   10Mi       RWO            ceph-rbd-sc    30s
+
+pvc создался
+
+
+смотрим что с подом
+
+# kubectl get pod
+NAME    READY   STATUS    RESTARTS   AGE
+pod-1   0/1     Pending   0          106s
+
+под не создался. чтото мешает.
+
+# kubectl describe pod pod-1
+...
+ Warning  FailedScheduling  119s  default-scheduler  0/2 nodes are available: 1 node(s) had untolerated taint {node-role.kubernetes.io/master: }, 1 node(s) had untolerated taint {node.kubernetes.io/disk-pressure: }. preemption: 0/2 nodes are available: 2 Preemption is not helpful for scheduling..
+
+ есть подозрение что с дата нодой какие то проблемы. оэтому туда шедулер 
+ и не может пихнуть под.
+
+ # kubectl describe node nl-test-05
+...
+  kubelet has disk pressure
+
+
+понятно. значит на разделе где лежит /var/lib/kubelet/pods куда он пихает 
+и монтирует поды там мало места.
+
+проверряем
+
+на дата ноде у меня всего один раздел. поэтому /var/lib/kubelet лежит на корневом
+разделе
+
+# df -h
+Filesystem                         Size  Used Avail Use% Mounted on
+tmpfs                              192M  3.1M  189M   2% /run
+/dev/mapper/ubuntu--vg-ubuntu--lv   11G  9.0G  1.2G  89% /
+
+ага. и занято 89%. а триггер срабатвает по моему при 80% или 75%
+
+расширил там диск.
+
+и чтобы контроль панель увидела что на дата ноде теперь с местом все окей
+надо на  дата ноде перезапустить кубелет
+
+(дата нода) #  systemctl restart kubelet
+
+идем на контроль панель и уьеждаемся что дата нода больше не имеет disk pressure
+
+# kubectl describe node nl-test-05
+kubelet has no disk pressure
+
+теперь у нас шедулер должне наконец развернуть под
+
+# kubectl get pod
+NAME    READY   STATUS    RESTARTS   AGE
+pod-1   1/1     Running   0          7m2s
+
+да все окей.
+
+смотрим что там с вольюмом от цефа
+
+# kubectl describe pod pod-1
+
+Mounts:
+      /mnt/ceph_rbd from volume (rw)
+
+volume:
+    Type:       PersistentVolumeClaim (a reference to a PersistentVolumeClaim in the same namespace)
+    ClaimName:  pvc-ceph-1
+    ReadOnly:   false
+
+
+посмотрим как на практике был приммаунчен вольюм из цеф.
+# kubectl get  pod pod-1 -o yaml | grep uid
+  uid: b214529d-b25b-4733-a654-5f342d08125f
+
+идем на дата ноду где крутится под
+
+# mount | grep b214529d-b25b-4733-a654-5f342d08125f
+/dev/rbd0  on 
+/var/lib/kubelet/pods/b214529d-b25b-4733-a654-5f342d08125f/volumes/kubernetes.io~csi/pvc-17301f2b-c448-4ec5-bab7-c35cbf62cf28/mount 
+type ext4 (rw,relatime,discard,stripe=64,_netdev)
+
+
+проверка вольюма с другого бока
+
+# kubectl exec  pod/pod-1  -- df -h | grep rbd;
+/dev/rbd0                 8.5M     14.0K      8.3M   0% /mnt/ceph_rbd
+
+check if an image is created in the ceph pool.
+# microceph.rbd ls -p KubePool2;
+csi-vol-d32c5a63-1548-11ee-9aa4-8a17da914976
+
+
+
+все совпало все отлично. все замечательно.
+
+еще раз скажу что использовал на 99% процентов эту замеачатленую статью
+( https://itnext.io/provision-volumes-from-external-ceph-storage-on-kubernetes-and-nomad-using-ceph-csi-7ad9b15e9809 )
+
