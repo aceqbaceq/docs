@@ -726,6 +726,8 @@ $ aws configure --profile service-account-2
 AWS Access Key ID [None]: YCAJE...
 AWS Secret Access Key [None]: YCNuNIf...
 Default region name [None]: ru-central1
+default output: text
+
 
 настройки будут сохранены в папку $HOME/.aws/
 

@@ -812,3 +812,81 @@ bandwidth запись 135 МБ/с
 цена 3 300р
 
 ===
+| aws
+| bucket
+| object storage
+| s3
+
+работа с бакетами
+
+посмотреть список уже созданных бакетов
+
+$ yc storage bucket list --folder-id b1gobq5rv8qm8qi76hig
+
+
+создать бакет
+
+# yc storage bucket create \
+     --folder-id  qwe1212e12e12e
+     --name bucket-5G  \
+     --default-storage-class standard \
+     --max-size 52428800 \
+     --grants grant-type=grant-type-account,grantee-id=aje5na0qfqnci747bgs5,permission=permission-write \
+     --grants grant-type=grant-type-account,grantee-id=aje5na0qfqnci747bgs5,permission=permission-read
+
+по повод имени бакета = bucket names can contain lowercase letters, numbers, and hyphens
+причем --max-size 52428800  = это размер в БАЙТАХ указывается
+
+ксатти система получаетмя мега тупорылая. у нас доступ  acl в бакете прописывыает
+доступ к нему через яндекс акаунт. 
+
+посмотреть grantee-id можно через
+$ yc config profile get имя_профиля_яндкс_cli
+
+
+
+бывает три типа сторадж класса
+
+Standard storage: STANDARD.
+Cold storage: COLD, STANDARD_IA, or NEARLINE (use the last two only for uploading objects to a bucket).
+Ice storage: ICE or GLACIER (use the latter only for uploading objects to a bucket).
+
+
+разница  в цене
+
+Service Cost of 1 GB per month, without VAT
+The first 1 GB in standard storage per month1 Free
+
+Standard storage2  $0.016080
+Cold storage       $0.008560
+Ice storage3       $0.004280
+
+
+подьеюка ice storage есть в том что 
+The minimum billable period of ice storage is 12 months (except storage until September 1, 2022). If you delete an object that was stored less than 12 months, the balance of the cost is charged after deletion
+
+
+доступ к бакету
+понадобится aws cli
+
+посмотреть данные из  профиля
+
+$ aws configure  list --profile  имя_профиля
+
+профили хрантся в ~/.aws
+
+
+посмотреть что лежит в бакете
+причем что интересно - неважно в какой yandex папке лежит бакет вобще похеру.
+в приниципе это удобно
+
+$ aws --profile имя_профиля --endpoint-url=https://storage.yandexcloud.net \
+  s3 ls --recursive s3://имя_бакета
+
+
+
+записать в бакет
+
+$ aws --profile имя_aws_профиля \
+      --endpoint-url=https://storage.yandexcloud.net \
+      s3 cp --recursive локальная_папка/ s3://bucket-name/path_style_prefix/
