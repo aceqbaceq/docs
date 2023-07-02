@@ -1061,5 +1061,744 @@ pg_num=32 pgp_num=17 и вот теерь начинает происходит 
 очень странно что значение pgp_num вооббще мегахуево описано в инете я заебался 
 это искать. 
 
+возврашаемся к выводу ceph osd dump
+
+# microceph.ceph osd dump
+epoch 132
+fsid 2f48afc6-22a3-4688-a09f-4d8a011bb7da
+created 2023-06-22T18:19:11.449007+0000
+modified 2023-06-30T15:16:52.941387+0000
+flags sortbitwise,recovery_deletes,purged_snapdirs,pglog_hardlimit
+crush_version 13
+full_ratio 0.95
+backfillfull_ratio 0.9
+nearfull_ratio 0.85
+require_min_compat_client luminous
+min_compat_client jewel
+require_osd_release quincy
+stretch_mode_enabled false
+pool 1 '.mgr' replicated size 3 min_size 2 crush_rule 0 object_hash rjenkins pg_num 2 pgp_num 2 autoscale_mode on last_change 104 lfor 0/0/102 flags hashpspool stripe_width 0 pg_num_max 32 pg_num_min 1 application mgr
+pool 2 'k8s' replicated size 3 min_size 2 crush_rule 0 object_hash rjenkins pg_num 32 pgp_num 32 autoscale_mode on last_change 30 lfor 0/0/28 flags hashpspool,selfmanaged_snaps stripe_width 0 application rbd
+pool 3 'kubePool' replicated size 3 min_size 2 crush_rule 0 object_hash rjenkins pg_num 64 pgp_num 64 autoscale_mode on last_change 38 flags hashpspool,selfmanaged_snaps stripe_width 0 application rbd
+pool 4 'cephfs_data' replicated size 3 min_size 2 crush_rule 0 object_hash rjenkins pg_num 32 pgp_num 32 autoscale_mode on last_change 50 lfor 0/0/46 flags hashpspool stripe_width 0 application cephfs
+pool 5 'cephfs_metadata' replicated size 3 min_size 2 crush_rule 0 object_hash rjenkins pg_num 32 pgp_num 32 autoscale_mode on last_change 50 lfor 0/0/46 flags hashpspool stripe_width 0 pg_autoscale_bias 4 pg_num_min 16 recovery_priority 5 application cephfs
+pool 6 'KubePool2' replicated size 3 min_size 2 crush_rule 0 object_hash rjenkins pg_num 16 pgp_num 16 autoscale_mode on last_change 127 lfor 0/127/125 flags hashpspool,selfmanaged_snaps stripe_width 0 application rbd
+max_osd 3
+osd.0 up   in  weight 1 up_from 92 up_thru 96 down_at 91 last_clean_interval [56,85) [v2:172.16.10.11:6802/6095,v1:172.16.10.11:6803/6095] [v2:172.16.10.11:6804/6095,v1:172.16.10.11:6805/6095] exists,up e40e7c92-e3d0-4dfc-bfeb-f55761e32f6e
+osd.1 up   in  weight 1 up_from 91 up_thru 127 down_at 90 last_clean_interval [57,85) [v2:172.16.10.12:6802/4500,v1:172.16.10.12:6803/4500] [v2:172.16.10.12:6804/4500,v1:172.16.10.12:6805/4500] exists,up 83133952-1abc-420c-9db7-ee36b4edc540
+osd.2 up   in  weight 1 up_from 96 up_thru 121 down_at 95 last_clean_interval [60,85) [v2:172.16.10.10:6802/4382,v1:172.16.10.10:6803/4382] [v2:172.16.10.10:6804/4382,v1:172.16.10.10:6805/4382] exists,up e012050f-a1c4-44b5-b248-1741caddf48c
+
+значит в нем есть список пулов с их свойствами
+в нем есть спсок OSD демонов с их сокетами
+
+
+расмммотрим что есть в описании пула
+
+pool 6 'KubePool2' replicated size 3 min_size 2 crush_rule 0 object_hash rjenkins pg_num 16 pgp_num 16 autoscale_mode on last_change 127 lfor 0/127/125 flags hashpspool,selfmanaged_snaps stripe_width 0 application rbd
+
+ size 3 = это говрит что каждый обьект имеет 3 копии
+pg_num 16  = в пуле 16 PG
+pgp_num 16  = для клиентов доступно 16 PG
+
+про разницу между pg_num и pgp_num смотри выше
+
+autoscale_mode on = про это надо читать отдельно. как я прмиерно понимаю 
+если я заменю pg_num на большее число то pgp_num нненадо менять руками его будет
+менять сам цеф при чем потихоньку увеличивая на 5%
+
+application rbd = показывает пока я незнаб то чно что но полагаю что опиывает 
+какие типы обьектов храняться в этом пуле. в частности что в пуле есть обьекты типа "блочное
+устройство"
+
+3) PG MAP
+следущий кусок cluster_map
+как его посмотреть пока неопнятно
+
+4) CRUSH MAP
+посмотретье можно через
+
+# micriceph.ceph osd getcrushmap -o  /tmp/01.map
+# microceph.crushtool -d /tmp/01.map -o /tmp/01.map.decompiled
+к сожалению последней команды нет в микроцеф
+
+5) MDS MAP
+
+посмотреть можно вотак
+
+# microceph.ceph fs dump
+e19
+enable_multiple, ever_enabled_multiple: 1,1
+default compat: compat={},rocompat={},incompat={1=base v0.20,2=client writeable ranges,3=default file layouts on dirs,4=dir inode in separate object,5=mds uses versioned encoding,6=dirfrag is stored in omap,8=no anchor table,9=file layout v2,10=snaprealm v2}
+legacy client fscid: 1
+ 
+Filesystem 'cephfs' (1)
+fs_name  cephfs
+epoch 19
+flags 12 joinable allow_snaps allow_multimds_snaps
+created  2023-06-22T22:42:57.812351+0000
+modified 2023-06-29T08:15:27.928746+0000
+tableserver 0
+root  0
+session_timeout   60
+session_autoclose 300
+max_file_size  1099511627776
+required_client_features   {}
+last_failure   0
+last_failure_osd_epoch  88
+compat   compat={},rocompat={},incompat={1=base v0.20,2=client writeable ranges,3=default file layouts on dirs,4=dir inode in separate object,5=mds uses versioned encoding,6=dirfrag is stored in omap,7=mds uses inline data,8=no anchor table,9=file layout v2,10=snaprealm v2}
+max_mds  1
+in 0
+up {0=84142}
+failed   
+damaged  
+stopped  
+data_pools  [4]
+metadata_pool  5
+inline_data disabled
+balancer 
+standby_count_wanted 1
+[mds.nl-test-02{0:84142} state up:active seq 7 addr [v2:172.16.10.11:6800/868450590,v1:172.16.10.11:6801/868450590] compat {c=[1],r=[1],i=[7ff]}]
+ 
+ 
+Standby daemons:
+ 
+[mds.nl-test-01{-1:84136} state up:standby seq 1 addr [v2:172.16.10.10:6800/196090353,v1:172.16.10.10:6801/196090353] compat {c=[1],r=[1],i=[7ff]}]
+[mds.nl-test-03{-1:84139} state up:standby seq 1 addr [v2:172.16.10.12:6800/4167723508,v1:172.16.10.12:6801/4167723508] compat {c=[1],r=[1],i=[7ff]}]
+
+пока что смысл тут маол понятен
+
+
+с cluster-map разобрались.
+теперь инфо том что мониторы у цефа они живут в кластере. они хранят в себе 
+актуальную версию кластер мапа.  мониторы используют алгоритм Paxos
+для того чтобы было понятно если кластер развалится какая версия кластер мапа
+на данный момент актуальная.  на счет паксос не совсем понятно - в примере 
+обьясеннеия как  работает паксос ( https://martinfowler.com/articles/patterns-of-distributed-systems/paxos.html ) показано что клиенты обращаются на ноды
+с тем чтобы записать иземененеие. причем получается что кластер ноды живущий на паксос
+он получается не имеет мастер ноды там получается что запрос на запись может придти
+на любую ноду. далее эти ноды договаривбтся совместно чтобы эту запись записать. 
+поэтому про монитры цефа непонятно - кто инициирует изменения в кластер-мапе внешние 
+клиенты или кто? потому что еще раз скажу что в примере запрос на изменение прилетает в
+кластер снаружи. непонятно как это есть в кластере мониторов цефа - кто присылает 
+запрос на изменение кластер мапа.
+но в люьом случае в паксос кластере нет мастер нод. любоая нода может прринять запрос
+на запись а потом они начиают договариться как эту запись записать да так чтобы
+ее реально все записали.
+
+я опишу своим словами как работает паксос на еще боле упрлщенном примере чем это 
+рассмотрено в статье. там у них ноды ломаются. в моем примере ноды ломаться не будут.
+пусть у нас в системе есть пять нод. A, B, C, D, E
+далее непонятный момент - то ли в у каждой ноды есть свой генератор натуральных чисел.
+который называется "эпоха". то ли каждая нода отталкивается от эпохи которая была в прошлый раз и прибавляет один. непонятно. просто если у каждой ноды есть генератор натураьных чисел
+то непонятно как они доаваются чтобы они были хоть как то согласоыван потому что 
+позже станет понятно что это имеет какоето значение.
+
+итак внешний клиент обращается к A и просит записать в кластер значение 'vasya'
+A ставится так называемом "proposer". тоесть инициатором изменений в кластере.
+
+A генерирует мессагу в которой есть ID ноды тоесть "A" в которой есть значение
+которое мы хотим записат на все ноды кластера "a" и есть так называеоый номер эпохи
+тоесть натуральное число только я не понимаю откуда он его берет. то ли из генератора
+натуральных чисел который генерирует только числа на увеличение то ли он берет номер 
+эпохи из текущей версии его cluster_map и прибавляет на один. 
+мессага называется "prepare request" . итак как я поннял prepare request
+содержит две хрени : Id ноды и номер эпохи. пусть номер эпохи =1 а id="A"
+итак propose request = [1, A]
+здес опять же вроде как есть тонкость если другая нода сгенерирует свой propose request
+с тем же самым номером эпохи то побеждает тот реквест в котром больше node-id.
+по мне это дебилизм. тоесть   [1,E] > [1,A] (где A и E это некие Id нод)
+а если есть propose request с разными эпохами то ооднозначно реквес с тбольшей эпохой побеждает. итого   [2,A] > [1,E] > [1,A]  (согласно статье что я привел выше)
+
+итак A посылает к B и C propose request c содержимым [1, A]
+тем ему отвечают с потверждением. ответ называется "promise"
+в  частности B и C обещают что не будут принимать другие "propose request" у которых (внимание)  пропоз реквесты у которых номер эпохи меньше чем в текущем принятом пропоз реквесте.
+
+в это же время другой внешний клиент стучит на ноду E и просит записать в кластер 
+значение [petya]. тогда нода E откуда то тоже беерт номер эпохи и шлет свой propose
+request к нодам C и D. шлет им [1,E] где E это id ноды E.
+нода D принимает и отвечает с "promise".
+Нода C интереснее она же уже до этого ответила с промисом. а тут к ней опять прилетел
+propos request. выше я уже сказал что такая нода должна отвергать пропоз реквесты
+ у которых номер эпохи менььше чем у пропоз реквеста на который она ранее ответила.
+ но здесь получается щекотличая ситация. в этот новом пропоз реквесте номер эпохи тот же самый. та же самая единица. поэтому как я понял из статьи в бой вступает то правило что сранивются Id нод. тоесть [2,A] > [1,E] > [1,A]
+ так как исходный пропоз реквест был [1,A] а новый пропоз реквест [1,E] и 
+ E>A то нода C принимает новый пропоз реквест и отвечает промисом на E.
+поскольку A получил промис от двух нод то в сумме их стало три ноды что образует 
+кворум. поэтому A переходит к следущей фазе. он шлет на B и C "accept message"
+в котором содержится тоже самое что было в "propose request-е" и уже самое значение 'vasya'
+итак accept мессага содержит [1,A] и ['vasya']
+нода B подтверждает что оно приняло эту мессагу. и записывает внутри себя  [1,A] и ['vasya']
+а вот C посылает нахер так как уже теперь работает с E.
+сразу скажу что A на такой прикол реагирует следущим образом он увелиичивает значение
+эпохи тоесть было 1 станет 2 и начинает всю шарманку заново. будет слать пропоз мессаги 
+вида [2,A].
+также непонятно из статьи что будет если на ноду которая "proposer" прилетит
+propose request от другой ноды. в стаье это не рассматривется. 
+итак подведем итог какие хрени записаны на даный момент во всех нодах
+
+A = [2,A] [vasya]
+B = [1,A] [vasya]
+C = [1,E] [none]
+D = [1,E] [none]
+E = [1,E] [petya]
+
+теперь пложим что E отсылает на D и C accept message вида [1,E] [petya]
+D подтверждает и записыает к себе [1,E] [petya]
+C подтрваждает и записыает к себе [1,E] [petya]
+
+тогда у нас будет такая ситуация
+
+A = [2,A] [vasya]
+B = [1,A] [vasya]
+C = [1,E] [petya]
+D = [1,E] [petya]
+E = [1,E] [petya]
+
+
+теперь положжим что E сломался. это нам позводит увидеть еше один прикол паксос.
+итак A прибавил эпоху на шлет на B и C новый пропозал = [2,A]
+B отвечает подтверждая промисом записыая себе [2,A] а  [vasya] у него остался с прошлого
+раза и шлет обратно
+предыдущее значение [1,A] [vasya]
+С тоже отвечат промисом потому что эпоха 2 больш предыдущей эпохи 1,
+записывает себе [2,A] и шлет обратно [1,E] [petya]
+
+значит мы имеем
+
+A = [2,A] [vasya]
+B = [2,A] [vasya]
+C = [2,A] [petya]
+
+таким макаром  у нас три ноды имеют ответ промис. тоесть есть кворум.
+теперь A будет слать новый accept message но тут самое интересное
+нода B в промисе как я уже сказал ответила [1,A] [vasya]
+нода C в промисе ответиал [1,E] [petya]
+так вот при подготовке accept мессаги A анализирует прилетвшие промисы 
+и выбираем то знаение котрое имеет более приоритетный [эпоха + нода id] ответ.
+так как [1,E] > [1,A] то значение выбираетс не vasya а petya!
+поэтому в мессагу вкладыватся воот такая шняга  [2,A] [petya]
+B и C прнинимают , подтверждают принятие
+
+A = [2,A] [petya]
+B = [2,A] [petya]
+C = [2,A] [petya]
+
+
+на последнем этапе A шлет коммит мессагу.
+тут стьатя обрывается. непонятно что будет если коммиты не долетели обратно. или долетели.
+в другой статье там вобще вводится какойто новый элемент в нодах новая фаза называется learner. якобы ноды подтверждение от примке accept мессаги шлют на лернер. 
+короче на данном этапе я думаю хватит пока изучать этот paxos алгоритм. ясно что мудота.
+иначе не было бы чехарды в его описании.
+
+возвращаяс к нашим мониторам можно сказат что непонятно кто инициирует измеения в кластер_мап
+какойто внешний клиент или одна из нод мониторов. из самого же паксос алгоритма следует 
+что писать как бы можно на любую ноду тоесть как бы мультимастер но всеже между нодами
+есть старшинство. да если на старшую ноду никтоне обратится то более младщая нода протащит
+изменение а вот если на более старшую прилетит то ее занчение пересилит.
+такой забавынй мульимастер но со старшинством.
+
+двигаем далше. аутнтификация клиентво на цефе. аутнетифкацию делают мониторы.
+аутентификация идет на оснвое симметричного шифрования. тоеть клиент имеет пароль.
+и монитор тоже имеет пароль клиента. клиент может обратиться к лбому монитору. 
+монитор шифрует паролем клиента ответ. клиент получает расшифроварыет и шлет обратно 
+чтото там. тоогда монитор выдает клиенту тикет. и уже имея этот тикета как пропуск
+клиент его предьявляет на OSD для аутентифкации\авторизации. итак аутентфикация 
+идет по паролю. атентифкацию по паролю далет монитор. причем любой монитор. в конечном
+итоге выдает клиенту тикет. и клиент по этому тикету аутенфицирутся на OSD.
+тике во времени ограничен. тоесть он протухает в конеце концов.
+
+вот пример создаия юзера
+
+# microceph.ceph auth get-or-create-key \
+                  client.k8ceph \
+                  mds 'allow *' \
+                  mgr 'allow *' \
+                  mon 'allow *' \
+                  osd 'allow * pool=KubePool2' 
+
+
+здесь указывается юзер и его пермишнсы.
+об подробнее позже.
+
+еще раз ка работает аутентифкация клиента через монитор демон.
+клиент шлет монитору свой user name. монитор шифрует с помощью юзерского ключа 
+который монитор конено знает шифрует сессионный ключ. и отслыает оборатно.
+получается что расширофвать может только реальный юзер а не злодей. юзер полуучает
+с помощью своего шаред кей (другими словами пароля) расшифровывает  и получает сессионный
+ключ. далее клиент обратно отслыаает на монитоо этот сессиооный ключ только конечно не в открытом видеа в каком виде незнаю потому что смысле его шифровать полчится тоже самое что
+ему прислали. таким макаром и злодей может просто запросиь и получиь зашироыванный сессионный ключ и также его отпаврить не расшифроывая. скрей всего клиент чтото доблаяет 
+к сесиооному ключу шифрует своим пралем и обратно отправляет. тогда монитор получает 
+расшифровыает видит свой сессионный ключ и понимает что дейсивтетьно ему пишет
+настоящий клиент. получаетс через сессионный ключ можно аутентифицроваться не раскрывая пароль. потому что если просто слать на сервер md5 от пароля то злдоей просто перхватит
+этот md5  и да он пароль не знает но ему был бы и ненужен. md5 был бы такойже как пароль.
+монитор создает тикет шифрует его паролем клиента и шлет обтано клиенту.
+клиент расширофывает тикет. и потом он уже идет на OSD и с помощтью этого тикета 
+там аутентифцицирется. опять же непонятно как клиент шлет тике на oSD. если он просто 
+его защирфует то злодей просто перхыватывает этот пакет и также его шлет. вобщем както
+с помощью тикета работае уже на OSD.
+
+OSD демоны тоже скачивают cluster_map из мониторов. поэтому OSD они все знают про своих
+соседей OSD.
+
+OSD регулярно шлет мессаги на мониторы. поэтому мониторы знают что данный OSD
+живой. также OSD проверяют своих соседей и тоже шлют инфо мониторам если сосед OSD
+неотвечает.
+
+OSD берет PG у себя и свереяет его контент с таким же PG (репликой) на другом OSD
+где хранится реплика этого же PG.
+
+также как клиент использует cluster_mal + CRUSH для опредленеия на каком OSD
+находится primary PG. так вот также OSD использует cluster_mal + CRUSH чтобы 
+опредеить OSD где хранятся реплики primary PG. чтобы туде реплицировать обьект
+который прислал ему клиент.
+
+итак клиент через CRUSH передает данные на osd где primary PG. а OSD где 
+примари PG через crush определяет OSD где лежат реплики PG и туда 
+пишет то что прислал клиент. и только после этого OSD на который обратися клиент
+пришлет обратно овтет что данные записаны.
+таким макаром OSD осваобождает клиента от записи на реплики. клиент пишет только на
+один OSD а этот OSD пишет на остльыне где реплики этого PG.
+
+когда мы делаем запрос  к цефу то всегда идет аутентифкцаия. нужно имя клиента.
+и его shared key. если клиент не указан то по дефолту это client.admin
+а деолфтовый шаред кей ищется в  /etc/ceph/ceph.client.admin.keyring
+
+если мы говорим про microceph то его дефолтовый кейринг 
+находится по адресу 
+
+/var/snap/microceph/current/conf/ceph.client.admin.keyring
+
+# cat ceph.client.admin.keyring 
+[client.admin]
+   key = AQCdkJRkGnGuChAADzgxVGQjZgs3b5j2k7/BsQ==
+   caps mds = "allow *"
+   caps mgr = "allow *"
+   caps mon = "allow *"
+   caps osd = "allow *"
+
+
+получатся что в кейринге прорписываются не только шаред кей но и пермишнсы?
+
+поэтмоу каждый раз когда мы просто вводим команду цеф клиент дописывает туда
+дефолотовго юзера и путь к шаред кею.
+
+тоесть команда
+
+# microceph.ceph -s
+
+это тоже самое что команда
+
+# microceph.ceph -s -n client.admin --keyring=/var/snap/microceph/current/conf/ceph.client.admin.keyring
+
+
+странно. если в кейринге уже прописан юзер нахер его указывать тогда 
+отдеьно в командной строке
+
+и действительно я поробовал вот так
+
+# microceph.ceph -s  --keyring=/var/snap/microceph/current/conf/ceph.client.kubeAdmin.keyring 
+2023-06-30T22:45:50.017+0000 7faad2ffd640 -1 monclient(hunting): handle_auth_bad_method server allowed_methods [2] but i only support [2,1]
+[errno 1] RADOS permission error (error connecting to the cluster)
+
+и получил ошибку. получается как и было сказано если мы не указываем юзера в явном
+виде то клиент считает что он равен client.admin
+а то что в кейрринге указан другой юзер ему похеру
+
+а вот так сраобтало
+# microceph.ceph -s  --keyring=/var/snap/microceph/current/conf/ceph.client.kubeAdmin.keyring  -n client.kubeAdmin
+
+
+у цефа есть так называемые типы юзеров. один из типов это тип "client"
+он предназначен для обычных  внешних клиентов. для которых цеф и создается.
+есть и другие типы юзеров которые исопльзуются например для доступа OSD на мониторы.
+
+так вот в цефе тип юзера указывается вместе с именем юзера. например client.admin
+client это тип юзера 
+а 
+admin это имя юзера
+
+в цефе есть несоклько ключей для указания юзера. если юзается ключ
+
+-n или --name то надо указывать тип тоесть
+
+--name client.admin
+
+а если юзается --id или --user то тип можно опустить. но дока цефа рекомедует
+юзать  имя юзера вместе с типом.
+
+далее вот акое пока мало понятное - A Ceph Storage Cluster user is not the same as a Ceph Object Storage user or a Ceph File System user. The Ceph Object Gateway uses a Ceph Storage Cluster user to communicate between the gateway daemon and the storage cluster, but the Ceph Object Gateway has its own user-management functionality for end users. The Ceph File System uses POSIX semantics, and the user space associated with the Ceph File System is not the same as the user space associated with a Ceph Storage Cluster user.
+
+
+пермишнсы в цефе называются "capabilities" или сокращенно "caps"
+
+пул можно поделит дополнтельно на неймспейсы. и задать права чтобы юзер мог 
+иметь доступ внутри пула только к обьектам принадлежащим к неймспейсу
+
+про пермишнсы пдробно написано вот тут - https://docs.ceph.com/en/quincy/rados/operations/user-management/
+
+посмтреть список юзеров типа client.   в microceph
+
+# ceph auth ls | grep client
+installed auth entries:
+
+client.admin
+client.bootstrap-mds
+client.bootstrap-mgr
+client.bootstrap-osd
+client.bootstrap-rbd
+client.bootstrap-rbd-mirror
+client.bootstrap-rgw
+
+
+а вот полный список юзеров
+
+# ceph auth ls | grep -v key | grep -v caps
+installed auth entries:
+
+mds.nl-test-01
+mds.nl-test-02
+mds.nl-test-03
+osd.0
+osd.1
+osd.2
+client.admin
+client.bootstrap-mds
+client.bootstrap-mgr
+client.bootstrap-osd
+client.bootstrap-rbd
+client.bootstrap-rbd-mirror
+client.bootstrap-rgw
+mgr.nl-test-01
+mgr.nl-test-02
+mgr.nl-test-03
+
+
+отсюда можно увидеть какие типы юзеров есть у цефа.
+например тип OSD. также видно что в качестве имени юзера может быть просто число.
+
+постмреть инфо о конкретном юзере
+
+# ceph auth get client.kubeAdmin
+[client.kubeAdmin]
+   key = AQB+qpRkkTw2KRAApyP1J1OH3OtOhFzVYcr8fA==
+   caps mds = "allow *"
+   caps mgr = "allow *"
+   caps mon = "allow *"
+   caps osd = "allow * pool=kubePool"
+exported keyring for client.kubeAdmin
+
+
+сравниваю его с файлом 
+
+# cat /var/snap/microceph/current/conf/ceph.client.kubeAdmin.keyring 
+[client.kubeAdmin]
+   key = AQB+qpRkkTw2KRAApyP1J1OH3OtOhFzVYcr8fA==
+   caps mds = "allow *"
+   caps mgr = "allow *"
+   caps mon = "allow *"
+   caps osd = "allow * pool=kubePool"
+
+отсьюда видно что строка 
+
+exported keyring for client.kubeAdmin
+
+нахер ненужна
+
+
+разные сопосбы завести нового юзера
+
+# ceph auth add = This command is the canonical way to add a user. It will create the user, generate a key, and add any specified capabilities.
+
+# ceph auth get-or-create = This command is often the most convenient way to create a user, because it returns a keyfile format with the user name (in brackets) and the key. If the user already exists, this command simply returns the user name and key in the keyfile format. To save the output to a file, use the -o {filename} option.
+
+# ceph auth get-or-create-key = This command is a convenient way to create a user and return the user’s key and nothing else. This is useful for clients that need only the key (for example, libvirt). If the user already exists, this command simply returns the key. To save the output to a file, use the -o {filename} option.
+
+
+первая команда
+$ ceph auth add client.john mon 'allow r' osd 'allow rw pool=liverpool'
+
+add a client named john that has read capabilities on the Ceph monitor and read and write capabilities on the pool named liverpool
+
+список пулов
+# ceph osd lspools
+1 .mgr
+2 k8s
+3 kubePool
+4 cephfs_data
+5 cephfs_metadata
+6 KubePool2
+
+
+$ ceph auth add client.vasya mon 'allow r' osd 'allow rw pool=k8s'
+added key for client.vasya
+
+# ceph auth get client.vasya
+[client.vasya]
+   key = AQCraZ9kBdmCJhAAkY8rbT0c3CtdTMtPmfjJCw==
+   caps mon = "allow r"
+   caps osd = "allow rw pool=k8s"
+
+
+аналогичная команда 
+# ceph auth get-or-create client.vasya2  mon  'allow r'   osd  'allow rw pool=k8s'
+[client.vasya2]
+   key = AQA0ap9keNKVFBAAL3uX8w+x7Sri96Cyb81DSg==
+
+просто у нее другой вывод
+
+еще одна аналогичная команда
+# ceph auth get-or-create-key client.vasya5     mon 'allow r'     osd 'allow rw pool=k8sl'    
+AQBla59kectMChAA8Vo4eFuOesH9tsPCC9oSQg==
+
+# ceph auth get  client.vasya5
+[client.vasya5]
+   key = AQBla59kectMChAA8Vo4eFuOesH9tsPCC9oSQg==
+   caps mon = "allow r"
+   caps osd = "allow rw pool=k8sl"
+
+что интересно - при создании юзера его  креды и права пишутся  в базу на мониторы.
+а на хосте где мы создаем юзера никакого файла несоздается. 
+
+ну а вытащить креды можно через команду. легко
+# ceph auth get  client.vasya5
+[client.vasya5]
+   key = AQBla59kectMChAA8Vo4eFuOesH9tsPCC9oSQg==
+   caps mon = "allow r"
+   caps osd = "allow rw pool=k8sl"
+
+
+еще вот такое нашел
+Any user that has capabilities on OSDs will have access to ALL pools in the cluster unless that user’s access has been restricted to a proper subset of the pools in the cluster.
+
+
+удалить юзера 
+# ceph auth del client.vasya5
+
+
+модификация пермишнсов юзера
+# ceph auth caps client.john mon 'allow r' osd 'allow rw pool=liverpool'
+
+напечатать ключ от юзера
+# # ceph auth print-key   client.vasya3
+AQC9ap9k/3PcAxAApx8PynVkb9iZu4ELs02QVw==
+
+
+как примонтировать cephFS на хосте клиента
+# mount   -t ceph                      \
+          serverhost:/   /mnt/01      \
+          -o name=client.user,secret=`ceph auth print-key client.user`
+
+
+по поводу имени кластера. странно. его нельзя получить из cli.
+его нет в конфигах. единственное как его можно идентифицировать это (внимание) согласно 
+доке по имени главного конфига. это здец. если главный конфиг называется ceph.conf
+значит мы конектимся к кластеру "ceph". когда мы вызываем любую команду то мы
+должны указать конфиг. если мы неуказваем то клиент  счтает что мы конектися к 
+кластуре по имени "ceph" и ищет "ceph.conf" у микроцеф конфиг лежит в 
+
+/var/snap/microceph/current/conf/ceph.conf
+
+еще раз подчеркну что сам конфиг имя кластер несодержит
+
+$ cat /var/snap/microceph/current/conf/ceph.conf
+# # Generated by MicroCeph, DO NOT EDIT.
+[global]
+run dir = /var/snap/microceph/338/run
+fsid = 2f48afc6-22a3-4688-a09f-4d8a011bb7da
+mon host = 172.16.10.10,172.16.10.11,172.16.10.12
+auth allow insecure global id reclaim = false
+public addr = 172.16.10.10
+ms bind ipv4 = true
+ms bind ipv6 = false
+
+
+так вот я из экспермента вот что выяснил - походу цеф неимеет никакого имени кластера.
+это полная наебка.
+
+я переименовал файл /var/snap/microceph/current/conf/ceph.conf
+в cat /var/snap/microceph/current/conf/ceph2.conf
+
+ксатти также при конекте клиент цефа ищет  файл ceph.keyring
+поэтому я его тоже переименовал в ceph2.keyring
+
+далее заустил команду
+
+# ceph health -v  /var/snap/microceph/current/conf/ceph2.conf
+и комада успешно отрабтала. если бы в цефе дейтсивтельно был cluster name
+то команда бы послала нахер. значит у цефа нет никаого cluster name. 
+а есть только fsid.
+
+
+кстати заценим разницу в кейринг файлах
+
+# cat  ceph.keyring
+# Generated by MicroCeph, DO NOT EDIT.
+[client.admin]
+   key = AQCdkJRkGnGuChAADzgxVGQjZgs3b5j2k7/BsQ==
+
+
+# cat  ceph.client.admin.keyring
+[client.admin]
+   key = AQCdkJRkGnGuChAADzgxVGQjZgs3b5j2k7/BsQ==
+   caps mds = "allow *"
+   caps mgr = "allow *"
+   caps mon = "allow *"
+   caps osd = "allow *"
+
+одини и тотже юзер. но водном файле прописаны пермишнсы а вдругом нет.
+
+
+ладно. хотя бы теперь знаем другое что при вызове клиента ему нужен конфиг файл
+чтобы он знал ip адреса мониторов к которым конектится и ему нужен  юзер 
+и его щаред кей.  если мы это не указали он ищет дефолтовые конфиги.
+
+еще аткой момент я выснил - если взять конфиги и скопроовать в левую папку 
+даже подставиь в cli то цеф шлет нахер. видимо  путь к папке с конфигами важен.
+
+
+дальше. вот у нас есть клиент client.vasya если мы укажем  -n cient.vasya
+то цеф автомтом ищет кейринг с именем файла client.vasya.keyring
+
+а вот еще навания файлов где цеф автоматом ищет кейринг для юзера
+
+/etc/ceph/$cluster.$name.keyring
+
+/etc/ceph/$cluster.keyring
+
+/etc/ceph/keyring
+
+/etc/ceph/keyring.bin
+
+где $cluster это имя кластера, котоое как выяснили у цефа на самом деле нет.
+это некий буллшит.
+
+помимо утилит работы с юзерами что указал выше еще 
+утилита ceph-authtool позволяет заводить юзеров с хоста клиента.
+
+значит я выяснил что на  хосте с которого мы как клиенты хотим подключиться 
+к цефу надо поставить клиенты от цефа то есть
+
+#  apt-get install -y ceph-common
+
+далее команда которая создать пустой кейринг ( кейринг это файл где храится шаред кей клиента
+ и может быть его пермишнсы. пермишнсы храняться просто для српавки так как реальное 
+ место их хренения это цеф база на мониторах).
+
+создаем пустой кейринг
+
+# ceph-authtool -C /etc/ceph/ceph2.keyring
+
+по факту комана вобщем то беспоезная. она просто напросто создать пустой файл.
+в чем прикол?
+
+дока совует создавать кейринг файл с именем либо имя_кластера.keyring
+либо client.имя_клиента.имя_кластера.keyring
+тогда цеф клиент будет подхваывать кейринг автомтом его ненужно будет 
+просывать руками
+
+замечу что будет неприавлно назвать файл кейринга с окончанием .conf
+тоесть client.имя_клиента.имя_кластера.keyring.conf
+такой файл цеф искать не будет
+
+
+отвлекемся немножко в сторону. дело в том что утилиита ceph-authtool как я поянял
+предназнаена чобы работаь с юзерами цефа с хоста который не является нодой цефа.
+так вот поработаем пока с юзерами на ноде цефа.
+создадим юзера. запишем его кейринг в файл. дадим этому юзеру права читать с МОН 
+демонов. поехали
+
+создаем юзера
+
+# ceph auth  add client.vasya5;
+
+даем ему права
+
+# ceph auth caps client.vasya5  mon 'allow r';
+
+записываем его шаред кей в папку где должны храниться шаред кей у микроцефа
+
+# ceph auth get client.vasya5 -o /var/snap/microceph/current/conf/ceph.client.vasya5.keyring
+
+смотрим что там в файле
+
+# cat /var/snap/microceph/current/conf/ceph.client.vasya5.keyring 
+[client.vasya5]
+   key = AQCNmKFkHgAOCRAA1uCTsTtbeiK98JCiGumIdw==
+   caps mon = "allow r"
+
+
+проверяем что доступ к цефу от имени vasya5 рабтает
+
+# ceph -s -n client.vasya5
+  cluster:
+    id:     2f48afc6-22a3-4688-a09f-4d8a011bb7da
+    health: HEALTH_OK
+ 
+...
+
+
+еще раз скажу что наличие описанные пермишов в кейринг файле 
+самому цефу нахер ненужен. у цефа пермишны для юзера хранятся в мон базе.
+в кейринг файле они записаны чисто для нас для справки
+
+также еще раз скажу что  каждый раз когда клиент обращается к цефу 
+он должен в комадной строке прописать :
+1) путь к обшему конфигу цефа. где напримр лежат адреса мон серверов
+2) указать юзера
+3) указать файл кейринга с шаред кей юзера
+
+если мы это недалаем то клиент пытваестся сам автомтом это все вычислить и найти.
+если у него получается то ок. а если не получается то пошел нахер.
+от того что мы чтото не указали в комадной строке незначит что это неиспользуется.
+
+по дфеолту клиент ишет общий конфиг в папке конфигом ( как  ее опреедить ока я не знаю
+знаю что у микроцефа папка с конфигами это /var/snaps/micrceph/current/conf а 
+в класическом цефе это /etc/ceph) с именем конфига ceph.conf
+если не указан юзер то он ищет в файле ceph.client.admin.keyring
+если юзер указан но не указан кейринг файл то он ищет кейринг в файле ceph.client.имя_клиента.keyring
+
+у цефа нет никаого имени клатера. это неаболово из документации. есть другое - если 
+дефолтовое название конфиг файла ceph.conf они это называют именем кластера что полное 
+вранье.
+
+
+далее
+я столкнулся с ошибкой
+# ceph -s -n client.vasya
+handle_auth_bad_method server allowed_methods [2] but i only support [2,1]
+
+причина была в том что цеф искал кейринг с шаред кей для этого клеинта и немог 
+найти. не мог найти потому что я неправильной назвал файл с кейрингом. поэтому цеф 
+его не мог найти.
+
+неправльное навание файла
+  ceph.client.vasya.keyring.conf
+правильное название файла
+  ceph.client.vasya.keyring
+
+
+можно всегда указать название кейринга вручную
+
+# microceph.ceph -s  -n client.vasya   --keyring=/var/snap/microceph/current/conf/ceph.client.vasya.keyring 
+
+
+еще приколно то что если дать команду клиенту но без опций что делать то мы попадем
+в командую сессию цефа тоесть
+
+
+# microceph.ceph   -n client.vasya   --keyring=/var/snap/microceph/current/conf/ceph.client.vasya.keyring 
+ceph>
+
+в этой сесии можно вводить тоже команды например status
+
+ceph> status
+
+
+
+
+таким образом по крайней мере на ноде где крутится цеф мы научились заводить юзера.
+записывать его кейринг в файл. выдывать ему права . и конектится от его имени на цеф.
+ура.
+
 
 
