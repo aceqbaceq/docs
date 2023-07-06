@@ -1056,3 +1056,115 @@ Export list for localhost:
 
 /// как поставит nfs сервер ///
 /// конец блока             ///
+
+====
+
+lxd
+vm
+
+во первых : 
+
+если не удается запустить вм на основе lxd 
+значит надо с компа удалить vmware workstatiom.
+а вот virtualbox немешает
+
+запустить виртулку 
+
+# lxc launch ubuntu:22.04 vm1 --vm
+
+как наложить лимиты на виртуалку
+# lxc config set     vm1  limits.cpu 2
+# lxc config set     vm1  limits.memory 360MB
+
+
+
+# lxc config  show vm1
+architecture: x86_64
+config:
+  limits.cpu: "2"
+  limits.memory: 360MB
+
+
+как добавить к виртуалке дополнительное блочное устройство
+тоесть до диск.
+для этого у нас уже должен быть какойто сторадж (который еще зовется пул)
+на нем создаем volume тоесть блочное устройство
+
+# lxc storage list
++-----------+--------+--------------------------------------------------+-------------+---------+---------+
+|   NAME    | DRIVER |                      SOURCE                      | DESCRIPTION | USED BY |  STATE  |
++-----------+--------+--------------------------------------------------+-------------+---------+---------+
+| default   | dir    | /var/snap/lxd/common/lxd/storage-pools/default   |             | 1       | CREATED |
++-----------+--------+--------------------------------------------------+-------------+---------+---------+
+| st-pool-3 | dir    | /var/snap/lxd/common/lxd/storage-pools/st-pool-3 |             | 19      | CREATED |
++-----------+--------+--------------------------------------------------+-------------+---------+---------+
+
+# lxc storage volume create st-pool-3  vol2  --type block size=2GiB
+Storage volume vol2 created
+
+мы на сторадже st-pool-3 создали volume "vol2" который будет блочное
+устройство внутри виртуалки.
+
+
+как проверить что этот вольюм появился
+
+# lxc storage volume list st-pool-3 | grep vol2
+| custom               | vol2         |             | block        | 0       |
+
+добавляем это блоч устройство к вирталке vm1
+
+# lxc config device add vm1  disk0  disk pool=st-pool-3  source=vol2
+Device disk0 added to vm1
+
+vm1 = назавние виртуалки
+disk0 = это название блочноого устройства в конфиге lxd 
+для этой виртуалки а также это имя будет участоввать в идетификации 
+эттго диска внутри вм (об этом ниже)
+st-pool-3 = это  сторадж из которого мы вырезали это блоч устройство
+vol2 = это названия вольюма создданного на сторадже
+
+заходим в вм vm1
+
+# lsblk -f
+NAME    FSTYPE   FSVER LABEL           UUID                                 FSAVAIL FSUSE% MOUNTPOINTS
+sdb                                                                                        
+
+новый диск это sdb
+
+
+вот доказательство что sdb это наш тот самый disk0
+# ll /dev/disk/by-id | grep disk0
+lrwxrwxrwx 1 root root   9 Jul  5 12:56 scsi-0QEMU_QEMU_HARDDISK_lxd_disk0 -> ../../sdb
+lrwxrwxrwx 1 root root  10 Jul  5 12:56 scsi-0QEMU_QEMU_HARDDISK_lxd_disk0-part1 -> ../../sdb1
+lrwxrwxrwx 1 root root   9 Jul  5 12:56 scsi-SQEMU_QEMU_HARDDISK_lxd_disk0 -> ../../sdb
+lrwxrwxrwx 1 root root  10 Jul  5 12:56 scsi-SQEMU_QEMU_HARDDISK_lxd_disk0-part1 -> ../../sdb1
+
+
+ура мы научились добавлять +1 блочное устройство к вируалке lxd
+на оснвое этого можно созать три vm и создать там microceph
+
+или создать три vm туда накатить к8 который может подключаться к цеф 
+как блочный rbd клиент 
+
+
+
+посморим где в конфиге теперь записана инфо об новом диске
+# lxc config show vm1
+...
+devices:
+  disk0:
+    pool: st-pool-3
+    source: vol2
+    type: disk
+
+или 
+# lxc config device show vm1
+disk0:
+  pool: st-pool-3
+  source: vol2
+  type: disk
+
+
+
+
+===

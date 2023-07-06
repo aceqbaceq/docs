@@ -158,3 +158,29 @@
  
  ====
  
+ | couldn't get current server API group list Get  127.0.0.1:6443/api?timeout
+
+ значит запускаем 
+
+ $ kubectl get nodes 
+
+ а он на экране пишет ошибку
+
+couldn't get current server API group list Get  127.0.0.1:6443/api?timeout
+
+это значит что по факту наша контроль панель к8 нихера не запустилась. тоесть куб его контроль панель лежит мертвая.
+
+значит тут важно вот что вспомнить - что  когда хост загрузился то вопрос как поды системные  у куба стартуют? 
+ответ - их стартует установленная хосте служба kubelet. тоесть кубелет он нетоллько стоит на нодах на которых несистемные 
+поды запущены и следит за ними но и он стоит на нодах где контроль панель и он также следит за здоровьем системных 
+подов. когда мы перезагрузили  системные ноды то  именно systemd unit kubelet запускается и он уже стартует 
+системные поды. поэтому если с контроль панелью какая жопа то первым делом лезем в логи journalctl для kubelet
+и там будет написано чтото полезное.
+
+в моем случае там было написано вот что 
+
+# journalctl -u kubelet --since "1 hour ago" | grep -i failed | grep kernel
+
+Jun 21 23:31:05 nl-k8-01 kubelet[1506537]: E0621 23:31:05.683991 1506537 kubelet.go:1466] "Failed to start ContainerManager" err="[invalid kernel flag: kernel/panic_on_oops, expected value: 1, actual value: 0, invalid kernel flag: vm/overcommit_memory, expected value: 1, actual value: 0, invalid kernel flag: kernel/panic, expected value: 10, actual value: 0]" 
+
+тоесть 

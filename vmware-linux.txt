@@ -96,4 +96,43 @@ Fingerprint:
 
 все. готово. теперь можно жмакать значок vmware все дрлжно запуститься.
 
+===
+| delete
+| remove
+| workstation
 
+как удалит с линукса vmware workstation
+
+ссылка = https://kb.vmware.com/s/article/38
+
+# /etc/init.d/vmware stop
+
+# lsmod | grep vm
+
+# cd /lib/modules/kernel_version/misc
+# mv vm* /tmp
+
+# rmmod vmnet.o
+# rmmod vmmon.o
+# rmmod vmci.o
+# rmmod vmblock.o
+# rmmod vmppuser.o
+
+# rm /etc/rc2.d/*vmware*
+# rm /etc/rc3.d/*vmware*
+# rm /etc/rc5.d/*vmware*
+# rm /etc/rc6.d/*vmware*
+
+# rm -rf /etc/vmware*
+# rm /usr/bin/vmware-usbarbitrator
+# rm /usr/bin/vmnet*
+# rm -r /usr/lib/vmware*
+# rm -r /usr/share/doc/vmware*
+
+# dpkg -l | grep -i vmware
+# apt-get purge ...
+
+если на компе никак не хотят запускаться виртуалки через lxd 
+то надо удалит vmware workstation 
+
+===
