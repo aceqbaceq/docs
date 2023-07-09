@@ -1,4 +1,17 @@
 ext4
+
+| как определить версию FS
+
+# blkid -o value -s TYPE ./5G-ext3.txt 
+ext3
+
+# file -Ls ./5G-ext3.txt 
+./5G-ext3.txt: Linux rev 1.0 ext3 filesystem data, UUID=75949a85-488f-49dc-a73b-bde95da9ae0e (large files)
+
+просто охуеынй способ
+
+
+|
 https://ext4.wiki.kernel.org/index.php/Ext4_Disk_Layout
 
 создадим файл и сделаем из него блочное устройство
@@ -6393,12 +6406,563 @@ Group 5: (Blocks 163840-196607) csum 0xe73d [INODE_UNINIT]
 
 прикольно. с этимиф флекс группами.
 
+ сточки зрения выживучести данные конечно это хуже. лучше чтобы метаданные были более 
+ распылены по диску. если файл большой то ка бы похеру невлиает  флекс схема
+ на выжиывучесть. а еси файлы маленкие то выжиывучест становистя хуже
+
+ как они сами пишут нахер это надо:
+ This improves meta-data
+              locality and performance on meta-data heavy workloads.
+
+
+
+получается по дефолту по краенй мере в ext2 или в ext4 с выключенными флекс группами
+у нас метаданные от файла хранятся рядышком с телом файла. во первых это дает больше выживучести файлам. потому что есди  унас метеданные лежат в куче скжем вначае диска то 
+повреждение начал диска убивает нам все файлы на всем диске. а если у нас метданные рсплыены
+по всему диску то уничтожение куска дикска вначале убивает тлоько файлы внчалае диска.
+плюс когда метданные лежат рядом с данными то и перфоманс в плюсе.
+
+коенчно когда  унас вклюен журнал и он лежит на том же диске то пуолается что надо 
+метаданные (а порой и сами данные) внале заптсать в журнал а потом второй раз на диск.
+причем в дургое место.  ssd дискам это похер. а шпиндельным это уже грустно. потому что 
+жунал лежит в одной части диска а реальные данные овсем в другой части. надо дергаться.
+
+
+выше я расмаотрел фичу flex groups котораф по дефолут активрована при форматировании. 
+по дефолту число групп блоков входящих в флекс гурппу равно 4. 
+это позволяет перетащить 
+block bitmap
+inode bimap
+inode table
+в головную группу блоков. таким образом собрав часть метаданныех в кучу  с нескольких
+групп блоков.это дает кучность метаданных (ненадо шариться по всему диску из за них)
+и то что длиныые файлы будут иметь меньше разрывов на диске. для ссд мне кажется это похеру
+а для шпиндельных наверно имеет смысл. 
+
+так вот мжно пойти еще дальше - можно собрать все метаданные со всех групп блоков  в 
+начало диска. один вариант это создать мегаогромную флекс группу. тоесть она 
+обьединит кучу групп блоков в типа один.
+
+# mkfs.ext3 /dev/sdv1 -G 100000000
+
+  
+есть еще вариант это заюзать опцию 
+
+  packed_meta_blocks[= <0 to disable, 1 to enable>]
+                          Place the allocation bitmaps and the inode table at the beginning of the disk.  This option requires that the flex_bg file system  feature  to  be  enabled  in
+                          order  for it to have effect, and will also create the journal at the beginning of the file system.  This option is useful for flash devices that use SLC flash
+                          at the beginning of the disk.  It also maximizes the range of contiguous data blocks, which can be useful for certain specialized use cases, such as  supported
+                          Shingled Drives.
+
+
+# mkfs.ext4   ./10T.txt  -E packed_meta_blocks
+
+@@@@@@@@@@@@@@@@@@
+
+далее я делаю исседование на тему - в каких блоках хранится журнал.
+а также в чем разница межде
+
+flex группы vs packed_meta_blocks
+
+в чем разница между использованием просто флекс групп
+и использованием опции -E packed_meta_blocks
+
+сразу скажу вывод исследования:  флекс группы перетаскивают в голову 
+такие метаданные как (block bitmap, inode bitmap, inode table) с других блок групп
+но при этом журнал он нетрогается. в ext3 журнал хранится в голове диска
+а в ext4 он хранится в серединедиска.
+опция -E packed_meta_blocks по сравнениб с фоекс группами дает то что она еще
+претаскивает журнал в голову диска. если спросить а что хранится ближе к голове диска
+битмап метаданные или журнал? ответ - журнал переносится самым последним. он в самом сзади
+по сравнени с друними металанными.
+также из мелочей если юзаем опцию -E packed_meta_blocks то у нас создается одна флекс группа
+которая вокчает в себя все блоки групп а количество флекс групп которое можно посмотреть 
+в супер блоке через dumpe2fs там будет написано вранье. то число которое там указано 
+оно не бдует озанчать ничего. по факту еще раз скажу все блок группы будут включены в состав
+одной единой и единстенной флекс гурппы.
+
+поехали
+
+
+инода журнала 8.
+но блоки журнала лежат в жопе диска.
+а еще в dumpe2fs покывазются не блоки на диске а офссет
+и еще походу журнал пишется с конца и стремится к началу.
+
+
+# dumpe2fs -h ./5G-ext3.txt  | grep -i journal
+dumpe2fs 1.46.5 (30-Dec-2021)
+Filesystem features:      has_journal ext_attr dir_index filetype sparse_super large_file
+Journal inode:            8
+Journal backup:           inode blocks
+Journal features:         (none)
+Total journal size:       64M
+Total journal blocks:     16384
+Journal sequence:         0x00000001
+Journal start:            0
+root@vm1:/mnt# 
+
+
+
+ext3 + journal (раздел 5G) \ параметры форматрования дефолтовые
+
+Inode: 8   Type: regular    Mode:  0600   Flags: 0x0
+Generation: 0    Version: 0x00000000:00000000
+User:     0   Group:     0   Project:     0   Size: 67108864
+File ACL: 0
+Links: 1   Blockcount: 131208
+Fragment:  Address: 0    Number: 0    Size: 0
+ ctime: 0x64ab150e:00000000 -- Sun Jul  9 20:14:06 2023
+ atime: 0x64ab150e:00000000 -- Sun Jul  9 20:14:06 2023
+ mtime: 0x64ab150e:00000000 -- Sun Jul  9 20:14:06 2023
+crtime: 0x64ab150e:00000000 -- Sun Jul  9 20:14:06 2023
+Size of extra inode fields: 32
+BLOCKS:
+(0-11):518-529, (IND):530, (12-1035):531-1554, (DIND):1555, (IND):1556, (1036-2059):1557-2580, (IND):2581, (2060-3083):2582-3605, (IND):3606, (3084-4107):3607-4630, (IND):4631, (4108-5131):4632-5655, (IND):5656, (5132-6155):5657-6680, (IND):6681, (6156-7179):6682-7705, (IND):7706, (7180-8203):7707-8730, (IND):8731, (8204-9227):8732-9755, (IND):9756, (9228-10251):9757-10780, (IND):10781, (10252-11275):10782-11805, (IND):11806, (11276-12299):11807-12830, (IND):12831, (12300-13323):12832-13855, (IND):13856, (13324-14347):13857-14880, (IND):14881, (14348-15371):14882-15905, (IND):15906, (15372-16383):15907-16918
+TOTAL: 16401
+
+кстати в debugfs вот этот параметр 
+Blockcount: 131208
+эта такаяже хуйня как и в команде stat из баша. 
+это типа вот этот виртуалные ебанутый блок равный всегда 512. тоесть это не блок Фс.
+это пиздец. тоесть его в приоде нет этого блока . просто его уножае на 512 и получаем
+сколько байт на диске по факту занимает файл.  в данном случае файл журнала
+офигенно misleading штучка. суки. 
+
+поэтому полное совдпание из dumpe2fs мыимеем что журнал 64M
+
+из debugfs мы имеем 
+Size: 67108864    
+это виртальный размер файла (такакже как утилите stat из баш) который
+к реальному размеру файла на стораже отношения не имеет
+а вот это
+Blockcount: 131208
+это уже реальный размер на диске тольо его надо уножить на 512. получаем
+67178496 вобщем теже самые 64МБ.
+
+
+но нас интерсуе другое - в каких блоках ФС хранится тело файла журнала
+
+здесь что важно увидеть. вот то что в скобках 
+(0-11):518-529
+это офссет внутри файла тоесть
+мы из dumpe2fs уже знаем что 
+Total journal blocks:     16384
+аткже мы это можем и высчиать из debugfs. вычисляем сколько байт на диске физически
+занимает файл (Blockcount: 131208 ) * 512 / 4K(размер фс блока) = 16401 блоков.
+
+короче 16384 блока ФС занимает файл журнал. это значит что его офссет меняется от 0 до 16383.
+так вот в этой записи (0-11):518-529
+(0-11) это офссет внутри файла. тесть его номера его байтов если бы мы их читали из 
+клиента ос задавая параметр seek\skip тоесть это то как файл выглядит изнутри. он же незнает
+что его тело на диске по частям записано. изнутри файла он монолитный. короче то что в скбоках
+это оффсет. а то что дальше это адрес блока на ФС где хранится этот офсссет!
+ext3 не поддерживает эксетенты. поэтому это прям блоки ФС их адерса.
+
+ты спросишь как это проверить? а в дебагфс есть супер команда.
+задаемшь ей офссет и она пишет адрес блока 
+
+debugfs:  bmap <8> 12
+531
+
+смотрим наверх
+(12-1035):531-1554
+дейтвительно офссет 12 имеет адрес фс блока 531
+
+
+тогда получается что у нас файл журнала на ext3 хранится в блока ФС  518-16918
+причем непрерывно.
+эти блоки принадлжеат Block Group "0"
+мы полчили исчерапывающую информацию.
+получется ext3 хранит файл журала единым куском в своем головном нулевом блоке групп.
+
+все прсто и понятно. мы ответили на вопрос - а где же на фс ext3 лежит хранится
+файл журнала.
 
 
 
 
 
 
+
+ext4 раздел 5G опцииф формтания деолфтовые
+
+# file ./5G.txt
+./5G.txt: Linux rev 1.0 ext4 filesystem data, UUID=7de15353-748d-44fe-88e3-225c5b3a9b78 (extents) (64bit) (large files) (huge files)
+
+
+# dumpe2fs -h  ./5G.txt  | grep -i journal
+dumpe2fs 1.46.5 (30-Dec-2021)
+Filesystem features:      has_journal ext_attr dir_index filetype extent 64bit flex_bg sparse_super large_file huge_file dir_nlink extra_isize metadata_csum
+Journal inode:            8
+Journal backup:           inode blocks
+Journal features:         (none)
+Total journal size:       64M
+Total journal blocks:     16384
+Journal sequence:         0x00000001
+Journal start:            0
+
+
+видим что размер файла журнала 64МБ
+за негоотвечает инода 8
+занимает 16384 фс блока
+
+# debugfs
+> stat <8>
+Inode: 8   Type: regular    Mode:  0600   Flags: 0x80000
+Generation: 0    Version: 0x00000000:00000000
+User:     0   Group:     0   Project:     0   Size: 67108864
+File ACL: 0
+Links: 1   Blockcount: 131072
+Fragment:  Address: 0    Number: 0    Size: 0
+ ctime: 0x64ab15ff:00000000 -- Sun Jul  9 20:18:07 2023
+ atime: 0x64ab15ff:00000000 -- Sun Jul  9 20:18:07 2023
+ mtime: 0x64ab15ff:00000000 -- Sun Jul  9 20:18:07 2023
+crtime: 0x64ab15ff:00000000 -- Sun Jul  9 20:18:07 2023
+Size of extra inode fields: 32
+Inode checksum: 0x3ba509ea
+EXTENTS:
+(0-16383):557056-573439
+
+опятд же 
+(0-16383):557056-573439
+
+то что в скоблках это офссет файла. от 0 до 16383 . тоесть 16383 блока ФС он занимает.
+однако то что после двоеточия это уже не адреса фс блоков это уже экстенты указаны.
+
+
+>debugfs:  bmap <8> 0
+557056
+
+
+вводим еще одну интерсуную команду
+>debugfs:  dump_extents <8>
+Level Entries       Logical          Physical Length Flags
+ 0/ 0   1/  1     0 - 16383  557056 -  573439  16384 
+
+кхм.. получется что эти экстенты они в данном случае равны блокам ФС.
+получаетс что файл журнала лежит в блоках
+
+557056 -  573439
+
+выясним какой это блок группа. предварительно это 17 блока группа
+
+всего у меня блок групп 0-39 тоесть 40 штук.
+
+17-я блок группа выглядит вот так
+
+Group 17: (Blocks 557056-589823) csum 0x4682 [INODE_UNINIT, ITABLE_ZEROED]
+  Block bitmap at 524289 (bg #16 + 1), csum 0xbdfbed1a
+  Inode bitmap at 524305 (bg #16 + 17), csum 0x00000000
+  Inode table at 524832-525343 (bg #16 + 544)
+  16384 free blocks, 8192 free inodes, 0 directories, 8192 unused inodes
+  Free blocks: 573440-589823
+  Free inodes: 139265-147456
+
+отсюда мы видим что блок битмап, инода битмап, инода тейбл они все на самом деле
+нележат в этой блок группе они все лежат в группе #16. потому что по  дфеолту на ext4
+при фортватировании активируются флек группы с парамертром 4. тесть в одной флекс группе
+4 блок группы. поэтому эта блок группа она полность пустая от метаанных. поэтому в ней
+с превого блока можно заимаеть блоки под даные. вот фс и заняла блоки 557056 -  573439
+под файл журнала. кстати видно что первый своодный блок это 573440
+    Free blocks: 573440-589823
+тость ровно следущий после последнего блока журанала 573439
+видно что журна лежит одним куском на диске по середине. я думаб логика тут такая
+что так как запись метаанных идет два раза  - вначале в журнал а потом уже на диск там где реально будут лежать метаданные  то логично что по теории статистики если мы поместим  журнал
+посередине он будет равноудален от всех точек диска. если это шпиндельный диск то 
+головке диска придется дергаться мегьше всего. чем если бы журнал лежал ндето в другом
+месте диска. удивительно!!!!
+
+
+
+
+
+
+ext4, тот же раздел 5G (отфратмтирован с опцией -E packed_meta_blocks)
+# dd if=/dev/zero of=./5G-ext4-2.txt bs=1M count=0 seek=5120
+# mkfs.ext4 ./5G-ext4-2.txt -E packed_meta_blocks
+
+> stat <8>
+Inode: 8   Type: regular    Mode:  0600   Flags: 0x80000
+Generation: 0    Version: 0x00000000:00000000
+User:     0   Group:     0   Project:     0   Size: 67108864
+File ACL: 0
+Links: 1   Blockcount: 131072
+Fragment:  Address: 0    Number: 0    Size: 0
+ ctime: 0x64ab294e:00000000 -- Sun Jul  9 21:40:30 2023
+ atime: 0x64ab294e:00000000 -- Sun Jul  9 21:40:30 2023
+ mtime: 0x64ab294e:00000000 -- Sun Jul  9 21:40:30 2023
+crtime: 0x64ab294e:00000000 -- Sun Jul  9 21:40:30 2023
+Size of extra inode fields: 32
+Inode checksum: 0x08a0aed8
+EXTENTS:
+(0-12200):20567-32767, (12201-16383):32770-36952
+(END)
+
+> dump_extents <8>
+Level Entries       Logical          Physical Length Flags
+ 0/ 0   1/  2     0 - 12200   20567 -   32767  12201 
+ 0/ 0   2/  2 12201 - 16383   32770 -   36952   4183 
+
+ видим что файл журнала разбит на две части но они лежат совсем рядом.
+ вот эти блоки 20567 - 32767 лежат в группе блоков "0"
+ вот эти блоки 32770 - 36952 лежат в группе блоков "1"
+
+ ага.!! итак да! мы видим вот что . если мы заюзаем фичу flexible групп
+ то у нас метаданные (block bitmap, inode bitmap  . inode _table) переползают
+ из блок групп в головную блок группу. есди мы заддим очень большое число -G при форматиорвании
+ то у нас все метаданные со всех блок групп переползут в головной блок групп. но!
+ это ниак не повлияет на то куда будет засунут журнал. мы это увидели в прошлом примере.
+ там актироыван флекс группы а журнал лежит по середине диска.
+
+ а вот опция -E packed_meta_blocks она нетлоко метаданные (block bitmap, inode bitmap  . inode _table) перетаскивает в голову диска но и перетаскивает журнал файл тоже в голову диска.
+причем что еще интересно. что число групп указанное в настойке flex group 
+оно игнриуеся при создании фс
+
+показываю 
+
+# dumpe2fs  ./5G-ext4-2.txt  -h | grep -i flex
+dumpe2fs 1.46.5 (30-Dec-2021)
+Filesystem features:      has_journal ext_attr dir_index filetype extent 64bit flex_bg sparse_super large_file huge_file dir_nlink extra_isize metadata_csum
+Flex block group size:    16
+
+тоесть ичсло групп в флекс группе 16. это значит что 0-15 группы сидят в одной флекс гурппе
+а группы 16-31 должны сиеть в дрйгоу флекс группе. однако
+
+
+# dumpe2fs  ./5G-ext4-2.txt  | grep -E "^Group |Block bitmap at"
+dumpe2fs 1.46.5 (30-Dec-2021)
+Group descriptor size:    64
+Group 0: (Blocks 0-32767) csum 0x6e73 [ITABLE_ZEROED]
+  Block bitmap at 2 (+2), csum 0xef300295
+Group 1: (Blocks 32768-65535) csum 0x0ae9 [INODE_UNINIT, ITABLE_ZEROED]
+  Block bitmap at 3 (bg #0 + 3), csum 0x93cd52b6
+Group 2: (Blocks 65536-98303) csum 0xa502 [INODE_UNINIT, BLOCK_UNINIT, ITABLE_ZEROED]
+  Block bitmap at 4 (bg #0 + 4), csum 0x00000000
+Group 3: (Blocks 98304-131071) csum 0x4e22 [INODE_UNINIT, BLOCK_UNINIT, ITABLE_ZEROED]
+  Block bitmap at 5 (bg #0 + 5), csum 0x00000000
+Group 4: (Blocks 131072-163839) csum 0x578f [INODE_UNINIT, BLOCK_UNINIT, ITABLE_ZEROED]
+  Block bitmap at 6 (bg #0 + 6), csum 0x00000000
+Group 5: (Blocks 163840-196607) csum 0xbcaf [INODE_UNINIT, BLOCK_UNINIT, ITABLE_ZEROED]
+  Block bitmap at 7 (bg #0 + 7), csum 0x00000000
+Group 6: (Blocks 196608-229375) csum 0x6fe3 [INODE_UNINIT, BLOCK_UNINIT, ITABLE_ZEROED]
+  Block bitmap at 8 (bg #0 + 8), csum 0x00000000
+Group 7: (Blocks 229376-262143) csum 0x84c3 [INODE_UNINIT, BLOCK_UNINIT, ITABLE_ZEROED]
+  Block bitmap at 9 (bg #0 + 9), csum 0x00000000
+Group 8: (Blocks 262144-294911) csum 0x9bcb [INODE_UNINIT, BLOCK_UNINIT, ITABLE_ZEROED]
+  Block bitmap at 10 (bg #0 + 10), csum 0x00000000
+Group 9: (Blocks 294912-327679) csum 0x70eb [INODE_UNINIT, BLOCK_UNINIT, ITABLE_ZEROED]
+  Block bitmap at 11 (bg #0 + 11), csum 0x00000000
+Group 10: (Blocks 327680-360447) csum 0xfc08 [INODE_UNINIT, BLOCK_UNINIT, ITABLE_ZEROED]
+  Block bitmap at 12 (bg #0 + 12), csum 0x00000000
+Group 11: (Blocks 360448-393215) csum 0xe223 [INODE_UNINIT, BLOCK_UNINIT, ITABLE_ZEROED]
+  Block bitmap at 13 (bg #0 + 13), csum 0x00000000
+Group 12: (Blocks 393216-425983) csum 0x0e85 [INODE_UNINIT, BLOCK_UNINIT, ITABLE_ZEROED]
+  Block bitmap at 14 (bg #0 + 14), csum 0x00000000
+Group 13: (Blocks 425984-458751) csum 0x10ae [INODE_UNINIT, BLOCK_UNINIT, ITABLE_ZEROED]
+  Block bitmap at 15 (bg #0 + 15), csum 0x00000000
+Group 14: (Blocks 458752-491519) csum 0x8379 [INODE_UNINIT, BLOCK_UNINIT, ITABLE_ZEROED]
+  Block bitmap at 16 (bg #0 + 16), csum 0x00000000
+Group 15: (Blocks 491520-524287) csum 0x9d52 [INODE_UNINIT, BLOCK_UNINIT, ITABLE_ZEROED]
+  Block bitmap at 17 (bg #0 + 17), csum 0x00000000
+Group 16: (Blocks 524288-557055) csum 0x7a1b [INODE_UNINIT, BLOCK_UNINIT, ITABLE_ZEROED]
+  Block bitmap at 18 (bg #0 + 18), csum 0x00000000
+Group 17: (Blocks 557056-589823) csum 0x6430 [INODE_UNINIT, BLOCK_UNINIT, ITABLE_ZEROED]
+  Block bitmap at 19 (bg #0 + 19), csum 0x00000000
+Group 18: (Blocks 589824-622591) csum 0x1dd8 [INODE_UNINIT, BLOCK_UNINIT, ITABLE_ZEROED]
+  Block bitmap at 20 (bg #0 + 20), csum 0x00000000
+Group 19: (Blocks 622592-655359) csum 0x03f3 [INODE_UNINIT, BLOCK_UNINIT, ITABLE_ZEROED]
+  Block bitmap at 21 (bg #0 + 21), csum 0x00000000
+Group 20: (Blocks 655360-688127) csum 0xef55 [INODE_UNINIT, BLOCK_UNINIT, ITABLE_ZEROED]
+  Block bitmap at 22 (bg #0 + 22), csum 0x00000000
+Group 21: (Blocks 688128-720895) csum 0xf17e [INODE_UNINIT, BLOCK_UNINIT, ITABLE_ZEROED]
+  Block bitmap at 23 (bg #0 + 23), csum 0x00000000
+Group 22: (Blocks 720896-753663) csum 0xbe9a [INODE_UNINIT, BLOCK_UNINIT, ITABLE_ZEROED]
+  Block bitmap at 24 (bg #0 + 24), csum 0x00000000
+Group 23: (Blocks 753664-786431) csum 0xa0b1 [INODE_UNINIT, BLOCK_UNINIT, ITABLE_ZEROED]
+  Block bitmap at 25 (bg #0 + 25), csum 0x00000000
+Group 24: (Blocks 786432-819199) csum 0x4ab2 [INODE_UNINIT, BLOCK_UNINIT, ITABLE_ZEROED]
+  Block bitmap at 26 (bg #0 + 26), csum 0x00000000
+Group 25: (Blocks 819200-851967) csum 0xa192 [INODE_UNINIT, BLOCK_UNINIT, ITABLE_ZEROED]
+  Block bitmap at 27 (bg #0 + 27), csum 0x00000000
+Group 26: (Blocks 851968-884735) csum 0x2d71 [INODE_UNINIT, BLOCK_UNINIT, ITABLE_ZEROED]
+  Block bitmap at 28 (bg #0 + 28), csum 0x00000000
+Group 27: (Blocks 884736-917503) csum 0xc651 [INODE_UNINIT, BLOCK_UNINIT, ITABLE_ZEROED]
+  Block bitmap at 29 (bg #0 + 29), csum 0x00000000
+Group 28: (Blocks 917504-950271) csum 0xdffc [INODE_UNINIT, BLOCK_UNINIT, ITABLE_ZEROED]
+  Block bitmap at 30 (bg #0 + 30), csum 0x00000000
+Group 29: (Blocks 950272-983039) csum 0xc1d7 [INODE_UNINIT, BLOCK_UNINIT, ITABLE_ZEROED]
+  Block bitmap at 31 (bg #0 + 31), csum 0x00000000
+Group 30: (Blocks 983040-1015807) csum 0x33ee [INODE_UNINIT, BLOCK_UNINIT, ITABLE_ZEROED]
+  Block bitmap at 32 (bg #0 + 32), csum 0x00000000
+Group 31: (Blocks 1015808-1048575) csum 0x2dc5 [INODE_UNINIT, BLOCK_UNINIT, ITABLE_ZEROED]
+  Block bitmap at 33 (bg #0 + 33), csum 0x00000000
+Group 32: (Blocks 1048576-1081343) csum 0xa6e9 [INODE_UNINIT, BLOCK_UNINIT, ITABLE_ZEROED]
+  Block bitmap at 34 (bg #0 + 34), csum 0x00000000
+Group 33: (Blocks 1081344-1114111) csum 0xb8c2 [INODE_UNINIT, BLOCK_UNINIT, ITABLE_ZEROED]
+  Block bitmap at 35 (bg #0 + 35), csum 0x00000000
+Group 34: (Blocks 1114112-1146879) csum 0xc12a [INODE_UNINIT, BLOCK_UNINIT, ITABLE_ZEROED]
+  Block bitmap at 36 (bg #0 + 36), csum 0x00000000
+Group 35: (Blocks 1146880-1179647) csum 0xdf01 [INODE_UNINIT, BLOCK_UNINIT, ITABLE_ZEROED]
+  Block bitmap at 37 (bg #0 + 37), csum 0x00000000
+Group 36: (Blocks 1179648-1212415) csum 0x33a7 [INODE_UNINIT, BLOCK_UNINIT, ITABLE_ZEROED]
+  Block bitmap at 38 (bg #0 + 38), csum 0x00000000
+Group 37: (Blocks 1212416-1245183) csum 0x2d8c [INODE_UNINIT, BLOCK_UNINIT, ITABLE_ZEROED]
+  Block bitmap at 39 (bg #0 + 39), csum 0x00000000
+Group 38: (Blocks 1245184-1277951) csum 0x0bcb [INODE_UNINIT, BLOCK_UNINIT, ITABLE_ZEROED]
+  Block bitmap at 40 (bg #0 + 40), csum 0x00000000
+Group 39: (Blocks 1277952-1310719) csum 0xc876 [INODE_UNINIT, ITABLE_ZEROED]
+  Block bitmap at 41 (bg #0 + 41), csum 0x5208bd0f
+
+
+видно что во всех блок группах для block bitmap идет воттакая запист
+
+(bg #0 + 9)
+
+которая говорит о том что метаданные хранятся в нулевой блок группе для всех блок груп!!
+а как яуже сказал если у нас задано что во флекс группу входит 16 блок групп
+то начиная с 17-ой блок группы метданные должны хранится в 16-ой блок группе.
+
+поэтому я и говрю что при форматиорвании с опцией -E packed_meta_blocks
+у нас параметр колько групп входит во флекс групу игнориуется. и все блок группы
+входят в первую флекс группу.
+
+
+так вот еще один прикол если мы возмьем большой диск , отфоформатируем
+его с параметром -E packed_meta_blocks то фс нужно метаданные со всемх блок групп
+записать в первой блок группе. но у нас же число блоков 
+в каждой группе так и останеся 32768 , а метаданных будет сктолько много
+что они не влезут не только в группу блоков "0" но и еще и дальнейшие группы тоже.
+тоесть я хочу сказать что метаданные котоыре будут собраны со всего диска 
+они будут занимать огромную кучу первых групп блоков. щас покажу на примере.
+
+делаем диск размером 10TB чеерз спарс файлы
+
+# dd if=/dev/zero of=./10T.txt bs=1G count=0  seek=10000
+# mkfs.ext4 ./10T.txt -E packed_meta_blocks
+
+# dumpe2fs  ./10T.txt |   grep -E "^Group |Block bitmap at|Free blocks" | less
+Group 0: (Blocks 0-32767) csum 0xbe8e [ITABLE_ZEROED]
+  Block bitmap at 1251 (+1251), csum 0x62a284df
+  Free blocks: 
+Group 1: (Blocks 32768-65535) csum 0x8b16 [INODE_UNINIT, ITABLE_ZEROED]
+  Block bitmap at 1252 (bg #0 + 1252), csum 0x62a284df
+  Free blocks: 
+Group 2: (Blocks 65536-98303) csum 0x4877 [INODE_UNINIT, ITABLE_ZEROED]
+  Block bitmap at 1253 (bg #0 + 1253), csum 0x62a284df
+  Free blocks: 
+Group 3: (Blocks 98304-131071) csum 0x7acd [INODE_UNINIT, ITABLE_ZEROED]
+  Block bitmap at 1254 (bg #0 + 1254), csum 0x62a284df
+  Free blocks: 
+Group 4: (Blocks 131072-163839) csum 0xcbb3 [INODE_UNINIT, ITABLE_ZEROED]
+  Block bitmap at 1255 (bg #0 + 1255), csum 0x62a284df
+  Free blocks: 
+...
+
+видно что фри блоков просто нет. все забито метаданными
+и так будет очень долго до 637 группы блоков
+
+...
+
+Group 637: (Blocks 20873216-20905983) csum 0x3d42 [INODE_UNINIT, ITABLE_ZEROED]
+  Block bitmap at 1888 (bg #0 + 1888), csum 0x62a284df
+  Free blocks: 
+Group 638: (Blocks 20905984-20938751) csum 0x40eb [INODE_UNINIT, ITABLE_ZEROED]
+  Block bitmap at 1889 (bg #0 + 1889), csum 0xa38fbe72
+  Free blocks: 20919664-20938751
+
+тогда толко появяттся свободные блоки.
+группы блоков с 0 по 637 это 638 групп по 32768 блоков это ~ 80GB метаданных породил
+раздел на 10T
+
+причем например все блок битмапы будут смотреть в групу блоков "0".
+а например инод битмапы будут все смотреть на группу блоков "2"
+
+Group 1: (Blocks 32768-65535) csum 0x8b16 [INODE_UNINIT, ITABLE_ZEROED]
+  Block bitmap at 1252 (bg #0 + 1252), csum 0x62a284df
+  Inode bitmap at 82503 (bg #2 + 16967), csum 0x00000000
+
+посмотрим где  лежит файл журнала
+
+> dump_extents <8>
+Level Entries         Logical                Physical Length Flags
+ 0/ 1   1/  1      0 - 262143    1605603              262144
+ 1/ 1   1/ 19      0 -     81     163758 -     163839     82 
+ 1/ 1   2/ 19     82 -    110     229347 -     229375     29 
+ 1/ 1   3/ 19    111 -    139     294883 -     294911     29 
+ 1/ 1   4/ 19    140 -    168     819171 -     819199     29 
+ 1/ 1   5/ 19    169 -    197     884707 -     884735     29 
+ 1/ 1   6/ 19    198 -    225    1605604 -    1605631     28 
+ 1/ 1   7/ 19    226 -    254    2654179 -    2654207     29 
+ 1/ 1   8/ 19    255 -    283    4095971 -    4095999     29 
+ 1/ 1   9/ 19    284 -    312    7962595 -    7962623     29 
+ 1/ 1  10/ 19    313 -    341   11239395 -   11239423     29 
+ 1/ 1  11/ 19    342 -    370   20479971 -   20479999     29 
+ 1/ 1  12/ 19    371 -  33138   20657891 -   20690658  32768 
+ 1/ 1  13/ 19  33139 -  65906   20690659 -   20723426  32768 
+ 1/ 1  14/ 19  65907 -  98674   20723427 -   20756194  32768 
+ 1/ 1  15/ 19  98675 - 131442   20756195 -   20788962  32768 
+ 1/ 1  16/ 19 131443 - 164210   20788963 -   20821730  32768 
+ 1/ 1  17/ 19 164211 - 196978   20821731 -   20854498  32768 
+ 1/ 1  18/ 19 196979 - 229746   20854499 -   20887266  32768 
+ 1/ 1  19/ 19 229747 - 262143   20887267 -   20919663  32397 
+
+насколько можно судить журнал размазан но основаня часть лежит
+в группах блоков 631-638
+
+моя идея такая - кога мы юзаем опцию -E packed_meta_blocks
+то вначале в голову перетаскиваются block битмапы, заними инод битмаапы,
+за ними инод тейблы. а уже самым последним идет файл журнала.
+поэтому он как бы в голове диска но не в самой голове. 
+он в самом хвосте из тех метаанных котоые перетаскиватся в голову диска
+
+ксатии эта мысль подтверждается на примере когда унас был раздел всего 5G
+когда у нас все метаданные с диска умещались в одну блок группу нулевую
+
+напоминаю
+ext4, тот же раздел 5G (отфратмтирован с опцией -E packed_meta_blocks)
+# dd if=/dev/zero of=./5G-ext4-2.txt bs=1M count=0 seek=5120
+# mkfs.ext4 ./5G-ext4-2.txt -E packed_meta_blocks
+
+> stat <8>
+Inode: 8   Type: regular    Mode:  0600   Flags: 0x80000
+Generation: 0    Version: 0x00000000:00000000
+User:     0   Group:     0   Project:     0   Size: 67108864
+File ACL: 0
+Links: 1   Blockcount: 131072
+Fragment:  Address: 0    Number: 0    Size: 0
+ ctime: 0x64ab294e:00000000 -- Sun Jul  9 21:40:30 2023
+ atime: 0x64ab294e:00000000 -- Sun Jul  9 21:40:30 2023
+ mtime: 0x64ab294e:00000000 -- Sun Jul  9 21:40:30 2023
+crtime: 0x64ab294e:00000000 -- Sun Jul  9 21:40:30 2023
+Size of extra inode fields: 32
+Inode checksum: 0x08a0aed8
+EXTENTS:
+(0-12200):20567-32767, (12201-16383):32770-36952
+(END)
+
+видно что в нулевой  блок группе  файл журнала лежит в самом хвосте нулевой блок группы
+ 20567-32767  и даже он в первую блок группу залезает  32770-36952
+
+это еще раз подтверждает ту мысль что  при исползовании опции -E packed_meta_blocks
+вначале перетаскиваются в голову диска другие метаданые а  файл журнала перетасиквается
+последним. и он как бы да - он уже не в цетре диска. но по сравненеи с друними метааданными
+он в самом хвосте.
+
+конец исселедования
+@@@@@@@@@@@@@@
+
+
+
+
+- ext можно наткатыват на диск без разделов. это прикол
+фс можно нактаить на любое чблочное устройство. в этом плане фс драйверу пофиг.
+разел это sdc1 а диск это sdc разницы никакой. можно формтровать файл. потому что
+файл это тоже блочноеутстустройствао
+
+
+- из чего состоит оздание файла, удалеие файла, запись в файл 32 битного числа
+и utf8 буквы(проверить little endian).
 
 - если файл открыт. а мы удалили его хардлинк. как нам обратно создать хардлинк
 
