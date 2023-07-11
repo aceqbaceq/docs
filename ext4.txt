@@ -4706,6 +4706,11 @@ Device: 811h/2065d  Inode: 12          Links: 1
 
 видимо весь секрет в count=0
 
+чтобы создать спарс файл вместо утомительного dd можно юзать truncate 
+
+# truncate -s 1G  vasya.txt
+
+
 мы создали файл у которого виртуалный размер , размер для внешнего клиента
 будет выглядеть как 16KB. полувчается что мы с клиентсой прогарммы можем обращаться с 
 запросом на чтение\запись к любому байту в пределах от 0 до 16384 (оффсет) и туда чтото
@@ -7197,6 +7202,7 @@ Block   Inode number
 | восстановление удаленного файла
 | rm
 | unlink
+@@@@@@@@@@@@@@@@ начало  блока
 
 если мы сделали файлу unlink или rm (тоест по факту мы удалили хардлинк )
 но при этом если у нас есть хотя бы одна прога которая это файл 
@@ -7414,6 +7420,10 @@ Fix<y>? yes
 
 # journalctl -f  | grep -i ext     # также проверяем в логах что нет ругани от ядра на ФС
 
+я проверил. восстанволение удаленного фалай работает и на ext3 и на ext4
+
+@@@@@@@@@@@@@@@@ конец блока
+
 
 ксати по поводу вывода на экран e2fsck
 вот это 
@@ -7463,9 +7473,589 @@ EXTENTS:
 unlink работает плюс минус также как и rm.
 так что после него восстаналивем по тому же алгоритму
 
+далее в свойтвах суперлока есть такая фишка 
+Lifetime writes:          9 MB
+покзывает сколько было записнао данных с момента СОЗДАНИЯ фс!!
+прикольная фишка!
+
+еще в свойствах суперблока бывает такая запист
+    First orphan inode:       24914761
+орфан инода это вот что - был файл у которого удалили хардлинк. тоесть 
+файлу либо сделали rm либо unlink. но файл при этом остается открытым 
+каким то процессом. получается ни одного хардллинка у файла уже нет
+а инода незатертая пока что есть. вот такая инода называется орфан инода.
+когда процесс закроет эту иноду то код фс\ядра ее затрет. и она перестанет 
+быть орфан инодой.
+
+
+двигаю дальше
+ разбиараю  дальше статью ==>  https://metebalci.com/blog/a-minimum-complete-tutorial-of-linux-ext4-file-system/
+
+
+хотел сказать что dumpe2fs и debugfs это незаменимые глаза и ущи для 
+анализа фс.
+
+
+также хотел сказать на счет расшфировки смысла того что выводит dumpe2fs
+пример
+
+Group 0: (Blocks 0-32767) csum 0xd6b8 [ITABLE_ZEROED]
+  Primary superblock at 0, Group descriptors at 1-1
+  Block bitmap at 2 (+2), csum 0xef300295
+  Inode bitmap at 42 (+42), csum 0x06136e48
+  Inode table at 82-593 (+82)
+  0 free blocks, 8180 free inodes, 2 directories, 8172 unused inodes
+  Free blocks: 
+  Free inodes: 12-19, 21-8192
+Group 1: (Blocks 32768-65535) csum 0x0ae9 [INODE_UNINIT, ITABLE_ZEROED]
+  Backup superblock at 32768, Group descriptors at 32769-32769
+  Block bitmap at 3 (bg #0 + 3), csum 0x93cd52b6
+  Inode bitmap at 43 (bg #0 + 43), csum 0x00000000
+  Inode table at 594-1105 (bg #0 + 594)
+  28583 free blocks, 8192 free inodes, 0 directories, 8192 unused inodes
+  Free blocks: 36953-65535
+  Free inodes: 8193-16384
+Group 2: (Blocks 65536-98303) csum 0x03c2 [INODE_UNINIT, ITABLE_ZEROED]
+  Block bitmap at 4 (bg #0 + 4), csum 0x90ad0b51
+  Inode bitmap at 44 (bg #0 + 44), csum 0x00000000
+  Inode table at 1106-1617 (bg #0 + 1106)
+  32767 free blocks, 8192 free inodes, 0 directories, 8192 unused inodes
+  Free blocks: 65537-98303
+  Free inodes: 16385-24576
+
+так вот важно сказать две вещи:
+1) дамп2фс кода описывает каждую группу блоков а точнее описывает метаданные
+котоыре хранятся в этой группе блоков то дамп2фс указывает только параметры
+метаданных для этой группы блоков.тоесть  дело вот в чем . раньше наример на ext3
+метаданыне котоыре лежали внутри группы блоков они относились только к этой 
+группе блокво. все было просто. на ext4 в  конкретной группе блоков могут лежать 
+метаданные от другой группы блоков. так вот я говорю о том что дамп2фс когда рисует 
+на экране инфомрацию по группе блоков точнее по метаданным лежащим в этой группе блоков
+то дамп2фс рисует инфо толкьо по метаданным отнсосяищимся к этйо грппеу блоков несморя
+на то что в группе есть метданные от других гурпп блоков. 
+как это выглядит
+
+
+Group 0: (Blocks 0-32767) csum 0xd6b8 [ITABLE_ZEROED]
+  Primary superblock at 0, Group descriptors at 1-1
+  Block bitmap at 2 (+2), csum 0xef300295
+  Inode bitmap at 42 (+42), csum 0x06136e48
+  Inode table at 82-593 (+82)
+  0 free blocks, 8180 free inodes, 2 directories, 8172 unused inodes
+  Free blocks: 
+  Free inodes: 12-19, 21-8192
+
+Group 1: (Blocks 32768-65535) csum 0x0ae9 [INODE_UNINIT, ITABLE_ZEROED]
+  Backup superblock at 32768, Group descriptors at 32769-32769
+  Block bitmap at 3 (bg #0 + 3), csum 0x93cd52b6
+  Inode bitmap at 43 (bg #0 + 43), csum 0x00000000
+  Inode table at 594-1105 (bg #0 + 594)
+  28583 free blocks, 8192 free inodes, 0 directories, 8192 unused inodes
+  Free blocks: 36953-65535
+  Free inodes: 8193-16384
 
 
 
+вот такого рода записи (bg #0 + 3) означают то что метаданное в этой строке
+его нет в этой группе блоков. вместо этого данное метданные хранится в другой групе
+блоков . в данном метаданное хранися в групе блоков #0
+тоесть
+
+Group 1: (Blocks 32768-65535) csum 0x0ae9 [INODE_UNINIT, ITABLE_ZEROED]
+   ....
+  Block bitmap at 3 (bg #0 + 3), csum 0x93cd52b6
+
+это означае что блок битмап не лежит в группе блоков "1". вместо этого 
+блок битмап от этой группы хранится в групе блоков "0"
+
+зато в описании группы блоков "0" ничего не будет сказано что внутри нее 
+хранится блок битмап от группы "1".
+
+таким макаром яхотел обоначить эти две вещи.
+что с одной стороны дамп2фс непокзывает инфо обо всех метаданных харнящихяс в группе блоков.
+тоесть они там есть но дамп2фс в описании группы блоков ничего об этом не говоит.
+как напримере гурппы 0
+
+
+Group 0: (Blocks 0-32767) csum 0xd6b8 [ITABLE_ZEROED]
+  Primary superblock at 0, Group descriptors at 1-1
+  Block bitmap at 2 (+2), csum 0xef300295
+  Inode bitmap at 42 (+42), csum 0x06136e48
+  Inode table at 82-593 (+82)
+  0 free blocks, 8180 free inodes, 2 directories, 8172 unused inodes
+  Free blocks: 
+  Free inodes: 12-19, 21-8192
+
+
+
+в этой группе есть другие метаданные. об этом здесь не сказано. с дной тороны в этом минус.
+но плюс состоит в том что те метаданные (адреса их блоков) которые указаны описании 
+они отвечают именно за этот блок. в этом фишка. и плюс
+
+
+вот другая группа
+
+Group 1: (Blocks 32768-65535) csum 0x0ae9 [INODE_UNINIT, ITABLE_ZEROED]
+  Backup superblock at 32768, Group descriptors at 32769-32769
+  Block bitmap at 3 (bg #0 + 3), csum 0x93cd52b6
+  Inode bitmap at 43 (bg #0 + 43), csum 0x00000000
+  Inode table at 594-1105 (bg #0 + 594)
+  28583 free blocks, 8192 free inodes, 0 directories, 8192 unused inodes
+  Free blocks: 36953-65535
+  Free inodes: 8193-16384
+
+
+  здесь все наоброот. здесь указаные метаданные которых в этой группе нет.физически.
+  метаднные ответсвнные за эту группу блоков.
+  но злесь есть указание где их искать
+
+  Block bitmap at 3 (bg #0 + 3), csum 0x93cd52b6
+  Inode bitmap at 43 (bg #0 + 43), csum 0x00000000
+  Inode table at 594-1105 (bg #0 + 594)
+
+
+тоесть этих метданных в этой групе блоков нет! но указание состоит в том что 
+они есть в группе "0" !! и указан адрес где их искать в той группе !
+
+bg #0 = означает что искать надо в группе блоков #0
+длаьше указыается смещение где искать.
+
+вот на этом я хоетел  сакцентировать внимание
+о том как дешфировать вывод дамп2фс
+
+
+двигаем дальше.
+опять же про вывод в дамп2фс
+
+Group 0: (Blocks 0-32767) csum 0xd6b8 [ITABLE_ZEROED]
+  Primary superblock at 0, Group descriptors at 1-1
+  Block bitmap at 2 (+2), csum 0xef300295
+  Inode bitmap at 42 (+42), csum 0x06136e48
+  Inode table at 82-593 (+82)
+  0 free blocks, 8180 free inodes, 2 directories, 8172 unused inodes
+  Free blocks: 
+  Free inodes: 12-19, 21-8192
+
+Group 1: (Blocks 32768-65535) csum 0x0ae9 [INODE_UNINIT, ITABLE_ZEROED]
+  Backup superblock at 32768, Group descriptors at 32769-32769
+  Block bitmap at 3 (bg #0 + 3), csum 0x93cd52b6
+  Inode bitmap at 43 (bg #0 + 43), csum 0x00000000
+  Inode table at 594-1105 (bg #0 + 594)
+  28583 free blocks, 8192 free inodes, 0 directories, 8192 unused inodes
+  Free blocks: 36953-65535
+  Free inodes: 8193-16384
+
+как можн замеитить есть интересные поля вида
+[ITABLE_ZEROED]
+[INODE_UNINIT]
+
+
+они означают флаги которые выставлены в Block Group Descriptir таблице в ее entry
+для данной группы блоков. тоест еще раз флаги хрантся в Block Group Descriptor таблице.
+для каждй группы блоков таместь entry. и в нем есть место для флагов.как их проставлять?
+по сути опосредованно - коода при формтировании мы указаем в опцииях фичи котоыре
+мы хотим активиовать на фс то эти фичи и вляиют на эти флаги.
+таким макаром дамп2фс показывает нам для каждой группы еть ли выставленные для нее флаги в
+Block Group Descriptir 
+
+теперт повгорим о смысле этих флагов
+вот описание этих флагов из вики про ext4
+
+inode table and bitmap are not initialized (EXT4_BG_INODE_UNINIT).
+block bitmap is not initialized (EXT4_BG_BLOCK_UNINIT).
+inode table is zeroed (EXT4_BG_INODE_ZEROED).
+
+ятакже нашел то что 
+(EXT4_BG_INODE_UNINIT) сокрашенно наывается INODE_UNINIT
+(EXT4_BG_BLOCK_UNINIT) сокашенно называется BLOCK_UNINIT
+
+походу INODE_UNINIT значит что mkfs не должен при создании фс ициализировать ни инода битмап, ни таблица инодов
+BLOCK_UNINIT значит что mkfs не доллжен при создании фс иницлизировать блок битмап
+INODE_ZEROED - а вот это наоборот странный флаг.походу озанчает что мкфс на стадии
+создания фс должен иницлизировать таблицу инодов. походу перывй и тертий флаг
+взаимоисключающие... пока одни догадки
+
+
+
+значит что значат эти флаги. 
+
+сттранно то что дампфс выводит несколько друние названия чем указано в описании ext4
+
+походу INODE_UNINIT = EXT4_BG_INODE_UNINIT = inode table and bitmap are not initialized
+флаг ITABLE_ZEROED котоырй покаызвает дампфс я не вижу описании ext4.
+в описании есть тоолько этот флаг EXT4_BG_INODE_ZEROED похожий
+
+
+так вот продолжает изучение этих загадочных флагов.
+я нашел в мануале что вот эти три флага про которые я сказал выше
+они заставляют mkfs не инициализировать (тоесть не тратить время на заполнение блоков метаданных начальными данными ) львиную долю метаданных в группе блоков.таким макаром
+эконоится время на форматирование фс. 
+
+
+я цитриую что напиано во писании ext4 про эти три флага: а написана какаято чущь:
+A new feature for ext4 are three block group descriptor flags that enable mkfs to skip initializing other parts of the block group metadata. Specifically, the INODE_UNINIT and BLOCK_UNINIT flags mean that the inode and block bitmaps for that group can be calculated and therefore the on-disk bitmap blocks are not initialized. This is generally the case for an empty block group or a block group containing only fixed-location block group metadata. The INODE_ZEROED flag means that the inode table has been initialized; mkfs will unset this flag and rely on the kernel to initialize the inode tables in the background.
+
+далее идет какято непонятная хуйня о том что якобы толи все эти три флага то ли часть
+устанавалиется если мы при формате фс укажем фичу "uninit_bg"
+вот ее описание 
+ This  ext4  file  system feature indicates that the block group descriptors will be protected using checksums, making it safe for mke2fs(8) to create a file system without
+              initializing all of the block groups.  The kernel will keep a high watermark of unused inodes, and initialize inode tables and blocks lazily.  This feature speeds  up  the
+              time to check the file system using e2fsck(8), and it also speeds up the time required for mke2fs(8) to create the file system.
+
+тоесть эта фича дает то что для блок груп дескрипторов вычисляются контольные суммы 
+и я не понимаю при чем здесь те три флага.
+
+собирая всю эту хуевую документацию я полагаю что установка этой фичи дает установку тех флагов и это дает то что помимо добавления контрльных сумм в груп дескрипторы еще дает 
+то что или для всех блок гурпп или для части блок групп при форматировании толи все их 
+метадданные неиницилизирубтся то ли часть метаданныех неиницализируеися. поэтому скорость 
+форматитвания вырастает.
+
+охуеть коасная доукментация.
+
+также методом тыка я нашел то что не только фича "uninit_bg" приводит к таким последствиям.
+есть фича еще болшее мощная и она делает тоже самое.  вот эта фича
+ metadata_csum
+              This ext4 feature enables metadata checksumming.  This feature stores checksums for all of the filesystem metadata (superblock, group descriptor blocks,  inode  and  block
+              bitmaps, directories, and extent tree blocks).  The checksum algorithm used for the metadata blocks is different than the one used for group descriptors with the uninit_bg
+              feature.  These two features are incompatible and metadata_csum will be used preferentially instead of uninit_bg.
+она не толко доблаяет контрол суммы к блок дескрпитоарм а вообще ко всему.
+
+теперь я буду ставить эксперименты и смотреь что получается.
+
+форматируб ФС вот так:
+# mkfs.ext4 ./1G.txt -O ^metadata_csum -O ^"uninit_bg" -O ^flex_bg
+
+проверяем что этих фич нет в суперблоке
+# dumpe2fs ./1G.txt  -h  | grep -i "Filesystem features:"
+dumpe2fs 1.46.5 (30-Dec-2021)
+Filesystem features:      has_journal ext_attr dir_index filetype extent 64bit sparse_super large_file huge_file dir_nlink extra_isize
+
+
+далее смотрю проверяю что у нас наши группы не имеют установленных тех 
+трех волшебных флагов (ведь фичи то мы деактивировали)
+
+
+Group 0: (Blocks 0-32767)
+  Primary superblock at 0, Group descriptors at 1-1
+  Block bitmap at 2 (+2)
+  Inode bitmap at 3 (+3)
+  Inode table at 4-515 (+4)
+  32247 free blocks, 8181 free inodes, 2 directories
+  Free blocks: 521-32767
+  Free inodes: 12-8192
+Group 1: (Blocks 32768-65535)
+  Backup superblock at 32768, Group descriptors at 32769-32769
+  Block bitmap at 32770 (+2)
+  Inode bitmap at 32771 (+3)
+  Inode table at 32772-33283 (+4)
+  32252 free blocks, 8192 free inodes, 0 directories
+  Free blocks: 33284-65535
+  Free inodes: 8193-16384
+Group 2: (Blocks 65536-98303)
+  Block bitmap at 65536 (+0)
+  Inode bitmap at 65537 (+1)
+  Inode table at 65538-66049 (+2)
+  32254 free blocks, 8192 free inodes, 0 directories
+  Free blocks: 66050-98303
+  Free inodes: 16385-24576
+
+
+видно что да. ниаких флагов нет.
+
+теперь форматрую с фичеей
+
+# mkfs.ext4 ./1G.txt -O metadata_csum -O ^uninit_bg -O ^flex_bg
+# dumpe2fs ./1G.txt  -h  | grep -i "Filesystem features:"
+dumpe2fs 1.46.5 (30-Dec-2021)
+Filesystem features:      has_journal ext_attr dir_index filetype extent 64bit sparse_super large_file huge_file dir_nlink extra_isize metadata_csum
+
+фича есть.
+
+смотрим что там с группами
+
+
+Group 0: (Blocks 0-32767) csum 0xf4b9 [ITABLE_ZEROED]
+  Primary superblock at 0, Group descriptors at 1-1
+  Block bitmap at 2 (+2), csum 0xafee6643
+  Inode bitmap at 3 (+3), csum 0x4ee70545
+  Inode table at 4-515 (+4)
+  32247 free blocks, 8181 free inodes, 2 directories, 8181 unused inodes
+  Free blocks: 521-32767
+  Free inodes: 12-8192
+Group 1: (Blocks 32768-65535) csum 0xf022 [INODE_UNINIT, BLOCK_UNINIT, ITABLE_ZEROED]
+  Backup superblock at 32768, Group descriptors at 32769-32769
+  Block bitmap at 32770 (+2), csum 0x00000000
+  Inode bitmap at 32771 (+3), csum 0x00000000
+  Inode table at 32772-33283 (+4)
+  32252 free blocks, 8192 free inodes, 0 directories, 8192 unused inodes
+  Free blocks: 33284-65535
+  Free inodes: 8193-16384
+Group 2: (Blocks 65536-98303) csum 0xab05 [INODE_UNINIT, BLOCK_UNINIT, ITABLE_ZEROED]
+  Block bitmap at 65536 (+0), csum 0x00000000
+  Inode bitmap at 65537 (+1), csum 0x00000000
+  Inode table at 65538-66049 (+2)
+  32254 free blocks, 8192 free inodes, 0 directories, 8192 unused inodes
+  Free blocks: 66050-98303
+  Free inodes: 16385-24576
+
+ввидим что ситуация поменялась.
+повылезали флаги
+[INODE_UNINIT, BLOCK_UNINIT, ITABLE_ZEROED]
+
+
+ТАК - я вот щас прочитал информацию новую про эти флаги  - я тогда не будут стирать
+то что выше писал.  а просто изложу считай заново.
+
+значит если мы посмотрим на дамп2фс то мы увидим у групп блоков в ext4 
+интересные поля
+
+Group 0: (Blocks 0-32767) csum 0xf4b9 [ITABLE_ZEROED]
+  Primary superblock at 0, Group descriptors at 1-1
+  Block bitmap at 2 (+2), csum 0xafee6643
+  Inode bitmap at 3 (+3), csum 0x4ee70545
+  Inode table at 4-515 (+4)
+  32247 free blocks, 8181 free inodes, 2 directories, 8181 unused inodes
+  Free blocks: 521-32767
+  Free inodes: 12-8192
+Group 1: (Blocks 32768-65535) csum 0xf022 [INODE_UNINIT, BLOCK_UNINIT, ITABLE_ZEROED]
+  Backup superblock at 32768, Group descriptors at 32769-32769
+  Block bitmap at 32770 (+2), csum 0x00000000
+  Inode bitmap at 32771 (+3), csum 0x00000000
+  Inode table at 32772-33283 (+4)
+  32252 free blocks, 8192 free inodes, 0 directories, 8192 unused inodes
+  Free blocks: 33284-65535
+  Free inodes: 8193-16384
+
+а именно
+[ITABLE_ZEROED]
+[INODE_UNINIT]
+[BLOCK_UNINIT]
+
+это так назвыаемые флаги. их три штуки. у каждой группы блоков в ext4 есть три флага.
+они хранятся в GDT. для каждой группы блоков есть свои три флага.
+
+что они значат согласно докам от ext4:
+inode table and bitmap are not initialized (EXT4_BG_INODE_UNINIT).
+block bitmap is not initialized (EXT4_BG_BLOCK_UNINIT).
+inode table is zeroed (EXT4_BG_INODE_ZEROED).
+
+я тут сразу замечу то что флаг INODE_ZEROED программа dumpe2fs отображает как ITABLE_ZEROED
+
+
+теперь поясню какой смысл этих флагов. при создании фс (тоесть ее форматировании)
+драйверу нужно на диске записать все метаданные.  тоесть суперблок, копии суперблока,
+GDT, все копии GDT, все битмапы блоков, все битмапы инод. какие то метаданные нужно 
+занулить например нужно все таблицы инодов занулить. так вот это будет  занимать 
+много время если раздел большой. тогда придумали вот что - а дайате при форматировании
+будем на диск записывать только мнимальный обьем метаданных.  а остальной обьем будем
+создавать уже после того как диск примонтировали. и будем это делать в фоновом режиме. 
+так и порешили. это называется lazy ext4 initializtion. выглядит это так мы запускаем
+mkfs.ext4 со спец флагами. и он очень быстро форматируем раздел. потом мы монтируем первый раз
+раздел со спец флагами и в линукс ядре запускается тред который начинает в фоновом режиме
+доделывать то что было не додделано. возвращаюсь к флагам.
+
+флаг  (EXT4_BG_BLOCK_UNINIT) проставляется для группы блоков если в этой группе незанят
+незайдейстован ни один блок группы. 
+пример
+
+Group 3: (Blocks 98304-131071) csum 0xdbaf [INODE_UNINIT, BLOCK_UNINIT, ITABLE_ZEROED]
+  Backup superblock at 98304, Group descriptors at 98305-98305
+  Block bitmap at 98306 (+2), csum 0x00000000
+  Inode bitmap at 98307 (+3), csum 0x00000000
+  Inode table at 98308-98819 (+4)
+  32252 free blocks, 8192 free inodes, 0 directories, 8192 unused inodes
+  Free blocks: 98820-131071
+  Free inodes: 24577-32768
+
+точнее получается так что это флаг выставляется для группы если в этой группе заняты блоки 
+тольлко метаданными. тоесть нелья сказать что ни один блок групппы незанят. это не так.
+но блоки которые заняты они заняты метаданными. а вот дальше ни один блок незанят.
+тогда выставляется этот флаг
+
+
+следущий флаг EXT4_BG_INODE_UNINIT если выставлен то это означает что в этой группе
+блоков ни один из инодов не зайдействтован. 
+пример
+
+Group 3: (Blocks 98304-131071) csum 0xdbaf [INODE_UNINIT, BLOCK_UNINIT, ITABLE_ZEROED]
+  Backup superblock at 98304, Group descriptors at 98305-98305
+  Block bitmap at 98306 (+2), csum 0x00000000
+  Inode bitmap at 98307 (+3), csum 0x00000000
+  Inode table at 98308-98819 (+4)
+  32252 free blocks, 8192 free inodes, 0 directories, 8192 unused inodes
+  Free blocks: 98820-131071
+  Free inodes: 24577-32768
+
+в своствах супеблока можно помотреть сколько инодов на группу есть на этой фс. 
+значит я посмотрел и вижу
+    Inodes per group:         8192
+так вот видно что 8192 free inodes
+тоесь ни одна инода незадейстована. если это так то выставляется этот флаг.
+
+третий флаг EXT4_BG_INODE_ZEROED . как я уже сказал что если мы задействовали lazy initialzation при форматировании. то часть метаданных на фс после форматирования отсутствует.
+потом мы когда монтируем фс то сразу же в кернеле поднимается тред который начинает допиливать
+метаданные. так вот этот тред проходит по группа блоков и зануляет таблицу инодов. если честно мне непонятно нахйя это делать. если у нас в битмапе инода написано что он свободен
+а система хочет заюзать этот инод то перед этим она может пойти в таблицу инодов и занулить
+там все. это будет штучная работа в нужное время в нужно месте. нахера их заранее занулять
+неясно. если инод у нас занят и мы хотим его освободиь нам опяьть же так и так его нужно
+будет загнулять в тадице инодов. поэтому для меня этот шаг выгдядит как перестраховка.
+так вот когда кернел тред полностью загуляет таблицу инодов для группы блоков то выставляет
+этот флаг. 
+
+теперт нахераэти флаги нужны. где они используются. 
+первый аспект это следствие быстрого форматирования. если ядро 
+заходит в группу блоков и встречает там выставленные флаги INODE_UNINIT либо
+BLOCK_UNINIT то оно понимает что фс была создана через быстрое формаитиование.
+и значит... как потом размышляет ядро незнаю. дело в том что я незнаю что делает 
+быстрое формативаия с битмап блоками для инод и дата блоков. оно их зануляет
+или оно их вобще не трогает?  поидее занулять блок битмап оно не должно потому что в
+группе блоков будут заняты блоки под метаданные поэтому в блок битмапе скажем так по 
+любому это должно быть отражено. поэтому блоковый битмап не может быть ни нялями ни мусором.
+непонятно как выглядит инодовый битмап после ыстроого формтиорвания. он занулен
+или его просто не трогает форматировщик. флаг INODE_UNINIT выставляется если ни одна
+инода из группы незадействована. что это дает ядру непонятно. по идее быстрый 
+форматировщик не должен трогать битмап инод потому что если он его при формате зануляет
+тогда нахер нам флаг который показывает это свойство. флаг BLOCK_UNINIT выставляется
+не когда у нас в группе ни один блок незайдейстовован. нет. а когда блоки заняты только метаданными. это значит что блоковый битмап обязательно должен отображать что такие то
+блоки заняты под метаданные. зачем нужно было лепить флаг если можно просто в файле блокового
+битмапа проставить все нули кроме битов отвечающих за блоки с метаданными. ценность флага
+EXT4_BG_INODE_ZEROED тоже под вопросом. понятно что тред который занляет таблицы инодов
+таким макаром поиммает какие группы он уже обработал а какие нет. но вопрос нахер вообще
+занулять таблицы инодов заранее. если мы хотим использовать иноду мы проверяем чрез 
+битмап инод что он свободна. потом мы ее конкетную зануляем. и все. зачем заранее
+все таддицы инодов занулть непонятно. 
+
+что дают эти флаги для программы e2fsck. она начинает сканировать группы блоков 
+и если видит флаг INODE_UNINIT то онимает что в этой группе блоков ни одной иноды
+прверяеь ненадо и идет дальше. а как напиано в иенте - время проверки инодов это львиная
+доля работы e2fsck. если хоть одна инода  вгруппе заюзана то этот флаг убирается но в
+GDT есть доп поле "bg_itable_unused" которые указывает не совсем понятно что.
+как я понял оно указывает самый маленький по номеру номер иноды которая никогда 
+в этой группе блоков не была использована. скажем иноды больше 5000 никогдане были
+испоьзованы в этой группе. тогда это поле будет хранить 5000.дело в том что 
+ядро выдает иноды от меньшего к большему. если инода 5000 никогда не была использована
+значит все иноды > 5000 тоже не были использованы.
+так вот как я понял e2fsck она не проверяет иноды которые были никогда не использованы.
+прикол в том что если инода была использована а потом ее освободили то она уже никогда не вернется в статус неиспользованной. я провел эксперимент. я создал разде с 65535 инодами.
+потом я создал на нем 65535 файлов. потом я их стер. и в дамп2фс видно четко что 
+свободных инод полно. но ни одна из них не является неиспользованной. отсюда получается вывод
+что был у нас диск. мы его забили файлами. потом мы их стерли. иноды освободились 
+но по скольку они были коогда то заюзаны то теперь e2fsck будет всегда их проверять.
+поэтому диск может быть пустой а время проверки его будет большое как бутто он забит
+файлами. единствнное что как я понимаю что свободные иноды они не указвают ни на какие блоки
+данных поэтому такие иноды по идее доожны быстро проверяться.
+
+пример группы 
+
+Group 3777: (Blocks 123764736-123797503) csum 0x72af [ITABLE_ZEROED]
+  Block bitmap at 123731969 (bg #3776 + 1), csum 0xebc165b2
+  Inode bitmap at 123731985 (bg #3776 + 17), csum 0x324ccace
+  Inode table at 123732512-123733023 (bg #3776 + 544)
+  18754 free blocks, 8192 free inodes, 0 directories, 5470 unused inodes
+
+видно что свободно 8192 иноды, из них 5470 инод никодга не использовалось. 
+как я прнммаю число unused dump2fs вычисляяет на основе поля "bg_itable_unused"
+
+вобще в GDT bg_itable_unused состоит из двух полей
+если не активирован режим 64bit то 
+    bg_itable_unused_lo = определеяет младший 16 бит  
+а если активирован то добаялется еще 16бит
+    bg_itable_unused_hi = определяет старшией 16 бит  
+
+
+
+теперь я скажу про то  о чем сигнализируеют флаги
+    EXT4_BG_INODE_UNINIT
+    EXT4_BG_BLOCK_UNINIT
+    EXT4_BG_INODE_ZEROED
+лично для нас когда мы смотрим на вывод дамп2фс
+1) если они вообще есть то значит фс была форматирована в ленивом режиме.
+потому что если флагов нет то есл я правильно помню это значит что раздел
+форматоавлся в неленивом режиме
+2)  EXT4_BG_INODE_ZEROED флаг нам гвоорит о том что инициализатор ext4 прошелся
+по этой группе и занулил инода тейбл в свое время. это не значит что она сейчас
+зануленная.это значит что когда то это было. 
+3)  EXT4_BG_BLOCK_UNINIT говорт нам о том том в этой группе блоков никаких тел файлов нет.
+блоки заняты толлько под метаданные. тоеть эта группа еще незадействована под файлы.
+более того это значит в этой группе никогда не было тел файлов. потому что если мы напихаем
+файлов в эту группу то флаг сбросится. а если мы потом файлы удалим то флаг обратно
+уже не появится
+4)     EXT4_BG_BLOCK_UNINIT гвооит нам о том что в этой группе все иноды свободные.
+более того с момента создания группы ниразу ни одной иноды отсюда не задейстовали.
+
+смтотрим на пример групп блоков  с моего ноубука
+
+Group 0: (Blocks 0-32767) csum 0xfa22 [ITABLE_ZEROED]
+  Primary superblock at 0, Group descriptors at 1-60
+  Reserved GDT blocks at 61-1084
+  Block bitmap at 1085 (+1085), csum 0xda8d78f3
+  Inode bitmap at 1101 (+1101), csum 0x7bc68aa2
+  Inode table at 1117-1628 (+1117)
+  20876 free blocks, 8173 free inodes, 2 directories, 8172 unused inodes
+  Free blocks: 9315-13408, 15985-16399, 16401-32767
+  Free inodes: 19, 21-8192
+
+[ITABLE_ZEROED]  = когда то таблица инодов была занулена. ну окей.
+
+
+Group 1: (Blocks 32768-65535) csum 0x2418 [INODE_UNINIT, ITABLE_ZEROED]
+  Backup superblock at 32768, Group descriptors at 32769-32828
+  Reserved GDT blocks at 32829-33852
+  Block bitmap at 1086 (bg #0 + 1086), csum 0x3029e78c
+  Inode bitmap at 1102 (bg #0 + 1102), csum 0x00000000
+  Inode table at 1629-2140 (bg #0 + 1629)
+  585 free blocks, 8192 free inodes, 0 directories, 8192 unused inodes
+  Free blocks: 33855, 33878-33919, 33982-34047, 34261-34303, 34306-34394, 34396-34401, 34403-34408, 34410-34415, 34417-34427, 34429-34507, 34509-34515, 34518-34529, 34531-34554, 34556-34572, 34574-34596, 34598-34614, 34617-34623, 34687-34815
+  Free inodes: 8193-16384
+
+INODE_UNINIT = с момента создания группы ни одна инода с этой группы не была задействована.
+и действиетльно 
+    585 free blocks, 8192 free inodes, 0 directories, 8192 unused inodes
+у нас 8192 unused (незайдейстованных никогда ) inodes из 8192 free inodes
+
+
+Group 2: (Blocks 65536-98303) csum 0x13a3 [INODE_UNINIT, ITABLE_ZEROED]
+  Block bitmap at 1087 (bg #0 + 1087), csum 0x94cfaca3
+  Inode bitmap at 1103 (bg #0 + 1103), csum 0x00000000
+  Inode table at 2141-2652 (bg #0 + 2141)
+  0 free blocks, 8192 free inodes, 0 directories, 8192 unused inodes
+  Free blocks: 
+  Free inodes: 16385-24576
+
+аналгично предыдущей группе
+
+Group 48: (Blocks 1572864-1605631) csum 0x1cb1 [ITABLE_ZEROED]
+  Block bitmap at 1572864 (+0), csum 0xd24b0207
+  Inode bitmap at 1572880 (+16), csum 0xd07c322d
+  Inode table at 1572896-1573407 (+32)
+  22127 free blocks, 2192 free inodes, 1133 directories, 1410 unused inodes
+  Free blocks: 1581908-1581909, 1582079, 1582186-1582187, 1582257-1590781, 1591279-1600511, 1601268-1605631
+  Free inodes: 397747-397754, 398914-398920, 398959, 399233-401408
+
+[ITABLE_ZEROED]  = вобще мто этот флаг можно просто игнорировать
+других флагов нет. это значит что иноды и блоки под файлы из этой группы когда то 
+брались. идействитеьно видно что и даже сейчас и  блоки заняты под файлы и иноды заняты.
+
+вывод такой : если говорить про флаги в целом то они либо показают что данная
+группа никогда не "распечатывалась" либо в плане блоков под тела файлов либо под иноды.
+либо показывает что когда то таблица инодов была занулена инициализатором ext4.
+
+так на данном этапе со значением флагом разобрались.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+- радбираю статью двух мужиов из шфейцарии и  из медиума
 
 
 - что значит pre-allocate блоки для папки ?
