@@ -170,14 +170,14 @@ Number  Start   End     Size    File system  Name  Flags
 #passwd root   !!! ВАЖНО
 #passwd -l всем
    пройись по всей машине и отклчить всем пароли  кроме root и krivosjeev
-# grub-mkconfig -o /boot/grub/grub.cfg
+(!!)# grub-mkconfig -o /boot/grub/grub.cfg
    это оосмсообщение на экране = WARNING: Failed to connect to lvmetad. Falling back to device scanning = оно неважное
-# update-initramfs -u -k all
+(!!)# update-initramfs -u -k all
       обновить все initramfs что есть. имена останутся темиже
       при этом у меня выскаивало собщение:
          ibkmod: ERROR ../libkmod/libkmod-config.c:656 kmod_config_parse: /lib/modules/4.15.0-134-generic/modules.softdep line 21: ignoring bad line starting with ':
       решние: в файле /mnt/newroot/lib/modules/4.15.0-134-generic/modules.softdep убрать строку вида :sctp
-# grub-install --recheck /dev/vdb
+(!!)# grub-install --recheck /dev/vdb
       это ставить загрузчик граба нулевой стадии на первый раздел который 1MB размером
 
 если при этом на экране увидим
@@ -188,20 +188,6 @@ grub-install: error: will not proceed with blocklists.
 это значит что  у нас GPT диск но при этом ты забыл создать первый раздел с меткой  " bios_grub" и grub
 не может поставить свой загрузчик .ему просто некуда его ставить! тогда смотри начало 
 этой доки там показано как разбить диск правльно (!!)
-
-(!!)еще одна ошибка которая может вылезти при выполнении grub-install --recheck /dev/vdb
-grub-install: error: /usr/lib/grub/i386-pc/modinfo.sh doesn't exist. Please specify --target or --directory.
-она значит то что исходный линукс ставился на uefi комп и поэтому инсталляор сука неустановил пакет 
-$ sudo apt-get install grub-pc
-его надо поставить под chroot и все заколосится.
-но тут возникнет еще одна проблема в том что  apt-get не может работать по chroot поотому что resolv.conf 
-это символическая ссылка и она на нашем chroot папке ведет вникуда. надо ее временно удалить и скопировать с хоста
-хостовый resolv.conf ,  запустить apt-get , поставить пакет и обратно сокпировать исхондный resolv.conf
-ссылки:
-https://askubuntu.com/questions/784990/grub-2-install-error-grub-install-error-usr-lib-grub-i386-pc-modinfo-sh-does
-https://askubuntu.com/questions/590354/after-chroot-apt-get-update-err-and-failed-to-fetch-bootableflashfromharddis
-
-
 
 
 
@@ -230,13 +216,9 @@ https://askubuntu.com/questions/590354/after-chroot-apt-get-update-err-and-faile
 (мы не юзаем by-uuid для lvm разделов потому что снэршоты имеют такиеже uuid как и оригиналы lvm разделов)
 
 
-(!!) перед перезагрузкой зайти  в /boot/grub/grub.cfg на новой системе найти строки вида 
+ДАЛЕЕ ВАЖНО!!!!!  перед перезагрузкой зайти  в /boot/grub/grub.cfg на новой системе найти строки вида 
 linux vmlinuz и заменить на конце  
 maybe-ubiquity на net.ifnames=0 biosdevname=0 console=ttyS0   иначе нихрена не загрузится !!!!!
-(!!) или другой прикол maybe может небыть но эта сука непрописыает параметры net.ifnames=0 biosdevname=0 console=ttyS0
-их надо обязательно дбавить в vmlinuz строку
-пример того как выглядит правильная строка
-linux   /vmlinuz-5.15.0-67-generic root=/dev/mapper/vg01--hdd--1--Arft45a-lv0 ro  net.ifnames=0 biosdevname=0 console=ttyS0
 
 # halt -p
 
