@@ -1,0 +1,50 @@
+nomad
+
+ставим номад на убунту
+на основе этого https://www.linode.com/docs/guides/using-nomad-for-orchestration/
+
+# sudo apt install wget gpg coreutils
+
+# wget -O- https://apt.releases.hashicorp.com/gpg | gpg --dearmor | sudo tee /usr/share/keyrings/hashicorp-archive-keyring.gpg
+
+# echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+
+# sudo apt update
+# sudo apt install nomad
+
+# nomad --version
+
+
+далее юзаем вот это 
+https://storiesfromtheherd.com/just-in-time-nomad-80f57cd403ca
+
+для запуска номада на девеолперской машине (тестоввая инстляция)
+# nomad agent -dev
+
+вот эту команду можно не запускать. ососбенно на вирт машине
+# nomad ui
+потому что по факту она просто нарпсто запускает бразуер с ссылкой 127.0.0.1:4646
+а если у нас вирт машина не имеет граф режима то просто вылезет ошибка
+
+Opening URL "http://127.0.0.1:4646"
+Error opening URL: exec: "xdg-open": executable file not found in $PATH
+
+нужно просто пробросить сокет 127.0.0.1:4646 наружу от вирт машины и запускать
+уже с другго хоста просто в браузере.  для того чтобы пробрость 127.0.0.1:4646 наружу
+из виртуальной машины то надо открыть файл iptables.txt и в нем найти секцию 
+
+"| port forward
+ | loopback
+ | lo "
+
+
+
+итак мы пробррсили 4646 наружу из вирт машины. тогда идем в бразуер
+и набираем http://IP:4646
+где IP это адрес виртуалки.
+и мы попадем в веб мооду номада.
+
+
+
+
+
