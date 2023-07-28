@@ -1,0 +1,139 @@
+вопросы к собеседованиям:
+
+в чем смысл поля мета   в ансибль
+
+терраформ какие комнды основные 
+
+гитлаю - для чего стейлджи
+
+зачем нужны воркеры у жинкса и пхп-фпм
+
+
+
+# 1
+#
+# Time: 210707 15:39:36
+# User@Host: 1703313381[1703313381] @  [136.243.53.188]  Id: 1138102510
+# Schema: xxxxxx  Last_errno: 0  Killed: 0
+# Query_time: 2.182754  Lock_time: 0.000120  Rows_sent: 0  Rows_examined: 324036  Rows_affected: 0
+# Bytes_sent: 20494
+SET timestamp=1625661576;
+SELECT f.*, t.*, p.*, u.*, tt.mark_time AS topic_mark_time, ft.mark_time AS forum_mark_time FROM (phpbb_posts p CROSS JOIN phpbb_users u CROSS JOIN phpbb_topics t) LEFT JOIN phpbb_forums f ON (t.forum_id = f.forum_id) LEFT JOIN phpbb_topics_track tt ON (t.topic_id = tt.topic_id AND tt.user_id = 659822) LEFT JOIN phpbb_forums_track ft ON (f.forum_id = ft.forum_id AND ft.user_id = 659822) WHERE p.topic_id = t.topic_id
+				AND p.poster_id = u.user_id
+				 AND p.post_time > 1625660099
+				 AND p.forum_id = 326
+
+
+
+				AND p.post_approved = 1 ORDER BY t.topic_last_post_time DESC, p.post_time
+ LIMIT 100;
+
+# 2
+#
+# Time: 210707 15:38:11
+# User@Host: 1703313381[1703313381] @  [136.243.53.188]  Id: 1138100591
+# Schema: xxxxxx  Last_errno: 0  Killed: 0
+# Query_time: 9.259469  Lock_time: 0.000015  Rows_sent: 0  Rows_examined: 948209  Rows_affected: 0
+# Bytes_sent: 11
+SET timestamp=1625661491;
+DELETE FROM phpbb_post_revisions
+			WHERE post_id = 10472158;
+
+# 3
+#
+# Time: 210707 15:32:18
+# User@Host: 1703313381[1703313381] @  [136.243.53.188]  Id: 1138094492
+# Schema: xxxxxx  Last_errno: 0  Killed: 0
+# Query_time: 1.113014  Lock_time: 0.000187  Rows_sent: 7  Rows_examined: 521597  Rows_affected: 0
+# Bytes_sent: 178150
+SET timestamp=1625661138;
+SELECT f.*, t.*, p.*, u.*, tt.mark_time AS topic_mark_time, ft.mark_time AS forum_mark_time FROM (phpbb_posts p CROSS JOIN phpbb_users u CROSS JOIN phpbb_topics t) LEFT JOIN phpbb_forums f ON (t.forum_id = f.forum_id) LEFT JOIN phpbb_topics_track tt ON (t.topic_id = tt.topic_id AND tt.user_id = 427441) LEFT JOIN phpbb_forums_track ft ON (f.forum_id = ft.forum_id AND ft.user_id = 427441) WHERE p.topic_id = t.topic_id
+				AND p.poster_id = u.user_id
+				 AND p.post_time > 1625656199
+				 AND p.forum_id IN (326, 527, 544, 1102)
+
+
+
+				AND p.post_approved = 1 ORDER BY t.topic_last_post_time DESC, p.post_time
+ LIMIT 18446744073709551615;
+
+# 4
+#
+# Time: 210707 15:27:56
+# User@Host: 1703313381[1703313381] @  [136.243.53.188]  Id: 1138089558
+# Schema: xxxxxx  Last_errno: 0  Killed: 0
+# Query_time: 4.682828  Lock_time: 0.000171  Rows_sent: 1  Rows_examined: 2457916  Rows_affected: 0
+# Bytes_sent: 43233
+SET timestamp=1625660876;
+SELECT f.*, t.*, p.*, u.*, tt.mark_time AS topic_mark_time, ft.mark_time AS forum_mark_time FROM (phpbb_posts p CROSS JOIN phpbb_users u CROSS JOIN phpbb_topics t) LEFT JOIN phpbb_forums f ON (t.forum_id = f.forum_id) LEFT JOIN phpbb_topics_track tt ON (t.topic_id = tt.topic_id AND tt.user_id = 69079) LEFT JOIN phpbb_forums_track ft ON (f.forum_id = ft.forum_id AND ft.user_id = 69079) WHERE p.topic_id = t.topic_id
+				AND p.poster_id = u.user_id
+				 AND p.post_time > 1625660599
+				 AND p.forum_id IN (9, 16, 17, 28, 36, 42, 55, 60, 65, 790, 64, 66, 110, 116, 837, 833, 133, 134, 135, 137, 143, 158, 823, 810, 788, 208, 211, 212, 213, 215, 216, 217, 218, 220, 221, 223, 224, 822, 836, 236, 238, 241, 242, 243, 270, 776, 291, 293, 294, 296, 292, 210, 40, 227, 239, 863, 781, 865, 548, 551, 552, 553, 554, 852, 851, 839, 550, 868, 884, 890, 909, 914, 916, 898, 896, 936, 937, 939, 969, 970, 982, 983, 989, 997, 92, 1076, 1124, 1130, 240, 1197, 1198, 1209, 1327, 1341, 1345, 1363, 1364, 1365, 1366, 1367, 1368, 1371, 1372, 1373, 1374, 1375, 1376, 1377, 1378, 1370, 1404, 1405, 1406, 1407, 1416, 1417, 1418, 1419, 1423, 1424, 1441, 1442, 1443, 1461, 1481, 1490, 1495, 1496, 1497, 1508, 1524, 1536, 1541, 1542, 119)
+
+
+
+				AND p.post_approved = 1 ORDER BY t.topic_last_post_time DESC, p.post_time
+ LIMIT 18446744073709551615;
+
+
+
+ 1. Расскажите, чем отличаются команды: "t.sh" ". t.sh" "/t.sh" "./t.sh"?
+
+/t.sh = будет искать в корневой папке этот файл
+
+./t.sh = будет искать в текущей папке
+
+t.sh = будет искать в $PATH
+
+. t.sh = аналог команды "$ source t.sh"
+
+
+
+
+
+ 
+2. Проведите ревью bash-скрипта
+ 
+#!/bin/bash
+
+file=$1
+
+if [ -f $file ]
+then
+    echo "File exists"
+else
+    echo "File does not exist"
+fi
+
+
+
+запускаем скрипт с именем файла. если он 
+
+ 
+3. Клиент жалуется на проблемы в работе БД MySQL - простые запросы выполняются медленно. Опишите ваши действия
+ 
+4. На сервере закончилось свободное место, новые файлы не создаются, вывод df -h показывает что свободное место есть. Опишите причины по которым такое могло произойти?
+ 
+5. Достаточно ли команды iostat -x чтобы оценить реальную нагрузку на диск?
+ 
+6. Клиент просит подобрать отказоустойчивое решение с SLA 99.9% для 7 сайтов (Nginx, PHP, MySQL, Redis, Memcached), статика занимает 10ТБ и будет расти до 50ТБ в течении года, каждая БД занимает 50ГБ. Предложите решение, опишите для клиента техническую реализацию.
+ 
+7. Клиент просит подобрать сервер под базу данных для храниния логов всех действий на сайте и строить разнообразную аналитику по данным. Ожидаемый объем БД через 6 месяцев 900 ГБ. Опишите ваши рекомендации по выбору сервера и настройке БД для клиента?
+ 
+8. Расскажите каким образом вы будете блокировать в Nginx запросы вида "GET /?[a-z]{16} HTTP/1.1"?
+ 
+9. Какой из запросов MySQL самый тяжелый: https://xpaste.pro/p/t4q0Lsp0? Расскажите как вы его выявили?
+ 
+10. Что происходит на сервере: https://drive.google.com/file/d/1Cxkx6-428EQAX0-eiaq66H829ohnPp7q/view?usp=sharing
+Опишите в формате ответа для клиента, если у вас есть предложения по оптимизации, также укажите их.
+
+11. Что происходит на сервере: https://drive.google.com/file/d/1fgJaftjv53xCN7vgiJOaQlbfWkUqPgyd/view?usp=share_link
+Опишите в формате ответа для клиента, если у вас есть предложения по оптимизации, также укажите их.
+
+** 12. Мы знаем что есть всего 7 записей с ticket_id=56412. Записей с ticket_id > 60000 нет, никаких символов перед 56412 нет. Как могла появиться разница в количестве? Опишите ваши действия.
+ 
+- SELECT count(*) FROM tickets_messages WHERE ticket_id=56412; возвращает 5 записей
+- SELECT count(*) FROM tickets_messages WHERE ticket_id like '%56412'; возвращает 7 записей
+
+
+
