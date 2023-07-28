@@ -1,0 +1,369 @@
+nmcli-NetworkManager-Networkd-netplan
+
+есть целый рой таких херней как NetworkManager, Networkd, netplan
+в чем разница. и все такое.
+
+
+значит netplan это фронтенд штука по управлению сетью в линуксе.
+а бекендом для него может быть либо NetworkManager либо networkd
+
+вот в чем разгадка.
+
+networkd как пишут больше подходит для настроек карточек для серверов. там где
+больше статического в конифгах картчоки.
+
+networkmanager болше подходит лэптопов где больше динамического в настройке
+карточки.
+
+как я понял запускается netplan и он уже обращается к networkd либо к networkmanager
+передает им конфиги и они уже руками делают настройки карточек.
+
+если нет нетплана то networkd свои нативные конфиги  ищет в /etc/systemd/network
+где лежат нативные конфиги networkmanager я не знаю
+
+
+как понять нетплан что использует для бекенда networkd или networkmanager
+идем в /etc/netplan/*.yaml
+и если там строка 
+	renderer: networkd
+значит бекендом явлется networkd
+а если там строка 
+	renderer: NetworkManager
+значит бкендом явлется networkmanager
+
+
+далее. нетплан он может использовать только один бекенд. чтото одно. либо networkd
+либо networkmanager но не оба сразу.
+
+насколкьо я понял если в конфиге нетплан нет строки "renderer:"
+ значит бекендом явялется networkd
+
+
+далее и networkd и networkmanger это юниты (сервисы)  в systemd
+
+# systemctl list-units | grep networkd | awk '{print $1}'
+networkd-dispatcher.service
+systemd-networkd-wait-online.service
+systemd-networkd.service                                                                     
+
+
+# systemctl list-units | grep -i networkmanager | awk '{print $1}'
+NetworkManager.service
+
+
+далее прикол в тмо что обе эти системы управления сетвыми картчоками 
+они могут одновременно работать на компе. главое чтобы они управлялли разными 
+картчоками. и тогда не буде никакого конфликта
+
+далее
+как по ыбстрому узнать какие сет картчоки управляются networkd
+ответ 
+
+# networkctl
+IDX LINK             TYPE               OPERATIONAL SETUP     
+  1 lo               loopback           routable    configured
+  2 enp3s0           ether              off         unmanaged 
+  3 wlp2s0           wlan               routable    unmanaged 
+  4 virbr0           ether              no-carrier  unmanaged 
+  5 virbr0-nic       ether              off         unmanaged 
+  7 docker_gwbridge  ether              routable    unmanaged 
+  8 docker0          ether              routable    unmanaged 
+641 vethfcf5465      ether              degraded    unmanaged 
+1708 vboxnet0         ether              off         unmanaged 
+1709 vboxnet1         ether              off         unmanaged 
+1710 vboxnet2         ether              off         unmanaged 
+1711 vboxnet3         ether              off         unmanaged 
+1712 vboxnet4         ether              off         unmanaged 
+1713 vboxnet5         ether              off         unmanaged 
+1714 vboxnet6         ether              off         unmanaged 
+1715 vboxnet7         ether              no-carrier  unmanaged 
+264091 veth81ffe49      ether              degraded    unmanaged 
+465285 br-f3471869c7a4  ether              routable    unmanaged 
+465313 veth31c3f0d      ether              degraded    unmanaged 
+465329 veth9d07c3b      ether              degraded    unmanaged 
+465335 veth7eb6575      ether              degraded    unmanaged 
+465343 vethbdadd5b      ether              degraded    unmanaged 
+465345 veth4452000      ether              degraded    unmanaged 
+465351 veth730a10d      ether              degraded    unmanaged 
+465374 lxdbr0           ether              no-carrier  unmanaged 
+465375 lxdbr1           ether              no-carrier  unmanaged 
+
+
+соовтсвтенно все картчоки которые "unmanaged" значит имим networkd неуправляет
+а вот посмотрим что при этоп происано в нетплан
+
+# cat /etc/netplan/01-network-manager-all.yaml 
+network:
+   version: 2
+   renderer: networkd
+   ethernets:
+      lo:
+        match:
+           name: lo
+        addresses: [ 172.16.10.10/32 ]
+
+видим полное совпдаение. в непталане указан remderer:networkd
+и указано какую карточку нетплан через netowrkd управляет это lo интерфейс.
+тоесть все совпало.
+а все остальыне картчоки управлятся получается через networkmanger.
+
+
+
+вот другой пример
+
+# networkctl
+IDX LINK   TYPE     OPERATIONAL SETUP     
+  1 lo     loopback carrier     unmanaged
+  2 enp5s0 ether    routable    configured
+
+
+втдим что enp5s0 упрвлятеся через netowrkd
+посмотрим что при этом написано в нетплан
+
+# cat /etc/netplan/50-cloud-init.yaml 
+network:
+    version: 2
+    ethernets:
+        enp5s0:
+            dhcp4: true
+
+видим что тут нет строкаи "renderer" что как я уже сказал значит что нетплан 
+исползует networkd.
+тоесть все совпало.
+
+
+а как узнать какие картчоки управляются через netoworkmanager? 
+я думаю метдом исключения - узнаем через networkctl какие картчоки управятся
+через netowrkd а остальные карточки оставшися управлятся через netoworkmanger.
+а полный список картчоек можно помотреть через ip -c a
+
+хотя наверное есть способ узнат напрямую каие картчоки управляются через networkmanger:
+# nmcli   device
+DEVICE           TYPE      STATE      CONNECTION 
+wlp2s0           wifi      connected  bshk       
+br-f3471869c7a4  bridge    unmanaged  --         
+docker0          bridge    unmanaged  --         
+docker_gwbridge  bridge    unmanaged  --         
+lxdbr0           bridge    unmanaged  --         
+lxdbr1           bridge    unmanaged  --         
+virbr0           bridge    unmanaged  --         
+enp3s0           ethernet  unmanaged  --         
+vboxnet0         ethernet  unmanaged  --                 
+lo               loopback  unmanaged  --         
+tapd7309131      tun       unmanaged  --         
+virbr0-nic       tun       unmanaged  --         
+
+соотвевтенно в колонке STATE указано какие сет карточки уравляются через netowwork manager
+
+и вот еще полезная команда. котоаря покажет нетолько сет карточки фищические
+упраляемые через networkmanger но и сет конекты (например VPN коннекты) котоыре 
+уарвляются через networkmanger
+
+# nmcli   connection
+NAME                        UUID                                  TYPE  DEVICE 
+bsh                         ec06da1e-7503-4aa1-a96d-8d6e5da05667  wifi  wlp2s0 
+cartos-ovh                  28302ee0-1ac0-4861-827b-ad56899dbcb8  vpn   wlp2s0 
+
+
+вот видно что есть два конекта котоыре урвляются через networkmannger 
+оба проходят через сет карточку wlp2s0
+
+
+nmcli это переводится как (NetworkManager CLI)
+
+
+
+есть еще одна утилита настройки карточек чеерз networkmanger это "nmtui"
+она работает в виде псевдографического интерфейса.
+
+
+немного отойдем в сторону и поговрим про 
+dnsmasq
+systemd-resolvd
+
+
+есть две программы похожие по целям. и обе хер понятные
+
+# netstat -tnlp | grep -E  "dnsmasq|reso"
+127.0.0.53:53           0.0.0.0:*               LISTEN      949822/systemd-reso 
+10.113.151.1:53         0.0.0.0:*               LISTEN      627658/dnsmasq      
+10.78.50.1:53           0.0.0.0:*               LISTEN      627605/dnsmasq      
+192.168.122.1:53        0.0.0.0:*               LISTEN      2085/dnsmasq        
+
+из чего видно что systemd-reolvd отвечает в убунту 18 за резолвинг.
+
+разберем о чем адреса где dnsmasq
+
+10.113.151.1 это адрес lxdbr1 это адрес lxd шлюза
+
+# ip -c a | grep 10.113.151.1 -B3
+       valid_lft forever preferred_lft forever
+465375: lxdbr1: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc noqueue state DOWN group default qlen 1000
+    link/ether 00:16:3e:1b:1e:55 brd ff:ff:ff:ff:ff:ff
+    inet 10.113.151.1/24 scope global lxdbr1
+
+10.78.50.1 это тоже шлюз в lxd сеть
+# ip -c a | grep 10.78.50.1 -B2
+465374: lxdbr0: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc noqueue state DOWN group default qlen 1000
+    link/ether 00:16:3e:bb:37:ee brd ff:ff:ff:ff:ff:ff
+    inet 10.78.50.1/24 scope global lxdbr0
+
+192.168.122.1 это сетвая карта от виртуалбокс
+# ip -c a | grep  192.168.122.1  -B2
+4: virbr0: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc noqueue state DOWN group default qlen 1000
+    link/ether 52:54:00:a5:01:fd brd ff:ff:ff:ff:ff:ff
+    inet 192.168.122.1/24 brd 192.168.122.255 scope global virbr0
+
+
+
+возврашаемся обратно.
+вовзращаесся к networkmanger
+это для лэпотопа та самая програмаа для настрйоки VPN.
+если у нас есть граф интерфейс на лэпотпе то мы небудем настраивать networkmanger
+через netplan. мы будем его настрваить через граф интерфейс.
+
+чтоб можно было это делать надо поставит ряд пакетов
+
+
+# dpkg -l | grep -i network-manager | awk '{print $2}'
+network-manager
+network-manager-config-connectivity-ubuntu
+network-manager-gnome
+network-manager-l2tp
+network-manager-l2tp-gnome
+network-manager-openconnect
+network-manager-openconnect-gnome
+network-manager-openvpn
+network-manager-openvpn-gnome
+network-manager-pptp
+network-manager-pptp-gnome
+
+
+
+что классно . это то что если у нас есть текст файл апример от OpenVPN конекта
+то мы можем его через граф интерйфейс просто импортировать и руками не настрваить конект
+это оень круто. и тут важно сказать что чтобы networkmanger понял о каком впн идет 
+речь в конфиг файле котоырй мы импортруем надо  ОБЯЗАТЕЛЬНО чтобы текст конфиг имел
+на конец расширение *.ovpn иначе при имопрте граф утилита напишет ошибка мол не могу 
+испортирвать впн. а делов всего навсего в том что файл не имеет расширения.
+
+далее важно - по дефолту опенвпн конект если мы его активиовали то он весь трафик
+погонит через впн тоесть и тот трафик котоырй ютуб и трафик который в сервреам в локалке
+за впн. при том что впн клиент засосет роуты локалок за впн автоматом и добавить 
+их в таблицу маршруутизации на лиукнсе. проблема тут в том что при активации впн
+конекта у нас создается +1 маршрут по дефолуту котоырй веет в впн сеть и он имеет 
+очень неблольшую мертрику скажем 50 . а маршрут по дефолту который был на компе он имеет 
+обычно метрику скажем 600. поэтому несмотяря на то что впн клиент добавил ротуты локалок
+за впн и по идее конект к компам которые не лежат  в сетиях за впн не дожлен идти 
+через впн но это просходит из за выскойо метрики  в маршуртует по дефолту у компа который 
+был до запуска внп - ведь он никуда не исчезает. так вот всего навсего чтоы этот кошмар
+исправти надо в маршурет по дфету поставить низку метрку. показываю на примере
+
+
+вот какая табиоца маршуртиацзиии до конекта к впн
+
+# ip  route sh | grep wlp2s0
+default via 192.168.0.1 dev wlp2s0 proto dhcp metric 600 
+169.254.0.0/16 dev wlp2s0 scope link metric 1000 
+192.168.0.0/24 dev wlp2s0 proto kernel scope link src 192.168.0.104 metric 10 
+
+видно что 
+у нас сетвая картчока wlp2s0
+и метрика маршурта по дефолту равна 600
+пока все окей.
+
+запускаем впн
+
+# ip  route sh | grep -E "wlp2s0|tun0"
+default via 192.168.0.1 dev wlp2s0 proto dhcp metric 600
+
+default dev tun0 proto static scope link metric 50 
+10.0.0.0/16 via 10.200.201.1 dev tun0 proto static metric 50 
+10.90.0.0/24 via 10.200.201.1 dev tun0 proto static metric 50 
+10.96.0.0/22 via 10.200.201.1 dev tun0 proto static metric 50 
+10.100.0.0/16 via 10.200.201.1 dev tun0 proto static metric 50 
+10.101.0.0/24 via 10.200.201.1 dev tun0 proto static metric 50 
+10.200.201.0/24 dev tun0 proto kernel scope link src 10.200.201.49 metric 50 
+
+157.90.147.104 via 192.168.0.1 dev wlp2s0 proto static metric 10 
+169.254.0.0/16 dev wlp2s0 scope link metric 1000 
+192.168.0.0/24 dev wlp2s0 proto kernel scope link src 192.168.0.104 metric 10 
+192.168.0.1 dev wlp2s0 proto static scope link metric 10 
+
+мы видим что здесь добавились маршуруты через tun0 интерфейс.
+и то что добавился вторйо маршурут по умолчанию
+
+default via 192.168.0.1 dev wlp2s0 proto dhcp metric 600
+default dev tun0 proto static scope link metric 50 
+
+и что мы видим что с однйо стооны у нас впн клиент нам добавил правла 
+для локалных сетей котоыре лежат за tun0. и это хорошо. потому что нам надо как раз таки
+конктится к серверам за впн через tuno0 тоесть собвственно через впн конект.
+но! у нас два маршурута по умоалчанию и будет исползован ровно тот маршуррут 
+у котороо метрика меньше. в даннмо сулчае это маргуршрут с метрикой 50 тоесь
+через tun0 тоесть через впн. а вот это уже жопа. нам ненадо чтобы пакеты к ютубу
+летели через впн сеть. 
+
+выход такой - надо у маршурута по умолчанию исходного уменьшить метрику с 600 на 10.
+как это сделать а вот так
+
+
+# nmcli connection modify <connection-name> ipv4.route-metric 10
+
+как узнать <coonection-name> 
+а вот так
+
+# nmcli connection
+NAME                        UUID                                  TYPE  DEVICE 
+bsh                         ec06da1e-7503-4aa1-a96d-8d6e5da05667  wifi  wlp2s0 
+
+тогда
+
+# nmcli connection modify bsh ipv4.route-metric 10
+
+кстати возоможно еще надо пеерзаустить службу (но это неточно)
+# systemctl restart NetworkManager
+
+и тогда у нас будет в итоге вот такая картина
+
+# ip  route sh | grep -E "wlp2s0|tun0" | grep default
+default via 192.168.0.1 dev wlp2s0 proto dhcp metric 10 
+default dev tun0 proto static scope link metric 50 
+
+красота! все пакеты для которых нет явного маршурурта будут идти через
+обычный гейтвей. 
+а все пакеты  для которых есть явыне маргрурты в таблице будут идти через впн
+конект через tun0
+
+
+олчно!
+
+
+слкдущий момент - положим у нас в впн сети есть dns сервер чтобы резолвить компы сидящие
+за впн по их днс именам. тогда в граф утилите к networkanger надо снять галочку
+что DNS автоматом и руками прописать адрес dns сервера сидящего в впн сети. тогда 
+при попытке пинга и нейм резолвинга видим будет делться попытка сделать резовлинг 
+через исозный днс и будем получени отлуп скажем от 8ю8ю8ю8 и потом будет делться 
+попытка сделать резовлинг чеерз dns от впн. и резолвинг будет успеным. я так понимаю 
+этоработает.
+
+далее. вот зариосвка
+как настривать wifi карточку не через netowkmanger его граф утиллиту
+а чрезе netplan (коотоырй уже сам будет что нужно посдсывать это к netowek manger)
+
+network:
+  version: 2
+  renderer: networkd
+  wifis:
+    wlo1:
+      dhcp4: true
+      dhcp6: true
+      access-points:
+        "network_ssid_name":
+          password: "**********"
+
+  я не провеляер работае т ли этот пример.
+
+ также непнятно в каких файлах в итоге харнятся конфииги netowrk mamger
+
+ 
