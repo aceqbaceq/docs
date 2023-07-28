@@ -4454,7 +4454,547 @@ var['a']
 
 ============================
 
+| venv
+поговоим про установку ансибля в виртальном окружении питона.
+
+с какойто версии ансибль разделился на два пакета модуля питона.
+это ansible-core\ansible-base это типа базовое ядро над котрым трудтся самые козыреные
+програмисты и просто пакет ansible это уже над которм трудятся остальные 
+колхозники.
+
+ансибль так как он нписано на питоне то его разумно ставить как модуль питона 
+причем в виртуальном пространстве питона. чтобы этот ансибль не мешал системе в целом.
+типа как докер контейнер.  что для этого надо - алгоритм установки ансибля в вируалном
+окружении питона смотри в файле "kubespray-ansible.txt"
 	
+
+===============
+
+| filters
+
+рассмотрим маниупцляицю данными через filters jinja (через фильтры джинджы).
+это большая и мудацкая тема. так как ансблть написан на питоне. также как там все коряво
+так и в ансибле все очень корявл в с этим
+
+имеем конфига ансибля
+
+$ cat ansible.cfg 
+[defaults]
+inventory = inventory
+remote_user = vasya
+private_key_file = /home/vasa/id_ed25519
+host_key_checking = False
+stdout_callback = yaml
+interpreter_python= auto_legacy
+nocows=1
+
+
+имеем плейбук
+
+
+$ cat play.yml 
+---
+
+- name: play.yml
+  hosts: localhost
+
+
+
+  vars:
+
+     list_one: [ "a", "b" ]
+
+
+     domain_definition:
+       domain:
+         cluster:
+         - name: cluster1
+         - name: cluster2
+         server:
+         - name: server11
+           cluster: cluster1
+           port: '8080'
+         - name: server12
+           cluster: cluster1
+           port: '8090'
+         - name: server21
+           cluster: cluster2
+           port: '9080'
+         - name: server22
+           cluster: cluster2
+           port: '9090'
+         library:
+         - name: lib1
+           target: cluster1
+         - name: lib2
+           target: cluster2
+
+
+
+
+  tasks:
+    - name: print list_one
+      debug:
+         var: list_one
+
+
+    - name: print list_one (first element)
+      debug:
+         var: list_one[0]
+
+
+
+
+    - name: print list_one via with_items
+      debug:
+         var: item
+      with_items: '{{ list_one }}'
+
+
+
+    - name: print list_one via loop
+      debug:
+         var: item
+      loop: '{{ list_one }}'
+
+
+    - name: create variable "home"
+      set_fact:
+         home: "{{ list_one  }}"
+
+
+    - name: print variable "home"
+      debug:
+         msg: "home = {{ home  }}"
+
+
+
+    - name: create variable "home2"
+      set_fact:
+         home2: "{{ domain_definition | json_query('domain.cluster[*]') }}"
+
+
+
+    - name: print variable "home2"
+      debug:
+         msg: "home2= {{ domain_definition | json_query('domain.cluster[*]') }}"
+
+
+
+    - name: print variable "home3"
+      debug:
+         msg: "home3= {{ domain_definition | json_query('domain.cluster[*].name')  }}"
+
+
+
+    - name: print variable "home4"
+      debug:
+         msg: "home3= {{ domain_definition | json_query('domain.cluster[*].name') | list }}"
+
+
+
+
+
+    - name: Display all cluster names
+      debug:
+        var: item
+      loop: "{{ domain_definition | json_query('domain.cluster[*].name') }}"
+
+
+    - name: Display all server names
+      debug:
+        var: item
+      loop: "{{ domain_definition | json_query('domain.server[*].name') }}"
+
+
+
+
+
+# ansible-playbook play.yml
+
+расмотрим вывод.
+причем я буду давать код ансибля из плейбука
+и соотвествующий ему вывод на экран
+
+
+
+    - name: print list_one
+      debug:
+         var: list_one
+
+
+TASK [print list_one] ************************************************************************************************************************************************************************
+ok: [localhost] => 
+  list_one:
+  - a
+  - b
+
+
+здесь мы видим что имя пеереннной list_one можно указать без всякийх кавычек
+и скобок это особенность "var:" в модуле debug
+переменная выведены целиком
+
+
+
+    - name: print list_one (first element)
+      debug:
+         var: list_one[0]
+
+
+TASK [print list_one (first element)] ********************************************************************************************************************************************************
+ok: [localhost] => 
+  list_one[0]: a
+
+
+здесь я вывожу только одну строчку списка. в списке элементы нумеруются натуральными
+числами начиная с нуля. вот нам нулевой элемент и выведен. 
+тоессть вот эта хрень list_one[0] это означает показать нулевой элемент списка list_one
+
+
+    - name: print list_one via with_items
+      debug:
+         var: item
+      with_items: '{{ list_one }}'
+
+TASK [print list_one via with_items] *********************************************************************************************************************************************************
+ok: [localhost] => (item=a) => 
+  ansible_loop_var: item
+  item: a
+ok: [localhost] => (item=b) => 
+  ansible_loop_var: item
+  item: b
+
+здесь список печатается по элеметно (аналог for ) 
+можно заментить что переменная уже должна быть заключена в '{{ имя_переменной }}' 
+
+
+
+    - name: print list_one via loop
+      debug:
+         var: item
+      loop: '{{ list_one }}'
+
+TASK [print list_one via loop] ***************************************************************************************************************************************************************
+ok: [localhost] => (item=a) => 
+  ansible_loop_var: item
+  item: a
+ok: [localhost] => (item=b) => 
+  ansible_loop_var: item
+  item: b
+
+
+тоже самое но вместо with_items юзается loop
+
+
+    - name: create variable "home"
+      set_fact:
+         home: "{{ list_one  }}"
+
+TASK [create variable "home"] ****************************************************************************************************************************************************************
+ok: [localhost]
+
+
+создаем переменную home на освное переменной list_one
+
+
+    - name: print variable "home"
+      debug:
+         msg: "home = {{ home  }}"
+
+
+TASK [print variable "home"] *****************************************************************************************************************************************************************
+ok: [localhost] => 
+  msg: home = ['a', 'b']
+
+
+
+напечатать переменную home
+заметим что в случае msg в модуле debug уже переменную нужно заклюать в '{{ имя_пееременной }}'
+
+
+
+
+    - name: create variable "home2"
+      set_fact:
+         home2: "{{ domain_definition | json_query('domain.cluster[*]') }}"
+
+
+TASK [create variable "home2"] ***************************************************************************************************************************************************************
+ok: [localhost]
+
+
+тут уже пошел самый смак. создаем пеермную home2 на основе переменной domain_definition.
+учтитываем то что в ансибле если dictionary вложен в dictionary то доступ (адресация) идет в 
+виде dic1.dic2 . тоесть
+
+dic1:
+  dic2: vasya
+
+
+чтобы добраться до vasya надо будет набрать dic1.dic2
+а если у нас список то элемент списка выбирыется на основе того что строчка обозначается
+через натуральное число тоесть
+
+a:
+- "vasya"
+- "petya"
+
+тогда чтобы добраться до vasya нужно будет набрать a[0]
+
+соовтственно если у нас переменная выглядит как
+
+     domain_definition:
+       domain:
+         cluster:
+         - name: cluster1
+         - name: cluster2
+
+то добараться до cluster1 можно через  domain_definition.domain.custer[0].name
+толкьо это даст cluster1
+
+
+таквот вот эта конструкция
+         home2: "{{ domain_definition | json_query('domain.cluster[*]') }}"
+
+она берет переменную domain_definition и потом начинает из нее филтровать
+субстрат из этой переменной выбирается дикшонари domain.cluster[*]
+тоесть по факту выбирается вот такая хрень
+domain_definition.domain.cluster[*]  
+где [*] означает строки списка причем с любыми индексами.
+почему просто нельзы записат без мозгоебки в виде
+         home2: "{{ domain_definition.domain.cluster[*] }}"
+непонятно. спасибо долбоебам создателям ансибля.
+
+
+
+
+    - name: print variable "home2"
+      debug:
+         msg: "home2= {{ domain_definition | json_query('domain.cluster[*]') }}"
+
+TASK [print variable "home2"] ****************************************************************************************************************************************************************
+ok: [localhost] => 
+  msg: 'home2= [{''name'': ''cluster1''}, {''name'': ''cluster2''}]'
+
+
+печатаем переменную home2
+получаем на экране по сути
+
+home2:
+   - name: cluster1
+   - name: cluster2
+
+
+
+
+
+
+    - name: print variable "home3"
+      debug:
+         msg: "home3= {{ domain_definition | json_query('domain.cluster[*].name')  }}"
+
+TASK [print variable "home3"] ****************************************************************************************************************************************************************
+ok: [localhost] => 
+  msg: home3= ['cluster1', 'cluster2']
+
+
+ну тут мы вошли чуть глубже мы запросили domain_definition.domain.cluster[*].name
+
+получили 
+home3:
+  - cluster1
+  - cluster2
+
+вроде как возникает вопрос по идее мы в запросе получили вроде как просто одельные
+элементы "cluster1" и "cluster2" которые по идее не образуют ничего ни список
+ни дикшонари. однако вывод на вывел их в форме списка.. ну окей. 
+
+
+
+    - name: print variable "home4"
+      debug:
+         msg: "home3= {{ domain_definition | json_query('domain.cluster[*].name') | list }}"
+
+TASK [print variable "home4"] ****************************************************************************************************************************************************************
+ok: [localhost] => 
+  msg: home3= ['cluster1', 'cluster2']
+
+
+в этом примере мы добавили доп фильтр  ...| list ..
+который берем отдельные элементы "cluster1" , "cluster2" и составили из него список.
+по факту мы получили в точности тоже что в пршлом примере. хотя этот пример 
+более правльный синтаксичски алогритмически
+
+home3:
+ - cluster1
+ - cluster2
+
+
+
+
+
+    - name: Display all cluster names
+      debug:
+        var: item
+      loop: "{{ domain_definition | json_query('domain.cluster[*].name') }}"
+
+TASK [Display all cluster names] *************************************************************************************************************************************************************
+ok: [localhost] => (item=cluster1) => 
+  ansible_loop_var: item
+  item: cluster1
+ok: [localhost] => (item=cluster2) => 
+  ansible_loop_var: item
+  item: cluster2
+
+
+как работает эта штука. создается список через кусок кода
+"{{ domain_definition | json_query('domain.cluster[*].name') }}"
+
+причем я замеу что этот кусок кода почемуто раотает в точности как
+"{{ domain_definition | json_query('domain.cluster[*].name') | list }}"
+и мы получаем по факту список
+
+- cluster1
+- cluster2
+
+а далее на него натравливается loop . тоесть команда в итоге как бы эквивалетна
+
+loop: [ cluster1, cluster2]
+
+или 
+
+loop:
+  - cluster1
+  - cluster2
+
+
+а весь код как бы эквивалентен к виду
+    - name: Display all cluster names
+      debug:
+        var: item
+      loop: 
+        - cluster1
+        - cluster2
+
+и мы в итоге мы и видим на экране
+ok: [localhost] => (item=cluster1) => 
+  ansible_loop_var: item
+  item: cluster1
+ok: [localhost] => (item=cluster2) => 
+  ansible_loop_var: item
+  item: cluster2
+
+
+тоесть мы видим
+cluster1
+и 
+cluster2
+
+
+
+
+
+
+
+
+    - name: Display all server names
+      debug:
+        var: item
+      loop: "{{ domain_definition | json_query('domain.server[*].name') }}"
+
+TASK [Display all server names] **************************************************************************************************************************************************************
+ok: [localhost] => (item=server11) => 
+  ansible_loop_var: item
+  item: server11
+ok: [localhost] => (item=server12) => 
+  ansible_loop_var: item
+  item: server12
+ok: [localhost] => (item=server21) => 
+  ansible_loop_var: item
+  item: server21
+ok: [localhost] => (item=server22) => 
+  ansible_loop_var: item
+  item: server22
+
+
+тут тоже самое. мы имем код
+      loop: "{{ domain_definition | json_query('domain.server[*].name') }}"
+
+вначале у нас вычисляется тот массив данных та переменная которая ялвятеся аргументом у loop
 	
-	
-	
+	"{{ domain_definition | json_query('domain.server[*].name') }}"
+
+    эта штука вычленяет domain_definition.domain.server[*].name
+
+
+напомню как выглядит исходная переменная
+     domain_definition:
+       domain:
+         cluster:
+         - name: cluster1
+         - name: cluster2
+         server:
+         - name: server11
+           cluster: cluster1
+           port: '8080'
+         - name: server12
+           cluster: cluster1
+           port: '8090'
+         - name: server21
+           cluster: cluster2
+           port: '9080'
+         - name: server22
+           cluster: cluster2
+           port: '9090'
+         library:
+         - name: lib1
+           target: cluster1
+         - name: lib2
+           target: cluster2
+
+
+значит этот фильтр нам даст элементы "server11", "server12", "server21", "server22"
+и как я уже сказал что ансибль почемуто из этих элемпнтов создает автомтом список
+как бутто у нас код выглядел бы вот так
+
+    "{{ domain_definition | json_query('domain.server[*].name') | list}}"
+    тоеть мы получаем переменную вида
+
+
+- server11
+- server12
+- server21
+- server22
+
+и наш код преобразуется как бы к такому
+
+
+
+    - name: Display all server names
+      debug:
+        var: item
+      loop: 
+        - server11
+        - server12
+        - server21
+        - server22
+
+вот поэтому на экране мы и увидим эти элементы
+
+ok: [localhost] => (item=server11) => 
+  ansible_loop_var: item
+  item: server11
+ok: [localhost] => (item=server12) => 
+  ansible_loop_var: item
+  item: server12
+ok: [localhost] => (item=server21) => 
+  ansible_loop_var: item
+  item: server21
+ok: [localhost] => (item=server22) => 
+  ansible_loop_var: item
+  item: server22
+
+
+ура теория совпала с теорией
+
+=====

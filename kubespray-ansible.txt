@@ -14,7 +14,7 @@ kubespray+ansible
 что интересно. это то что через pip3 можно поставить непросто последнюю версию пакета 
 а прям конкретную версию. приведу файл  requiements.txt
 
-$ cat requirements.txt 
+$ cat << EOF > requirements.txt 
    ansible==3.4.0
    ansible-base==2.10.15
    cryptography==2.8
@@ -25,6 +25,7 @@ $ cat requirements.txt
    ruamel.yaml==0.16.10
    ruamel.yaml.clib==0.2.4
    MarkupSafe==1.1.1
+EOF
 
 как видна такая хрень нам позволяет гарантировать что для кубспрея будет поставлены прям 
 конкретные проверенные версии модулей питона. отлично.
@@ -104,3 +105,4 @@ wheel            0.37.1
 
 полное совпдаение!
 ансибль нужной версии для kubespray установлен!
+

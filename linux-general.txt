@@ -6527,6 +6527,66 @@ Device: 10302h/66306d	Inode: 24918099    Links: 1
 а тут мы видим что такой процесс не может ни читать с термиала ни писать на него 
 потому что у него неоткрто устройство терминала.... да.. вот это непонятно...
 
+===
+
+| bench
+| benchmark
+| unixbench
+
+
+из статьи на habr
+ вылезла утилита для замера бенчмарка unixbench
+есть только в виде снапов
+
+# snap install unixbench
+
+если у нас много ядер то надо запускать в много ядероом реижиме
+
+# unixbench -c 4
+где 4 это число ядер на компе об этом написано тут https://github.com/kdlucas/byte-unixbench/blob/master/UnixBench/USAGE
+
+а тут написано что значит каждый тест https://github.com/kdlucas/byte-unixbench
+
+в целом это бенчмарк связки цпу-память-ос
+
+резульатты на лэптопе
+
+------------------------------------------------------------------------
+Benchmark Run: Fri Jul 28 2023 13:38:38 - 14:03:46
+8 CPUs in system; running 4 parallel copies of tests
+
+Dhrystone 2 using register variables       66298940.7 lps   (10.0 s, 7 samples)
+Double-Precision Whetstone                    10849.2 MWIPS (9.8 s, 7 samples)
+Execl Throughput                               6776.4 lps   (29.5 s, 2 samples)
+File Copy 1024 bufsize 2000 maxblocks        707440.0 KBps  (30.0 s, 2 samples)
+File Copy 256 bufsize 500 maxblocks          180685.6 KBps  (30.0 s, 2 samples)
+File Copy 4096 bufsize 8000 maxblocks       1606002.7 KBps  (30.0 s, 2 samples)
+Pipe Throughput                             2452775.6 lps   (10.0 s, 7 samples)
+Pipe-based Context Switching                 212090.1 lps   (10.0 s, 7 samples)
+Process Creation                              11992.4 lps   (30.0 s, 2 samples)
+Shell Scripts (1 concurrent)                  18533.0 lpm   (60.0 s, 2 samples)
+Shell Scripts (8 concurrent)                   2501.5 lpm   (60.0 s, 2 samples)
+System Call Overhead                        2347375.8 lps   (10.0 s, 7 samples)
+
+System Benchmarks Index Values               BASELINE       RESULT    INDEX
+Dhrystone 2 using register variables         116700.0   66298940.7   5681.1
+Double-Precision Whetstone                       55.0      10849.2   1972.6
+Execl Throughput                                 43.0       6776.4   1575.9
+File Copy 1024 bufsize 2000 maxblocks          3960.0     707440.0   1786.5
+File Copy 256 bufsize 500 maxblocks            1655.0     180685.6   1091.8
+File Copy 4096 bufsize 8000 maxblocks          5800.0    1606002.7   2769.0
+Pipe Throughput                               12440.0    2452775.6   1971.7
+Pipe-based Context Switching                   4000.0     212090.1    530.2
+Process Creation                                126.0      11992.4    951.8
+Shell Scripts (1 concurrent)                     42.4      18533.0   4371.0
+Shell Scripts (8 concurrent)                      6.0       2501.5   4169.1
+System Call Overhead                          15000.0    2347375.8   1564.9
+                                                                   ========
+System Benchmarks Index Score                                        1932.1
+
+---------------
+
+
 
 
 
