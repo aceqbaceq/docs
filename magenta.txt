@@ -1,0 +1,83 @@
+magenta
+
+19:30 - 23:00 закрнчил ставить мадженту
+
+
+
+
+install php7.28.1-bcmath php8.1-intl php8.1-soap php8.1-zip php8.1-gd php8.1-json php8.1-curl php8.1-cli php8.1-xml php8.1-xmlrpc php8.1-gmp php8.1-common
+
+
+apt-get install php7.2 php7.2-dev php7.2-fpm php7.2-bcmath php7.2-intl php7.2-soap php7.2-zip php7.2-curl php7.2-mbstring php7.2-mysql php7.2-gd php7.2-xml
+
+
+CREATE DATABASE magento2;
+CREATE USER 'magento2'@'localhost' IDENTIFIED BY 'Magento2!';
+GRANT ALL ON magento2.* TO 'magento2'@'localhost';
+FLUSH PRIVILEGES;
+EXIT
+
+
+magento2	
+Public Key: e40cb09a2659769306b4847517f94922 Copy
+Private Key: d7462fc074c446757f0cb6f1f6833b28 Copy
+(это надо юзат как логин и пароль при скачивании магенты через composer)
+
+
+ALTER USER 'magento2'@'localhost' IDENTIFIED WITH mysql_native_password;
+
+# sudo -u www-data composer create-project --repository-url=https://repo.magento.com/  magento/project-community-edition   /var/www/magento2
+
+
+
+
+bin/magento setup:install \
+--base-url=http://magento.local \
+--db-host=localhost \
+--db-name=magento2 \
+--db-user=magento2 \
+--db-password=Magento2! \
+--admin-firstname=Admin \
+--admin-lastname=User \
+--admin-email=admin@magento.local \
+--admin-user=admin \
+--admin-password=admin123 \
+--language=en_US \
+--currency=USD \
+--timezone=America/Chicago \
+--use-rewrites=1
+
+
+./magento setup:install --base-url=http://www.dev-magento.com/
+--db-host=localhost --db-name=magento2 --db-user=magento2
+--db-password=magento2 --admin-firstname=admin
+--admin-lastname=admin --admin-email=test@test.com
+--admin-user=admin --admin-password=admin123 --language=en_US
+--currency=USD --timezone=America/Chicago --use-rewrites=1
+
+
+
+# bin/magento setup:install --base-url=http://magento.local --db-host=localhost --db-name=magento2 --db-user=magento2 --db-password='Magento!222222' --admin-firstname=Admin --admin-lastname=User --admin-email=admin@magento.local --admin-user=admin --admin-password=admin123 --language=en_US --currency=USD --timezone=America/Chicago --use-rewrites=1
+
+как зайти в админку.
+надо вначале выянсить линк на эту админку
+
+php bin/magento info:adminuri
+
+оно покажет ур на дамину. 
+
+идем в админку а он на экране рисует эксепщен типа пошел нахер
+оказыатся что дело было в неверных файл пермишнсах
+
+# chown -R www-data.www-data /var/www 
+
+
+
+ввим логин и ароль и эта сука шлет опть нахер
+
+You need to configure Two-Factor Authorization in order to proceed to your store's admin area
+
+нужно отключить эту хрень
+
+bin/magento module:disable Magento_AdminAdobeImsTwoFactorAuth Magento_TwoFactorAuth
+

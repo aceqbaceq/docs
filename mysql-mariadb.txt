@@ -4694,3 +4694,13 @@ MARIADB_AUTO_UPGRADE=1
 skip-log-bin
 disable_log_bin
 ==
+
+| mysql
+| mariadb
+
+пароль
+обновить пароль
+
+ SET PASSWORD FOR 'magento2'@'localhost' = PASSWORD('magento2');
+
+===
