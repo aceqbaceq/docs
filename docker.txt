@@ -176,4 +176,14 @@ PING ub3 (172.20.0.3): 56 data bytes
 
 ==
 
-  
+| docker 
+| pull
+| sha
+
+можно pull делать по тэгу а можно по sha
+
+каку знать sha у имаджа
+
+$ docker inspect --format='{{index .RepoDigests 0}}' $IMAGE
+
+===

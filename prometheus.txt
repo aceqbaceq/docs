@@ -58,3 +58,19 @@ PING promet1 (172.20.0.3): 56 data bytes
 
 порядок
 
+
+запускаем графану
+
+$ mkdir ./data
+
+$ docker run -d -p 3000:3000 --name=grafana \
+  --user "$(id -u)" \
+  --volume "$PWD/data:/var/lib/grafana" \
+  --net net1 \
+  grafana/grafana-oss
+
+
+docker run -d -p 3001:3000 --name=grafana2 \
+  --volume "graf-vol:/var/lib/grafana" \
+  --net net1 \
+  grafana/grafana-oss

@@ -6797,6 +6797,28 @@ $6$QEe4qtY9ShP6jVnR$RIzSSyJx0VvrAVjK/6fj.co5fFnapX50ZVaJXNr75Ah0GNWO.rmSr5j76xEu
 
 видно что совпало. мы верно определили salt
 
+===
+| filebeat 
+
+
+проверить что конфиг верный
+#filebeat test config
+
+
+проверить что ест связь с эластиком
+# filebeat test output
+elasticsearch: http://10.113.151.1:5080/api/default/...
+  parse url... OK
+  connection...
+    parse host... OK
+    dns lookup... OK
+    addresses: 10.113.151.1
+    dial up... OK
+  TLS... WARN secure connection disabled
+  talk to server... OK
+  version: 8.9.0
+
+
 
 ===
 

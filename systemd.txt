@@ -433,4 +433,61 @@ search .
 решение нашел здесь https://github.com/systemd/systemd/issues/13432
 ==
 
+| -
+| "-"
+
+в юнитах системд можно увидеть какито страные минусы в путях к файлам
+
+EnvironmentFile=-/etc/consul.d/consul.env
+
+оказыается! нашел ответ тут https://stackoverflow.com/a/57736881/4274460
+оказывается ответ есть в man systemd.service а именно
+
+ Table 1. Special executable prefixes
+           ┌───────┬────────────────────────────────────────────────────────────────┐
+           │Prefix │ Effect                                                         │
+           ├───────┼────────────────────────────────────────────────────────────────┤
+           │"@"    │ If the executable path is prefixed with "@", the second        │
+           │       │ specified token will be passed as "argv[0]" to the executed    │
+           │       │ process (instead of the actual filename), followed by the      │
+           │       │ further arguments specified.                                   │
+           ├───────┼────────────────────────────────────────────────────────────────┤
+           │"-"    │ If the executable path is prefixed with "-", an exit code of   │
+           │       │ the command normally considered a failure (i.e. non-zero exit  │
+           │       │ status or abnormal exit due to signal) is ignored and          │
+           │       │ considered success.                                            │
+           ├───────┼────────────────────────────────────────────────────────────────┤
+           │"+"    │ If the executable path is prefixed with "+" then the process   │
+           │       │ is executed with full privileges. In this mode privilege       │
+           │       │ restrictions configured with User=, Group=,                    │
+           │       │ CapabilityBoundingSet= or the various file system namespacing  │
+           │       │ options (such as PrivateDevices=, PrivateTmp=) are not applied │
+           │       │ to the invoked command line (but still affect any other        │
+           │       │ ExecStart=, ExecStop=, ... lines).                             │
+           ├───────┼────────────────────────────────────────────────────────────────┤
+           │"!"    │ Similar to the "+" character discussed above this permits      │
+           │       │ invoking command lines with elevated privileges. However,      │
+           │       │ unlike "+" the "!" character exclusively alters the effect of  │
+           │       │ User=, Group= and SupplementaryGroups=, i.e. only the stanzas  │
+           │       │ the affect user and group credentials. Note that this setting  │
+           │       │ may be combined with DynamicUser=, in which case a dynamic     │
+           │       │ user/group pair is allocated before the command is invoked,    │
+           │       │ but credential changing is left to the executed process        │
+           │       │ itself.                                                        │
+           ├───────┼────────────────────────────────────────────────────────────────┤
+           │"!!"   │ This prefix is very similar to "!", however it only has an     │
+           │       │ effect on systems lacking support for ambient process          │
+           │       │ capabilities, i.e. without support for AmbientCapabilities=.   │
+           │       │ It's intended to be used for unit files that take benefit of   │
+           │       │ ambient capabilities to run processes with minimal privileges  │
+           │       │ wherever possible while remaining compatible with systems that │
+           │       │ lack ambient capabilities support. Note that when "!!" is      │
+           │       │ used, and a system lacking ambient capability support is       │
+           │       │ detected any configured SystemCallFilter= and                  │
+           │       │ CapabilityBoundingSet= stanzas are implicitly modified, in     │
+ Manual page systemd.service(5) line 108 (press h for help or q to quit)
+
+это звезец!
+
+====
 

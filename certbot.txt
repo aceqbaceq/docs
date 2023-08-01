@@ -650,9 +650,12 @@ webroot_path = var/www/letsencrypt/
 то надо создать файл вместо этого:
 
 # touch /etc/letsencrypt/renewal-hooks/deploy/nginx.bash && chmod +x  /etc/letsencrypt/renewal-hooks/deploy/nginx.bash
-# cat /etc/letsencrypt/renewal-hooks/deploy/nginx.bash 
+# cat << EOF > /etc/letsencrypt/renewal-hooks/deploy/nginx.bash 
 #!/bin/bash
 systemctl reload nginx
+EOF
+
+
 
 тогда каждый раз когда cerrbot renew будет обновлять очередной серфикат он будет запускать этот скрипт автоматом
 причем этот скрипт запускается только и только если сертификат был успешно обновлен. если сертфиикат неудалось 
