@@ -6804,6 +6804,23 @@ $6$QEe4qtY9ShP6jVnR$RIzSSyJx0VvrAVjK/6fj.co5fFnapX50ZVaJXNr75Ah0GNWO.rmSr5j76xEu
 проверить что конфиг верный
 #filebeat test config
 
+но это тоьлко провека что гланый конфиг верный flebeat.yml
+а то что у тебя в модулях верно все (/etc/filbeat/modules.d) которые тоже конфиги эта сука так
+не проверяет. чтобы проверить что и в модулях все окей надо останвоить filebeat 
+
+# systemctl stop filebeat
+и
+
+# sudo filebeat -e -c /etc/filebeat/filebeat.yml
+
+если он не напишет что 
+Exiting: Failed to start crawler: creating module reloader failed: could not create module registry for filesets: error unpacking module config :error creating config from fileset nginx/access: error unpacking configuration
+
+pзначит чвсе окей. 
+иначе у тебя ориибка в конфиге модуля 
+
+
+
 
 проверить что ест связь с эластиком
 # filebeat test output
@@ -6819,8 +6836,63 @@ elasticsearch: http://10.113.151.1:5080/api/default/...
   version: 8.9.0
 
 
+запускаем айлбит
+
+# systemctl start filebeat
+и нао чуть подождить. он падает не сразу
+проверяем
+
+# jouralctl -f -u filebeat
+
+
+
 дефолтовый частоат  с которой он проверяет файлы логов это 10с.
 настраивается через scan_frequency
+
+
+
+прописать  путь к модуля иначе их не актививровать
+# cat filebeat.yml
+
+filebeat.config.modules:
+  path: ${path.config}/modules.d/*.yml
+
+  reload.enabled: false
+
+
+после этго можно активовть модуль
+
+# filebeat modules enable  elasticsearch
+
+
+
+как выгддяит как пример конфиг модуля nginx
+
+.d# cat /etc/filebeat/modules.d/nginx.yml 
+- module: nginx
+  access:
+    enabled: true
+    var.paths:     
+        - "/home/magento/pwa-studio.magento2-sandbox.magestage.net/log/access.log"
+        - "/home/magento/magento2-sandbox.magestage.net/log/access.log"
+
+
+  error:
+    enabled: true
+    var.paths:  
+        - "/home/magento/pwa-studio.magento2-sandbox.magestage.net/log/error.log"
+        - "/home/magento/pwa-studio.magento2-sandbox.magestage.net/log/error.log"
+
+
+  ingress_controller:
+    enabled: false
+    #var.paths:
+
+
+ важно отметть      что  как я пути прописал. 
+ это очен удобно. только надо кавычки ставить чтобы не было ошибоок!
+ 
+
 
 
 
@@ -7124,6 +7196,14 @@ saved uid - предыдущее значение uid в случае если �
 и видим некоторый UID. так вот так как процесс может его менять то соверешенно не факт 
 что этот же самый процесс чере 10 минут покажет тот же самый UID в ps
 
+
+| samba
+| smb
+
+отлчная стаять я как быстро настроить samba сервер.
+чтобы потом можно быо к нему под виндой зайти
+
+https://linuxize.com/post/how-to-install-and-configure-samba-on-ubuntu-18-04/
 
 
 

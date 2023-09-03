@@ -715,7 +715,7 @@ ID  CLASS  WEIGHT   TYPE NAME        STATUS  REWEIGHT  PRI-AFF
 | remote | ceph   |             | 1       | CREATED |
 +--------+--------+-------------+---------+---------+
 
-# lxc launch images:ubuntu/22.04 c1 --storage remote
+#  lxc launch ubuntu:22.04 ub22-1 --storage remote
 
 
 
@@ -1168,3 +1168,87 @@ disk0:
 
 
 ===
+| миграция
+| перенос
+| migration 
+
+https://www.cyberciti.biz/faq/how-to-movemigrate-lxd-vm-to-another-host-on-linux/
+
+
+
+настрваием что нужно чтобы скопировать контенер на другой хост
+на dest сервеврее  выполняем
+   # lxc config set core.https_address 10.110.2.2:8443
+где 10.110.2.2 это IP адрес сет карточки vswitchif
+   # lxc config set core.trust_password fa5cieTh0nah6zooy3maichooch6la
+
+на source серревер выплняем
+   # lxc remote add  ovh-vin1-hw-nodes-11  10.110.2.2
+   где ovh-vin1-hw-nodes-11 это dest сервер
+
+контеенер у нас остановелен.
+запускаем копрование
+   # lxc copy  ovh-waw1-lxc-btc-03      ovh-vin1-hw-nodes-11:ovh-waw1-lxc-btc-03   --verbose  --mode=push  --storage default --allow-inconsistent --instance-only --stateless
+флаг --mode=push иначе копироание просто неработает. поылает с отлупом
+флаг --storage default тоже важен. иначе можно пролететь. надо указать конкретный storage pool 
+на удаленном сервере
+флаг --instance-only   чтобы не копироать снэпшоты
+флаг --stateless  = Copy a stateful instance stateless  => хрен знает что значит
+
+на счет push vs pull vs relay
+Transfer modes (--mode):
+- pull: Target server pulls the data from the source server (source must listen on network)
+- push: Source server pushes the data to the target server (target must listen on network)
+- relay: The CLI connects to both source and server and proxies the data (both source and target must listen on network)
+
+
+вот эта команда у меня 100% отработала успешно
+# lxc copy     ovh-hil1-lxc-proxy-08/ovh-hil1-lxc-proxy-08-snap1      ovh-vin1-hw-nodes-01:ovh-hil1-lxc-proxy-08   --verbose  --mode=push  --storage default --allow-inconsistent  --stateless
+
+
+
+===
+
+| libgtk3-nocsd.so.0
+
+была совершенно ебанутая проблема
+
+при запуске команды вылезала ошибка
+$ lxc list
+ERROR: ld.so: object 'libgtk3-nocsd.so.0' from LD_PRELOAD cannot be preloaded (failed to map segment from shared object): ignored.
+
+
+единсвтеное решение которое сработал это https://stackoverflow.com/a/58931222/4274460
+
+
+$ sudo grep -r LD_PRELOAD /etc
+
+будет найдена вот такая хрень
+
+/etc/X11/Xsession.d/51gtk3-nocsd-detect: export LD_PRELOAD="libgtk3-nocsd.so.0${LD_PRELOAD:+:$LD_PRELOAD}"
+
+
+так вот надо нахер удалить пакет
+
+$ sudo apt-get purge gtk3-nocsd
+
+
+но на самом дееле этого оказалось мало. по каойто приинчне в кажом терминале была переменная LD_PRELOAD
+
+$ set | grep LD_PRELOAD
+
+LD_PRELOAD = ...libgtk3-nocsd.so.0
+
+я так и непонял откуда эта сука еберся в переменных поэтму
+ я просто в ~/.bashrc вствавил
+
+ unset LD_PRELOAD
+
+ ибо она просто забелала
+
+ тоесть эта пременнея предпиыала при запуске каждого терминала подгуражить  libgtk3-nocsd.so.0
+ а ее уже небыло . поэтому lxc list выдававл ошибку
+
+ 
+
+==

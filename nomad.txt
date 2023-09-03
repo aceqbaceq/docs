@@ -19,9 +19,10 @@ nomad
 https://storiesfromtheherd.com/just-in-time-nomad-80f57cd403ca
 
 для запуска номада на девеолперской машине (тестоввая инстляция)
+
 # nomad agent -dev -bind 0.0.0.0 -log-level INFO
 
-вот эту команду можно не запускать. ососбенно на вирт машине
+следующую команду можно не запускать. ососбенно на вирт машине
 # nomad ui
 потому что по факту она просто нарпсто запускает бразуер с ссылкой 127.0.0.1:4646
 а если у нас вирт машина не имеет граф режима то просто вылезет ошибка
@@ -30,33 +31,107 @@ Opening URL "http://127.0.0.1:4646"
 Error opening URL: exec: "xdg-open": executable file not found in $PATH
 
 нужно просто пробросить сокет 127.0.0.1:4646 наружу от вирт машины и запускать
-уже с другго хоста просто в браузере.  для того чтобы пробрость 127.0.0.1:4646 наружу
+уже с другго хоста просто в браузере. 
+
+так вот тут два  варианта - если мы устанвоили номад в lxd контейнере то 
+надо выполнить 
+
+
+# lxc config device add имя_контейнера  myport4646 proxy listen=tcp:0.0.0.0:4646  connect=tcp:127.0.0.1:4646
+
+
+а если мы устанвоили номад внутри виртуальной машины то нужно поебаться:
+ для того чтобы пробрость 127.0.0.1:4646 наружу
 из виртуальной машины то надо открыть файл iptables.txt и в нем найти секцию 
 
-"| port forward
+ | port forward
  | loopback
  | lo "
 
 
 
-итак мы пробррсили 4646 наружу из вирт машины. тогда идем в бразуер
+итак мы пробррсили 4646 наружу на наш лэптоп, тогда идем в бразуер
 и набираем http://IP:4646
 где IP это адрес виртуалки.
 и мы попадем в веб мооду номада.
+
+итак на порту 4646 номад сервер имеет веб морду
+
+
+пока не двинули дальш хочу разобрать эту строку
+
+# nomad agent -dev -bind 0.0.0.0 -log-level INFO
+
+nomad agent - запускает бинарь номада. они называют это "запустить агент номада". приэтом 
+надо понимать что слово агент тут имеет ебанутый смысл. агент это незначит клиент. нет. в данном случае
+это незначит нихуя. точнее это значит что мы запукаем бинарь номада. а вот следущая настройка говооит в каком режиме
+запущен бинарь номада - в режиме сервера, в режиме клиентая, в девелоперском режиме.
+режиме сервера -server это когда номад работает в режиме control plane
+режим клиента -client это когда он ищет номад серверы конектится к ним и готов на этом хосте запускать джобы
+режим девелоперский -dev это когда номад работает в комбинированном режиме и клиента и сервера одноверменно.
+цитирую из хелпа
+
+
+  -server
+    Enable server mode for the agent. Agents in server mode are
+    clustered together and handle the additional responsibility of
+    leader election, data replication, and scheduling work onto
+    eligible client nodes.
+
+
+  -client
+    Enable client mode for the agent. Client mode enables a given node to be
+    evaluated for allocations. If client mode is not enabled, no work will be
+    scheduled to the agent.
+
+
+-dev
+    Start the agent in development mode. This enables a pre-configured
+    dual-role agent (client + server) which is useful for developing
+    or testing Nomad. No other configuration is required to start the
+    agent in this mode, but you may pass an optional comma-separated
+    list of mode configurations:
+
+
+есть еще один интресный режим
+
+ -dev-connect
+    Start the agent in development mode, but bind to a public network
+    interface rather than localhost for using Consul Connect. This
+    mode is supported only on Linux as root.
+
+
+
+таким макамро вот эта строчка
+# nomad agent -dev
+
+означает что мы запустили бинарник номаа в режиме сервер+клиент . тоесть он и  за контрол плейн отвечает(сервер режим)
+и готов запускать на этом же хосте джобы (режим клиента)
+
+
+
+отсстальное уже понятно
+-bind 0.0.0.0 -log-level INFO
+
+означает куда ему биндится и какого уорвня логи срать на экран
+
+
+
 
 
 далее.
 номад проодукт как я понял состоит из одного файла (бинарь)
 и этот файл в себе содержит и cli и серверную часть и клиентскую часть(это не cli 
-это другое). и это смешно . потому что это мегамонолит. щас мода разбивать монолит.
+это другое клиентская часть означает что это как агент у заббикса или как kuebelet у к8. тоесть этот клиент принимает 
+команды от сервера и запускает джобы на том хосте на котором этот клиент запущен). и это смешно . потому что это мегамонолит. щас мода разбивать монолит.
 а тут что у к8 (фраза состоит из 5 бинарей)и что номад сосоттоит весь функционал
 из одного бинаря. 
 
-роль "сервер" за что она отвечает пока непоняно. как они пишут что эти типа аналог
+роль "сервер" как я понял это роль control plane как у к8. как они пишут что эти типа аналог
 мастер ноды у к8.
 
 серверы оббразуют кластер (по ихнему регион). один из серверов явялется мастером
- а осталные пассивны. кластер стейт то "база"  в которой сохраняются всякие 
+ а осталные пассивны. кластер стейт это "база"  в которой сохраняются всякие 
  там кластерные данные хранится у номада мастера в папке. у к8 переменные 
  кластера хранятся в etcd. а у номада стейт хранится в папке.  
 далее написано чтото непнятное - написано что в эту папку данные записыаются по  алгоритму RAFT (как я помню это упрощенная веосия
@@ -64,6 +139,7 @@ Error opening URL: exec: "xdg-open": executable file not found in $PATH
 RAFT - Reliable, Replicated, Redundant, And Fault-Tolerant.
 пока этот вопрос остатвляем про детали как рабтает RAFT. 
 итак servver mode это такая хрень которая аналогична мастер ноде у к8.
+на хосте где круитится номад в режиме мастера джобы запускаться не могут.
 
 есть client mode работы у номада это аналог воркер ноду у к8.
 
@@ -75,13 +151,18 @@ RAFT - Reliable, Replicated, Redundant, And Fault-Tolerant.
 
 у к8 это woker nodes
 у номада это client nodes
+в веб морде номала client ноды называются "clients"
+
 
 то что мы будем запускать в номаде описывется в job file. он внутри распиыывается через 
 язык HCL (hashicorp configuration language) (  у к8 это yaml)
 
 у к8 это под. у номада это таск. 
 
-task group это группа тасков
+task group это группа тасков. группа тасков описыатся внутри джоба.
+
+task --> task group ---> job  (от меньшего к болшему)
+
 
 When defining a task, you specify: number of instances, task driver (e.g. docker vs Java vs ?), image, CPU resources (in MHz), and memory resources
 
@@ -89,9 +170,9 @@ task driver это некая хрень которая позволяет аб�
 таска (тоесть таск это либо контейнер либо виртуалка и между номадом и конейнером
 стоит rask driver как слой абстрации )
 
-если под к8 это кучка контейнеров то таск номада это контейнер
+если под у к8 это кучка контейнеров то таск номада это контейнер
 
-номаод таск группа это аналог пода у к8 . потому что под это кучка контйенеров.
+номад таск группа это аналог пода у к8 . потому что под это кучка контйенеров.
 
 
 далее берем job
@@ -132,10 +213,81 @@ job "2048-game" {
 далее запускаем его
 # nomad job run 2048-game.nomad
 
-при этом у нас на хосте должен быть установлен docker
+при этом у нас на хосте предварительно должен быть установлен docker !!
+сам номад за нас докер ставить не будет
 
-если все ок то в веб мооде будет написано что статус джоба  = running
+еще - еслиу нас  номад запущен внутри lxd контейнена то чтобы там докер можно было запускать 
+надо 
 
+# lxc config set nm1  security.nesting=true security.syscalls.intercept.mknod=true  security.syscalls.intercept.setxattr=true
+# lxc restart nm1
+
+
+проверяем что джоб запустился
+
+# nomad job  status
+ID         Type     Priority  Status   Submit Date
+2048-game  service  50        running  2023-09-03T10:15:16Z
+
+
+идем в веб морду
+жмем jobs- у нащего джоба должен быть статус RUNNING
+
+на вкладке overview 
+видим
+Name   Count Allocation Status  Volume  Reserved CPU   Reserved Memory   Reserved Disk  
+game    1                                   500 MHz           256 MiB     300 MiB
+
+
+это макс ресурсов сколько разрещшено сожрать контейнеру. ксати номад может еще с подманом работать
+
+на вкладке "Definitions" будет показан наш джоб манифест что очень удобно.
+
+номад в режиме -dev жрет в памяти 100МБ. всего лишь.
+
+итак датацентр в терминах номада это кластер в терминах к8. (идиотизм)
+
+
+
+еще вот так смотрим
+# nomad job status 2048-game
+ID            = 2048-game
+Name          = 2048-game
+Submit Date   = 2023-09-03T10:15:16Z
+Type          = service
+Priority      = 50
+Datacenters   = dc1
+Namespace     = default
+Node Pool     = default
+Status        = running
+Periodic      = false
+Parameterized = false
+
+Summary
+Task Group  Queued  Starting  Running  Failed  Complete  Lost  Unknown
+game        0       0         1        0       0         0     0
+
+Latest Deployment
+ID          = 7acce2ef
+Status      = successful
+Description = Deployment completed successfully
+
+Deployed
+Task Group  Desired  Placed  Healthy  Unhealthy  Progress Deadline
+game        1        1       1        0          2023-09-03T10:28:23Z
+
+Allocations
+ID        Node ID   Task Group  Version  Desired  Status   Created     Modified
+32a8659a  2fc12930  game        0        run      running  10m42s ago  10m25s ago
+
+
+жалко тут лимиты не указаны.
+
+
+
+
+
+далее.
 если мы хотим юзать номад кластер в проде то нужно устанвливать нетолько номад
 но и consul и vault это все хашикорп  проги
 
@@ -188,9 +340,13 @@ HCL - на нем пищутся файлов джобов. насколько �
 |Service                       |Service                                |
 
 
+из этой таблицы я не понял на счет соотвестия между cluster у к8 и region у номада.
+ранее было наисано что в терминах номдада кластер это datacenter но не region.
+
 
 номад типа может запускаь и контролировать - контейнеры, виртуалки, просто бинарные elf
-файлы.
+файлы и селедить за ними упали неупали.  такая типа контрол панеь слежениея за докерами (джобами)
+
 
 двигаем дальше.
 вот здесь https://mykidong.medium.com/install-nomad-cluster-d9a40d2206f5
@@ -206,17 +362,880 @@ HCL - на нем пищутся файлов джобов. насколько �
 для начала поставим его прям руками, делаю по этой статье
 https://computingforgeeks.com/how-to-install-consul-cluster-18-04-lts/?expand_article=1
 
+написано что если наша прога обратиться к агенту коснула то он автоматом
+перенаправит (непонятно как это конкретно) этот запрос на сервер консула.
+прикольно.
+
+
+
 
 # mkdir  ~/downloads
-# cd ~/downloads
-# wget https://releases.hashicorp.com/consul/1.16.0/consul_1.16.0_linux_amd64.zip
-# sudo apt-get update && apt-get -y install unzip
-# unzip ./consul_1.16.0_linux_amd64.zip
-# chmod +x consul
-# mv ./consul /usr/local/bin/
+ cd ~/downloads
+ wget https://releases.hashicorp.com/consul/1.16.0/consul_1.16.0_linux_amd64.zip
+ sudo apt-get update && apt-get -y install unzip
+ unzip ./consul_1.16.0_linux_amd64.zip
+ chmod +x consul
+ mv ./consul /usr/local/bin/
+
+
+# consul version
+Consul v1.16.0
+
+
+# sudo groupadd --system consul
+ sudo useradd -s /sbin/nologin --system -g consul consul
+ sudo mkdir -p /var/lib/consul
+ sudo chown -R consul:consul /var/lib/consul
+ sudo chmod -R 775 /var/lib/consul
+ mkdir /etc/consul.d
+ chown -R consul:consul /etc/consul.d
+
+
+# echo "10.113.151.191   cnsl1" >> /etc/hosts
+  echo "10.113.151.42    cnsl2" >> /etc/hosts
+  echo "10.113.151.159   cnsl3" >> /etc/hosts
+
+
+# cat<<EOF >/etc/systemd/system/consul.service 
+[Unit]
+Description=Consul Service Discovery Agent
+Documentation=https://www.consul.io/
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=consul
+Group=consul
+ExecStart=/usr/local/bin/consul agent \
+    -node=cnsl1 \
+    -config-dir=/etc/consul.d
+
+ExecReload=/bin/kill -HUP $MAINPID
+KillSignal=SIGINT
+TimeoutStopSec=5
+Restart=on-failure
+SyslogIdentifier=consul
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+
+apt-get -y install mc
+
+
+# consul keygen
+EneGuc0QfyfqtBuXafqMd5C/dui62f0BlZMMkCk3ypY=
+
+
+# cat<<EOF > /etc/consul.d/consul.json
+{
+    "advertise_addr": "10.113.151.191",
+    "bind_addr": "10.113.151.191",
+    "bootstrap_expect": 3,
+    "client_addr": "0.0.0.0",
+    "datacenter": "DC1",
+    "data_dir": "/var/lib/consul",
+    "domain": "consul",
+    "enable_script_checks": true,
+    "dns_config": {
+        "enable_truncate": true,
+        "only_passing": true
+    },
+    "enable_syslog": true,
+    "encrypt": "EneGuc0QfyfqtBuXafqMd5C/dui62f0BlZMMkCk3ypY=",
+    "leave_on_terminate": true,
+    "log_level": "INFO",
+    "rejoin_after_leave": true,
+    "retry_join": [
+     "cnsl1",
+     "cnsl2",
+     "cnsl3"
+    ],
+    "server": true,
+    "start_join": [
+        "cnsl1",
+        "cnsl2",
+        "cnsl3"
+    ],
+    "ui": true
+}
+EOF
+
+
+где
+    "advertise_addr": "10.113.151.191",  <=== под каким адресом эта нода видна другим (если за NAT)
+    "bind_addr": "10.113.151.191",       <=== на какую карту садиться с биндингом сервису
+    "client_addr": "0.0.0.0",            <--- откуда принимать запросы от клиентов
+    "datacenter": "DC1",                 <--- ????
+    "domain": "consul",                  <--- ????
+    "encrypt": "EneGuc0QfyfqtBuXafqMd5C/dui62f0BlZMMkCk3ypY=",   <---- пароль через который ноды друг с другом шифрутся
+ 
+    "retry_join": [
+     "cnsl1",          <---   DNS имена нод по которым они ищут друг друга
+     "cnsl2",
+     "cnsl3"
+    ],
+ 
+    "ui": true     <--- активировать веб морду
+
+
+проверяем конфигурацию
+
+# consul validate /etc/consul.d/consul.json 
+The 'start_join' field is deprecated. Use the 'retry_join' field instead.
+The 'ui' field is deprecated. Use the 'ui_config.enabled' field instead.
+bootstrap_expect > 0: expecting 3 servers
+using enable-script-checks without ACLs and without allow_write_http_from is DANGEROUS, use enable-local-script-checks instead, see https://www.hashicorp.com/blog/protecting-consul-from-rce-risk-in-specific-configurations/
+Configuration is valid!
+
+
+# systemctl deamon-reload
+systemctl start consul
+systemctl status consul
+journalctl -f -u consul
+
+тут я хочу важное сказать - кластер не соберется до тех пор пока мы не запустим все три ноды.
+если мы развернем одну или две ноды то в логах консула будет написано : 
+   agent.anti_entropy: failed to sync remote state: error="No cluster leader"
+
+
+тоесть даже имея две ноды лидер выбираться НЕБУДЕТ.
+и только когда будет развернуто все три ноды выберется лидер. 
+и тольлко после этого можно гасить одну ноду и все будет оставаться окей. но чтбы лидер изначально выбрался нужно все 
+три ноды. 
+вот такой прикол. возможно из за того чтобы не получилось что у нас выборалось два лидера на каждой из двух нод.
+
+веб морда порт :8500
+
+
+до того как лезть в веб морду оценю вот что  в systemd юните указано
+ExecStart=/usr/local/bin/consul agent \
+    -node=cnsl1 \
+    -config-dir=/etc/consul.d
+
+
+мы видим что указано "consul agent   -node=cnsl1  -config-dir=/etc/consul.d"  мы видим что бинарник консула 
+запускается но не указано в каком режиме - то ли  врежиме клиента то ли в режиме сервера. однако разгадака
+состоит в том что остальная часть параметров запуска указана в /etc/consul.d/consul.json
+
+"server": true,
+
+тоесть консул запусксется на этих хостах в режиме сервера. тоесть получается часть параметров запуска косула
+прописана в systemd юните ExecStart=  а другая часть параметров запуска прописана в другом месте просто в consul.json
+вот в чем разгадка
+
+мне конечно непонятен ряд настроек в consul.json например -bootstrap-expect
+# consul  agent --help
+...
+...
+  -bootstrap-expect=<value>
+     Sets server to expect bootstrap mode.
+
+
+
+
+в нашем случае в consul.json установлена
+
+ "bootstrap_expect": 3,
+
+ как я понимаю именно поэтому для начального взлета кластера нужно именно 3 сервера.
+
+
+ что такое federation при раскатке кластера?
+
+ еще раз напомню nomad web морда это порт 4646
+ а консул web морда это поорт 8500
+
+
+ далее.
+ устанвоит autocomplete для консула
+
+# consul -autocomplete-install
+# complete -C /usr/local/bin/consul consul
+
+
+consul datacenter ? nomad dataceter? nomad region ? nomad zone?
+
+
+
+нашел что такое boostrap правда на примере номада а не коснула. но суть одна:
+Q: What is "bootstrapping" a Nomad cluster?
+Bootstrapping is the process when a Nomad cluster elects its first leader and writes the initial cluster state to that leader's state store. Bootstrapping will not occur until at least a given number of servers, defined by bootstrap_expect, have connected to each other. Once this process has completed, the cluster is said to be bootstrapped and is ready to use.
+
+Certain configuration options are only used to influence the creation of the initial cluster state during bootstrapping and are not consulted again so long as the state data remains intact. These typically are values that must be consistent across server members. For example, the default_scheduler_config option allows an operator to set the SchedulerConfig to non-default values during this bootstrap process rather than requiring an immediate call to the API once the cluster is up and running.
+
+If the state is completely destroyed, whether intentionally or accidentally, on all of the Nomad servers in the same outage, the cluster will re-bootstrap based on the Nomad defaults and any configuration present that impacts the bootstrap process.
+( https://developer.hashicorp.com/nomad/docs/faq )
+
+
+nomad 
+ставим его в форме кластера. 
+это можно сделать и без консула. но лучще делать на основе консула.
+
+$ export NOMAD_VERSION="1.6.1"
+  curl --silent --remote-name https://releases.hashicorp.com/nomad/${NOMAD_VERSION}/nomad_${NOMAD_VERSION}_linux_amd64.zip
+  apt-get -y install unzip
+ unzip nomad_${NOMAD_VERSION}_linux_amd64.zip
+ chown root:root nomad
+chmod +x nomad
+ mv nomad /usr/local/bin/
+ rm nomad_${NOMAD_VERSION}_linux_amd64.zip
+ nomad -autocomplete-install
+ complete -C /usr/local/bin/nomad nomad
+
+ mkdir --parents /opt/nomad
+ mkdir --parents /etc/nomad.d
+ chmod 700 /etc/nomad.d
+ touch /etc/nomad.d/nomad.hcl
+
+
+
+ cat<<EOF>/etc/nomad.d/main.json 
+{
+    "acl": {
+        "enabled": true
+    },
+    "bind_addr": "0.0.0.0",
+    "client": {
+        "enabled": false,
+        "host_volume": {},
+        "template": {
+            "disable_file_sandbox": true
+        }
+    },
+    "consul": {
+        "address": "127.0.0.1:8500",
+        "auto_advertise": true,
+        "client_auto_join": true,
+        "client_service_name": "nomad-client",
+        "server_auto_join": true,
+        "server_service_name": "nomad-master"
+    },
+    "data_dir": "/var/lib/nomad",
+    "datacenter": "dc1",
+    "region": "ovh",
+    "server": {
+        "bootstrap_expect": 3,
+        "enabled": true,
+        "heartbeat_grace": "60s",
+        "max_heartbeats_per_second": 10.0,
+        "min_heartbeat_ttl": "30s"
+    },
+    "telemetry": {
+        "collection_interval": "1s",
+        "disable_hostname": false,
+        "prometheus_metrics": true,
+        "publish_allocation_metrics": true,
+        "publish_node_metrics": true
+    }
+}
+EOF
 
 
 
 
 
 
+
+cat<<EOF>/etc/systemd/system/nomad.service 
+[Unit]
+Description=Nomad
+Documentation=https://www.nomadproject.io/docs
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+ExecReload=/bin/kill -HUP $MAINPID
+ExecStart=/usr/local/bin/nomad agent -config /etc/nomad.d
+KillMode=process
+KillSignal=SIGINT
+LimitNOFILE=infinity
+LimitNPROC=infinity
+Restart=on-failure
+RestartSec=2
+StartLimitBurst=3
+#StartLimitIntervalSec=10
+TasksMax=infinity
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+
+
+также для этого надо поствить клиент консула тоесть как я понял номад обратиться к клиенту консула а тот обратттся 
+к серверу консула. и будет шоколад
+
+$ export CONSUL_VERSION="1.16.1"
+export CONSUL_URL="https://releases.hashicorp.com/consul"
+
+curl --silent --remote-name ${CONSUL_URL}/${CONSUL_VERSION}/consul_${CONSUL_VERSION}_linux_amd64.zip
+ unzip consul_${CONSUL_VERSION}_linux_amd64.zip
+ chown root:root consul
+chmod +x consul
+ mv consul /usr/local/bin/
+ rm consul_${CONSUL_VERSION}_linux_amd64.zip
+
+consul -autocomplete-install
+complete -C /usr/local/bin/consul consul
+
+useradd --system --home /etc/consul.d --shell /bin/false consul
+ mkdir --parents /opt/consul
+ chown --recursive consul:consul /opt/consul
+
+
+mkdir --parents /etc/consul.d
+touch /etc/consul.d/consul.hcl
+ chown --recursive consul:consul /etc/consul.d
+ chmod 640 /etc/consul.d/consul.hcl
+
+
+
+cat<<EOF>/etc/consul.d/consul.json 
+{
+    "server": false,
+    "datacenter": "dc1",
+    "data_dir": "/var/consul",
+    "encrypt": "EneGuc0QfyfqtBuXafqMd5C/dui62f0BlZMMkCk3ypY=",
+    "log_level": "INFO",
+    "enable_syslog": true,
+    "leave_on_terminate": true,
+    "start_join": [
+        "10.113.151.191",
+        "10.113.151.42",
+        "10.113.151.159"
+    ]
+}
+EOF
+
+
+
+cat<<EOF> /etc/systemd/system/consul.service 
+[Unit]
+Description=Consul Startup process
+After=network.target
+ 
+[Service]
+Type=simple
+ExecStart=/usr/bin/bash -c '/usr/local/bin/consul agent -config-dir /etc/consul.d/'
+TimeoutStartSec=0
+ 
+[Install]
+WantedBy=default.target
+EOF
+
+
+
+systemctl daemon-reload
+systemctl start consul
+systemctl status consul
+consul members
+
+apt-get update
+apt-get -y install mc
+
+
+systemctl start nomad
+systemctl status nomad
+
+
+
+по идее номады должны успешно соединиться  в кластер.
+
+остается на него зайти. для этого надо аутентфицироваться. аутентфикция идет через токен.
+его полуить можно вот так
+
+# nomad acl bootstrap
+Accessor ID  = 51983480-e2cf-b13f-3ee4-17fae91babb9
+Secret ID    = b1e55cc6-8289-6b6e-c779-9f0b0a30e96b
+Name         = Bootstrap Token
+Type         = management
+Global       = true
+Create Time  = 2023-09-03 19:18:48.944872154 +0000 UTC
+Expiry Time  = <none>
+Create Index = 9
+Modify Index = 9
+Policies     = n/a
+Roles        = n/a
+
+
+идем в веб морду номада IP(номада):4646
+там тыкаем "Sign in" и вводим Secret ID    = b1e55cc6-8289-6b6e-c779-9f0b0a30e96b
+
+также можно аутентфицивраться и в cli
+для этого
+export NOMAD_TOKEN="b1e55cc6-8289-6b6e-c779-9f0b0a30e96b"
+
+теперь мы можем вот что сделать
+# nomad server members
+Name        Address         Port  Status  Leader  Raft Version  Build  Datacenter  Region
+nm2-cl.ovh  10.113.151.192  4648  alive   true    3             1.6.1  dc1         ovh
+nm3-cl.ovh  10.113.151.174  4648  alive   false   3             1.6.1  dc1         ovh
+nm4-cl.ovh  10.113.151.231  4648  alive   false   3             1.6.1  dc1         ovh
+
+
+
+
+
+
+
+#
+# теперь ставим номад клиент
+для начала ставим consul клиент
+
+
+$ export CONSUL_VERSION="1.16.1"
+export CONSUL_URL="https://releases.hashicorp.com/consul"
+
+curl --silent --remote-name ${CONSUL_URL}/${CONSUL_VERSION}/consul_${CONSUL_VERSION}_linux_amd64.zip
+ unzip consul_${CONSUL_VERSION}_linux_amd64.zip
+ chown root:root consul
+chmod +x consul
+ mv consul /usr/local/bin/
+ rm consul_${CONSUL_VERSION}_linux_amd64.zip
+
+consul -autocomplete-install
+complete -C /usr/local/bin/consul consul
+
+useradd --system --home /etc/consul.d --shell /bin/false consul
+ mkdir --parents /opt/consul
+ chown --recursive consul:consul /opt/consul
+
+
+mkdir --parents /etc/consul.d
+touch /etc/consul.d/consul.hcl
+ chown --recursive consul:consul /etc/consul.d
+ chmod 640 /etc/consul.d/consul.hcl
+
+
+
+cat<<EOF>/etc/consul.d/consul.json 
+{
+    "server": false,
+    "datacenter": "dc1",
+    "data_dir": "/var/consul",
+    "encrypt": "EneGuc0QfyfqtBuXafqMd5C/dui62f0BlZMMkCk3ypY=",
+    "log_level": "INFO",
+    "enable_syslog": true,
+    "leave_on_terminate": true,
+    "start_join": [
+        "10.113.151.191",
+        "10.113.151.42",
+        "10.113.151.159"
+    ]
+}
+EOF
+
+
+
+cat<<EOF> /etc/systemd/system/consul.service 
+[Unit]
+Description=Consul Startup process
+After=network.target
+ 
+[Service]
+Type=simple
+ExecStart=/usr/bin/bash -c '/usr/local/bin/consul agent -config-dir /etc/consul.d/'
+TimeoutStartSec=0
+ 
+[Install]
+WantedBy=default.target
+EOF
+
+
+
+systemctl daemon-reload
+systemctl start consul
+systemctl status consul
+consul members
+
+apt-get update
+apt-get -y install mc
+
+
+
+
+
+# ставим номад как клиент
+
+$ export NOMAD_VERSION="1.6.1"
+  curl --silent --remote-name https://releases.hashicorp.com/nomad/${NOMAD_VERSION}/nomad_${NOMAD_VERSION}_linux_amd64.zip
+  apt-get -y install unzip
+ unzip nomad_${NOMAD_VERSION}_linux_amd64.zip
+ chown root:root nomad
+chmod +x nomad
+ mv nomad /usr/local/bin/
+ rm nomad_${NOMAD_VERSION}_linux_amd64.zip
+ nomad -autocomplete-install
+ complete -C /usr/local/bin/nomad nomad
+
+ mkdir --parents /opt/nomad
+ mkdir --parents /etc/nomad.d
+ chmod 700 /etc/nomad.d
+ touch /etc/nomad.d/nomad.hcl
+
+
+
+ cat<<EOF> /etc/nomad.d/main.json 
+{
+    "acl": {
+        "enabled": true
+    },
+    "bind_addr": "0.0.0.0",
+    "client": {
+        "enabled": true,
+        "host_volume": {},
+        "meta": {},
+        "template": {
+            "disable_file_sandbox": true
+        }
+    },
+    "consul": {
+        "address": "127.0.0.1:8500",
+        "auto_advertise": true,
+        "client_auto_join": true,
+        "client_service_name": "nomad-client",
+        "server_auto_join": true,
+        "server_service_name": "nomad-master"
+    },
+    "data_dir": "/var/lib/nomad",
+    "datacenter": "dc1",
+    "region": "ovh",
+    "server": {
+        "bootstrap_expect": 1,
+        "enabled": false,
+        "heartbeat_grace": "60s",
+        "max_heartbeats_per_second": 10.0,
+        "min_heartbeat_ttl": "30s"
+    },
+    "telemetry": {
+        "collection_interval": "1s",
+        "disable_hostname": false,
+        "prometheus_metrics": true,
+        "publish_allocation_metrics": true,
+        "publish_node_metrics": true
+    }
+ 
+}
+EOF
+
+
+
+
+cat<<EOF>/etc/systemd/system/nomad.service 
+[Unit]
+Description=Nomad
+Documentation=https://www.nomadproject.io/docs
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+ExecReload=/bin/kill -HUP $MAINPID
+ExecStart=/usr/local/bin/nomad agent -config /etc/nomad.d
+KillMode=process
+KillSignal=SIGINT
+LimitNOFILE=infinity
+LimitNPROC=infinity
+Restart=on-failure
+RestartSec=2
+StartLimitBurst=3
+#StartLimitIntervalSec=10
+TasksMax=infinity
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+
+
+systemctl daemon-reload
+systemctl start nomad
+systemctl status nomad
+
+
+ставим докер на хосте
+
+для начала меняем lxc свойства контенера
+# lxc config set nm5-cl  security.nesting=true security.syscalls.intercept.mknod=true  security.syscalls.intercept.setxattr=true
+ lxc restart nm5-cl
+
+systemctl enable consul
+systemctl enable nomad
+systemctl start consul
+systemctl start nomad
+
+
+sudo apt-get update
+sudo apt-get install ca-certificates curl gnupg
+sudo install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+sudo chmod a+r /etc/apt/keyrings/docker.gpg
+echo \
+  "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+  "$(. /etc/os-release && echo "$VERSION_CODENAME")" stable" | \
+  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+sudo apt-get update
+sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+sudo docker run hello-world
+
+
+возвращаемся обратно на мастер номада
+
+создаем джоб
+
+
+cd ~
+cat<<EOF>2048-game.nomad 
+job "2048-game" {
+  datacenters = ["dc1"]  
+  type = "service"
+  group "game" {
+    count = 1 # number of instances
+
+    network {
+      port "http" {
+        static = 80
+      }
+    }
+ 
+    task "2048" {
+      driver = "docker"
+ 
+      config {
+        image = "alexwhen/docker-2048"
+
+        ports = [
+          "http"
+        ]
+
+      }
+
+      resources {
+        cpu    = 500 # 500 MHz
+        memory = 256 # 256MB
+      }
+    }
+  }
+}
+EOF
+
+делаем экспорт токена для атуентификации
+export NOMAD_TOKEN="b1e55cc6-8289-6b6e-c779-9f0b0a30e96b"
+
+далее деплоим джоб
+# nomad job run 2048-game.nomad
+3T19:52:43Z: Monitoring evaluation "7fda11b6"
+    2023-09-03T19:52:43Z: Evaluation triggered by job "2048-game"
+    2023-09-03T19:52:44Z: Evaluation within deployment: "4ca38329"
+    2023-09-03T19:52:44Z: Allocation "451903cc" created: node "107e6c5b", group "game"
+    2023-09-03T19:52:44Z: Evaluation status changed: "pending" -> "complete"
+==> 2023-09-03T19:52:44Z: Evaluation "7fda11b6" finished with status "complete"
+==> 2023-09-03T19:52:44Z: Monitoring deployment "4ca38329"
+  ✓ Deployment "4ca38329" successful
+    
+    2023-09-03T19:53:01Z
+    ID          = 4ca38329
+    Job ID      = 2048-game
+    Job Version = 0
+    Status      = successful
+    Description = Deployment completed successfully
+    
+    Deployed
+    Task Group  Desired  Placed  Healthy  Unhealthy  Progress Deadline
+    game        1        1       1        0          2023-09-03T20:02:59Z
+
+
+  непонятно номад он overlay сети поддреживает? или он так чисто за контейенрами тольо приглядыать умеет?
+
+
+  попробйе развенуть жинкс на номаде
+
+
+cat<<EOF>nginx.nomad
+ # cat nginx.nomad 
+   job "nginx" {
+  datacenters = ["dc1"]
+  type = "service"
+  group "nginx" {
+    count = 1
+    task "nginx" {
+      driver = "docker"
+      config {
+        image = "nginx"
+        port_map {
+          http = 8080
+        }
+        port_map {
+          https = 443
+        }
+        volumes = [
+          "custom/default.conf:/etc/nginx/conf.d/default.conf"
+        ]
+      }
+      template {
+        data = <<EOH
+          server {
+           listen 8080;
+            server_name nginx.service.consul;
+            location /nginx {
+              root /local/data;
+            }
+          }
+        EOH
+        destination = "custom/default.conf"
+      }
+      # consul kv put features/demo 'Consul Rocks!'
+     template {
+        data = <<EOH
+        Nomad Template example (Consul value)
+        <br />
+        <br />
+        {{ if keyExists "features/demo" }}
+        Consul Key Value:  {{ key "features/demo" }}
+        {{ else }}
+          Good morning.
+        {{ end }}
+        <br />
+        <br />
+        Node Environment Information:  <br />
+        node_id:     {{ env "node.unique.id" }} <br/>
+        datacenter:  {{ env "NOMAD_DC" }}
+        EOH
+        destination = "local/data/nginx/index.html"
+      }
+      resources {
+        cpu    = 100 # 100 MHz
+        memory = 128 # 128 MB
+        network {
+          mbits = 10
+          port "http" {
+          }
+          port "https" {
+          }
+        }
+      }
+      service {
+        name = "nginx"
+        tags = [ "nginx", "web", "urlprefix-/nginx" ]
+        port = "http"
+        check {
+          type     = "tcp"
+          interval = "10s"
+          timeout  = "2s"
+        }
+      }
+    }
+  }
+}
+
+EOF
+
+
+деплоим
+# nomad job run nginx.nomad
+
+
+кстти как удалить job
+# nomad job status
+ID         Type     Priority  Status   Submit Date
+2048-game  service  50        running  2023-09-03T19:52:43Z
+nginx      service  50        running  2023-09-03T19:58:13Z
+
+# nomad job stop -purge  nginx
+
+
+
+еще один job
+
+# cat graphql.nomad 
+
+job "website" {
+
+  datacenters = ["dc1"]
+
+  type = "service"
+
+
+  update {
+    max_parallel = 1
+
+    min_healthy_time = "10s"
+
+    healthy_deadline = "3m"
+
+    progress_deadline = "10m"
+
+    auto_revert = false
+
+    canary = 0
+  }
+
+  migrate {
+    max_parallel = 1
+
+    health_check = "checks"
+
+    min_healthy_time = "10s"
+
+    healthy_deadline = "5m"
+  }
+
+  group "website" {
+    count = 1
+
+    restart {
+      attempts = 2
+      interval = "30m"
+
+      delay = "15s"
+
+      mode = "fail"
+    }
+
+    ephemeral_disk {
+
+      size = 300
+    }
+
+    task "graphql" {
+      driver = "docker"
+
+      config {
+        image = "dalongrong/mygraphql"
+        port_map {
+          website = 80
+        }
+      }
+
+
+
+      resources {
+        network {
+          mbits = 10
+          port "website" {}
+        }
+      }
+
+      service {
+        name = "graphql-website"
+        tags = ["global", "website","graphql","urlprefix-/"]
+        port = "website"
+        check {
+          name     = "alive"
+          type     = "http"
+          interval = "10s"
+          path   = "/"
+          timeout  = "2s"
+        }
+      }
+
+
+
+
+    }
+  }
+}
+
+==

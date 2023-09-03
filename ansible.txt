@@ -4998,3 +4998,235 @@ ok: [localhost] => (item=server22) =>
 ура теория совпала с теорией
 
 =====
+
+
+| tags
+| role
+
+
+
+if we use include_tasks in a role --> then we have troubles with tags.
+if we use import_tasks in a role --> all is ok
+
+example:
+
+$ ansible --version
+ansible [core 2.11.7] 
+a playbook: admins.yml
+
+- hosts: localhost
+  roles:
+    - { role: admins}
+a role: ./roles/admins/tasks/main.yml
+
+---
+
+
+- name:  ' create | Debian ' 
+  ansible.builtin.include_tasks:  "Debian/create.yml"
+/roles/admins/tasks/Debian/create.yml
+
+---
+
+- name: tag2
+  debug:
+     msg: "tag2"
+  tags: tag2
+
+
+- name: tag3
+  debug:
+     msg: "tag3"
+  tags: tag3
+lets list tags:
+
+$ ansible-playbook   admins.yml  --list-tags
+
+playbook: admins.yml
+
+  play #1 (localhost): localhost    TAGS: []
+      TASK TAGS: []
+So we have troubles with tags. Lets test it.
+
+$ ansible-playbook   admins.yml  -t "tag3"
+
+PLAY [localhost] 
+TASK [Gathering Facts] 
+ok: [localhost]
+So zero tasks is accomplished.
+
+lets change main.yml
+
+---
+
+
+- name:  ' create | Debian ' 
+  ansible.builtin.import_tasks:  "Debian/create.yml"
+Now we dont have troubles with tags:
+
+$ ansible-playbook   admins.yml  --list-tags
+playbook: admins.yml
+
+  play #1 (localhost): localhost    TAGS: []
+      TASK TAGS: [tag2, tag3]
+Lets test it.
+
+$ ansible-playbook   admins.yml  -t "tag3"
+
+PLAY [localhost] 
+TASK [Gathering Facts] 
+ok: [localhost]
+
+TASK [admins : tag3] ok: [localhost] => {
+    "msg": "tag3"
+}
+
+----
+
+| tags
+
+еще раз про тэги
+
+с тэгами такой моент. тот тэг что указан в плейтбуке для роли он 
+присваивает все таскам в роли этот тэг.
+напрмиер 
+
+$ cat admins.yml 
+- hosts: all
+  roles:
+    - { role: admins, tags: [ 'admins']}
+
+тоесть всем таскам в роли присватеивается тэг 'admins'
+это дает то что если мы хотим выполнить из плебйбука только те таски котоыре сидят в этой роли ( а ролей в плейбуке может 
+быть дохера) то мы запустим плбейтук с тэгом -t 'admins'
+но это не значит что тэги которые назначены в роли отдельным таскам потреялись. нет.
+если в роли у тасков есть свои тэги то их тож можно заюзать.
+и тоода выолпнять ся толкько таски из роли с заданным тэгом. пример
+вот таски из роли
+
+- name: 'create a  user  WITH password |  Debian like OS '
+  user: name='{{ item.name }}' password='{{ item.password }}' comment='{{ item.comment }}' shell='/bin/bash'
+  ...
+  tags:
+    - create_user
+
+
+- name: search "authorized_keys" files
+  find:
+...
+  tags:
+     - delete_ssh_keys
+
+
+как видно что у одного таска тэг "create_user" а у доругого таска тэг "delete_ssh_user"
+таким оразом еси мыхотим из роли выполнить только так с тэгом "delete_ssh_user" то мы
+при запуске полейбуке укажем этот тэг и полвниться из этой роли только этот таск.
+таким обрзаом кажый таск имеет в этойроли свои индвидуальный тэг и еще каждый таск имеет 
+общий тэг 'admins' котоырй незримо назначен из плейбука.
+
+
+
+чтоб 
+посмотреть список тэгов в плейбуке (включая тэги в его ролях)
+$ ansible-playbook -i environments/ovh   admins.yml    -l "ovh-bhs8-lxc-sitebuilder-01"   -b   --list-tags
+
+playbook: admins.yml
+
+  play #1 (all): all    TAGS: []
+      TASK TAGS: [admins, create_user, delete_ssh_keys]
+
+
+
+видим тэги:  admins, create_user, delete_ssh_keys
+
+
+посмтреть какие будут выполнены задачи если мы выберем тэг "create_user"
+$ ansible-playbook -i environments/ovh   admins.yml    -l "ovh-bhs8-lxc-sitebuilder-01"   -b   -t create_user  --list-tasks
+
+playbook: admins.yml
+
+  play #1 (all): all    TAGS: []
+    tasks:
+      admins : create a  user  WITHOUT password |  Debian like OS   TAGS: [admins, create_user]
+      admins : Allow 'sudo' group to have passwordless sudo TAGS: [admins, create_user]
+      admins : Add SSH keys to user accounts    TAGS: [admins, create_user]
+
+
+===
+
+| ssh
+
+можно ансибль запулить так чтобы у него  было много форков
+это дает то что ансибль будет стучать сразу на N хостов сразу ( если N форков )
+задается это через ключ   -f N
+по дефолту ансибль запускает 5 или 10 форков.
+
+далее вот что важно - если у нас ансибль стучится до хостов через бастион тоесть через единый хост
+то у ssh сервера котоырй там крутится есть ограничение  на число входящих подключений. и если 
+мы начнем через ансиль туда стучать и заададим кучу форков то бастион нас нахер пошлет.
+ у него есть ограничение на 10 одновременных соединений. как исправть - надо на бастионе 
+исправтить вот этт ключ
+
+ MaxStartups
+             Specifies the maximum number of concurrent unauthenticated
+             connections to the SSH daemon.  Additional connections will
+             be dropped until authentication succeeds or the
+             LoginGraceTime expires for a connection.  The default is
+             10:30:100.
+
+             Alternatively, random early drop can be enabled by
+             specifying the three colon separated values start:rate:full
+             (e.g. "10:30:60").  sshd(8) will refuse connection attempts
+             with a probability of rate/100 (30%) if there are currently
+             start (10) unauthenticated connections.  The probability
+             increases linearly and all connection attempts are refused
+             if the number of unauthenticated connections reaches full
+             (60).
+
+и будет шоколад
+
+====
+
+
+| inventory
+у ансибля инвентарь может иметь три формата
+INI
+YAML
+TOML
+
+проще всего писать инвентраь в формает INI
+
+| children
+| group
+
+
+можно делать такой прикол
+
+[hw:children]
+hw_ingress
+hw_storage
+
+
+[hw]
+host3       
+host4       
+
+[hw_ingress]
+host1
+
+[hw_storage]
+host2
+
+
+
+так вот вопрос какие хосты будет содержать [hw] группа?
+ответ она будет содержать все хосты указанные тоесть
+
+host3
+host4
+host1
+host2
+
+это прикол
+
+
