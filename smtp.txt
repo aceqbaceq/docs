@@ -1180,3 +1180,71 @@ Content-Type: text/html
 
 DMARC ARC - что за хрень?
 
+| SMTP
+тот кто назвал это как простой почтоый протокол надо руки оторвать.
+такая издевка
+
+| exim
+| spool
+
+
+значит если у нас на компе он стоит. и надо было понять куда падают
+письма направленные для локальных юзеров компа.
+
+значит письма падают в файл /var/mail/$USER
+формат файла так называемый mbox (об этом ожмно читать через man mbox)
+
+где же это прописано?
+
+в exim это просиано где то тут
+
+# grep -Ri "/var/mail"  2>/dev/null | grep -v '#' 
+exim4.conf.template:  data = /var/mail/mail
+exim4.conf.template:  file = /var/mail/$local_part
+conf.d/router/mmm_mail4root:  data = /var/mail/mail
+conf.d/transport/30_exim4-config_mail_spool:  file = /var/mail/$local_part
+
+
+тоесть ексим сидит на 25 порту. и если мы шлем письмо юзеру на компе 
+то он добавляем это псьмо в хвост файла  /var/mail/$USER
+
+
+более того ! что касается пользователя root то эксим нешлет письма предназначеныее
+для root в /var/mail/root нет нихуя. он их шлет в /var/mail/mail
+вот это правило в exim4
+
+$ cat /etc/exim4/conf.d/router/mmm_mail4root 
+### router/mmm_mail4root
+#################################
+# deliver mail addressed to root to /var/mail/mail as user mail:mail
+# if it was not redirected in /etc/aliases or by other means
+# Exim cannot deliver as root since 4.24 (FIXED_NEVER_USERS)
+
+mail4root:
+  debug_print = "R: mail4root for $local_part@$domain"
+  driver = redirect
+  domains = +local_domains
+  data = /var/mail/mail
+  file_transport = address_file
+  local_parts = root
+  user = mail
+  group = mail
+
+
+так что да. для простых юзеров eximt кладет пиьсма в /var/mail/$USER
+а письма для root он шлет в /var/mail/mail
+
+
+
+когда же юзер логинится то у него в environemnt пояуляется переменная 
+# set | grep MAIL
+MAIL=/var/mail/root
+
+откуда она берется? из файла /etc/login.defs
+что дает эта переменная. как я понимаю почтовые клиенты такие как mail там по дефолту 
+ищут письа присланные локально для этого юзера
+
+в эту перменнюу например занялдывает консольная программа по чтению почты mail
+и она в итоге знает где искать локальные писма.
+
+====

@@ -1,0 +1,95 @@
+SLAB
+
+если запустить atop 
+то там будет такая строчка
+
+MEM | tot    15.4G |  free  554.4M | cache   2.5G | dirty   0.3M  | buff  358.3M | slab    4.0G  | slrec 426.4M | shmem 851.0M |  shrss  42.6M | vmbal   0.0M | hptot   0.0M  | hpuse   0.0M |
+
+меня интересует параметр "slab    4.0G" тоесть "slab = 4.0G"
+
+что это за хрень которая занимает 4 GB
+
+The slab allocator is a memory management mechanism introduced by Jeff Bonwick in 1994 to manage memory allocation for kernel objects. The main purpose of the slab allocator is to reduce memory fragmentation and improve the speed of memory allocation/deallocation. The slab allocator groups objects of the same size into "slabs" and caches the objects to speed up future allocations.
+
+
+в общем как я понял slab это такой механизм в пространстве ядра котоырй нужен для нескольких вещей.
+
+1. если какомуто куску ядра нужно получить себе кусок памяти причем размером меньше чем PAGE_SIZE (4k)
+то нужен механизм который бы помогал выдавать память кусками меньше чем 4k. иначе будет фрагментация памяти.и ее 
+нерациональная потеря. подчеркну мы говорим про пространство ядра исключиетьно. так вот slab это тоже кусок ядра.
+он создает в памяти пулы в которых можно арендовать память кусками фиксированноого размера. в каждом пуле свой
+кусок аренды. это позволяет кускам кода ядра выдавать память кусками меньше чем 4к. 
+
+2. кэш. как я понял инициализация структур ядра занимает много циклов цпу. и есть такие структуры котоыре часто
+создаются и уничтожаются. так вот в slab хранятся стркутуры которые уже как бы ненужны но там они закэшированны 
+на всякий случай и если какомуто куску ядра нужна именно эта структура то она уже лежит в этом slab как в кэше.
+
+поэтому вобщем в slab хранятся какието данные которые нужны ядру. причем параметр "slrec 426.4M" показывает
+сколько памяти можно будет изьять из slab если памяти будет нехватать. в данном случае пол гига.
+
+если какойто драйвер ядра корявый то он может в слаб класть данные а потом их не освобождать и тогда будет 
+утечка памяти. и слаб по размеру будет расти.
+
+
+можно получит более детальную инфо а чем же забить slab
+либо через 
+
+# cat /proc/slabinfo 
+
+либо через
+
+#  sudo slabtop --sort c
+
+ Active / Total Objects (% used)    : 2933148 / 3633196 (80,7%)
+ Active / Total Slabs (% used)      : 135259 / 135259 (100,0%)
+ Active / Total Caches (% used)     : 124 / 163 (76,1%)
+ Active / Total Size (% used)       : 2028652,70K / 2232972,03K (90,8%)
+ Minimum / Average / Maximum Object : 0,01K / 0,61K / 12,00K
+
+  OBJS ACTIVE  USE OBJ SIZE  SLABS OBJ/SLAB CACHE SIZE NAME                   
+119000 119000 100%    8,00K  29750        4    952000K kmalloc-8k
+ 80936  80907   0%    4,00K  10117        8    323744K kmalloc-4k
+453236 256943   0%    0,57K  16202       28    259232K radix_tree_node
+126052 125898   0%    1,00K   3954       32    126528K kmalloc-1k
+ 45472  45452   0%    2,00K   2842       16     90944K kmalloc-2k
+293960 292596   0%    0,20K  14698       20     58792K vm_area_struct
+ 33159  15438   0%    1,16K   1229       27     39328K ext4_inode_cache
+304395 120109   0%    0,10K   7805       39     31220K buffer_head
+ 44303  41472   0%    0,69K   1927       23     30832K squashfs_inode_cache
+144795 118807   0%    0,19K   6895       21     27580K dentry
+ 54592  47135   0%    0,50K   1706       32     27296K kmalloc-512
+ 33638  22870   0%    0,70K   1529       22     24464K shmem_inode_cache
+  3380   3348   0%    6,06K    676        5     21632K task_struct
+ 34268  28853   0%    0,59K   1318       26     21088K inode_cache
+
+команда показыает разные пулы слабов. самым много занимающим является пул "kmalloc-8k"
+kmalloc это сисколл или функция или как оно там ядра когда кусок ядра заказыает себе кусок памяти. 
+в данном случае кусок размером 8К. это тоже походу работает через slab.
+
+  OBJS ACTIVE  USE OBJ SIZE  SLABS OBJ/SLAB CACHE SIZE NAME                   
+119000 119000 100%    8,00K  29750        4    952000K kmalloc-8k
+
+ну и видно что в пуле обьектов 119000
+что размер обьекта 8K
+что слабов в этом пуле 29750
+что каждый слаб содержит 4 обьекта
+что размер пула 952000K
+
+
+
+в /proc/meminfo  параметра атопа "slab"  и "slrec" видны как 
+
+Slab:            4209300 kB
+SReclaimable:     434672 kB
+SUnreclaim:      3774628 kB
+
+
+тоесть атоп конечно берет свои цифры из /proc
+
+
+ссылки про что такое slab:
+	- https://serverfault.com/questions/240277/slab-uses-88gb-of-128gb-available-what-could-cause-this
+	- https://www.alibabacloud.com/help/en/ecs/user-guide/identify-the-causes-of-high-percentage-of-the-slab-unreclaimable-memory-in-the-linux-operating-system
+
+
+понятно что по факту понять почему же такой большой slab хрен знает как.

@@ -396,6 +396,11 @@ Consul v1.16.0
   echo "10.113.151.159   cnsl3" >> /etc/hosts
 
 
+# echo "10.113.151.232  consul1-dc2" >> /etc/hosts
+  echo "10.113.151.208  consul2-dc2" >> /etc/hosts
+  echo "10.113.151.183  consul3-dc2" >> /etc/hosts
+
+
 # cat<<EOF >/etc/systemd/system/consul.service 
 [Unit]
 Description=Consul Service Discovery Agent
@@ -433,6 +438,8 @@ EneGuc0QfyfqtBuXafqMd5C/dui62f0BlZMMkCk3ypY=
 {
     "advertise_addr": "10.113.151.191",
     "bind_addr": "10.113.151.191",
+
+
     "bootstrap_expect": 3,
     "client_addr": "0.0.0.0",
     "datacenter": "DC1",
@@ -454,13 +461,11 @@ EneGuc0QfyfqtBuXafqMd5C/dui62f0BlZMMkCk3ypY=
      "cnsl3"
     ],
     "server": true,
-    "start_join": [
-        "cnsl1",
-        "cnsl2",
-        "cnsl3"
-    ],
-    "ui": true
+    "ui_config": {
+          "enabled": true
+    }
 }
+
 EOF
 
 
@@ -594,10 +599,17 @@ chmod +x nomad
 
  cat<<EOF>/etc/nomad.d/main.json 
 {
+
     "acl": {
         "enabled": true
     },
+
+
+
     "bind_addr": "0.0.0.0",
+
+
+
     "client": {
         "enabled": false,
         "host_volume": {},
@@ -605,6 +617,8 @@ chmod +x nomad
             "disable_file_sandbox": true
         }
     },
+
+
     "consul": {
         "address": "127.0.0.1:8500",
         "auto_advertise": true,
@@ -613,9 +627,14 @@ chmod +x nomad
         "server_auto_join": true,
         "server_service_name": "nomad-master"
     },
+
+
     "data_dir": "/var/lib/nomad",
     "datacenter": "dc1",
     "region": "ovh",
+
+
+
     "server": {
         "bootstrap_expect": 3,
         "enabled": true,
@@ -623,6 +642,9 @@ chmod +x nomad
         "max_heartbeats_per_second": 10.0,
         "min_heartbeat_ttl": "30s"
     },
+
+
+
     "telemetry": {
         "collection_interval": "1s",
         "disable_hostname": false,
@@ -630,6 +652,8 @@ chmod +x nomad
         "publish_allocation_metrics": true,
         "publish_node_metrics": true
     }
+
+
 }
 EOF
 
@@ -737,6 +761,7 @@ apt-get update
 apt-get -y install mc
 
 
+systemctl daemon-reload
 systemctl start nomad
 systemctl status nomad
 
@@ -761,6 +786,24 @@ Policies     = n/a
 Roles        = n/a
 
 
+для региона "us" другой токен у меня
+# nomad acl bootstrap
+Accessor ID  = 9d82a086-9771-ee84-1093-a845cf43ae12
+Secret ID    = c4a04b33-85dd-bd17-8137-d26c4be0f428
+Name         = Bootstrap Token
+Type         = management
+Global       = true
+Create Time  = 2023-09-06 20:35:51.221105416 +0000 UTC
+Expiry Time  = <none>
+Create Index = 8
+Modify Index = 8
+Policies     = n/a
+Roles        = n/a
+
+
+
+
+
 идем в веб морду номада IP(номада):4646
 там тыкаем "Sign in" и вводим Secret ID    = b1e55cc6-8289-6b6e-c779-9f0b0a30e96b
 
@@ -768,12 +811,24 @@ Roles        = n/a
 для этого
 export NOMAD_TOKEN="b1e55cc6-8289-6b6e-c779-9f0b0a30e96b"
 
-теперь мы можем вот что сделать
+что интересно. если регион прописано в конфиге номад сервера как "ovh" то имя сервера в номаде будет 
+заканчиваться на .ovh тоесть
+
 # nomad server members
 Name        Address         Port  Status  Leader  Raft Version  Build  Datacenter  Region
-nm2-cl.ovh  10.113.151.192  4648  alive   true    3             1.6.1  dc1         ovh
-nm3-cl.ovh  10.113.151.174  4648  alive   false   3             1.6.1  dc1         ovh
-nm4-cl.ovh  10.113.151.231  4648  alive   false   3             1.6.1  dc1         ovh
+nm2-cl.ovh  10.113.151.192  4648  alive   false   3             1.6.1  dc2         ovh
+nm3-cl.ovh  10.113.151.174  4648  alive   true    3             1.6.1  dc3         ovh
+nm4-cl.ovh  10.113.151.231  4648  alive   false   3             1.6.1  dc4         ovh
+
+
+а если регион в конфиге номад сервера указано как "us" то автоматом имена серверов будет 
+заканчиваться на .us
+
+# nomad server members
+Name           Address         Port  Status  Leader  Raft Version  Build  Datacenter  Region
+nomad1-dc2.us  10.113.151.224  4648  alive   true    3             1.6.1  dc2         us
+nomad2-dc2.us  10.113.151.233  4648  alive   false   3             1.6.1  dc2         us
+nomad3-dc2.us  10.113.151.90   4648  alive   false   3             1.6.1  dc2         us
 
 
 
@@ -1718,12 +1773,992 @@ $ curl http://localhost:8500/v1/catalog/services/web-test | jq
   "web-test": []
 }
 
+а еще можно вот так псмотреть список сервисов
+
+# consul catalog services
+consul
+web-test-dc2
+причем эту команду можно запускать как на сервере консула и на хосте где запущен клиент консула
 
 
+
+далее.
+задача - поднять второй консул кластер с другим значением параметра "датацентр". 
+и потом надо связать первый кластер со вторым кластером.
+
+поднимаем второй кластер с датацентр = dc2 согласно инструкции выше.
+теперь нам надо их связать. 
+для простоты на обоих кластерах выключен ACL.
+так вот оказыается интересная вещь: у нас есть пароль который заранее прописан на каждом серверер когнсула
+которым он шифрует свое общение с другими своими соседями. мы задаем его в конфиге строчкой
+
+# cat /etc/consul.d/consul.json | grep encrypt
+    "encrypt": "EneGuc0QfyfqtBuXafqMd5C/dui62f0BlZMMkCk3ypY=",
+
+так вот он хранится вот тут 
+
+# cat /var/lib/consul/serf/local.keyring 
+["EneGuc0QfyfqtBuXafqMd5C/dui62f0BlZMMkCk3ypY="]
+
+# cat /var/lib/consul/serf/remote.keyring 
+["EneGuc0QfyfqtBuXafqMd5C/dui62f0BlZMMkCk3ypY="]
+
+
+так вот у консула есть два gossip pool. один это LAN gossip pool и wan gossip pool.
+в  lan gossip pool входят все сервера и клиенты которые входят в конкретный датацентр.  все эти клиенты и серверы
+котоыре входят в один gossip ppool они обмениваются друг с другом мессагами шифруя их одним и тем же ключом симметричного
+шифрования который записан у них в конфиге. например вот как он записан в конфиге клиента
+
+# cat /etc/consul.d/consul.json  | grep encrypt
+    "encrypt": "EneGuc0QfyfqtBuXafqMd5C/dui62f0BlZMMkCk3ypY=",
+
+    тоесть рвно также как в конфиге сервера когсула.
+
+кстати скаать если в конфиге консула не прописано в какой папке харнить данные то он их хранит в папке /var/consul
+так вот в файле local.keyring  что сервер что клиент хранят пароль с помощью которого они шфируют данные которые 
+они посылают друг другу в рамках своего датацентра. в рамках своего LAN GOSSIP POOL.
+
+
+теперь мы пеерходим к файлу remote.keyring  и WAN GOSSIP POOL.  дело вот в чем. можно взять несколько (по крайней)
+меере два кластера (два датацентра) консула и соединить их вместе. это называется федерация. точнее "Federate multiple datacenters with WAN gossip".  и тогда это дает вот что - что мы можем с клиента который сиидит в одном датацентре сделать
+запрос сервиса и указать название друого датацентра. этот запрс улетить на сервер нашего датацентра. наш сервер свяжется
+с сервером другого датацентра передаст запрос. получить ответ и прищлет нам.  так вот WAN GOSSIP POOL это все сервера
+разных датацентров которые обьединены вместе в пул. все эти сервера могут посылать друг другу запросы. это и есть WAN POOL. это и есть федерация. так вот remote.keyring  хранить пароль симметрчиного шифрования с помощью которого все эти серверра из пула 
+со всех этих разных датацентров шифруют друг другу сообщения. вот что это такое. этот файл есть только на серверах консула.
+на клиентах его нет.  так вот когда у нас на сервреер задана в конфиге вот такая стрчка 
+
+cat /etc/consul.d/consul.json  | grep encrypt
+    "encrypt": "EneGuc0QfyfqtBuXafqMd5C/dui62f0BlZMMkCk3ypY=",
+
+то один и тот же пароль записан и в  local.keyring  и в remote.keyring
+я так и ненашел какой опцией в конфиге можно задать один пароль для lAN gossip pool 
+а второй пароль для wan gossup pool. едиснвтенное как я придумал это идем в /var/lib/consul/serf/keyring.remote
+и там руками вставляем другой пароль. так вот ! - чтобы мы могли обеьединить в федерацию консул сервререрв с разных
+кластеров(разных датацентров) надо чтобы у них у всех был один и тот же пароль  в keyring.remote! иначе пошлет нахер.
+
+само обьединенеие делается командой
+# consul join -wan   cnsl1 cnsl2 cnsl3 consul1-dc2 consul2-dc2 consul3-dc2
+
+в ней мы должны укзаать все серверы в обоих кластерах.
+если все окей то оно напишет 
+  Successfully joined cluster by contacting 6 nodes
+
+посмотреть мемберов WAN GOSSIP pool можно вот так
+# consul members -wan
+Node             Address              Status  Type    Build   Protocol  DC   Partition  Segment
+cnsl1.dc1        10.113.151.191:8302  alive   server  1.16.0  2         dc1  default    <all>
+cnsl2.dc1        10.113.151.42:8302   alive   server  1.16.0  2         dc1  default    <all>
+cnsl3.dc1        10.113.151.159:8302  alive   server  1.16.0  2         dc1  default    <all>
+consul1-dc2.dc2  10.113.151.232:8302  alive   server  1.16.0  2         dc2  default    <all>
+consul2-dc2.dc2  10.113.151.208:8302  alive   server  1.16.0  2         dc2  default    <all>
+consul3-dc2.dc2  10.113.151.183:8302  alive   server  1.16.0  2         dc2  default    <all>
+
+вот видно что у нас часть серверов из датацентра "dc1" а часть из "dc2"
+
+теперь отвечаю на вопрос как нам сидя на клиенте в одном датацентра сделать запрос сервиса 
+котоырй сиодит в другом датацентар. отвечаю:
+
+$ curl -s http://localhost:8500/v1/catalog/services?datacenter=dc2 | jq
+  
+фишка в том что мы должны в запросе указать в каком датацентра мы ищем сервис. 
+в данном случае "?datacenter=dc2" мы указывам что мы запршиваем сервис который в "dc2"
+по дефолту если мы этот парметр опускаем то поиск идем в текущем датацентре.
+этот параметр я нашел здесь = https://developer.hashicorp.com/consul/api-docs/catalog
+
+можно запросить по другому
+
+# consul catalog services -datacenter "dc1"
+consul
+nomad-client
+nomad-master
+web-test
+
+# consul catalog services -datacenter "dc2"
+consul
+web-test-dc2
+
+
+как указать что мы ищем сервис в другом датацентре через DNS запрос (через dig ) я не знаю.
+
+вот интересная команда как нам прсмотреть ключи шифрования для gossip пулов
+# consul keyring -list
+WAN:
+  EneGuc0QfyfqtBuXafqMd5C/dui62f0BlZMMkCk3ypY= [6/6]
+dc1 (LAN):
+  EneGuc0QfyfqtBuXafqMd5C/dui62f0BlZMMkCk3ypY= [7/7]
+dc2 (LAN):
+  4+Uua8iBoxc915+hTXosC8evoTTAIjKCVYTjn/ojGDM= [3/3]
+
+
+здесь у нас показано два LAN gossip пула. и один WAN gossip пул. ихние ключи.
+
+ужас состоит в том что в оф доке о том как обтединить два кластера в федерацию (https://developer.hashicorp.com/consul/tutorials/networking/federation-gossip-wan) эти суки ни словом не обмолвливаются о том что чтобы два клестра можно было обьединить
+в одну федерацию у них в remote.keyring должен быть один и тот же пароль.
+если будут стоять разные пароли то при поаытке выполнить команду 
+#  consul join -wan ...
+у нас вылезет ошибка 
+    consul Failed to join No installed keys could decrypt the message
+
+также . если у нас консул кластер входит в федерацию то тогда если мы зайдем в веб морду то там слева вверу
+где написано название датацентра там мы если тыкнем то откроетмя список всех датацентров входящих в федерацию.
+
+
+| nomad
+порты которые ему нужны
+4646- на нем сидит его веб морда
+4647- через него контачат серверы и клиенты друг с другом
+4648 - через него серверы контачат друг с другом
+20,000-32,000 - через него как я понял номад пробрасыает наружу порты из контейнеров.
+
+
+| nomad
+| region
+
+насколько я понял регион в номаде это ровно тоже самое что датацентр в консуле. тоесть эта такая виртуальная хрень
+означающая что если у нас два сервера в номаде принадлежат одному region значит они входят в один кластер. 
+также как и в консуле кластер номад серверов с одного региона можно обьединиит в фередацию с кластером из друого региона. 
+это дает то что у нас пояялется единая веб морда панель управления этими двумя кластерами. сами кластера остаются
+полностью незавиисмыми друг от друга. просто едина панель управления.
+
+из видео я понял то что в рамках одного калстера серверп номада должны быть в плане сетевой доступности близко не далее
+чем в 10 мс друг от друга иначе их протокол совместной деятеальности RAFT несможет их вместо номрально держать  и кластер 
+будет разваливаться.
+
+тоогда у меня вопрос что такое datacenter в терминах номада.
+из чтения  и эксперимнта стало понятно что опция datacenter никакой функдаментальной роли в номаде не имеет.
+тоесть изменение этого парамтера на сервере номдаа ни кчему не ведет. он также споокойно входит в состав 
+кластера после перезапуска сервера. я единственное что полагаю возможно это может влиять както на то как реплицируется
+состояние кластера (та самая папка) от лидера кластера на его фолловеров. возможно если два сервера вхоят в один 
+датацентр то копия преедается от одного другому потому что так быстрее чем передвать ее от лидера который сидит
+в другом датацентре (имеет в настройках другой датацентр).
+таким образом на настройку datcenter в ноомаде в приицпе похеру. главное что они должны входить в один регион. тогда
+они принадлежать одному кластеру. тоесть сервереры в которых указан один регион входят в один кластер.
+как и в консуле разные кластеры номаа можно обьединять в одну федерацию. это не означает что кластеры сливаются
+в один мегакластер. нихера. просто у них в веб морде появялется одна панель для управления. 
+
+
+| nomad
+mTLS (mutual tls)
+
+не исползовать публичный CA (типа letsencrypt)
+юзать только приватный CA
+полезное видео - https://www.youtube.com/watch?v=31rvngI7vUk&ab_channel=HashiCorp
+
+создавать сертификат для сервера в виде  server.region.nomad
+
+хорошо бы наладит mTLS между серверами номада и клиентами номада. 
+однако это означает что надо выпустить тонну сертификатов.
+
+
+| nomad
+| federation
+
+
+обьдеинение двух кластеров номада в федерацию
+
+
+федерация не делает из двух кластеров один.
+она толко позволяет в веб морде удобно переключаться между одним и вторым.
+и еще она позволяет ходить по двум кластерам в той же веб морде на основе одного токена. 
+а без федерации нам нужно открывать две веб морды и  в каждой вводить свой индиивидуальный токен.
+вот что дает федерация. а так по факту кластеры остаются независимымми.
+
+
+
+само обтединение выполняется вот так
+# nomad server join 10.113.151.192:4648 10.113.151.174:4648 10.113.151.231:4648 10.113.151.224:4648  10.113.151.233:4648  10.113.151.90:4648
+Joined 6 servers successfully
+
+в строке указаны все номад серверы из обоих кластеров.
+
+я только непонял. это что можно любые сервера соединить номада? главное чтобы у них был доступ к порту 4648?
+дело в том что в /var/nomad/serf уже никакого ключа шифрования нет который бы нужно было бы чтобы он совпадал.
+
+
+
+# nomad server members
+Name           Address         Port  Status  Leader  Raft Version  Build  Datacenter  Region
+nm2-cl.ovh     10.113.151.192  4648  alive   false   3             1.6.1  dc2         ovh
+nm3-cl.ovh     10.113.151.174  4648  alive   true    3             1.6.1  dc3         ovh
+nm4-cl.ovh     10.113.151.231  4648  alive   false   3             1.6.1  dc4         ovh
+nomad1-dc2.us  10.113.151.224  4648  alive   true    3             1.6.1  dc5         us
+nomad2-dc2.us  10.113.151.233  4648  alive   false   3             1.6.1  dc5         us
+nomad3-dc2.us  10.113.151.90   4648  alive   false   3             1.6.1  dc5         us
+
+видно что два региона: 
+ - ovh
+ - us
+
+ значит мы обьединли два кластера. (регион и кластер это синомнимы)
+
+
+но дальше жопа.
+да у нас в веб морде видно два региона.
+но чтобы зайти в каждый надо вводить для кажодго свой токен.
+
+так вот далее надо сделать еще вот что,
+нам надо выбрать какой регион\кластер у нас будет типа главным. главным в том смысле что мы будем в веб морде вводить
+токен который был создан на сервере этого главного региона а остальные неглавные регионы будут тоже принимать этот токен.
+тоесть у нас в кажом регионе свой authentication authority. а нам надо чтобы он как бы был один. надо какойто из двух
+сделать главным.
+
+у меня два региона : ovh и us.
+я выбираю что у меня главным регионом будет ovh регион. 
+тогда я иду на сервер номада в ovh регионе и создаю специальный токен
+
+
+(ovh регион) # nomad acl token create -type="management" -global=true \
+  -name="Cluster A Replication Token" \
+  -token="b1e55cc6-8289-6b6e-c779-9f0b0a30e96b"
+Accessor ID  = d74642e7-2b8b-25c1-d4e9-169e18548788
+Secret ID    = 6ca5eae5-adb9-1687-f2f3-214ab5c4f8c5
+Name         = Cluster A Replication Token
+Type         = management
+Global       = true
+Create Time  = 2023-09-06 21:07:53.77551344 +0000 UTC
+Expiry Time  = <none>
+Create Index = 2462
+Modify Index = 2462
+Policies     = n/a
+Roles        = n/a
+
+соотвесвтенно "-token="b1e55cc6-8289-6b6e-c779-9f0b0a30e96b" это bootstrap токен ovh региона (тот который с макс 
+правами).
+
+
+теперь идем на каждый сервер номада в "us" регионе и меняем конфиг в двух местах
+
+
+  "acl": {
+        ...
+         "replication_token": "6ca5eae5-adb9-1687-f2f3-214ab5c4f8c5"
+    }
+
+
+"server": {
+        ...
+        "authoritative_region": "ovh",   <====================
+        ...
+    }
+
+
+тоесть мы в разделе "acl" добавляем опцию "replication_token" (тот токен котоырй мы тлоько что создали)
+и в разделе  "server" добавляем опцию "authoritative_region"
+
+перезапускаем все номад сервера в регионе us.
+в регионе ovh конфиги менять ненадо!
+
+все! теперь идем в веб морду номада. ввводим там boostrap токен ovh региона и без проблем можем из одной
+веб морды ходить и по региону ovh и по региону us !! вот что мы сделали! (регион можно выбирать из выпаадающего списка вверху слева). причем почемуто прикол такой что когда мы выбрали регион и тыкаем на "Servers" он почемуто покаызвает серверы 
+обоих регионов. этого  я непонял прикола.
+
+
+если же в конфиг не добавить "replication_token" то в логах номадов серверов региона us будет 
+лезть вот такая ошибка
+
+[ERROR] nomad: failed to fetch ACL binding rules from authoritative region: error="rpc error: Permission denied"
+[ERROR] nomad: failed to fetch tokens from authoritative region: error="rpc error: Permission denied"
+
+я немог настроить изанчально .потом этот пост (  https://stackoverflow.com/questions/65992236/unable-to-bootstrap-nomad-cluster-with-multi-region-setup-error-bootstrapping/77055474#77055474)
+
+ГЕНИАЛЬНО!!!!
+
+
+| nomad
+как проверить коректность синтакисима манифеста джоба.
+
+# nomad validate ./redis.hcl 
+Driver configuration not validated since connection to Nomad agent couldn't be established.
+Job validation successful
+
+чтобы убрать ошибку "Driver configuration not validated since connection to Nomad agent couldn't be established."
+надо перед эти вызвать команду
+# nomad eval list
+No evals found
+
+тоесть вот так в итоге
+# nomad eval list
+No evals found
+root@nm2-cl:~/nomad-jobs# nomad validate ./redis.hcl 
+Job validation successful
+
+
+| nomad
+| redis
+
+
+job "redis" {
+  datacenters = ["dc1"]
+  type        = "service"
+
+  group "redis" {
+    count = 1
+
+    network {
+      mode = "host"
+      port "redis" {
+        to = 6379
+      }
+    }
+
+    task "redis" {
+      driver = "docker"
+
+      config {
+        image = "redis:7"
+        ports = ["redis"]
+      }
+
+      resources {
+        cores  = 1
+        memory = 256
+      }
+    }
+  }
+}
+
+
+
+# nomad eval list
+# nomad validate ./redis.hcl 
+# nomad run redis.hcl
+
+
+
+| consul
+| service
+| checks
+
+
+вот у нас есть хост. на хосте есть клиент консула.
+как на через клиент консула зарегистрировать на консул сервере новый сервис.
+для этого создаем файл
+
+# cat /etc/consul.d/web-2.json 
+{
+  "service": {
+    "name": "web-2",
+    "tags": ["frontend"],
+    "port": 81
+
+  }
+
+}
+
+
+# consul validate  /etc/consul.d/
+Configuration is valid!
+# systemctl restart consul
+# journalctl -f -u consul
+
+
+если не видим ошибок то идем в веб морду в раздел "services"
+и видим наш новый сервис "web-2" зарегистрирован в консуле. причем статус у него зеленый.
+ура. 
+при том что на компе где консул клиент реально никакого сервиса не крутится. но он зеленый
+только отому что у нас нет никаких проверок "checks" для того чтобы косул клиент мог проереврить
+жив наш сервис или нет. тогда делаем вот как. поднимаем на компе реально новый сервис
+а именно веб сервис
+
+
+$ docker run --rm -d -v $(pwd)/index.html:/usr/share/nginx/html/index.html -p 81:80 nginx
+$ cat index.html 
+web-2
+
+я заменил дефолтовую жинкс страницу с тем чтобы она была короткая и чтобы из нее было видно какой
+конктено жинкс мы запросили.
+
+итак у нас есть сервис на хосте . веб сервис. который откликается по 81 порту.
+теперь меяем манифест консул сервиса
+
+
+а именно я добавляю health check
+
+# cat /etc/consul.d/web-2.json 
+{
+  "service": {
+    "name": "web-2",
+    "tags": ["frontend"],
+    "port": 81,
+
+    "check": {
+      "args": [ "bash", "-c", "curl -s -I localhost:81  | grep HTTP | awk '{print $2}'" ],
+      "interval": "10s",
+      "timeout": "2s"
+    }
+
+
+  }
+
+}
+
+
+также надо установить еще одну опцию иначе консул агенту по дефолту запрещено запускать проги на хосте.
+# cat consul.json 
+{
+    ...
+    "enable_local_script_checks": true,
+    ...
+
+без этой опции у нас влогах будет ругань
+
+agent: Error starting agent: error="Failed to register service \"web-2\": Scripts are disabled on this agent; to enable, configure 'enable_script_checks' or 'enable_local_script_checks' to true"
+
+проверяем верность конфигов. перезпускаем консул
+
+# consul validate  /etc/consul.d/
+Configuration is valid!
+# systemctl restart consul
+# journalctl -f -u consul
+
+идем в веб морду.
+там  у нас в сервисе web-1 теперь есть хелс чеки. просто прекрасно!
+
+
+также хочу обратить внимание на эту строчку
+      "args": [ "bash", "-c", "curl -s -I localhost:81  | grep HTTP | awk '{print $2}'" ],
+так как у нас есть pipe то работает только такая строка. с привлечением "bash -c"
+вариант типа такого 
+      "args": [ "curl", "-s", "-I", "localhost:81  | grep HTTP | awk '{print $2}'" ],
+не прокатит
+если есть pipe то обязательно нужен "bash -c"
+
+также хочу показать вариант хелс чека когда мы знаем что мы опрашиваем именно HTTP сервис. и когда у него 
+ответ короткий на выводе. (чтобы не перегружать засососом мусора консул агент)
+
+# cat web-3.json 
+{
+  "service": {
+    "name": "web-3",
+    "tags": ["frontend"],
+    "port": 82,
+
+    "check": {
+      "http": "http://localhost:82",
+      "method": "GET",
+      "interval": "10s",
+      "timeout": "2s"
+    }
+
+
+  }
+
+}
+
+
+теость если в прошлом примере у нас типа хелсчека это "args"
+то тут  у нас "http"
+
+типы хесл чеков тут = https://developer.hashicorp.com/consul/docs/services/usage/checks
+и тут https://developer.hashicorp.com/consul/docs/services/usage/checks
+и тут https://developer.hashicorp.com/consul/docs/services/configuration/checks-configuration-reference
+
+
+иитак в этом куске мы научились создавать манифесты сервисови регистрировать сервис в консуле.
+также научились прилеплять к сервиса хелс чеки.
+
+| consul
+| mesh
+
+я начал городить mesh. оказалось что это та еще запарка.
+оказался это конкретный пиздец.
+
+
+во первых надо активировать mesh на серврерах консула
+
+# cat /etc/consul.d/mesh.hcl 
+connect {
+  enabled = true
+}
+
+
+
+во вторых надо активировать gRPC на клиенте
+
+# cat /etc/consul.d/consul.json 
+{
+    ....
+    "ports": {
+         "grpc": 8502
+     },
+     ....
+
+
+втреитьих надо в сервисе прописать что мы хотим юзать mesh
+
+
+
+d# cat /etc/consul.d/web-4.json 
+{
+
+
+  "service": {
+    "name": "web-4",
+    "tags": ["frontend"],
+    "port": 82,
+
+
+######### секция про mesh
+"connect": {
+   "sidecar_service": {
+       "port": 21000
+        }
+   },
+#################
+
+
+
+    "check": {
+      "http": "http://localhost:82",
+      "method": "GET",
+      "interval": "10s",
+      "timeout": "2s"
+    }
+
+
+  }
+
+
+
+}
+
+
+
+
+
+где
+"port": 21000, = эат настройка как я понимаю говорит консулу о том что когда будет
+запускасять энвой для этого сервиса то его надо посадить на порт 21000 ( я об этом ниже напишу) 
+
+
+
+в четвертых надо постваить на хост где клиент прогу envoy. пробема в том что  для каждой версии консула
+есть совместимость с версией энвоя. смотреть таблицу совместимости вот здесь 
+  https://developer.hashicorp.com/consul/docs/connect/proxies/envoy#envoy-and-consul-client-agent
+раздел "Envoy and Consul Client Agent"
+подьбебка состоит в том что надо обратить внимание что там две сецкии по совместиости - энвой + консул агент. 
+для него своя таблица и энвой+консул датаплейн. там другая таблца. смысл что значит енвой+консул датаплейн  я не понял.
+ибо это как бутто значит случай кога мы ставим энвой на хосте где консул серевер а это вроде как неимеет смысла. хуй знает.
+итак для косул агента 1.16 нужен энвой 1.26.4, 1.25.9, 1.24.10, 1.23.12
+так вот пизда в том что даже для убунту 22.04 маккмиаальный энвой в apt репозитории это 1.8 тоесть пошел нахуй.
+какой выход: нужно скачать на комп докер имадж с енвоем нужной версии. запустить контейеер. и экстрактировать 
+из него бинарник энвоя и засунуть его в /usr/local/bin это пиздец. экстракт из контейнера делается вот так
+      # docker cp    76533e32adc1:/usr/local/bin/envoy /usr/local/bin/envoy
+
+но это еще не конец мучейний. 
+нужно создать сервис для энвоя
+
+
+# cat<<EOF > /etc/systemd/system/web-4-envoy.service 
+[Unit]
+Description="web-4 sidecar proxy service"
+Requires=network-online.target
+After=network-online.target
+
+
+[Service]
+ExecStart=/usr/local/bin/consul connect envoy -sidecar-for web-4 -admin-bind 127.0.0.1:19000
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+
+
+здесь тоже охуенная засада порт :19000 это не порт который будет проксировать . нет нихуя. это некий 
+административный порт энвоя. под которым можно на нем делать адмиинистративные работы. как я понял нам он нахуй ненужен
+но он обязателен указать при запускке. важно понять что это нив коем случае на порт 21000. это отдельный порт 
+для администрирования энвоя.
+
+
+выше я писал что манифесте сервиса есть вот такое
+"port": 21000, = эат настройка как я понимаю говорит консулу о том что когда будет
+запускасять энвой для этого сервиса то его надо посадить на порт 21000
+
+так вот запись про энвой в манифесте сервиса консула еще нихя этот энвой не запускает. энвой
+запускается через системд юнит через строчку consul connect envoy -sidecar-for web-4 -admin-bind 127.0.0.1:19000
+тоесть отдельная консольная команда консула запускает энвой. как я понимаю этот консул читает конфиг манифестов сервисов 
+консула ( /etc/consul.d/web-4.json)и ищет там "web-4"  находт там порт 21000 и запускает энвой и сажает его на 21000 порт.
+
+вот тольоко пробеващись столько шагов у нас будет успешно зареистрирован сервис "web-4" на консуле через энвой.
+
+здесь я вижу огоромадую прблему навскидку в том что для каждого сервиса консула нужен свой systemd юнит энвоя. 
+это какото пизец если честно. 
+
+ноэто еще не конец пизец. потому что мы пок что поставили 1 сервис через энвой в консул. а надо еще поставит второй
+и наладить между ними связь.
+
+
+так тут я нашел пример сервиса из книжки. ставиим его
+# wget https://github.com/consul-up/birdwatcher/releases/download/v1.0.1/frontend-linux-amd64
+# mv frontend-linux-amd64 /usr/local/bin/frontend
+# chmod +x /usr/local/bin/frontend
+
+# cat<<EOF>/etc/systemd/system/example-frontend.service
+
+[Unit]
+Description="Frontend service"
+# The service requires the VM's network
+# to be configured, e.g., an IP address has been assigned.
+Requires=network-online.target
+After=network-online.target
+
+[Service]
+# ExecStart is the command to run.
+ExecStart=/usr/local/bin/frontend
+
+# Restart configures the restart policy. In this case, we
+# want to restart the service if it fails.
+Restart=on-failure
+
+# Environment sets environment variables.
+# We will set the frontend service to listen
+# on port 6060.
+Environment=BIND_ADDR=0.0.0.0:6060
+
+# We set BACKEND_URL to http://localhost:7000 because
+# that's the port we'll run our backend service on.
+Environment=BACKEND_URL=http://localhost:7000
+
+# The Install section configures this service to start
+# automatically if the VM reboots.
+[Install]
+WantedBy=multi-user.target
+EOF
+
+
+
+# wget https://github.com/consul-up/birdwatcher/releases/download/v1.0.1/backend-linux-amd64
+# chmod +x backend-linux-amd64
+# mv backend-linux-amd64 /usr/local/bin/backend
+
+
+# cat<<EOF >/etc/systemd/system/example-backend.service
+[Unit]
+Description="Backend service"
+Requires=network-online.target
+After=network-online.target
+
+[Service]
+ExecStart=/usr/local/bin/backend
+
+Restart=on-failure
+
+# We will set the backend service to listen
+# on port 7000.
+Environment=BIND_ADDR=0.0.0.0:7000
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# systemctl daemon-reload
+  systemctl enable example-frontend  example-backend
+  systemctl start example-frontend example-backend
+  systemctl status example-frontend example-backend
+
+
+идем  в брайзер и тестим что сайт работает http://localhost:6060
+
+
+
+но это только начало.
+
+# cat<<EOF>/etc/consul.d/example-frontend.hcl
+service {
+   name = "frontend"
+
+   # frontend runs on port 6060.
+   port = 6060
+
+   # The "connect" stanza configures service mesh
+   # features.
+   connect {
+      sidecar_service {
+
+         # frontend's proxy will listen on port 21100.
+         port = 21100
+
+         proxy {
+
+                 # The "upstreams" stanza configures
+                 # which ports the sidecar proxy will expose
+                 # and what services they'll route to.
+                  upstreams = [
+                                {
+                                   # Here you're configuring the sidecar proxy to
+                                   # proxy port 6001 to the backend service.
+                                   destination_name = "backend"
+                                   local_bind_port = 6001
+                                }
+                  ]
+         }
+      }
+  }
+}
+EOF
+
+на счет апстрима и local_bind_port = 6001
+что эта хрень значит. дело вот в чем.
+наш frontend сервис будет обращаться к backend сервису. так вот этот бекенд сервис к коорому он будет 
+обращаться нужно указать в upstream. причем порт 6001 это не тот порт который бекенд сервис реально слушает. нет.
+это порт сайдкара на который мы будем обращаться чтобы он нас запроксировал чтобы мы попали на бекенд сервис.
+
+(чем отличается сайдкар от прокси.  сайдкар это тот же самый прокси но сидит на том же хосте где и клиент. а простой прокси
+сидит хер знает где обычно.)
+
+
+
+на счет destination_name = "backend"
+походу нужно указать имя в точности как будет указано в манифесте консула для бекенд сервиса.
+
+
+получается сидит сервис фронтенд на хосте и слушает порт 6060.
+также на хосте поднят прокси\сайдкар который слушает порт 21100 и если на 21100 приходит запрос
+то он его проксирует на 6060
+и если этот сервис обращается на порт 6001 то сайдкар проксирует запрос на сервис бекенд.
+
+
+
+# consul validate /etc/consul*
+Configuration is valid!
+
+
+
+
+# cat<<EOF>/etc/consul.d/example-backend.hcl
+service {
+          name = "backend"
+
+          # backend runs on port 7000.
+          port = 7000
+
+          meta {
+                 version = "v1"
+          }
+
+          # The backend service doesn't call
+          # any other services so it doesn't
+          # need an "upstreams" stanza.
+          #
+          # The connect stanza is still required to
+          # indicate that it needs a sidecar proxy.
+          connect {
+             sidecar_service {
+                                # backend's proxy will listen on port 22000.
+                                port = 22000
+              }
+          }
+}
+EOF
+
+порт 7000 указывает что реально сервис сидит на хосте и слушает порт 7000
+а порт 22000 указывает что сайдкар для этого сервиса долже роутить на него запросы если на сайдкар запрос
+прилетел на порт 22000
+
+
+
+# consul validate /etc/consul*
+Configuration is valid!
+
+# consul reload
+Configuration reload triggered
+
+# consul catalog  services
+backend                 <================ 
+backend-sidecar-proxy   <==========
+consul
+frontend                <============
+frontend-sidecar-proxy  <============
+nomad-client
+web-2
+web-3
+web-4
+web-4-sidecar-proxy
+
+
+приколно что сайдкары показаны как отденые сервисы. а в веб морде их нет в разделе сервисы.
+они типа хидден поэтому в веб модред невидны. 
+также это докаызает что сайдкары по факту это отденые сервисы. тоесть когда мы в манифесте вставляем секцию сайдкар
+мы как бутто на самом деле пропиваыем отдлеьный новый сервис ( я об  этом как раз читал на сайте)
+
+
+у нас в веб морде косула для новых сервисов красный хелсчек потмоу что длякажодго сериса
+нужно запустить его иниидвидуальный envoy.
+и тут на помощь приходят шаблоны systemd которые уже более мнее реально помогут упостить и масшбтабировать этот процесс.
+
+
+а именно вот мой конфиг для энвоя
+
+
+# cat<<EOF > /etc/systemd/system/web-4-envoy.service 
+[Unit]
+Description="web-4 sidecar proxy service"
+Requires=network-online.target
+After=network-online.target
+
+
+[Service]
+ExecStart=/usr/local/bin/consul connect envoy -sidecar-for web-4 -admin-bind 127.0.0.1:19000
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+
+
+
+вот здесь показан шаблон системд
+https://gist.github.com/blake/96dd69b19f783223c029f63e5e511ee3
+
+однако он недоратан сука. 
+дело в том что там не указан параеметр -admin-bind 
+а дело в том что без него envoy сука не стартует. точнее он тогда берет и делает его по умолчанию 127.0.0.1:19000
+и залупа в том что если нам надо запутсти несоклько енвоев на хосте то тогда уже второй енвой не запуститься а ошлет нахуй
+и скаже что порт 19000 занят. а именнно ошибка будет выглядеть так
+     cannot bind '127.0.0.1:19000': Address already in use
+так вот выход в том чтобы указать порт хитро -admin-bind 127.0.0.1:0
+тогда системд будет сам автоматом искать тот порт который щас в системе свободен (подсмотрел вот тут https://github.com/envoyproxy/envoy/issues/1297) чувак предложил решение в форме конфига
+
+ "admin": {                                       
+   "access_log_path": "/dev/null",                
+   "address": "tcp://127.0.0.1:0"                   
+ } 
+
+ однако в нашем случае мы запускаем энвой не сам по себе а через консул поэтому решение другое -admin-bind 127.0.0.1:0
+ итого суммарный шаблон выглядит так
+
+# cat<<EOF >/etc/systemd/system/envoy@.service
+[Unit]
+Description=Consul service mesh Envoy proxy for service %i
+After=network.target consul.service
+Requires=consul.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/consul connect envoy -sidecar-for=%i    -admin-bind 127.0.0.1:0
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+
+
+# systemctl daemon-reload
+  systemctl enable envoy@backend  envoy@frontend
+  systemctl start  envoy@backend  envoy@frontend
+  systemctl status envoy@backend  envoy@frontend
+
+netstat покажет какйото ад
+
+tcp        0      0 127.0.0.1:45055         0.0.0.0:*               LISTEN      26655/envoy         
+tcp        0      0 0.0.0.0:21000           0.0.0.0:*               LISTEN      23836/envoy         
+tcp        0      0 0.0.0.0:21000           0.0.0.0:*               LISTEN      23836/envoy         
+tcp        0      0 0.0.0.0:21000           0.0.0.0:*               LISTEN      23836/envoy         
+tcp        0      0 0.0.0.0:21000           0.0.0.0:*               LISTEN      23836/envoy         
+tcp        0      0 0.0.0.0:21000           0.0.0.0:*               LISTEN      23836/envoy         
+tcp        0      0 0.0.0.0:21000           0.0.0.0:*               LISTEN      23836/envoy         
+tcp        0      0 0.0.0.0:21000           0.0.0.0:*               LISTEN      23836/envoy         
+tcp        0      0 0.0.0.0:21000           0.0.0.0:*               LISTEN      23836/envoy         
+
+
+почемуто биндинг на один порт показыается несколько раз.
+каждый инстанс зпапущенного енвоя жрет один порт на свою админку. один порт на то чтобы принимать запросы для сервиса консула
+ради которого он запущен. итого два порта.
+
+но в целом. теерперь идем в веб морду и у нас оба сервиса и frontend и backend зеленые .
+
+вот этот трюк с щаблоном для systemd юнита для энвоя это крутой ход. на основе одного шаблона можно легко поднять
+миллион энвоев на хосте. толкьо конечно по сути это идиотизм. это как бутто хапрокси запускает милион своих копий
+для каждого порта который он проксирует. идиотизм.
+
+
+создаем intention
+
+идем на сервер коснула
+# consul intention create -deny '*' '*'
+
+идем в браузер вводим http://10.113.151.91:6060/ (10.113.151.91 lxd контйеенр где я развернул всю эту щарманку)
+и вдим что все по прежнему работе. чт за хеня. ответ в том что в свойствавах systmd юнита для фронтенд сервиса у
+нас стоит
+Environment=BACKEND_URL=http://localhost:7000
+
+тоесть наш фронтенд сервис плевал на сайдкары.он напряпую стучится на бекенд сервис. в обход сайдкаров
+поэтому и работает. 
+
+меняем на 
+Environment=BACKEND_URL=http://localhost:6001
+
+6001 этот тот порт который мы прписали в маниесте консула для сервиса фронтенд в разделе апстрим. 
+тоесть это тот порт который является входящим для сайдкара коорый нас перенарпавить на бекенд сервис.
+
+перезапускаем системд для фронтенд. идем в бразуер и видим что уже нащ сайт нерабоатет. теория 
+совплаа с практивкой. 
+
+идем на сервер консула и удаляем правило
+# consul intention delete '*' '*'
+
+идем в бразуер. сайт опять заработал
+
+
+ссылка на то как создавать интешенсы. интешенсы - это херня которая разрешает или запрещает конект
+от одного сервиса до другого сервиса в случае если они общаются через mesh.
+
+ссылка где написано как создавать интешенсы = https://developer.hashicorp.com/consul/commands/intention
+
+создаем правило которое запрещает все конекты через меш (это важно что только через меш запрешено а напрямую без проблем).
+      # consul intention create -deny '*' '*'
+
+создаем правило которое разрешает связь от сервиса frontend до сервиса backend через меш
+      # consul intention create -allow frontend backend
+
+
+
+====
 >> вопросы
-поднять второй датацентр(кластер) консула. и сделать запрос сервиса из одного датацентра в другой
-что такое консул в федерации
-как добавить руками сервис на консул
+
+
+что я выяснил - что если  у нас два инстанса у сервиса. то под каждый нужен манифест. это понятно.
+так вот в манифесте имя сервиса указается одинаковое в обоих слуаях а instance_id указыаетс разный.
+пример
+
+перый иснтанс
+# cat example-backend.hcl 
+service {
+          id  = "back-7000"
+          name = "backend"
+
+
+второй инстанс
+# cat example-backend2.hcl 
+service {
+          id   = "back-7001"
+          name = "backend"
+
+
+под ажый инстанас нужен свой инвой запускать. причем при заупуске эенвоя в параметере  -sidecar-for= надо указывать
+не имя сервиса а его id!!!! 
+
+в чем еще одна наебка. если проверка типа args и код возрвта 1 то для консула это значит что проверка пройдена
+но с warning. и эту сука тогда считает что бекенд сервис работает. поэтому нужно в скрипте анализировать код возврата
+и если он 1 то менять его на чтото кроме 0 и1  только ктогда окнсул считает что инстанс в состоянии fail
+пример
+
+ args  = [ "bash", "-c", "curl -s -I localhost:7001  | grep HTTP | grep 404; if [ $? -eq 1 ]; then  $(exit 5);fi" ]
+посолку очти все скрипты вовзращают в резсултате ошибки 1 то это пиздец как это надо отселжитьва!
+
+
+
+>> прикол. якобы вот так можно любо енвой поставить
+export ENVOY_VERSION_STRING=x.y.z
+curl -L https://func-e.io/install.sh | bash -s -- -b /usr/local/bin
+взял отсюда = https://developer.hashicorp.com/consul/tutorials/developer-mesh/service-mesh-with-envoy-proxy?utm_source=docs
+
+
+надо понять - если у меня ест сервис который дожен связываться с 5 другими сервисами. то мне что 5 энвоев поднимать.
+или можно один а в нем пять портов ???
+
+номад - что у них с оверлейными сетями. как докер с одного хоста может связаться с докером с другого хоста
 как добавить токен для того чтобы номад мог на консуле зарегится?
 
 

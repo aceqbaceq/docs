@@ -1,0 +1,139 @@
+cron
+
+
+
+| интереснейшая вещь
+
+вопрос у нас есть cron job который по идее делает вывод на stdout тоесть в файл с дескриптором 1
+вопрос а куда это уходит? ведь процессы которые запускаются кроном у них нет tty поэтому у них нет никакого 
+терминала.  и поэтому вывод что уходит внидкуда??
+
+так вот шокирующий ответ - корон джоб он как то перехываывает весь вывод от выполнения джооба и отправляет 
+это юзеру (под которым запущен крон джоб ) по почте этому локальному юзеру! вот куда девается вывод от 
+исполнения крон джоба. это я выяснил из практики и еще об этом в подтвеждоение прочитал тут 
+		 ( https://superuser.com/a/122518/1169263 )
+
+
+и тут из этго вытекает вопрос а где хрантся письма которые предназначены для локальных юзеров внутри лэпотопа.
+ответ это зависит от того какая программа сидит на 25 порту. она решает куда складывать письма для локальных юзеров.
+
+у меня на 25 сидит exim4. и у него есть вот такое правило:
+
+$ cat /etc/exim4/conf.d/router/mmm_mail4root 
+### router/mmm_mail4root
+#################################
+# deliver mail addressed to root to /var/mail/mail as user mail:mail
+# if it was not redirected in /etc/aliases or by other means
+# Exim cannot deliver as root since 4.24 (FIXED_NEVER_USERS)
+
+mail4root:
+  debug_print = "R: mail4root for $local_part@$domain"
+  driver = redirect
+  domains = +local_domains
+  data = /var/mail/mail
+  file_transport = address_file
+  local_parts = root
+  user = mail
+  group = mail
+
+
+это его правило приводит к тому что почту предназначенную для юзера root
+он складывается в файл /var/mail/mail 
+и это подтверждает практика.
+
+
+вот пример. есть крон джоб
+# cat /etc/cron.d/minute 
+*/1 * * * *  root echo "vaSSAy"
+
+и вот в /var/mail/mail файл прилетают вот такие письма
+
+
+From root@lenovo Tue Sep 12 03:17:01 2023
+Return-path: <root@lenovo>
+Envelope-to: root@lenovo
+Delivery-date: Tue, 12 Sep 2023 03:17:01 +0600
+Received: from root by lenovo with local (Exim 4.90_1)
+	(envelope-from <root@lenovo>)
+	id 1qfoHF-0002J0-A6
+	for root@lenovo; Tue, 12 Sep 2023 03:17:01 +0600
+From: root@lenovo (Cron Daemon)
+To: root@lenovo
+Subject: Cron <root@lenovo> echo "vaSSAy"
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+X-Cron-Env: <SHELL=/bin/sh>
+X-Cron-Env: <HOME=/root>
+X-Cron-Env: <PATH=/usr/bin:/bin>
+X-Cron-Env: <LOGNAME=root>
+Message-Id: <E1qfoHF-0002J0-A6@lenovo>
+Date: Tue, 12 Sep 2023 03:17:01 +0600
+
+vaSSAy
+
+
+видно что письмо для root@lenovo (lenovo это hostname)
+и в теле письма есть 
+
+vaSSAy
+
+
+это ровно то что крон джоб выдает на stdout
+
+ПРИКОЛНО!!!!!!
+
+у baeldung нашел инфо 
+      https://www.baeldung.com/linux/cron-job-redirect-output-stdout
+о том что можно заставит  крон выводить вывод крон джоба не в почту
+а на стандартный вывод вот так
+
+*/10 * * * * echo "Hello, world!" > /dev/stdout 2>&1
+
+но я не пойму кудаже это будет выведено ведь процесс запущенный кроном он не имеет tty. так куда будет выведено????
+
+я проверил этот вариант. в итоге эта хрень она просто не рабоатет. 
+в итоге такого крон джоба приходит письмо в /var/mail/vasya вот такого содрежания
+
+From vasya@lenovo Tue Sep 12 03:50:01 2023
+Return-path: <vasya@lenovo>
+Envelope-to: vasya@lenovo
+Delivery-date: Tue, 12 Sep 2023 03:50:01 +0600
+Received: from vasya by lenovo with local (Exim 4.90_1)
+  (envelope-from <vasya@lenovo>)
+  id 1qfonB-0002Px-KJ
+  for vasya@lenovo; Tue, 12 Sep 2023 03:50:01 +0600
+From: root@lenovo (Cron Daemon)
+To: vasya@lenovo
+Subject: Cron <vasya@lenovo> echo "Hello, world!" > /dev/stdout 2>&1
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+X-Cron-Env: <SHELL=/bin/sh>
+X-Cron-Env: <HOME=/home/vasya>
+X-Cron-Env: <PATH=/usr/bin:/bin>
+X-Cron-Env: <LOGNAME=vasya>
+Message-Id: <E1qfonB-0002Px-KJ@lenovo>
+Date: Tue, 12 Sep 2023 03:50:01 +0600
+
+/bin/sh: 1: cannot create /dev/stdout: Permission denied
+
+
+так что идите на хуй с таким вариантом балденунг.
+
+
+
+
+еще там приколно показано как вывести вывод в journald
+
+*/10 * * * * /home/user/myscript.sh 2>&1 | /usr/bin/logger -t CRONOUTPUT
+
+дествттельно "logger" позволяет писать напряпую в журнал journald.
+пример
+$ logger -t OUPTUT vasya3
+
+в итоге journalctl покажет
+    сен 12 03:38:50 lenovo OUPTUT[30805]: vasya3
+
+
+===
