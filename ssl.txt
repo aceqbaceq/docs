@@ -356,3 +356,25 @@ $ openssl rsa -in s1.key -check
 openssl s_client -connect {HOSTNAME}:{PORT} -showcerts
 
 ==
+
+| new
+как создать новый самоподписанный сертиификат
+
+$ openssl req -new -x509 -keyout test-key.pem -out test-cert.pem
+
+проверяем созданный сертификат
+$ openssl x509 -text -noout -in    ./test-cert.pem 
+Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number:
+            1b:44:23:12:16:1d:37:92:29:e6:2c:4d:d8:23:a3:2d:b0:fd:44:35
+        Signature Algorithm: sha256WithRSAEncryption
+        Issuer: C = KG, ST = Some-State, O = Internet Widgits Pty Ltd, CN = magento.local
+        Validity
+            Not Before: Sep 13 18:35:42 2023 GMT
+            Not After : Oct 13 18:35:42 2023 GMT
+        Subject: C = KG, ST = Some-State, O = Internet Widgits Pty Ltd, CN = magento.local
+
+видим что CN=magento.local
+
