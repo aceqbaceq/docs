@@ -176,5 +176,18 @@ poweroff.
 
 готво.
 ===
+| wifi
+
+как подключиться к wifi по nmcli
+
+nmcli
+
+
+# nmcli dev status
+# nmcli radio wifi
+# nmcli dev wifi list
+# nmcli dev wifi connect SSID --ask
+
+==
 
 

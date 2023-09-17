@@ -6325,6 +6325,221 @@ $ cinnamon --replace -d :0.0
 # snap refresh --hold=forever
 
 ===
+| snap
+еще очень полезная вещь про snap это то что если мы юзаем lxd контейнеры.
+то нам внутри этих контейнеров то нам там обычно snap ненужен.
+поэтому если запустили контейенр то нужно внутри него удалит snap иначе эта падла
+будет проверять snap пакеты на новые версии и охиренно грузить процессор.
+
+выглядит это так. смотри в top и видим там 100% загрузку цпу у процесса snapd и\или snapfuse
+это точно значит что snap заимается обновланием. а это нам нахер ненадо.
+поэтому внутри lxd корнтенера надо выполнить
+
+# apt-get purge -y snapd*
+
+
+===
+
+| cpu
+| hyper-threading
+
+статья = https://www.baeldung.com/linux/disable-hyperthreading
+
+
+можно посмотеть через lscpu что у нас с гипертрейдингом.
+
+а еще можно проверить что HT активировано вот так
+
+# cat /sys/devices/system/cpu/smt/active
+1
+
+если 1 то гипертрединг актиирован
+
+
+далее смотрим вот такое
+$ grep -H . /sys/devices/system/cpu/cpu*/topology/thread_siblings_list 
+/sys/devices/system/cpu/cpu0/topology/thread_siblings_list:0-1
+/sys/devices/system/cpu/cpu1/topology/thread_siblings_list:0-1
+/sys/devices/system/cpu/cpu2/topology/thread_siblings_list:2-3
+/sys/devices/system/cpu/cpu3/topology/thread_siblings_list:2-3
+
+отсюда мы видим записи вида 0-1 это значит что  cpu0 это реальное ядро. 
+а  cpu1 это гипетредингвое ядро.
+таким макаром мы понимаем что ядра 1 и 3 это фиктивные гипетрединговые ядра.
+
+так вот щас мы будем их выключать налету.
+
+# echo 0 | sudo tee /sys/devices/system/cpu/cpu1/online
+# echo 0 | sudo tee /sys/devices/system/cpu/cpu3/online
+
+после этого в top исчезнут гипертрединовые ядра.
+ура
+
+
+статья пишет что отключать их онлайн неочень желаттельно.
+а включать обратно их онлайн типа категорически ненадо.
+
+
+| cpu 
+| turbo
+| power
+| scale
+| MHZ
+
+у интел есть такая фича. если у нас многоядерный проц. но  в данный момент у
+нас запущена толькоо одна программа. тоесть по факту может три ядра спать а одно ядро
+работать то за счет этого можно на какйото времы повысить частоту одного ядра гораздо 
+выше чем его обычная частота. 
+
+есть такая прграмма i7z
+
+вот что она покаызаевает
+
+Cpu speed from cpuinfo 1799.00Mhz
+cpuinfo might be wrong if cpufreq is enabled. To guess correctly try estimating via tsc
+Linux's inbuilt cpu_khz code emulated now
+True Frequency (without accounting Turbo) 1799 MHz
+  CPU Multiplier 18x || Bus clock frequency (BCLK) 99.94 MHz
+
+Socket [0] - [physical cores=4, logical cores=4, max online cores ever=4]
+  TURBO ENABLED on 4 Cores, Hyper Threading OFF
+  Max Frequency without considering Turbo 1898.94 MHz (99.94 x [19])
+  Max TURBO Multiplier (if Enabled) with 1/2/3/4 Cores is  39x/38x/37x/37x
+
+
+штатная частота 1800 MHZ у ядер. но  она может повысистя в рамках TURBO фичи до 39x
+тоесть частота шины 100 Mhz * 39 = 3900 MHZ. нехило.
+
+так вот чтобы отклбчить эту фичу можно налету
+
+# "echo 1 >  /sys/devices/system/cpu/intel_pstate/no_turbo"
+все. тпеперь у нас турбо фича выключена. прчием сразу для всех ядер.
+
+правдп i7z почемуто все равно будет показывать что якобы TURBO фича активирована.
+
+статья где можго почитать про стейты процессора - https://www.kernel.org/doc/html/v5.0/admin-guide/pm/intel_pstate.html . однако это очень длтинная и скушная статья
+
+она посвяена драйверу intel_pstate который рулит состояниями процессора.
+
+а более кокнретная и полезная статья это 
+ вот тут об этом написано - https://wiki.archlinux.org/title/CPU_frequency_scaling
+
+
+далее я поговрю про управление частотй цпу и его темперауторй как следствие опираясь 
+на все тутже статью из archlinux
+
+
+раньше была адова туча программ которые следили за темераторурой цпу и если что то понижали частоту цпу. 
+и эти программы часто мешали друг другу. 
+в убунту 18 осталось одна это thermald
+у нее какотой дурацкий xml конфиг нечитабельный.
+
+i7z - это утилита которая показыает какя темпераутра щас на цпу и какая на нем щас частота.
+также темературу на цпу можно псмотреть чере утилиту sensors
+также atop показыает текушую частоту процессара
+
+cpupower - старая програмаа ее в топку. ее уже нет в убунту18
+
+меня порадовала возможность руками задать верхнюю часоту процессора налету
+
+# echo 400000 | tee /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq
+
+она установить что верхнаяя часотта для cpu0 может быть 400 MHZ
+таким макаром надо пройти по всем ядрам.
+
+далее они пишут что есть такая хрень как governor.
+для каждого ядра его можно посмотреть тут 
+# cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
+powersave
+powersave
+powersave
+powersave
+powersave
+powersave
+powersave
+powersave
+
+
+вот тут можно посмотреть какие виды power governor доступны на данный момент 
+для перкключения
+# cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_governors 
+conservative ondemand userspace powersave performance schedutil
+
+его можно изменти на лету. и тогда линукс будет динамически менять частоту на ядре. 
+задать говернор можно налету вот так
+
+# echo "vasya" > cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
+
+виды гавернеров
+- performance: это значит что ядро будет работать на макс штатной частоте все время.
+максимальная частота берется отсюда 
+# cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_max_freq
+600000
+600000
+600000
+600000
+
+- powersave:  это значит что ядро будет работать на мин часоте 
+мин частота берется отсюда
+# cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_min_freq
+400000
+400000
+400000
+400000
+400000
+400000
+
+моя практика показал что с этим гавернером какая то хуйня
+тоесть у меня на всех ядрах стоит гавнер= powersave
+# cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
+powersave
+powersave
+powersave
+powersave
+powersave
+powersave
+powersave
+powersave
+
+тоесть он должен все время держать частоту минимальной.
+вот моя минимальная частота
+# cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_min_freq
+400000
+400000
+400000
+400000
+400000
+400000
+
+однако эта сука держит частоту в районе 600 MHZ
+
+
+итак еще раз.
+поморетть текущую темпреатуру на цпу это 
+# sensors
+или 
+# i7z
+
+посмотреть текущую частоту на цпу это 
+# atop
+# i7z
+
+
+установка cpupower:
+# sudo apt install linux-tools-$(uname -r) linux-cloud-tools-$(uname -r)
+
+
+дальнейшее обсуждение:
+governor
+thremald
+cpupower
+tlp
+psense
+
+
+
+===
+
 | ip
 | proc
 
@@ -7225,6 +7440,10 @@ https://linuxize.com/post/how-to-install-and-configure-samba-on-ubuntu-18-04/
 
 далее ряд заметок на счет управления питанием цпу и его частотой:
 - intel_pstate=active
+
+утилита которя показывает на какой частоте щас работает прроцессор
+
+# apt-get install -y i7z
 
 
 

@@ -1,4 +1,4 @@
-nomad
+| nomad
 
 ставим номад на убунту
 на основе этого https://www.linode.com/docs/guides/using-nomad-for-orchestration/
@@ -285,11 +285,13 @@ ID        Node ID   Task Group  Version  Desired  Status   Created     Modified
 
 
 
-
-
+| nomad
+| кластер
+| consul
 далее.
-если мы хотим юзать номад кластер в проде то нужно устанвливать нетолько номад
-но и consul и vault это все хашикорп  проги
+если мы хотим юзать номад кластер в проде то можно это сделать без consul но они рекомендуют 
+в связке с консулом.
+еще желательно  vault это все хашикорп  проги
 
 vault это прога для  работы  с secrets (секретами)
 
@@ -395,6 +397,9 @@ Consul v1.16.0
   echo "10.113.151.42    cnsl2" >> /etc/hosts
   echo "10.113.151.159   cnsl3" >> /etc/hosts
 
+есть вариант все внести все одной строкой
+# echo -e "10.113.151.177 consul-test-1 \n 10.113.151.16 consul-test-2 \n 10.113.151.140 consul-test-3 \n " >> /etc/hosts
+
 
 # echo "10.113.151.232  consul1-dc2" >> /etc/hosts
   echo "10.113.151.208  consul2-dc2" >> /etc/hosts
@@ -433,6 +438,8 @@ apt-get -y install mc
 # consul keygen
 EneGuc0QfyfqtBuXafqMd5C/dui62f0BlZMMkCk3ypY=
 
+или
+rmLBITj1RxnIfMEluryGSFyMxsUpVcbv7Tr1+eg9Y9o=
 
 # cat<<EOF > /etc/consul.d/consul.json
 {
@@ -2782,6 +2789,19 @@ Environment=BACKEND_URL=http://localhost:6001
 друг с другом попорту 8300 постоянно херачат обменом сетевого трафика на скрости 7-9 МБ\с
 это пиздец.
 текущая задача - собрать новый с нуля кластер консула и посмотреть будет ли тоже самое или нет.
+
+update: я собрал кластер коснула с нуля. и в итоге выяснил что я был неправ.
+скорость между членами кластера консула не 7-МБ\с а 7-9КБ\с.
+
+тоесть все номрально. трафик сущие копейки.  а все потмоу что трафик я смотрел через 
+программу nethogs а в ней трафик показан в таком вот виде 
+
+5.346 KB/sec
+
+я думал что это значит 5 346 KB\s а оказвыется это значит 5,346 KB\s тоесть 5 KB\s
+
+case closed!
+
 
 
 
