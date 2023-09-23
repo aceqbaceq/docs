@@ -6336,6 +6336,47 @@ $ cinnamon --replace -d :0.0
 поэтому внутри lxd корнтенера надо выполнить
 
 # apt-get purge -y snapd*
+===
+
+| LXDE
+
+есть такая легкая граф оболочка.
+она по дефолту стоит в lubuntu
+но ее без проблем можно поставит на классический убунту.
+	# apt install lxde
+
+и еще надо если нет поставит такую хрень как
+	# apt install  lightdm
+
+далее вот что . когда мы загрузили комп. и у нас экран где мы указываем логин пароль.
+там сверху справа надо логином юзера есть белый круг. мы на него тыкаем и там есть список
+граф оболочек которцю надо загрузить. там выбираем LXDE. и вуаля. мы в нее загрузися.
+
+еше есть такой прикол что кнопка logout когда мы в LXDE зашли в убунту 18 ( в лубунту с этим проблем нет)
+неработает. как быть. закрываем все окна у текушего юзера. и перезагружаем службу lightdm
+
+# systemctl restart lightdm
+
+и мы попадем обратно в окно где надо вводить логин пароль. тоесть таким макаром мы как бы 
+добьемся функции logout
+
+
+далее.
+как убрать сраный "update notifier"
+надо зайти в /etc/xdg/autostart
+и удалить файл upd-*
+суки
+
+
+далее. 
+как добавить русскуб клаву. 
+в лубунту там есть раздел клава в панели управления. если же мы запустили lxde в убунту18
+то делать нужно совсем по другому.
+
+права кнопка на панели задач - "add\remove panel items" - add - "keyboard layout hadler" - ...
+дальше уже понятно
+
+
 
 ===
 | AC
@@ -6828,21 +6869,57 @@ cpu MHz		: 798.082
 
 
 соотвесвтенно чем ниже частота цпу тем ниже его температура
-/\
-||
-<==================== остаоваился тут
 
 
-раньше была адова туча программ которые следили за темераторурой цпу и если что то понижали частоту цпу. 
-и эти программы часто мешали друг другу. 
-в убунту 18 осталось одна это thermald
-у нее какотой дурацкий xml конфиг нечитабельный.
+значит мы поняли что есть драйвер intel_pstate или acpi-freq и он упоаляет частотой.
+мы выставляем гавернер. и драйвер уже дергает динамческий частоту ядра.
 
-i7z - это утилита которая показыает какя темпераутра щас на цпу и какая на нем щас частота.
-также темературу на цпу можно псмотреть чере утилиту sensors
-также atop показыает текушую частоту процессара
+в целом этого уже достаотточно. 
 
-cpupower - старая програмаа ее в топку. ее уже нет в убунту18
+еще такой момент как температутра цпу. посмтреть ее можно через # i7z либо # sensors
+так вот чем меньше частота на цпу и чем меньше на цпу нагрузка тем меньше грееется цпу.
+
+так вот все что  яописал выше оно за температурой неследит у цпу. да если цпу перегревается то внутри
+самого цпу есть мехагизм защиты от перегрева. но еще раз - тот драйвер что я описал он не следит
+за тспераератутрой цпу. он следит за нагрузкой на цпу и в зависиости от высатлвенного гавернера меняет частоту.
+
+так вот есть еще программы которые сидят выше над всем этим которые следят за тепературой 
+и если цпу перегревается то они чтото меняют. ну я так думаю что они могут менять - навернре
+они меняют сам гавернер. и меняеют  scaling_min_freq  и scaling_max_freq
+но это теория. что они меняют в случае напгрева я пока незнаю.
+
+так одна из таких программ следящих за темереператорой это thermald.
+скажу сразу програма полное дерьмо.  у нее менаубеический xml конфиг. который при этом
+еще и не понятно что и как в нем менять. поэтому просто стираем эту праарашу и все.
+
+# apt-get purge -y thermald
+
+
+есть другая прогрмма аналогичная cpupower
+работате она ии нет я не знаю потому что с ней есть другая проблема - чтобы ее поставить это мудежь.
+показываю
+
+]# cpupower
+WARNING: cpupower not found for kernel 5.10.0-051000
+
+  You may need to install the following packages for this specific kernel:
+    linux-tools-5.10.0-051000-generic
+    linux-cloud-tools-5.10.0-051000-generic
+
+
+так вот у меня на убунту18 стоит "кастомное" ядро от самого canonical.
+и к этому ядру нихрена нет пакетов 
+
+ # linux-tools-5.10.0-051000-generic
+ # linux-cloud-tools-5.10.0-051000-generic
+
+поэтому я ее просто не могу поставить.
+
+также прикол в том что по крайней мере так было раншье - что в убунте по дефолту стояло 
+сразу несколько таких программ. то есть cpupower и  thermald одновременно. 
+и они мешали друг другу.
+
+ниже щас будет материал которйы частично повтоярет то что было уже описано выше.
 
 меня порадовала возможность руками задать верхнюю часоту процессора налету
 
@@ -6904,7 +6981,7 @@ conservative ondemand userspace powersave performance schedutil
 400000
 400000
 
-моя практика показал что с этим гавернером какая то хуйня
+моя практика показал что с этим гавернером  хуйня
 тоесть у меня на всех ядрах стоит гавнер= powersave
 # cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
 powersave
@@ -6929,82 +7006,803 @@ powersave
 однако эта сука держит частоту в районе 600 MHZ
 
 
-итак еще раз.
-поморетть текущую темпреатуру на цпу это 
-# sensors
-или 
-# i7z
-
-посмотреть текущую частоту на цпу это 
-# atop
-# i7z
-
-
 установка cpupower:
 # sudo apt install linux-tools-$(uname -r) linux-cloud-tools-$(uname -r)
 
 
+atop
+он показыавает две вещи в плане cpu
+ curf  400MHz | curscal  25%
+ первое число  я даже не знаю откуда он берет. потому то 
+ частота по факту плавает. а он все время покаызавает ровное число.
+ curscal видимо это тоже самое число но впроцентном отношении к макс штатной частоте
+ вобщем атоп как показатель ткущей часаоты так себе программа
+
+
+есть графическаая прога которая покаызает темпреатуру процессаора в GIU это 
+
+# apt-get install psensor
+
+она берет цифры из lm-sensors проги
+
+далее про C-states и P-states
+я напоролся на статью небезызвестного мне швейцарца которы это расписсывает.
+итак. мы хотим понизить мощность которую жрет цпу (а значит и его теспературу поппутно).
+он пишет что мощность падает пропорционально частоте и по квадрату падения вольтажа.
+понимажть мощность можно двумя путями. либо вырубать цпу целиком либо вырубать его подсистемы. и за 
+это отвеачают C-states. а можно понижать часоту и вольтаж его подистем  этим занимаюстя P-states.
+сама стстья - https://metebalci.com/blog/a-minimum-complete-tutorial-of-cpu-power-management-c-states-and-p-states/
+
+C0 - означает банальано просто режим когда цпу херачить на полной сокрости. 
+начиная с C1 уже идет реально остановка ядра.  С-состояния происхдоят только тогда когда цпу
+нечего исполнять то есть во время idle промежутка времени. тогда просихдоит C-state. остановка
+цпу. во время C-state команды на нем не исполняются. за исключением как я сказал режима C0 - это шататный режим кодга процессор херачит. чем больше цифра скажем C7 тем более глубойикий уровень  энергосбережения впдаает
+в ядро цпу. в статье есть картинка. 
+
+далее чуак упоминает что cpuid покажет какие C-states доступны в цпу
+
+# apt-get install cpuid
+
+      number of C0 sub C-states using MWAIT    = 0x0 (0)
+      number of C1 sub C-states using MWAIT    = 0x2 (2)
+      number of C2 sub C-states using MWAIT    = 0x1 (1)
+      number of C3 sub C-states using MWAIT    = 0x2 (2)
+      number of C4 sub C-states using MWAIT    = 0x4 (4)
+      number of C5 sub C-states using MWAIT    = 0x1 (1)
+      number of C6 sub C-states using MWAIT    = 0x1 (1)
+      number of C7 sub C-states using MWAIT    = 0x1 (1)
+
+как программически войти в c-state. для этого нужно в привигированном режиме запустить комнаду 
+MWAIT.
+
+
+тепер переходим к P-sattes.
+читаю такую интерсную вещь
+It is possible to use P-states in Intel Xeon E3–1200 v5 in either OS/Operating System controlled (Intel SpeedStep® Technology) or HW/Hardware controlled (Intel® Speed Shift Technology) mode. The information below about P-states is specific to Intel Xeon E3–1200 v5 Family, however, I guess it is same or similar for other modern processors.
+
+если у нас  OS controller p-states то переход осуществлется так - мы пишем в регистр какой режим
+хотим активировать. цпу вычисляет какой вольтаж гужен для этого п-стетйта . и цпу переходит в этот режим.
+
+переходы между p-states просходят оченб быстро в отличие от C-states
+
+далее я выясняил что с 4 версии линукса он поддеживает hWP (hardware p states) и что драйвер intel_pstate
+как раз таки если он активировался то значит у нас  актививрованы hardware p-states.
+также для того чтобы шарманка заработала нужен прцоессор i5. и надо чтобы в биосе эта фича
+была актвивирована. она там должна называться "Intel Speed Shift" (не путать с "Intel speed step")
+
+а вот как проверить в журнале линукса что HWP активиорван
+
+# sudo journalctl -b | grep pstate
+сен 17 23:19:04 lenovo kernel: Command line: BOOT_IMAGE=/boot/vmlinuz-5.10.0-051000-generic root=UUID=aa7152b0-f48f-4f20-ad1a-7e0c404584d3 ro systemd.unified_cgroup_hierarchy intel_pstate=enable quiet splash vt.handoff=1
+
+сен 17 23:19:04 lenovo kernel: Kernel command line: BOOT_IMAGE=/boot/vmlinuz-5.10.0-051000-generic root=UUID=aa7152b0-f48f-4f20-ad1a-7e0c404584d3 ro systemd.unified_cgroup_hierarchy intel_pstate=enable quiet splash vt.handoff=1
+
+сен 17 23:19:04 lenovo kernel: intel_pstate: Intel P-state driver initializing
+
+сен 17 23:19:04 lenovo kernel: intel_pstate: HWP enabled
+
+получается "journalctl -b"  это полный аналог или некий аналог dmesg -T
+показывает лог при загрузке
+
+
+Starting with kernel 5.7, the intel_pstate driver selects passive mode aka intel_cpufreq for CPUs that do not support hardware-managed P-states (HWP), i.e. Intel Core i 5th gen. or older.
+
+
+далее я напоролся на стаью от RedHat о частотах цпу и их управлением
+	https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/8/html/monitoring_and_managing_system_status_and_performance/tuning-cpu-frequency-to-optimize-energy-consumption_monitoring-and-managing-system-status-and-performance#doc-wrapper
+
+
+вот как в этой стьте описывают C,P,T стейты:
+	Sleep (C-states)
+	Frequency and voltage (P-states)
+	Heat output (T-states or thermal states)
+
+еще раз скажу что переклчение через P стетйты идет очень быстро
+а C стейты таковы что чем более энергосерегающий режим заюзан тем болльше времени 
+нужно цпу чтобы из него выйти.
+
+есть утилита turbostat которая инфо по цпу дает.
+но там чтото очень много на экране она рисует. вагон информации.
+
+далее много внимания прмиеняетя утиите cpupower
+
+посмтреть доступные гавернеры
+# cpupower frequency-info --governors
+analyzing CPU 0:
+  available cpufreq governors: performance powersave
+ 
+
+далее перетирается утилита perf
+
+
+ Performance counter stats for 'system wide':
+
+        170895,68      msec cpu-clock                 #    7,999 CPUs utilized          
+            20584      context-switches          #    0,120 K/sec                  
+               130     cpu-migrations            #    0,001 K/sec                  
+             1357      page-faults               #    0,008 K/sec                  
+     1413179341        cycles                    #    0,008 GHz                    
+       716176297       instructions              #    0,51  insn per cycle         
+       144742230       branches                  #    0,847 M/sec                  
+         7298401       branch-misses             #    5,04% of all branches        
+
+      21,363827428 seconds time elapsed
+
+
+это тот самый perf кооорым я обнаружил когда vmware жестко тормозил
+
+
+
+
+возвращаемся к cpupower
+
+# cpupower idle-info
+CPUidle driver: intel_idle
+CPUidle governor: menu
+analyzing CPU 0:
+
+Number of idle states: 9
+Available idle states: POLL C1 C1E C3 C6 C7s C8 C9 C10
+покажывает все C-стетйы доступные 
+
+
+посмотреть гавернер , драйвер 
+# cpupower frequency-info
+analyzing CPU 0:
+  driver: intel_pstate
+  CPUs which run at the same hardware frequency: 0
+  CPUs which need to have their frequency coordinated by software: 0
+  maximum transition latency:  Cannot determine or is not supported.
+  hardware limits: 400 MHz - 1.60 GHz
+  available cpufreq governors: performance powersave
+  current policy: frequency should be within 400 MHz and 1.60 GHz.
+                  The governor "powersave" may decide which speed to use
+                  within this range.
+  current CPU frequency: Unable to call hardware
+  current CPU frequency: 628 MHz (asserted by call to kernel)
+  boost state support:
+    Supported: yes
+    Active: yes
+
+
+далее
+позврлоляет задать чтобы комп работал на мин частоте
+# cpupower set  --perf-bias 15
+но пока непонял раотает ли оно реально
+
+проврить применилось ли оно к процу
+# cpupower -c all info -b
+analyzing CPU 0:
+perf-bias: 15
+analyzing CPU 1:
+perf-bias: 15
+analyzing CPU 2:
+perf-bias: 15
+analyzing CPU 3:
+perf-bias: 15
+analyzing CPU 4:
+perf-bias: 15
+analyzing CPU 5:
+perf-bias: 15
+analyzing CPU 6:
+perf-bias: 15
+analyzing CPU 7:
+perf-bias: 15
+
+
+вот еще одна команда  смотреть статистику
+# cpupower monitor
+    | Nehalem                   || Mperf              || Idle_Stats                                                   
+ CPU| C3   | C6   | PC3  | PC6  || C0   | Cx   | Freq || POLL | C1   | C1E  | C3   | C6   | C7s  | C8   | C9   | C10   
+   0|  0,21|  1,03| 61,11|  0,00||  1,27| 98,73|  1010||  0,01|  1,51|  0,42|  0,22|  0,70|  0,00|  8,79|  0,11| 86,98
+   4|  0,21|  1,02| 61,11|  0,00||  1,00| 99,00|   891||  0,00|  0,00|  0,00|  0,01|  0,60|  0,00|  9,89|  0,00| 88,51
+   1|  0,08|  1,43| 61,11|  0,00||  2,25| 97,75|  1011||  0,00|  1,20|  0,07|  0,07|  0,38|  0,00|  7,08|  3,97| 84,97
+   5|  0,08|  1,43| 61,11|  0,00||  0,89| 99,11|   996||  0,00|  0,12|  0,51|  0,04|  1,22|  0,00|  6,67|  0,00| 90,57
+   2|  0,10|  0,67| 61,11|  0,00||  3,54| 96,46|  1165||  0,00|  0,00|  0,04|  0,05|  0,60|  0,00|  7,65|  0,00| 88,13
+   6|  0,10|  0,67| 61,11|  0,00||  1,27| 98,73|  1318||  0,00|  0,00|  0,61|  0,08|  0,32|  0,00|  4,20|  0,00| 93,53
+   3|  0,15|  0,91| 61,11|  0,00|| 11,93| 88,07|  1549||  0,00|  1,73|  0,04|  0,17|  1,05|  0,05|  6,86|  0,06| 78,09
+   7|  0,15|  0,90| 61,11|  0,00||  0,72| 99,28|   986||  0,00|  1,68|  0,16|  0,01|  0,73|  0,00|  6,56|  0,00| 90,18
+
+
+прикольно. типа подробная статиктика по CPU стеейтам
+
+далее они пишут что эта команда вывела сразу инфо по нескольким "мониторам"
+спмсок мониторов можно получить вот так
+
+# cpupower monitor -l
+Monitor "Nehalem" (4 states) - Might overflow after 922000000 s
+C3	[C] -> Processor Core C3
+C6	[C] -> Processor Core C6
+PC3	[P] -> Processor Package C3
+PC6	[P] -> Processor Package C6
+Monitor "Mperf" (3 states) - Might overflow after 922000000 s
+C0	[T] -> Processor Core not idle
+Cx	[T] -> Processor Core in an idle state
+Freq	[T] -> Average Frequency (including boost) in MHz
+Monitor "Idle_Stats" (9 states) - Might overflow after 4294967295 s
+POLL	[T] -> CPUIDLE CORE POLL IDLE
+C1	[T] -> MWAIT 0x00
+C1E	[T] -> MWAIT 0x01
+C3	[T] -> MWAIT 0x10
+C6	[T] -> MWAIT 0x20
+C7s	[T] -> MWAIT 0x33
+C8	[T] -> MWAIT 0x40
+C9	[T] -> MWAIT 0x50
+C10	[T] -> MWAIT 0x60
+
+
+отсюда следует что доступны мониторы:
+Nehalem
+Mperf
+Idle_Stats
+
+тогда можно сделать вот так
+
+# cpupower monitor -m Nehalem
+
+    | Nehalem                   
+ CPU| C3   | C6   | PC3  | PC6   
+   0|  0,02|  0,32| 68,61|  0,00
+   4|  0,02|  0,32| 68,61|  0,00
+   1|  0,08|  0,98| 68,61|  0,00
+   5|  0,08|  0,98| 68,61|  0,00
+   2|  0,04|  0,85| 68,61|  0,00
+   6|  0,04|  0,85| 68,61|  0,00
+   3|  0,06|  0,34| 68,61|  0,00
+   7|  0,06|  0,36| 68,61|  0,00
+
+# cpupower monitor -m Mperf
+    | Mperf              
+ CPU| C0   | Cx   | Freq  
+   0|  1,65| 98,35|   631
+   4|  1,70| 98,30|   659
+   1|  0,83| 99,17|   789
+   5|  0,55| 99,45|   631
+   2|  0,83| 99,17|   679
+   6|  0,24| 99,76|   638
+   3|  0,76| 99,24|   622
+   7|  1,29| 98,71|   634
+
+# cpupower monitor -m Idle_Stats
+    | Idle_Stats                                                   
+ CPU| POLL | C1   | C1E  | C3   | C6   | C7s  | C8   | C9   | C10   
+   0|  0,00|  0,60|  0,00|  0,00|  0,08|  0,00|  6,61|  0,08| 88,60
+   4|  0,00|  0,00|  0,02|  0,02|  0,71|  0,00|  6,99|  0,00| 87,42
+   1|  0,00|  0,00|  0,00|  0,00|  0,00|  0,00|  0,42|  0,15| 95,32
+   5|  0,00|  1,18|  0,05|  0,03|  0,71|  0,00| 10,51|  0,00| 82,35
+   2|  0,00|  0,00|  0,01|  0,06|  0,22|  0,00|  8,88|  0,00| 89,56
+   6|  0,00|  1,60|  0,06|  0,01|  0,02|  0,00|  9,39|  0,00| 75,09
+   3|  0,00|  0,37|  0,02|  0,04|  0,35|  0,00|  1,72|  0,00| 92,89
+   7|  0,00|  0,00|  0,00|  0,00|  0,07|  0,00|  3,11|  0,00| 95,03
+
+
+
+описание С стейтов
+
+C0
+In this state, the CPU is working and not idle at all.
+
+C1, Halt
+In this state, the processor is not executing any instructions 
+but is typically not in a lower power state. The CPU can continue 
+processing with practically no delay. All processors offering C-states 
+need to support this state. Pentium 4 processors support an enhanced C1 
+state called C1E that actually is a state for lower power consumption.
+
+C2, Stop-Clock
+In this state, the clock is frozen for this processor 
+but it keeps the complete state for its registers and caches,
+ so after starting the clock again it can immediately start processing again.
+  This is an optional state.
+
+C3, Sleep
+In this state, the processor goes to sleep and does not need to 
+keep its cache up to date. Due to this reason, 
+waking up from this state needs considerably more time 
+than from the C2 state. This is an optional state.
+
+узнать какой драйвер активен
+# cpupower frequency-info --driver
+analyzing CPU 0:
+  driver: intel_pstate
+
+
+ доступные гавернеры
+ # cpupower frequency-info --governor
+analyzing CPU 0:
+  available cpufreq governors: performance powersave
+
+про powersave гавернер интересно написано
+powersave
+It forces the CPU to use the lowest possible clock frequency.
+ This frequency is statically set and does not change.
+  This governor offers maximum power savings, but at the cost of
+   the lowest CPU performance. The term "powersave" can sometimes be 
+   deceiving though, since in principle a slow CPU on full load
+    consumes more power than a fast CPU that is not loaded.
+     As such, while it may be advisable to set the CPU to use 
+     the powersave governor during times of expected low activity,
+      any unexpected high loads during that time can cause the system 
+      to actually consume more power. The Powersave governor is more of
+       a speed limiter for the CPU than a power saver. It is most useful 
+       in systems and environments where overheating can be a problem.
+
+
+
+# cpupower  frequency-info
+по деолфту покзвыает инфо только про ядро номер ноль.
+чтоы опсмореть инфо про все ядра нужно
+
+# cpupower -c all frequency-info
+
+
+как задать гавернер и верхнюю и нижнюю частоту между которыми будет скакать цпу
+# cpupower frequency-set --governor powersave  -d 400MHz -u 1000MHz
+
+проверяем что получислось
+
+# cpupower frequency-info 
+analyzing CPU 0:
+  driver: intel_pstate
+  ...
+  current policy: frequency should be within 400 MHz and 1000 MHz.
+                  The governor "powersave" may decide which speed to use
+                  within this range.
+  current CPU frequency: 686 MHz (asserted by call to kernel)
+ 
+ я походу начинаю догонять почему powersave недержит часоту на уровне 400МГЦ.
+ потому что было написано что цпу если работет на высокой часототе с меньшей нагрузкой
+ жрет меньше чем на меньше частоте но с большей нагрузкой.
+
+
+в итоге что касается cpupower то всего  две у него главные команды
+		# cpupower frequency-set --governor powersave  -d 400MHz -u 1000MHz
+		# cpupower set  --perf-bias 15
+
+
+
+так вот конфиг pupower я ненашел  в убунте.
+тогда я нашел как засунуть его запуск в systemd вот здесь 
+		https://sleeplessbeastie.eu/2015/11/09/how-to-set-cpu-governor-at-boot/
+
+
+
+# cat<<EOF > /etc/systemd/system/cpupower.service 
+[Unit]
+Description=CPU powersave
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/cpupower -c all frequency-set --governor powersave  -d 400MHz -u 1000MHz
+[Install]
+WantedBy=multi-user.target
+
+
+# systemctl daemon-reload
+# systemcl enable cpupower
+
+тип сервиса oneshot тоесть он одноразово отрабатвает при загрузке
+
+
+
+на счет вентилятора на цпу. на ноутбуке lenovo программа sensors (или sensors-detect) нихуя ненаходит
+датчик вентилятора. поэтому он работает сука сам по себе. а работает он походу так - пока температура 
+до 40 градосов не поднялась он не включается. 
+по поводу как это настрвиается там где это сделано по человечески смотри тут  - https://wiki.archlinux.org/title/fan_speed_control
+
+
+
+далее
+тутже я опишу как сделат так чтобы выход из suspend не происходил из за нажатия мышки usb.
+нашел тут - https://ubuntu-mate.community/t/how-to-disable-usb-wake-from-suspend/23163
+
+# cat<<EOF> /etc/systemd/system/acpi-wake.service 
+[Unit]
+Description=ACPI Wake Service
+Before=sleep.target
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c "for i in $(cat /proc/acpi/wakeup| grep enabled| awk '{print $1}'| xargs); do [ $i != PBTN ] && echo $i| tee /proc/acpi/wakeup; done"
+
+[Install]
+WantedBy=sleep.target
+EOF
+
+# ln -s /etc/systemd/system/acpi-wake.service  /etc/systemd/system/sleep.target.wants/acpi-wake.service
+# systemctl daemon-reload
+
+работает эта хрень так что она срабатывает ровно за мгновение до того как комп
+впадет в suspend это как бы pre suspend.
+он переводит все хрени в /proc/acpi/wakeup в disabled состояние. а хрени что там 
+лежат они являются штуками которые могут выводит из suspend. мы их всех отключаем 
+за исключением power button. 
+
+проверяем
+# systemctl suspend
+
+я узнал что у thinkpad t440p он не может войти в suspend
+он ругался что некое устроуство мешает перейти в suspend.
+в  итоге оказалось что его тачпад этому мешает. мне тачпад нахер не встрался на нем.
+я его просто нахер выкючил. для этого
+		# cat /etc/modprobe.d/rmi.conf 
+			blacklist rmi-smbus
+
+
+далее. у меня на работал переход в suspend для thinkpad t440p если закрыть его крышку ( в  литературе она назыывается LID).
+чтобы исправти эту хуйню надо сделат вот что :
+1) надо поставить пакет 
+		# apt install pm-utils
+
+2) надо исправить файл
+		# cat /etc/systemd/logind.conf | grep -v '#'
+		[Login]
+		HandleLidSwitchDocked=suspend
+		HandleSuspendKey=suspend
+		HandleLidSwitch=suspend
+		HandleLidSwitchDocked=suspend
+
+3) перезагрузить службу
+		# systemctl restart systemd-logind
+
+теперь можно протестировать закрываем крышку. по идее он наконец должен начать 
+впадать в suspend
+
+в целом я 
+попроьвал разобратся с /proc/acpi/wakeup но как обычно это сложно плюнул и забил.
+
+
+далее. 
+как быстро выямнить какой гавернер у нас выставлен. чтобы не лазит руками в /sys
+		# cpupower frequency-info
+
+
+
+далее.
+я узнал что есть утилита 
+	# inxi
+она предназначена чтобы лузры юзеры могли легко через эту утилиту собрать всю инфо о компе
+чтобы отправить ее более умным калдырям.
+вобщем inxi милая утилита
+напрмиер
+# inxi -C
+CPU:       Quad core Intel Core i5-8265U (-MT-MCP-) cache: 6144 KB
+           clock speeds: max: 1600 MHz 1: 840 MHz 2: 1070 MHz 3: 936 MHz 4: 1128 MHz 5: 1003 MHz 6: 1143 MHz
+           7: 860 MHz 8: 856 MHz
+
+# inxi -s
+Sensors:   System Temperatures: cpu: 34.0C mobo: N/A
+           Fan Speeds (in rpm): cpu: N/A
+
+
+далее. 
+как вручную сменить яркоть экрана а вот так
+# echo "2100" >  /sys/class/backlight/intel_backlight/brightness
+
+
+далее.
+я выяснил что все LED индикаторы компа сидят в папке
+/sys/class/leds
+при этом на финкпаде папка которая отвечает за подсвекутп клавиатуры находистя в папке
+/sys/class/leds/tpacpi::kbd_backlight
+
+а чтобы включить подсветку надо сделать так
+# echo  1 > /sys/class/leds/tpacpi::kbd_backlight/brightness
+
+и тут я пришел к другой мысли - если прошелкивание всех подпапок в /sys/class/leds
+не приводит к тому чтобы клава засветилась то значит в ней нет подсветки.
+также на всех ideapad у котоых клава с подсветкой должны на кнопке "space" дллжны иметь значок
+подсветки. если его нет то клава не имеет подстветки.   в инете я нашел что кокнертно на мой idepad
+есть как я понял альтеранативные клавы в которых уже есть подсветка. и на их конпке "space" есть занчок
+подсветки.  активируется подсвтетка через "Fn+Space" причем внезависимости от драйверов. тоесть
+если оно есть то должно всегда активроваться через комбинацию этих клавищ.
+
+
+на счет гавернеров что я выяснил из практики. плюс тут также надо уточнять на каком драйвере
+работает гавернер. во первых гавернер это производная тоесть свтойство драйвера. тоесть именно драйвер
+является поставщиком списока гавернеров. причем также важно что у разных драйверов гавернеры могут
+иметь одинаковые имена но это не значит что они будут давать одинаковое поведение. 
+у драйвера acpi-freq он создает целую кучу гавернеров
+		# cat scaling_available_governors 
+			conservative ondemand userspace powersave performance schedutil 
+а драйвер intel_pstate у него всего два гавернера: performance и powersave
+так вот powesave у acpi-freq работает по дргому чем у драйвера intepl_psstate.
+powersave у драйвера acpi-freq реально все время держит частоту на уровне нижней заданной частоты
+тоесть если мы задали 
+	# cpupower frequency-set -g powersave -d 800MHz -u 1200MH
+а потом запустили стресс тест 
+	# stress --cpu 2  --vm-bytes 128M --timeout 30
+то все это время частота будет держаться равной 800МГц.
+а если у нас драйвер intel_pstate то фиг там. если мы у него задали гавернер powersave
+	# cpupower frequency-set -g powersave -d 400MHz -u 1200MHz
+то во первых даже в хоолостом состоянии частота будет находится на уровне 600МГц а не 400МГц
+(может потому что у меня была запуещена гарфическая среда. а если ее потушить то будет в районе 400МГц).
+но если запустить стресс тест то частота через какоето время уйдет в 1200МГЦ
+потом когда тест закочнится то частота обратно вертся на уровне 600МГц. поэтому это да эт powersave
+но совсем не такой как у дарйвера acpi-freq
+
+минимальную частоту можно помимо cpupower также задать руками для кждого ядра через
+/sys/..../scaling_min_freq
+просто через cpupower это удобнее. а так пофакту он всего навсего за нас лезет в /sys и там меняет эти 
+датчики.
+
+также важно отметиь что драйвер intel_pstate он более хитрый чем драйвер acpi-freq потому что у него 
+на /sys есть своя отдельная секция (своя отдельная папка)
+		/sys/devices/system/cpu/intel_pstate
+и в этой папке у него есть два счетчика 
+		max_perf_pct
+    min_perf_pct 
+
+
+эти счетчики ограничивают макс частоту и мин частоту. 
+при этом те счетчики ограичеия частоты которые я назвал выше которые лежат в другой папке и 
+относятся к ядрам
+		/sys/devices/system/cpu/cpufreq/policy*/scaling_max_freq
+		/sys/devices/system/cpu/cpufreq/policy*/scaling_min_freq
+они тоже есть. и тоже ограничвают верхнбб и нижню частоту
+возникает вопрос . как они соотносятся? 
+ответ такой что max_perf_pct и min_perf_pct  - они более главные. причем надо замеит что max_perf_pct и min_perf_pct они влияют сразу на все ядра одноврменно а счетчики scaling_max_freq и scaling_min_freq они 
+у каждого ядра свои.  так вот max_perf_pct и min_perf_pct  - они более главные. и это значит что 
+макс скорсть ядра не может быть больше чем  max_perf_pct , тоесть scaling_max_freq он может быть меньше чем
+max_perf_pct. но никак не больше. аналогично для счетчиков для частоты снизу. тоесть 
+работае вот такое правило
+		scaling_max_freq <= max_perf_pct
+если scaling_max_freq будет выставлен больше чем max_perf_pct то система это проионорирует
+и все равно будет выставлять макс частоту на основе max_perf_pct
+
+аналогично для
+				scaling_min_freq >= min_perf_pct
+тоесть scaling* неможет быть ниже чем min_perf_pct
+
+также замечу что 
+		/sys/devices/system/cpu/cpufreq/policy*/scaling_max_freq
+		/sys/devices/system/cpu/cpufreq/policy*/scaling_min_freq
+занчения в них указываются в мегагерцах
+а в 
+		max_perf_pct
+    min_perf_pct 
+занчения указываются в процентах. за 100%  берется так назыаемая макс часатота возожмная у ядра.
+та которая может быть после применения турбо буста. для примера.
+# lscpu
+Model name:          Intel(R) Core(TM) i5-8265U CPU @ 1.60GHz
+CPU max MHz:         3900,0000
+CPU min MHz:         400,0000
+
+у него штатная частота это 1600NHZ
+а турбочастота это 3900-4000MHZ.
+так вот за 100% будет взято 4000 MHZ. и сооовсвтенно скажем 10% это 400МГЦ.
+поэтому если мы выставим 
+		max_perf_pct = 30
+то это 30% от 4000МГЦ тоесть это 1200МГЦ
+тоесть здес важно понимать что в max_perf_pct и min_perf_pct ставятся проценты и за 100%
+берется не штатная частота 1600МГЦ как могло интуитвино показаться а турбо часатота 4000МГЦ.
+также посмтреть какая штатная частаота а какая турбо у цпу можно через i7z
+
+# i7z
+  TURBO ENABLED on 4 Cores, Hyper Threading ON
+  Max Frequency without considering Turbo 1898.94 MHz (99.94 x [19])
+  Max TURBO Multiplier (if Enabled) with 1/2/3/4 Cores is  39x/38x/37x/37x
+  Real Current Frequency 398.96 MHz [99.94 x 3.99] (Max of below)
+
+
+таким макаром я на данный момент обьяснил то что: 
+1) scaling_max_freq и scaling_min_freq = часатота ставится в мегагцерацах
+	max_perf_pct и min_perf_pct = часатота ставится в процентрах.
+	за 100% берется не шататная часатота ядра а его турбочасатота.
+	узнать турбочастаоут можно либо через lscpu либо чеерз i7z
+	либо на сайте интела по нвазванию цпу
+
+2) max_perf_pct и min_perf_pct они превалируют над анаологичными счетчкиками scaling_max_freq и scaling_min_freq
+
+
+3) что гавернеры это произовадная от драйвера. у каждого драйвера свой спмсок гавернеров.
+и если даже навзение гавернера у додного дарйвера совпдает с навзанием у другого даррайврера
+это незанчит что эти гавернеры работают одинакоово.
+
+
+далее. у каждго цпу есть заводской нижний порог часатоты. мы неможем замедлить процессор
+медленнее чем этот нижний порог. скажем у одного цпу это 400МГЦ у другого это 800МГЦ.
+поэтому скажем если цпу имеет турбо часатоту 4000МГц и у него минимальная нижняя часатота с завода
+это 400МГц то миимальной занчение котрорые мы можем выставит для min_perf_pct это 10.
+тоесть 10% от 4000МГЦ это будет 400МГц. если мы будем пытаться его вытсватьи в 5% к примеру
+то это ничего недаст. там будет стоять 10% по преженму.
+
+теперь возвращаюсь к powersave гавернеру.
+у обоих драйеров есть гавернер с таким названеием. 
+повторю то что если мы выставили нижнюю часатоту равную минимальной возможно нижней часатоте
+то если у нас гавернер powersave от драйвера acpi-freq то эта связка будет держать часатоту равной 
+минимально выставленной во что бы то ни стало. а если у нас гавернер powersafe от драйвера intel_pstate
+то там часатота будет плавать. я бы сказал что  powersave от intel_psatte работает в точности как 
+гавернер ondemand от драйера acpi-freq. тоеть по возможности частаота держится визу но как только нагрузка
+растет то она будет повышена. поэтому по факту даже на мин нагрузке powersave от intel_psatte будет 
+держать часатоту всегда повыше чем наша мин часатота. скажем вы задаи мин часатот 400МГЦ а он будет
+ее держатьв районе 600МГЦ.
+
+покажу на примере "powersave+intel_pstate"
+турбо частоат = 4000МГЦ
+# cat min_perf_pct 
+10  (тоетст это 400МГЦ)
+# cat max_perf_pct 
+30  (тоесть это 1200МГЦ)
+
+# cpupower frequency-set -g powersave -d 400MHz -u 1200MHz
+
+# cat scaling_min_freq 
+400000
+# cat scaling_max_freq 
+1200000
+
+# cat scaling_driver 
+intel_pstate
+# cat scaling_governor 
+powersave
+
+и вот какая в итоге например будет итоговая частота
+# cat scaling_cur_freq 
+618766
+
+тоесть не 400МГЦ а 618МГЦ
+
+прмиер с "pwowersave+acpi-freq"
+# cat scaling_driver 
+acpi-cpufreq
+# cat scaling_governor 
+powersave
+# cat scaling_min_freq 
+800000
+# cat scaling_max_freq 
+1200000
+
+и в итоге факическая частота будет
+# cat scaling_cur_freq 
+798183
+
+тоесть мы задали 800МГЦ он держит 798МГц
+
+итак мы уяснили на какой часатоте будет держать комп гаверне powersave в случае
+обоих драйверов. еще раз скажу что powersave от acpi-freq он реальнорабоатет как powersave
+а powersave от intel_psate он рабоатет по факту как ondemadn от acpi-freq
+
+но еще также интересно как себя ведет гавернер performance котоырй есть тоже у обоих 
+драйверов. 
+так вот там очень инересно. если перключится на этот гавернер то оба они детвуют одинакоово. 
+они устанавливают на цпу турбо часатоту. и пытаютя ее макс удержать. поэтому пока позволяет 
+температура на чипе то процессор  со штатной часатотой 1.6ГГц он будет работать на частаоте 4.0ГГц.
+я это проерил на практике. ка только перелючаю на performance гавернер то часатота на ядрах сразу
+влетает в космос в турбо частоту. это хороо видно в i7z
+
+# cpupower frequency-set -g performance -d 400MHz -u 4000Mhz
+
+на всякий случай проясню такой вопорос - как связь между гаверер и драйвер. гавернер это порожение
+драйвера. без драйвера нет гавренера. спсок гавернеров и их повдеение определяется драйвером. дарйверов
+два acpi-freq и intel_pstate
+
+как ыбстро узнать какой драйвер щас , какой гавренер и какой диапазон частот задан
+# cpupower frequency-info
+  driver: intel_pstate
+  current policy: frequency should be within 400 MHz and 1.20 GHz.
+                  The governor "powersave" may decide which speed to use
+                  within this range.
+  current CPU frequency: 686 MHz (asserted by call to kernel)
+
+еще пример на другом прцоессоре:
+# cpupower frequency-info
+  driver: acpi-cpufreq
+  hardware limits: 800 MHz - 2.60 GHz
+  current policy: frequency should be within 800 MHz and 1.20 GHz.
+                  The governor "powersave" may decide which speed to use
+                  within this range.
+  current CPU frequency: 800 MHz (asserted by call to hardware)
+
+для core-i5 комфортная температура ксати 40-60 градусов.
+
+
+еще раз также покажу как нам сохранить настройки по гавернру и часатота.
+для этого надо создать служба systemd
+
+
+# cat<<EOF >/etc/systemd/system/cpupower.service 
+[Unit]
+Description=CPU powersave
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/cpupower -c all frequency-set --governor powersave  -d 400MHz -u 1000MHz
+[Install]
+WantedBy=multi-user.target
+EOF
+
+
+
+это все очень интеерсно.
+
+
+
+
+
+$$$$$$$$$$$$$$$$
+$$$$$$$$$$$$$$$$
+$$$$$$$$$$$$$$$$
+
+
+ноутбук lenovo как у него настроить принудительно вентилятор ?
+
+далее.
+на счет насттройки вращения вентилятора. на thinkpad удалось настроить чтобы он вращался
+тогда когда нужно. по деолфту в динуксе эта сука вобще не вращалась и цпу перегревался.
+как это сделать 
+
+
+вклбчить конвесрватиное сохранение батарейик бука
+First make sure the ideapad_laptop kernel module is loaded, with the lsmod command.
+If it is, run the following command as root to enable Battery Conservation Mode:
+# echo 1 > /sys/bus/platform/drivers/ideapad_acpi/VPC2004:00/conservation_mode
+
+описать как я успешно настроиил управление вентилятором на финкпаде!
+отключаить wake по usb (/bin/sh -c "for i in $(cat /proc/acpi/wakeup|grep enabled|awk '{print $1}'|xargs); do [ $i != PBTN ] && echo $i|tee /proc/acpi/wakeup;done")
+включить на финкпаде засыпание по закрыванию крышки!
+
+
+еще одна утилита управлением питанием цпу
+# x86_energy_perf_policy -r
+cpu0: EPB 15
+cpu0: HWP_REQ: min 4 max 10 des 0 epp 128 window 0x0 (0*10^0us) use_pkg 0
+cpu0: HWP_CAP: low 1 eff 7 guar 16 high 39
+...
+покзавает профиль питания цпу. 
+както отличается от гавернеров и intel_pstep
+
+устновить новый профиль
+# x86_energy_perf_policy  power
+
+виды профилей
+  normal  default Set a policy with a normal balance between performance and energy efficiency.  The processor will  tolerate  minor  performance  compromise  for
+       potentially significant energy savings.  This is a reasonable default for most desktops and servers.  "default" is a synonym for "normal".
+
+  performance Set a policy for maximum performance, accepting no performance sacrifice for the benefit of energy efficiency.
+
+  balance-performance Set a policy with a high priority on performance, but allowing some performance loss to benefit energy efficiency.
+
+  balance-power Set a policy where the performance and power are balanced.  This is the default.
+  
+  power Set a policy where the processor can accept a measurable performance impact to maximize energy efficiency.
+
+
+
+
+
+что такое powetop ?
 дальнейшее обсуждение:
-
-ustanovka lxde
-
-nepravilnaya cahstota
-]$ sudo watch -n 1  cat /sys/devices/system/cpu/cpu*/cpufreq/cpuinfo_cur_freq
-
-pravilanaya chastota
-
-[vasya@lenovo magenable-n8n]$ sudo cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_cur_freq
-785870
-795428
-799550
-799565
-798412
-799498
-798721
-789010
-[vasya@lenovo magenable-n8n]$ sudo watch cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_cur_freq
-[vasya@lenovo magenable-n8n]$ ^C
-[vasya@lenovo magenable-n8n]$ ^C
-[vasya@lenovo magenable-n8n]$ sudo watch cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_cur_freq
-
 https://unix.stackexchange.com/questions/87522/why-do-cpuinfo-cur-freq-and-proc-cpuinfo-report-different-numbers
 https://kernel.ubuntu.com/~kernel-ppa/mainline/v5.10/
 
+tlp ?
+
+
+https://wiki.archlinux.org/title/Hardware_video_acceleration
+
+
+| laptop
+| sn
+| serial number
+
+как узнать серийный номер ноутбука
+
+# dmidecode
 
 
 
-LXDE: как доабвит русскую клаву. правая кнопка мыщи на таск баре -...
+===
+| tlp
 
-упраенме пииание - такая пизда. на старом буке я вотключил intel_pstate и это помогло.
-тоесть после суспенд он релаьно больше не впдаатет в больше 800 МГЦ.
-а на новом буке эта хуйня не позволяет занизить часоттту до 400МГЦ поэтмоу я оставл интел_пстейт.!
+дока - https://linrunner.de/tlp/usage/index.html
 
-lxde  с ними ткаа прблем а в убунту18. его можно поставит но logout ука нерабоатет. выход-
-нужно перезагрущжать служба lighdm
+установка в уунту
 
-atop врое как  понял показывает неверную частоту для цпу потмоу что эторазные вещи
-cpuinfo_cur_freq
-и
-scaling_cur_freq
+# apt-get install tlp
 
-
-
-governor
-thremald
-cpupower
-tlp
-psense
-на убунту 18 следит за температурой и перегревром юнит thermald
-
-бвают люди пишут что у них частота ядра маленькая. и порой это решается тем что удаляется
-этот пакет с thermald.
-
-далее ряд заметок на счет управления питанием цпу и его частотой:
-- intel_pstate=active
-
-утилита которя показывает на какой частоте щас работает прроцессор
-
-# apt-get install -y i7z
+проверка что tlp арботает
+# tlp-stat -s
+...
+State          = enabled
 
 
 
