@@ -7417,6 +7417,33 @@ EOF
 лежат они являются штуками которые могут выводит из suspend. мы их всех отключаем 
 за исключением power button. 
 
+также я прочитал и про другой способ (https://blog.christophersmart.com/2016/05/11/running-scripts-before-and-after-suspend-with-systemd/) добавить событие которые должно протсходить
+пперед тем как система уйдет в суспенд. а именно надо 
+в папку 
+	/usr/lib/systemd/system-sleep
+добавить bash скрипт
+
+# cat /usr/lib/systemd/system-sleep/acpi-suspend.bash 
+#!/bin/sh
+if [ "${1}" =  "pre" ]
+then
+    for i in $(cat /proc/acpi/wakeup| grep enabled| awk '{print $1}'| xargs)
+       do 
+          [ $i != PBTN ] && echo $i| tee /proc/acpi/wakeup
+       done
+fi
+
+основное требовние к нему чтобы он сработал это надо в нем отлавливать аргумент "pre"
+что я и сделал. ну и тело скрипта что он должен делать. тогда он будет выполнться
+перед тем как система уходит в суспенд.
+
+в итоге я выполнил эту настройку вдвух вышеукаазных местах и таким маккаром у меня бук
+перетал просыпаться от деррания мышки. вообще от всего перестал просываться кроме как от нажаття 
+на кнопку POWER. очень удобно.
+
+
+
+
 проверяем
 # systemctl suspend
 
@@ -7430,6 +7457,19 @@ EOF
 
 далее. у меня на работал переход в suspend для thinkpad t440p если закрыть его крышку ( в  литературе она назыывается LID).
 чтобы исправти эту хуйню надо сделат вот что :
+0) основаня причина в том что на буке стоит LUBUNTU
+у нее в "панели управления" есть "POwer management" там есть закладка LID.
+LID это как раз крышка ноутбука. и там в "панели управления - power management -LID " лубунты стоит настройка . во первых о том что еслт крышка закрыта то ничего на ноутбуке недолжно происходить. 
+это и есть основаня прична того что при заркытии крышки бук не входит в suspend.
+причем четко видно вот что - кода мы находиимся в окне где вводится логин и пароль ( кстати на lubuntu 
+display manager это sddm если его перезапустит то мы автоматом logout и оказыатся в окне вводда логина
+пароля) то там при закрытии крышки система входит в suspend 
+а если мы ввоеди логин пароль то уже система нереагируетс на закрытие крышки
+так вот надо в том месте что указал поправить и указать чтобы при закрытии крыши система
+входила в suspend.
+
+также помимо этого можно сделать доплениельные дейтсвия :
+
 1) надо поставить пакет 
 		# apt install pm-utils
 
@@ -7444,8 +7484,10 @@ EOF
 3) перезагрузить службу
 		# systemctl restart systemd-logind
 
+
+
 теперь можно протестировать закрываем крышку. по идее он наконец должен начать 
-впадать в suspend
+впадать в suspend.
 
 в целом я 
 попроьвал разобратся с /proc/acpi/wakeup но как обычно это сложно плюнул и забил.
@@ -7714,6 +7756,198 @@ EOF
 
 это все очень интеерсно.
 
+далее. 
+еще одна полезяняшка для нуотбука.
+включить консервативное сохранение батарейки бука
+First make sure the ideapad_laptop kernel module is loaded, with the lsmod command.
+If it is, run the following command as root to enable Battery Conservation Mode:
+# echo 1 > /sys/bus/platform/drivers/ideapad_acpi/VPC2004:00/conservation_mode
+это будет приваодит к тому что батарейка бука ее заряд будет поддерживаться на уровне 60%
+и это позицирнируется что это офигенно сохраняет ее срок службы.
+я проверирил реально заряд батарейки неподнимтся выше 60%
+
+
+далее
+thinkfan
+описываю как на нотубуке thinkpad t440p
+как на нем по человечески настроить вентилятор.
+чтобы он сука врашался когда и сколько нужно. 
+на счет насттройки вращения вентилятора. на thinkpad удалось настроить чтобы он вращался
+тогда когда нужно. по деолфту в динуксе эта сука вобще не вращалась и цпу перегревался.
+как это сделать,
+за основу взял эту статью = https://gist.github.com/Yatoom/1c80b8afe7fa47a938d3b667ce234559
+
+	# apt-get install lm-sensors thinkfan
+
+ищем температурные датчкии
+	# find /sys/devices -type f -name "temp*_input"
+
+плоучим чтото типа такого 
+/sys/devices/platform/thinkpad_hwmon/hwmon/hwmon2/temp6_input
+/sys/devices/platform/thinkpad_hwmon/hwmon/hwmon2/temp3_input
+/sys/devices/platform/thinkpad_hwmon/hwmon/hwmon2/temp7_input
+/sys/devices/platform/thinkpad_hwmon/hwmon/hwmon2/temp4_input
+/sys/devices/platform/thinkpad_hwmon/hwmon/hwmon2/temp8_input
+/sys/devices/platform/thinkpad_hwmon/hwmon/hwmon2/temp1_input
+/sys/devices/platform/thinkpad_hwmon/hwmon/hwmon2/temp5_input
+/sys/devices/platform/thinkpad_hwmon/hwmon/hwmon2/temp2_input
+/sys/devices/platform/coretemp.0/hwmon/hwmon3/temp3_input
+/sys/devices/platform/coretemp.0/hwmon/hwmon3/temp1_input
+/sys/devices/platform/coretemp.0/hwmon/hwmon3/temp2_input
+/sys/devices/virtual/thermal/thermal_zone0/hwmon1/temp1_input
+
+будем совать это в конфиг thinkfan
+
+вот мой рабочий конфиг:
+
+# cat /etc/thinkfan.conf 
+hwmon /sys/devices/platform/thinkpad_hwmon/hwmon/hwmon2/temp6_input
+hwmon /sys/devices/platform/thinkpad_hwmon/hwmon/hwmon2/temp3_input
+hwmon /sys/devices/platform/thinkpad_hwmon/hwmon/hwmon2/temp7_input
+hwmon /sys/devices/platform/thinkpad_hwmon/hwmon/hwmon2/temp4_input
+hwmon /sys/devices/platform/thinkpad_hwmon/hwmon/hwmon2/temp8_input
+#hwmon /sys/devices/platform/thinkpad_hwmon/hwmon/hwmon2/temp1_input
+hwmon /sys/devices/platform/thinkpad_hwmon/hwmon/hwmon2/temp5_input
+hwmon /sys/devices/platform/thinkpad_hwmon/hwmon/hwmon2/temp2_input
+hwmon /sys/devices/platform/coretemp.0/hwmon/hwmon3/temp3_input
+hwmon /sys/devices/platform/coretemp.0/hwmon/hwmon3/temp1_input
+hwmon /sys/devices/platform/coretemp.0/hwmon/hwmon3/temp2_input
+hwmon /sys/devices/virtual/thermal/thermal_zone0/hwmon1/temp1_input
+
+
+
+(0,	0,	30)
+(1,	30,	33)
+(2,	33,	37)
+(3,	37,	40)
+(4,	40,	42)
+(5,	42,	44)
+(7,	44,	32767)
+
+
+первая часть конфига это тепераутарные датчики чтото типа того
+вторая часть это таблица с тесператураами и насколько быстро при этом ддолен врашаться
+вентиляор.
+первая колонка 
+ 0,
+ 1,
+ 2,
+ 3,
+ 4,
+ 5,
+ 7
+
+ это сокрсть вентилятора обозначенная не в конкретных rpm а
+в формате условного ранжироованияю 0 - это внетилятор либо неработает либо врашается по имнимуму
+а 7 - это макс обороты вентиятора
+
+вторая и третя колонка это диапазон температур в рамках ккоторых ралотает вентилятор на одной частоте 
+врашения
+
+	# echo "options thinkpad_acpi fan_control=1" > /etc/modprobe.d/thinkfan.conf
+	modprobe thinkpad_acpi
+
+	# cat /etc/modprobe.d/thinkfan.conf
+	options thinkpad_acpi fan_control=1 experimental=1
+
+
+протестиорвать финкфан до запуска в виде сервиса
+	# thinkfan -n
+
+  # sudo service thinkfan start
+  # service thinkfan status
+
+  чтобы хрень работала при загрузке надо также добавиьт в /etc/modules
+  			thinkpad_acpi
+				coretemp
+
+  # sudo systemctl enable thinkfan.service
+
+значит при настройке этой шарманки у меня вылезла (не помню уже где) ошибка
+				ERROR: Module thinkpad_acpi doesn't seem to support fan_control 
+решение 
+		# echo "options thinkpad_acpi fan_control=1 experimental=1" | sudo tee /etc/modprobe.d/thinkfan.conf
+    # sudo modprobe -rv thinkpad_acpi
+    # sudo modprobe -v thinkpad_acpi
+    # service thinkfan restart
+
+и все зараобтало! решение нашел здест (https://github.com/vmatare/thinkfan/issues/45)
+при этом и в sensors стало показывать частоту врашения вентилятора а до этого ноль рисовало
+
+
+далее. 
+cpupower
+что я про него еще открыл.
+вот мы хотим посмотреть какой у нас драйвер. какой у нас гавернер.
+какие у нас частоты ращреены?
+# cpupower frequency-info
+analyzing CPU 0:
+  driver: intel_pstate
+  CPUs which run at the same hardware frequency: 0
+  CPUs which need to have their frequency coordinated by software: 0
+  maximum transition latency:  Cannot determine or is not supported.
+  hardware limits: 400 MHz - 1.60 GHz
+  available cpufreq governors: performance powersave
+  current policy: frequency should be within 400 MHz and 1000 MHz.
+                  The governor "powersave" may decide which speed to use
+                  within this range.
+  current CPU frequency: Unable to call hardware
+  current CPU frequency: 778 MHz (asserted by call to kernel)
+  boost state support:
+    Supported: yes
+    Active: yes
+
+видтим что у цпу0 драйвер intel_pstate
+что гавернер это powersave
+что гавернер будет выбирать часаототы в диапазоне 400-1.6GHz
+но по факту в плане разрешенных частот это полная хуйня. потому что 
+мы идем в /sys и смотрим для цпу0 настройки 
+
+# cat /sys/devices/system/cpu/cpufreq/policy0/scaling_min_freq 
+400000
+# cat /sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq 
+1000000
+
+тоест несовпаение! cpupower врет!
+более того идем еще вот сюда
+# cat /sys/devices/system/cpu/intel_pstate/max_perf_pct 
+30
+# cat /sys/devices/system/cpu/intel_pstate/min_perf_pct 
+10
+
+у нас цпу имеет турбо частоту 4000MHz. значит 
+max_perf_pct = 1200 MHz
+min_perf_pct = 400 MHz
+
+мы видим что эти настройки расходятся с тем что мы только смотрели выше.
+также мы вспоминаем что pct настройки они преобраладают. значит в итоге диапазон 
+рарешенных частот это 
+
+400 MHz-1200 MHz
+
+таким макром я понял что cpupower врет!
+
+
+
+
+далее читаю про cpufreq. что это за хрень.
+cpufreq.
+походу это опция при компиляции линукса котоаря как раз таки дает взможмность в целом конфигурировать 
+частоту цпу динамически. 
+походу так и есть
+
+# cat /boot/config*91* | grep -i cpufreq
+CONFIG_X86_PCC_CPUFREQ=y
+CONFIG_X86_ACPI_CPUFREQ=y
+CONFIG_X86_ACPI_CPUFREQ_CPB=y
+
+эта подсистема состоит из трех частей. код ядра(общий) + драйвер (acpi-freq \ intel_pstate) + говернер
+
+Operating Performance Points = тоже самое что P-state
+
+^
+||
+==== закончил тут
 
 
 
@@ -7721,24 +7955,22 @@ EOF
 $$$$$$$$$$$$$$$$
 $$$$$$$$$$$$$$$$
 $$$$$$$$$$$$$$$$
+
+прочитать pdf-ку от леново по cpufreq
+
+cpufreq что это такое ? (https://docs.kernel.org/admin-guide/pm/cpufreq.html#:~:text=CPU%20Performance%20Scaling%20in%20Linux&text=The%20CPUFreq%20core%20provides%20the,which%20the%20other%20components%20operate.)
+
+
+MSR - model specific regiter ?
+
+есть такая ошибка в логах 
+: msr: Write to unrecognized MSR 0x38f by i7z (pid: 3751)
+пока что решение такое  = echo on | sudo tee /sys/module/msr/parameters/allow_writes
 
 
 ноутбук lenovo как у него настроить принудительно вентилятор ?
 
-далее.
-на счет насттройки вращения вентилятора. на thinkpad удалось настроить чтобы он вращался
-тогда когда нужно. по деолфту в динуксе эта сука вобще не вращалась и цпу перегревался.
-как это сделать 
 
-
-вклбчить конвесрватиное сохранение батарейик бука
-First make sure the ideapad_laptop kernel module is loaded, with the lsmod command.
-If it is, run the following command as root to enable Battery Conservation Mode:
-# echo 1 > /sys/bus/platform/drivers/ideapad_acpi/VPC2004:00/conservation_mode
-
-описать как я успешно настроиил управление вентилятором на финкпаде!
-отключаить wake по usb (/bin/sh -c "for i in $(cat /proc/acpi/wakeup|grep enabled|awk '{print $1}'|xargs); do [ $i != PBTN ] && echo $i|tee /proc/acpi/wakeup;done")
-включить на финкпаде засыпание по закрыванию крышки!
 
 
 еще одна утилита управлением питанием цпу
@@ -7770,6 +8002,8 @@ cpu0: HWP_CAP: low 1 eff 7 guar 16 high 39
 
 
 что такое powetop ?
+
+
 дальнейшее обсуждение:
 https://unix.stackexchange.com/questions/87522/why-do-cpuinfo-cur-freq-and-proc-cpuinfo-report-different-numbers
 https://kernel.ubuntu.com/~kernel-ppa/mainline/v5.10/
@@ -7778,6 +8012,8 @@ tlp ?
 
 
 https://wiki.archlinux.org/title/Hardware_video_acceleration
+
+
 
 
 | laptop
