@@ -8185,6 +8185,98 @@ $$$$$$$$$$$$$$$$
 $$$$$$$$$$$$$$$$
 $$$$$$$$$$$$$$$$
 
+вылезал такая пролблема - очень мделнно 3с стартует mc. 
+раньше так было когда в /etc/jhosst остутссутвует 127ю.0.0.1 lnovo 
+щас оно там ест. можно стартунть быстро mc через mc -u но тогда нет локального шелл
+при этом 
+# nslookup lenovo 
+раотаеает
+я поумал что может все таки это из за прблем с dns резвомингом 
+потому что 
+$ host lenovo 
+выдает ошибку
+Host lenovo not found: 3(NXDOMAIN)
+хуф знеает что эт значит
+
+я подумал что может это из за dnsmasq
+я удалил файл из /etc/NetworkManager/dnsmasq.d
+и удалил файл из 
+/etc/NetworkManager/conf.d
+скорировал их в ~/Backup2
+перезаустил # systemctl restart NetowrkManager
+при этом сломался /etc/resol.conf  был 127.0.1.1 стал 127.0.0.53
+я руками заменил на 8.8.8.8
+после этого даже nslookup lenovo перстал работать 
+я заменил
+# cat /etc/nsswitch.conf 
+
+hosts:          files mdns4_minimal [NOTFOUND=return] dns myhostname  
+на
+hosts:          myhostname files mdns4_minimal [NOTFOUND=return] dns 
+
+новсе равно mс стартует 3 секунды. надо раозобораться в этой всей хукйне
+
+я все конфиги вернуло братно . и выясил вот здеь (https://fedoramagazine.org/using-the-networkmanagers-dnsmasq-plugin/)
+что оказыатся по деолту dnsmqsq сука не исползует /etc/hosts 
+тогда я добавтл файл 
+
+
+# cat /etc/NetworkManager/dnsmasq.d/02-add-hosts.conf 
+# /etc/NetworkManager/dnsmasq.d/02-add-hosts.conf
+# By default, the plugin does not read from /etc/hosts.  
+# This forces the plugin to slurp in the file.
+#
+# If you didn't want to write to the /etc/hosts file.  This could
+# be pointed to another file.
+#
+addn-hosts=/etc/hosts
+
+ретартанул NetwrorkMahager и теперь у меня "lenovo" резврися уппешно
+
+ # # host lenovo
+lenovo has address 127.0.0.1
+
+онако mc по пржунму стартутет озуенно долго 
+
+далее я нахуй удлил опоять весь этот dnsmsq
+и еще в /etc/sytemd/resolved.conf
+удалил
+DNSStubListener=no
+
+рестарт netowekrmamager он меняет
+/etc/reolsolv.conf на 
+127.0.0.53
+
+такжа выынсилоась что на дургх сокета все равно раобатет dnsmsqk потмоу что его 
+запустил lxd!
+но все равно запуск mc работает попржнму сука долдго!
+
+дело окащалос совсем в другом не в dns. а в .bashrc
+
+вот эти строки охуенно задерживали загрузку mc
+
+# The next line updates PATH for Yandex Cloud CLI.
+if [ -f '/home/vasya/yandex-cloud/path.bash.inc' ]; then source '/home/vasya/yandex-cloud/path.bash.inc'; fi
+
+# The next line enables shell command completion for yc.
+if [ -f '/home/vasya/yandex-cloud/completion.bash.inc' ]; then source '/home/vasya/yandex-cloud/completion.bash.inc'; fi
+
+суки яндексовские
+
+и вот эти строки
+
+#export NVM_DIR="$HOME/.nvm"
+#[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
+#[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+
+
+на комее по деолфту /etc/resolv.conf смотрит в /run/systemd/resolvs/stub-resolv.conf
+
+
+
+наод проработать соседний текстовый файл который про nmcli который я анписал когда 
+с роутером вощился. кстати надо роутер зарестить и пароль вай фай более сильный записать
+
 
 cpufreq что это такое ? (https://docs.kernel.org/admin-guide/pm/cpufreq.html#:~:text=CPU%20Performance%20Scaling%20in%20Linux&text=The%20CPUFreq%20core%20provides%20the,which%20the%20other%20components%20operate.)
 
