@@ -8690,6 +8690,34 @@ RAPL это
 Most modern processors, including Intel processors, provide Running Average Power Limit (RAPL) interfaces for reporting the accumulated energy consumption of various power domains (for example, PP01 or Package).
 
 
+еше прикол щас покажу комарду и откуда она берет свои цифры
+и обозначу папку "/sys/devices/system/cpu/cpu0/cpufreq" как ".../" иначе в экране не влезет
+
+# cpupower frequency-info
+analyzing CPU 0:                  <=== процссорс CPU0
+  driver: intel_pstate            <== взято отсюда  .../intel_pstate
+  CPUs which run at the same hardware frequency: 0
+  CPUs which need to have their frequency coordinated by software: 0
+  maximum transition latency:  Cannot determine or is not supported.
+  hardware limits: 400 MHz - 1.60 GHz                 <=== взято из .../cpuinfo_{min,max}_freq
+  available cpufreq governors: performance powersave  <=== взято из .../scaling_available_governors
+  current policy: frequency should be within 400 MHz and 700 MHz. <=== взято из .../scaling_{min,max}_freq
+                  The governor "powersave" may decide which speed to use
+                  within this range.
+  current CPU frequency: Unable to call hardware  <=== это он искал cpuinfo_cur_freq но его нет
+  current CPU frequency: 639 MHz (asserted by call to kernel) <=== взято из .../scaling_cur_freq 
+  boost state support:
+    Supported: yes
+    Active: yes
+
+
+отсюда видно что cpupower утилита она все берет из папки "/sys/devices/system/cpu/cpu0/cpufreq"
+это значит что она полностью игноритует настройки  в папке "/sys/devices/system/cpu/intel_pstate"
+а между прочим игнорроовать ее нельзя . потому что там находтся найтсроки котоыре перебивают их.
+опоэтому в целом показатели cpupower могут быть соврешенно некоректные!
+
+
+
 $$$$$$$$$$$$$$$$
 $$$$$$$$$$$$$$$$
 $$$$$$$$$$$$$$$$
