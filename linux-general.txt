@@ -8174,17 +8174,587 @@ scaling_max_freq = 2000 MHZ
 intel_pstate
 это значит что шарманка работает в режиме HWP
 
-^
-||
-==== закончил тут
+что касается драйвера который отвечает за частоту то такого неможет быть чтобы часть ядер обслуживааласт
+одним драйвером а часть другим. все ядра всегда обслуживаюсят одним драйвером
+
+еще про affected_cpus - это какие цпу подвержены настройками папки в котором эотот счетчик сидит.
+но у меня по факту всегда в этом счетчике прописано одно ядро. такого чтобы там было указано 
+несколко ядер такого я не видел
+
+related_cpus = непонял разницу между affected_cpus. по моему одно и тоже
+
+scaling_cur_freq - та часатота которую драйвер запросил выставить у цпу. по факту
+тут всегда я вижу часатоту котоаря по факту и есть на цпу щас.
+
+гавернер schedutil - как я понял это считается эволюция гавернеров ondemand и consrravtive.
+он как я понял высчитвает какую часатоту надо выставит на ядре исходя из очереди заданий в шедулере
+линукса на этом ядре.  подробность описан хуево поэтому мало понятно
+
+гавернер ондеманд - уже понятно что он выставляет частоту цпу тем выше чем выше нагрузка
+и обратно ее убирает до нуля как только можно. минус этого гвернереа в том что как написано в  этой доке 
+(https://docs.kernel.org/admin-guide/pm/cpufreq.html#:~:text=CPU%20Performance%20Scaling%20in%20Linux&text=The%20CPUFreq%20core%20provides%20the,which%20the%20other%20components%20operate.) то что код этого драйвера
+вызывает частоый конекст свич (как они это опрелелили?) тоесть юзание этого гавернера вызывает некий 
+по их мнмнеию ошутмый оверхед. ну хз.
+
+гавернер conservative - такой же как ондеманд но часатоту резко не меняет. а делает это 
+более тягуче.
+
+no_turbo = опреедляет разрешено гавернеру заказывать турбо часатоты. или нет. 
+1 означает нельзя. 0 означает можно. если выставлен 0 то это не значит что сейас в эту
+секунду юзаются туборо часатоты. это означает что в принипципе это разрешено. а дальге решает 
+гавернер когда включать эти турбо часатоты.
 
 
+погвооиим про дарйвер intel_psatte
+intel_pstate - он выполенен не в форме модуля а вмонтирован в само ядро. ну мне в этом плане 
+похеру.
+этот драйвер может работать в активном или пассивном режиме. пока что я разницу не понял. понял
+толдько то что активный режим он как бы полноценный. а пассивный он каличный.
+
+итак активиный режиме. если драйвер работает в этом режиме то тогда в sysfs счетчик  scaling_driver
+будет равен intel_pstate. это вот такой признак что у нас активный режим. этот реэим возможен
+если cpu поддерживает HWP фишку. 
+насколко я понял хуевой доки (https://docs.kernel.org/admin-guide/pm/intel_pstate.html#coordination-of-p-state-limits) что при таком режиме и таком драйвере можно 
+для разных ядер выбрать разный гавернер. но это не рекомендуют. сомнваюсь что это реально так.
+в этом режиме доступно два гавернера performance - тут все понятно.
+и powersave - а тут засада. работает совсем нетак как гаверне драйвера acpi-freeq а работает скорее
+как  schedutil\ondemand.
+если у нас драфвер intel_psatet и active режим то возникает вопрос а какой тогда по дефолту 
+гаернер будет заюзан. ответ такой. идем в config ядра и там проверяем вот что 
+
+$ grep "CONFIG_CPU_FREQ_DEFAULT_GOV_PERFORMANCE"  config-5.*91*
+CONFIG_CPU_FREQ_DEFAULT_GOV_PERFORMANCE=y
+
+здесь мы видим "y" значит по дефолту будет выбран гавернер "performance"
+ну окей. так себе инфо.
+
+как я уже сказал что intel_pstate драйер будет актививрован в active режиме только если у цпу 
+внутри есть фича HWP. если она есть то она будет автоматом активована. и после этого ее дезактировать 
+уже будет нельзя. ну окей и что из этого?  
+если мы хотим дезактивиоровать HWP при загурзке то надо в строке GRUB для ядра вставит строку
+			intel_pstate=no_hwp
+и что? что это дает ? ясно только то что тогда активный режим запуска драйвера intel_pstate
+будет невозможен
+
+есл у нас активный режиме то драйвер will write 0 to the processor's Energy-Performance Preference (EPP) knob (if supported) or its Energy-Performance Bias (EPB) knob (otherwise), which means that the processor's internal P-state selection logic is expected to focus entirely on performance.
+
+knob - означает ручка крутилка. забавно я думал что внутри цпу регистры а не настройки и крутилки.
+в целом мне похер что он записывает 0 в knob. что нам с этого ?
+
+и тут повестование прыгает на соседнюю тему и я начинаю расмативат тему "Intel Performance and Energy Bias Hint"
+ее можно подкруnить в двух местах
+
+# cat /sys/devices/system/cpu/cpu0/cpufreq/energy_performance_preference 
+power
+этот датчик можно менять
+доступные хрени пожно подсмотреть тут
+
+# cat /sys/devices/system/cpu/cpu0/cpufreq/energy_performance_available_preferences 
+default performance balance_performance balance_power power 
+
+так вот этот датчик можно подкрутить и в другом месте
+# cat /sys/devices/system/cpu/cpu0/power/energy_perf_bias 
+15
+
+правда этот датчик имеет значения не виде слов как выше а в форме чисел. от 0 до 15.
+
+а дальше непонятная хуйня -если я меняю в одном месте то не меняется другой дачтик.
+что за хуйня? так вот эта хрень она влияет на чтото связанное с энергомеотреблением.
+но в каком роде непонятно. и непонятно как это связано с гавернерами. как они друг с другом
+неконфлилктуют.  так что пока полная хуня. спасибо ебнутым докам.
+
+у esxi написано что acpi performance states это P-states а  acpi power states это c-states . ну оокей.
+еще раз напомню что если прям щас цпу ненужно выполнять никакие команды то его можно отклочить 
+усыпить через один из C-states. а если у нас щас цпу должен выполнять команду то нефакт что мы хотим ее выполнять на макс скорости. и это p-states. он уменшаеь часатоту и вольаж ядра на некоторое время.
+чем более продвинутый c-state тем дольше таймаут чтоб после этого вернуть цпу обратно в строй но 
+и экономия энергии больше.
+
+на счет турбо буста в презентации чуавка из чехии универа написано что часатота текущая турбо буста
+независит от температуры а зависит от последних выполенных инструкций
+(https://events.it4i.cz/event/39/attachments/150/344/04-2020-01-29-prace-ee-DC-RS.pdf)
+в ней же я наконец вроде нашел что за хрень "Intel Performance and Energy Bias Hint" потому что на данный 
+момент я нихена не понимаю из шлака инфо из интернета что эта хрень делает в рельности. я поставил ее на 
+15 и у меня цпу не стал греться меньше нихуя. так вот этот чувак пишет что в завиимости от этой хрени
+если активированы турбо часатоты то якобы процессор мониторит холостые циклы свои и исходя из этого
+назначает на очередном этапе мониторинга ту турбо частоту ( а их много потому что их целый спектр)
+которая обеспечивает перфоманс и в тоже время не зашкаливает вверх  без нужды в лишнее. 
+как я это примерно вижу в теории что за какойто интервал времени у нас цпу будет назначать некоторую 
+турбо часатоту (одну из спекктра турбо частот) что у нас нагузка на цпу будет скажем 90%. тоесть 
+четко видно что мощности процессора хваватает на обеспечение расчетов но она не задирается втупую до макс турбочасатоты.  грубо говоря скажем у нас макс турбо часатота 4000MHZ.  и цпу исходя из нагрузки 
+переключается на часатоту 3400MHZ такую что ее достаточно что в линуксе в top мы видим что цпу нагружен на 90%.
+и также мы поимаем что не было нужды задирать часаота до 4000MHZ.  вот так пока выглядит галимая теория. 
+одно из ключевых моментов что вот эта хрень "Intel Performance and Energy Bias Hint"  влияет только на работу 
+в диапазоне турбо частаота. если мы в этом диапаоне нераотаем то нам вобше похеру на эту фичу. 
+ну и понятно что если она у нас выставлена на 0 то цпу непарится и все время выставляем турбо часатоту 
+максимальную. а если оно равно 15 то цпу максимально запариватеся и старается выставить минимальную необхоимую
+турбочаастоту чтобы с одной стороны обеспечить скорость но с другой стороны не задирать часатоту без нужды.
+повторю - этоп ка что мое голое понимание из пдфки этого чеха. потому что винете в частнсои в сайте ядра динукса
+про эту фичу нихуя ничего нормальо не описано суки.
+
+при этом осверешнно не поянтно как эта фича соглассуется с другими фичами по управлению часатотой цпу.
+тоесть напрмиер мы в acpi-freq огаричили верхнюю часатоту турбо. или у драйвера intel_pstate мы ограничили 
+верхнюю турбо часатоту. как тогда это согласуется с "Intel Performance and Energy Bias Hint" который мы
+скаже выставили в 0 тоесть макс турбо часатота. да  я понял это это всего лишь HINT тоесть подсказка
+совет для процессора  . ксати физически этот хинт выглядит так что в определенный регистр цпу пишется число
+точнее даже в это регистре MSR так кажется он назвыается есть ряд битов которые за это отвечают. тоесть меняются биты в MSR регистре. возмжно разгадка в том что acpi-freq либо intel_psatte анстрйоки касающиеся
+разрещенной верхней часатоты они лишь сдвигают верхнюю планку турбо часатоты вниз. а HINT позволяет процессору
+заппариваться либо не запариваться  о том насколько ему надо тшетаельно задираться до этой верхне разрешенной турбо часатоты. 
+
+надо все это проверить. также напдо проовеить когда мы меняем гавернер на цпу через cpupower то
+меняет ли он автоматом и "Intel Performance and Energy Bias Hint".
+я точно уже знаю что если мы выбираем гвернеерр "performance" то он конечно же пишет 0 в "Intel Performance and Energy Bias Hint". меня больше интеересуют другие гавернеры.
+
+значит я беру драйвер intel_pstate он запущен в active режиме
+на гавернере powersave
+я активирую турбо часатоты
+
+# pwd
+  /sys/devices/system/cpu/intel_pstate
+# echo 0 > no_turbo
+# cat $(pwd)/no_turbo
+0
+
+уменя шаттаня часатота цпу это 1600MHZ. а далее идут турбо часаототы до 4000MHZ
+
+max_pct = 100%
+max_scale_frq= 2000MHZ в иттге бует 2000MHZ тоесть эта штука не может быть больше чем max_pct но ожмет 
+быть меньше споокойно.
+
+ energy_performance_preference = эта штука немоежтыьт разная на цпу. 
+ если она разная то виотооге будет выбрана для всех та кооторая более скоростная.
+
+ energy_perf_bias = эта хрень пходу вобще никкакой роли не игарает. по райней мере для intel_pstate
+
+
+
+если гавернер performcae  - тут все понятн. все время будет держаться макс турбо чаатота.
+поэтмуо расматрвиает гавренере powersave
+
+energy_performance_preference  = power. 
+на холостом ходу 500-700
+на напгуржке  с активированном турбо частота 1000-1100 при актиированном турбо
+
+
+energy_performance_preference  = balance_power. 
+на холостом ходу 500-700
+на напгуржке  с активированном турбо частота 1900
+без турбо 1600 (штатаня)
+
+
+energy_performance_preference  = balance_performance. 
+на холостом ходу 500-700
+на напгуржке  с активированном турбо частота 3700MHZ (эта макс турбо частота когда 4 ядра напгруженр)
+без турбо 1600 (штатаня)
+
+energy_performance_preference  = performance. 
+на холостом ходу от 2000 до 3700 .
+чуть малейшая нагрузка и сразу прыгает до 3700
+
+
+получается что если у нас гавернер powersave но energy_performance_preference  = performance 
+то гавернер вобщем то неделает то что от него требуется. по факту процессор работает в режиме
+перформанс.
+получается гавренер powersave это некая глобальная настройка. а вот уровень этого powesave
+как бы настрваиется "слайдером" в формео energy_performance_preference
+
+ performance --> balance_performance --> balance_power --> power
+
+чем правее мы вбираем настройку тем у нас реально powersave
+чем левее крутим ползунок тем от нашего powersave неосатется нихрена
+
+обртный ксеримент тоже показателен
+ставим гевернер performcance
+и далее ставим energy_performance_preference  = power
+но у нас даже на холотосомтом ходу чаатоты максимальные. тоесть в случае гавернера performcance
+как буто перстаете  работатть насторкйка energy_performance_preference
+
+поэттму я бы суммано сфориурлирова такое правилоа.(пока что мы рассмтривем только драйвер itel_pstet)
+если гавернер performcen то про настройку energy_performance_preference можно вобще забыть. она не дейтсвтет.
+если гавренер powersave то energy_performance_preference обязательна к настройке и она 
+настрваиет в какой степени мы хотим powersave. причем это касается часатотс даже на холотостом ходу.
+
+а вот эта настрйока по мне вобще полный фуфкл = energy_perf_bias  ни на чт не влияет
+
+и тут я понял вот что (вспоминаем про еще одну инетерсунуб по теме команду x86_energy_perf_policy)
+
+она читает и пишет прям в регистр MSR в процессоре (/dev/cpu*/msr ксатти)
+
+# x86_energy_perf_policy  -c0
+cpu0: EPB 12
+cpu0: HWP_REQ: min 4 max 10 des 0 epp 255 window 0x0 (0*10^0us) use_pkg 0
+cpu0: HWP_CAP: low 1 eff 7 guar 16 high 39
+
+
+EPB=12 этосотсттвееенно последние условно говоря 7бит в регистре котоыре отвечают как раз за "Intel Performance and Energy Bias Hint" может принимать занчнеие от 0 по 15
+задается вот так
+
+ x86_energy_perf_policy  --epb 12
+
+и есть однознчная связь с 
+# cat /sys/devices/system/cpu/cpu0/power/energy_perf_bias 
+12
+
+тоесть если пишем в регистр через x86_energy_perf_policy то увдим в /sys/.../energy_perf_bias 
+и наоброт если пишеи в /sys то увидвим ввыводет комнады x86_energy_perf_policy 
+но пока остатеся непонятно на что эта хрень по факту вливеияет
+
+также нашупана однозначная сввзь между
+
+min 4( в x86_energy_perf_policy) и /sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq (в /sys) 
+max 10 ( в x86_energy_perf_policy) и /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq (в /sys) 
+тоесть у них взаимно онрзначное соотвестиивеи
+
+сотвтетвенно 4 это 400МГЦ. что интерсно через x86_energy_perf_policy можно в MSR записать 100МГЦ
+но в sys при этом все равно будет написано 400МГЦ .
+
+нашел кстаи в интеете что типа да - если intel_pstate + HWP и гавернер performcance то он срет 
+на "Intel Performance and Energy Bias Hint" а если у него гаернер "powersave " то учитвывает
+
+
+есть еще связь 
+epp 255 (( в x86_energy_perf_policy)) и /sys/devices/system/cpu/cpu0/cpufreq/energy_performance_preference
+
+едиснвтенное что то что слева задается  числами а то что српрва задается словами (power, balance-power итп)
+видимо ядро транслирует слова в числа и сует их уже само в msr
+
+причем я раскрыо еще одну важную вещь. в линуксе в "energy_performance_available_preferences"
+указано лишь небольшое число опций тоесть "default performance balance_performance balance_power power"
+если я буду писать их в sys то линукс их траснформирет в некоторой число по факту вот эти числа 
+
+       VALUE STRING        EPB  EPP
+       performance         0    0
+       balance-performance 4    128
+       normal, default     6    128
+       balance-power       8    192
+       power               15   255
+
+и сует их в MSR.
+
+так вот я могу не через sys в черещ 86_energy_perf_policy совать в msr не всего навсего 4 числа (0,128,192,255)
+а любое из 256 чисел и таким макаром гораздо более тоньше регулировать степент powersaving. 
+или еще другими словами могу регулировать более тонко верхнюю частоту до которой будет разгоняться процессор.
+тоесть через sys в msr можно запсать всего 4 озможных заннчия. а через x86_ аж 256 разных.
+так что x86 более тонкий инстурмент для регулиования powersavving.
+
+и вот реано можно убедиться что эти числа будут записан в EBP и EPP
+
+# x86_energy_perf_policy  -c all balance-power
+# x86_energy_perf_policy -c0
+cpu0: EPB 8
+cpu0: HWP_REQ: min 4 max 10 des 0 epp 255 window 0x0 (0*10^0us) use_pkg 0
+cpu0: HWP_CAP: low 1 eff 8 guar 16 high 39
+
+# x86_energy_perf_policy  -c all balance-performance
+# x86_energy_perf_policy -c0
+cpu0: EPB 4
+cpu0: HWP_REQ: min 4 max 10 des 0 epp 255 window 0x0 (0*10^0us) use_pkg 0
+cpu0: HWP_CAP: low 1 eff 7 guar 16 high 39
+
+ а вот нихуя окзывается. получаем нечто смешное. у нас EBP еняется согласо таблице
+  а EPP низуя не имзеняется.  прикол польебмка!
+
+А ДАЛЬШЕ ОЧЕНТ ВАЖ НО ВНИМНАИЕ 
+дальеше пиздец и прикол нашел в интете инфо (https://bbs.archlinux.org/viewtopic.php?id=282383) того что я уже открыл из практики о том что если процессор имеет EPP то он нахер игнориует что у него в EPB
+это ровно что я вижу из практкики. EPB это то что я писал в cat /sys/devices/system/cpu/cpu0/power/energy_perf_bias  и как эту хрень не меняй это никак не влияет на часатоты
+об этом пиздец никто сука не пишет. 
+и получается двйоной прикол. мой процессор поддержвает EPP а значит он игнорирует EBP
+а утилита x86 наоборотсука она пишет в EBP от котооого толку ноль и нихуя не пиет в EPP !!!!!!!
+ЭТО ПИЗДЕЦ!!!!!
+
+но спаспсает то что в EPP можно записать не через  
+# x86_energy_perf_policy  -c all balance-performance
+
+а через спец флаг
+# x86_energy_perf_policy  -c all --hwp-epp 112
+
+# x86_energy_perf_policy  -c 0
+cpu0: EPB 0
+cpu0: HWP_REQ: min 4 max 10 des 0 epp 112 window 0x0 (0*10^0us) use_pkg 0
+cpu0: HWP_CAP: low 1 eff 7 guar 16 high 39
+
+вот видим что epp стало равен 112 !
+
+и тут еще оди прикол. вот мы записали в EPP. но у линукса для его  /sys/devices/system/cpu/cpu0/cpufreq/energy_performance_preference
+нетт ссоотвевтсия для 112 из MSR поэтому там будет указано то то слоово котороые туда было вбито именно
+через запись в sys. но как только мы через x86 венсенмем число котоо есть в тбалице (0,128,192 либо 255)
+то в sys тутже появится словоо соответсюещее этому числу
+
+как видно у меня указано что max=10 тоесть 1000 MHZ.  меняю на 3900
+# x86_energy_perf_policy  --hwp-max 39
+# x86_energy_perf_policy  -c 0
+cpu0: EPB 0
+cpu0: HWP_REQ: min 4 max 39 des 0 epp 255 window 0x0 (0*10^0us) use_pkg 0
+cpu0: HWP_CAP: low 1 eff 7 guar 16 high 39
+
+а теперь посмотрим как будут вести себя частаоты при epp=100, 150, 200
+
+
+epp=100, частота 3700 MHZ при нагрузке (нагрукзка это stress 4-7 секунд)
+epp=150 тоже самое
+epp= 180 частота 2900
+epp = 186 часатота 2000 
+epp=192 частота 1900
+epp=200 частота 1900 MHZ на назгрзуее
+epp=230 частота 1700
+epp=255 частота  ( видно что растет и растет если нагрузка не заканчивается )
+
+на примерер epp=255 виден такой приол что на самом деле частота она при всех epp она будет расти и расти
+просто при мларньком epp она растет мнвоенно а при большом epp она растер но медленно. но как я понял 
+она ратстет все равно до маквисимума который прописан в max_pct либо scale_max_frq то есть powersave 
+сука он как ondemand у acpi-freq просто в завстиомости от epp он либо мленно растет либо очень быстро.
+тоесть нужно если мы мы выставли intel_pstep + powersave + epp=255 то еще нужно зарещать частотмы 
+макс в max_perf_pct иначе при длительной нагрзуе он нам цпу загруить на все 40000МГЦ и сожрет всю батарею
+и нагреет комп до бела. вот тако й дедлизм ( для сравнпем acpi-freq + powersave релаьно железно держит часатоту равной min_scale_frewq в независиомосити от длтельнотсти нангрузки!!!)
+
+ктати походу запсь в /sys/devices/system/cpu/intel_pstate
+ведет к тому что меняется min и max
+
+]# x86_energy_perf_policy 
+cpu0: EPB 0
+cpu0: HWP_REQ: min 4 max 8 des 0 epp 255 window 0x0 (0*10^0us) use_pkg 0
+cpu0: HWP_CAP: low 1 eff 7 guar 16 high 39
+
+
+при этом в/sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq  не меняется !!
+
+получатеся самое удобное  витоге это вот так делать
+задаем гавернер 
+   # cpupower frequency-set -g powersave
+
+а потом плюс менять  через x86_ за один проход
+	# x86_energy_perf_policy  --hwp-min 4 --hwp-max 7 --hwp-epp 255
+
+(min) это max_perf_pct  
+(max) это min_perf_pct  
+(epp) это energy_performance_preference  
+
+
+и получаем цпу с заданным уровнем частотс и powersavinга.
+
+что меня еще убивает это ебнутая терминология epp это  по ихнму "Intel Performance and Energy Bias Hint"
+где hint это подсказка совет. но  я вижу что epp это никаки не подсказка это прямая настроука 
+которая не подсказвыает сука а прямо управляет. скоты. немогут коректно называть вещи термины.
+
+плучтппо по факту добавиться вменяемого подвегия цпу чрез драйер intel_psatte это намного более 
+сложно чем через более старый типа драйер acpi-freq . 
+
+чтоинтересно - врде как пнижение часатты до мнимальной у меня это 400МГЦ оно ведет к пблемам
+что типа там идут болшие токи утечки. по фату я вижу что если холостой цпу работает на часатоте 550-700МГЦ
+он также нагеравается как на 400МГЦ. тоесть уменьшен частаоты до 400МГЦ нихрнеана не охдождает процессор.
+это непонятно.
+
+мне вот эта статиктик поравлиась
+
+]# cpupower monitor
+    | Nehalem                   || Mperf              || Idle_Stats                                                   
+ CPU| C3   | C6   | PC3  | PC6   || C0   | Cx   | Freq  || POLL | C1   | C1E  | C3   | C6   | C7s  | C8   | C9   | C10   
+   0|  0,00|  0,81| 59,85|  0,00||  4,55| 95,45|   399||  0,00|  1,34|  0,03|  0,01|  0,96|  0,00| 11,17|  0,23| 81,87
+   4|  0,00|  0,81| 59,85|  0,00||  0,78| 99,22|   399||  0,00|  0,00|  0,00|  0,02|  0,00|  0,00|  2,94|  0,08| 96,24
+   1|  0,06|  1,56| 59,85|  0,00||  8,19| 91,81|   399||  0,00|  0,96|  0,65|  0,04|  0,72|  0,00|  9,19|  0,02| 80,31
+   5|  0,06|  1,54| 59,85|  0,00||  2,47| 97,53|   399||  0,00|  0,00|  0,00|  0,03|  1,27|  0,00|  4,00|  0,10| 92,19
+   2|  0,01|  0,87| 59,85|  0,00||  1,07| 98,93|   399||  0,00|  0,00|  0,37|  0,01|  0,25|  0,00|  2,55|  0,00| 95,81
+   6|  0,01|  0,87| 59,85|  0,00||  0,53| 99,47|   399||  0,00|  0,00|  0,00|  0,00|  0,65|  0,00|  2,28|  0,00| 96,57
+   3|  0,11|  0,92| 59,85|  0,00||  2,22| 97,78|   399||  0,00|  1,18|  0,95|  0,14|  1,03|  0,00|  7,80|  0,00| 86,78
+   7|  0,11|  0,92| 59,85|  0,00||  0,87| 99,13|   399||  0,00|  0,00|  0,00|  0,05|  0,07|  0,00|  1,79|  0,00| 97,07
+
+она покзвает что 81-97 процентов ядра проводят в С10 сотоянии. это самое
+супер глубокое энергосберегающее состояние. а значит и супер холодное.
+
+кстати в x86_ 
+des  означает желаемая частота а des 0 означает что это отдается на откуп цпу какую часатоту
+он хочет в заданом диапазоне ту пусть и ставит чтотттипа того. кроче это менять ненадо.
+
+еще один прикол.нашел где есть статикткиа по тротлингку
+
+# pwd
+/sys/devices/system/cpu/cpu0/thermal_throttle
+# ls -1
+core_throttle_count
+package_throttle_count
+
+# cat *
+0
+0
+
+откуда видно что никких тротлинов нет! ура!
+
+еще бы вентиялтор заставить раооать на этои лэптпотпе. вбще было ь отличноэ
+
+
+
+так щас я хочу погасить три ядра физ. и посмотреть что будет со статисткой уровня C10
+нахоим топологию ядер
+
+#  cat /sys/devices/system/cpu/cpu*/topology/thread_siblings_list
+0,4
+1,5
+2,6
+3,7
+0,4
+1,5
+2,6
+3,7
+
+получается у нас ядра выглядт так 
+реальные ядра это 
+0
+1
+2
+3
+
+гипертрединг ядра это 
+4
+5
+6
+7
+
+
+надо в итоге оставит тоько ядра 0,4
+
+для этого надо погасить ядра 1,2,3,5,6,7
+
+echo 0 | tee /sys/devices/system/cpu/cpu{1,2,3,5,6,7}/online
+
+так вот прикол в том что ядро cpu0 он вообще не имеет этого дачтика online! тоесть 
+его при всем желании не погасить никак ! прикол!
+
+
+смотим статсиику
+
+]# cpupower monitor
+WARNING: at least one cpu is offline
+    | Nehalem                   || Mperf              || Idle_Stats                                                   
+ CPU| C3   | C6   | PC3  | PC6   || C0   | Cx   | Freq  || POLL | C1   | C1E  | C3   | C6   | C7s  | C8   | C9   | C10   
+   0|  0,42|  7,04| 52,67|  0,00|| 12,43| 87,57|   686||  0,00|  0,01|  1,32|  0,35|  6,02|  0,00| 78,17|  0,32|  1,59
+   4|  0,42|  7,04| 52,67|  0,00|| 15,29| 84,71|   687||  0,00|  0,15|  0,80|  0,54|  6,56|  0,00| 76,08|  0,00|  0,79
+
+
+ а ну прикол!  у нас все оффлайн ядра исчезки из статикики!
+
+# echo 1 | tee /sys/devices/system/cpu/cpu{1,2,3,5,6,7}/online
+
+
+ # cpupower monitor -m "Idle_Stats"
+    | Idle_Stats                                                   
+ CPU| POLL | C1   | C1E  | C3   | C6   | C7s  | C8   | C9   | C10   
+   0|  0,00|  1,58|  0,30|  0,01|  0,11|  0,00| 16,59|  0,37| 73,44
+   4|  0,00|  0,67|  0,02|  0,03|  0,94|  0,00| 10,99|  0,51| 84,06
+   1|  0,00|  0,39|  0,02|  0,01|  1,10|  0,00| 17,26|  0,64| 77,65
+   5|  0,00|  0,00|  0,00|  0,00|  0,00|  0,00|  0,11|  0,00| 91,62
+   2|  0,00|  1,08|  0,07|  0,13|  1,83|  0,00| 19,10|  0,00| 75,30
+   6|  0,00|  1,82|  0,04|  0,03|  0,75|  0,00| 13,01|  1,99| 80,68
+   3|  0,00|  0,31|  0,00|  0,00|  0,23|  0,00|  6,12|  0,00| 92,54
+   7|  0,00|  0,00|  0,00|  0,00|  0,06|  0,00|  0,97|  0,00| 23,73
+
+
+а вот еще прикол. на одном буке у меня вот такие C-state доступны
+# cat ./cpu0/cpuidle/state*/name
+POLL
+C1
+C1E
+C3
+C6
+C7s
+C8
+C9
+C10
+
+
+а на другом тольо такие
+# cat ./cpu0/cpuidle/state*/name
+POLL
+C1
+C1E
+C3
+C6
+C7s
+
+и саттатиксика на том другом выглядит вот ак
+
+# cpupower monitor 
+intel-rapl/intel-rapl:0
+0
+intel-rapl/intel-rapl:0/intel-rapl:0:2
+0
+intel-rapl/intel-rapl:0/intel-rapl:0:0
+0
+intel-rapl/intel-rapl:0/intel-rapl:0:1
+0
+    | Nehalem                   || SandyBridge        || Mperf              || RAPL                        || Idle_Stats                              
+ CPU| C3   | C6   | PC3  | PC6  || C7   | PC2  | PC7  || C0   | Cx   | Freq || pack  | dram | core | unco  || POLL | C1   | C1E  | C3   | C6   | C7s   
+   0|  0,22|  0,08| 21,75|  2,49|| 93,90| 52,54|  0,00||  3,48| 96,52|   797||8397744|1695247|113953|112060||  0,00|  0,78|  1,02|  0,26|  0,08| 94,43
+   1|  0,01|  0,00| 21,75|  2,49|| 94,18| 52,54|  0,00||  4,50| 95,50|   797||8397744|1695247|113953|112060||  0,00|  0,00|  0,99|  0,01|  0,00| 94,50
+
+
+RAPL это 
+Most modern processors, including Intel processors, provide Running Average Power Limit (RAPL) interfaces for reporting the accumulated energy consumption of various power domains (for example, PP01 or Package).
 
 
 $$$$$$$$$$$$$$$$
 $$$$$$$$$$$$$$$$
 $$$$$$$$$$$$$$$$
 
+
+прораьтьат тсатью (https://docs.kernel.org/admin-guide/pm/intel_pstate.html#coordination-of-p-state-limits)
+
+
+MSR - model specific regiter ?
+
+есть такая ошибка в логах 
+: msr: Write to unrecognized MSR 0x38f by i7z (pid: 3751)
+пока что решение такое  = echo on | sudo tee /sys/module/msr/parameters/allow_writes
+
+
+ноутбук lenovo как у него настроить принудительно вентилятор ?
+
+
+
+
+еще одна утилита управлением питанием цпу
+# x86_energy_perf_policy -r
+cpu0: EPB 15
+cpu0: HWP_REQ: min 4 max 10 des 0 epp 128 window 0x0 (0*10^0us) use_pkg 0
+cpu0: HWP_CAP: low 1 eff 7 guar 16 high 39
+...
+покзавает профиль питания цпу. 
+както отличается от гавернеров и intel_pstep
+
+устновить новый профиль
+# x86_energy_perf_policy  power
+
+виды профилей
+  normal  default Set a policy with a normal balance between performance and energy efficiency.  The processor will  tolerate  minor  performance  compromise  for
+       potentially significant energy savings.  This is a reasonable default for most desktops and servers.  "default" is a synonym for "normal".
+
+  performance Set a policy for maximum performance, accepting no performance sacrifice for the benefit of energy efficiency.
+
+  balance-performance Set a policy with a high priority on performance, but allowing some performance loss to benefit energy efficiency.
+
+  balance-power Set a policy where the performance and power are balanced.  This is the default.
+  
+  power Set a policy where the processor can accept a measurable performance impact to maximize energy efficiency.
+
+
+
+
+
+что такое powetop ?
+
+
+дальнейшее обсуждение:
+https://unix.stackexchange.com/questions/87522/why-do-cpuinfo-cur-freq-and-proc-cpuinfo-report-different-numbers
+https://kernel.ubuntu.com/~kernel-ppa/mainline/v5.10/
+
+tlp ?
+
+
+https://wiki.archlinux.org/title/Hardware_video_acceleration
+
+>> wifi
+наод проработать соседний текстовый файл который про nmcli который я анписал когда 
+с роутером вощился. кстати надо роутер зарестить и пароль вай фай более сильный записать
+
+>> mc медленный старт
 вылезал такая пролблема - очень мделнно 3с стартует mc. 
 раньше так было когда в /etc/jhosst остутссутвует 127ю.0.0.1 lnovo 
 щас оно там ест. можно стартунть быстро mc через mc -u но тогда нет локального шелл
@@ -8271,70 +8841,15 @@ if [ -f '/home/vasya/yandex-cloud/completion.bash.inc' ]; then source '/home/vas
 
 
 на комее по деолфту /etc/resolv.conf смотрит в /run/systemd/resolvs/stub-resolv.conf
+что в нем значит 
+		options edns0 trust-ad 
+??
 
-
-
-наод проработать соседний текстовый файл который про nmcli который я анписал когда 
-с роутером вощился. кстати надо роутер зарестить и пароль вай фай более сильный записать
-
-
-cpufreq что это такое ? (https://docs.kernel.org/admin-guide/pm/cpufreq.html#:~:text=CPU%20Performance%20Scaling%20in%20Linux&text=The%20CPUFreq%20core%20provides%20the,which%20the%20other%20components%20operate.)
-
-
-MSR - model specific regiter ?
-
-есть такая ошибка в логах 
-: msr: Write to unrecognized MSR 0x38f by i7z (pid: 3751)
-пока что решение такое  = echo on | sudo tee /sys/module/msr/parameters/allow_writes
-
-
-ноутбук lenovo как у него настроить принудительно вентилятор ?
-
-
-
-
-еще одна утилита управлением питанием цпу
-# x86_energy_perf_policy -r
-cpu0: EPB 15
-cpu0: HWP_REQ: min 4 max 10 des 0 epp 128 window 0x0 (0*10^0us) use_pkg 0
-cpu0: HWP_CAP: low 1 eff 7 guar 16 high 39
-...
-покзавает профиль питания цпу. 
-както отличается от гавернеров и intel_pstep
-
-устновить новый профиль
-# x86_energy_perf_policy  power
-
-виды профилей
-  normal  default Set a policy with a normal balance between performance and energy efficiency.  The processor will  tolerate  minor  performance  compromise  for
-       potentially significant energy savings.  This is a reasonable default for most desktops and servers.  "default" is a synonym for "normal".
-
-  performance Set a policy for maximum performance, accepting no performance sacrifice for the benefit of energy efficiency.
-
-  balance-performance Set a policy with a high priority on performance, but allowing some performance loss to benefit energy efficiency.
-
-  balance-power Set a policy where the performance and power are balanced.  This is the default.
-  
-  power Set a policy where the processor can accept a measurable performance impact to maximize energy efficiency.
-
-
-
-
-
-что такое powetop ?
-
-
-дальнейшее обсуждение:
-https://unix.stackexchange.com/questions/87522/why-do-cpuinfo-cur-freq-and-proc-cpuinfo-report-different-numbers
-https://kernel.ubuntu.com/~kernel-ppa/mainline/v5.10/
-
-tlp ?
-
-
-https://wiki.archlinux.org/title/Hardware_video_acceleration
-
-
-
+dnsmasq vs systemd-resloved ?
+dnsmasq как плагин к netowkr mamager
+dnsmasq по дефолту не читает /etc/hosts
+что вот это за хуйня в nsswitch "mdns4_minimal [NOTFOUND=return]" ?
+nlookup vs host ? ( а также ошибка linux Host not found: 3(NXDOMAIN))
 
 | laptop
 | sn
