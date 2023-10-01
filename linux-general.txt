@@ -9332,17 +9332,626 @@ Busy%	   Bzy_MHz	 PkgTmp	  GFX%rc6	  GFXMHz	GFX%C0	CPUGFX%	PkgWatt	GFXWatt
 только утилита какая уебищная. там в интеле видимо имбицилам дали ее написать
 
 
+далее смотрим на thinkpad
+opera
+кино 720 dpi
+Busy%	  Bzy_MHz	PkgTmp	GFX%rc6	GFXMHz	PkgWatt	GFXWatt
+55.04	   1250	   43	     63.72	200	     13.44	2.08
+56.11	   1260	   43	     65.13	1100	   13.50	2.09
+55.66	   1252	   43	     65.01	800	     13.43	2.06
+60.28	   1263	   44	     62.31	1100	   13.71	2.08
+55.16	   1253	   44	     61.39	1100	   13.47	2.09
+56.19	   1246	   44	     60.96	200	     13.48	2.05
+55.22	   1256	   43	     66.07	400	     13.42	2.09
+55.03	   1255	   44	     69.21	200	     13.34	2.07
+54.08	   1247	   44	     61.58	1000	   13.42	2.11
+52.38	   1250	   43	     68.52	800	     13.16	2.06
+55.28	   1256	   44	     61.95	1100	   13.43	2.07
+
+
+chrome
+кино 720 dpi
+Busy%	  Bzy_MHz	PkgTmp	GFX%rc6	GFXMHz	PkgWatt	GFXWatt
+58.65	   1270    43	     21.82	500	     13.73	1.88
+59.98	   1272	   44	      1.59	200	     14.21	2.05
+66.59	   1280	   44	     21.75	200	     14.08	1.86
+61.61	   1278	   43	     16.73	200	     14.02	1.94
+51.96	   1257	   43	      8.93	200	     13.59	1.89
+54.95	   1257	   43	      6.64	200	     13.90	2.11
+51.65	   1254	   44	     18.26	200	     13.58	2.01
+55.23	   1264	   44	      2.46	200	     13.92	2.02
+52.37	   1260	   42	      0.00	200	     13.84	2.06
+
+что касается нагрузки на цпу то одинаково а это главное
+хром больше грузит gpu но его частоту задирает мало
+а опера меньше по времени грузит gpu но сильно задирает его частоту
+но в целом еще раз скажу что вроде как похеру что там на gpu потому что на нагрузку цпу 
+это никак не влияет а значит какая разница.
+
+
+
+
+я для себя окончательно убедился что "GFX%rc6" это "Idle time" у gpu
+
+
+итак надежда влегку сменить TDP я не знаю как 
+двигаем дальше
+
+можно в grub вот так поставить
+		intel_pstate=per_cpu_perf_limits
+и тогда как я понял настройки егоные можно будет подкручивать не для всех ядер одноверменно
+а для каждого ядра индивидуально
+
+про эту хрень не понял
+hwp_dynamic_boost
+This attribute is only present if intel_pstate works in the active mode with the HWP feature enabled in the processor. If set (equal to 1), it causes the minimum P-state limit to be increased dynamically for a short time whenever a task previously waiting on I/O is selected to run on a given logical CPU (the purpose of this mechanism is to improve performance).
+
+нашел еще один признак как понять в каком режиме (active, passive, off) работает intel_pstate
+# cat /sys/devices/system/cpu/intel_pstate/status 
+active
+
+могу сказать сразу если драйвер этот вобще не используется то этой папки вобще не будет
+поэтому настройку вида "off" мы не увидим никогда. дебилы
+
+пишут что якобы в этот счетчик можно писать  и таким макаром сменить режим работы. кхм. сомневаюсь.
+
+удивительно насколко огромные и в то же время бесполезные и пиздабольные доки для практики практически
+не только бесполезные но и запутывающие
+
+если драйвер работает в активном режиме то в scaling_driver будет intel_pstate
+если драйвер работает в пассивном режиме то будет intel_cpufreq
+
+если выставлено intel_pstate=per_cpu_perf_limits то max_perf_pct и min_perf_pct
+
+далее эти мудаки опимсывают то к чему я пришел. главым регулятором является no_turbo
+менее главным max_perf_pct и min_perf_pct
+и самым ничтожно главным является scaling_max_freq , scaling_min_freq 
+
+поразительно как писатели доки обходят самые важные тонкие и трудные моменты. просто блядь диву даюсь.
+тоесть дока набивается якобы полным описанием жирным и в плане оглавления целостным
+а на самом деле дока это фальшивая пустышка. суки
+
+далее с каким настройками можно его запускать в grub
+
+active, passive, disable  = тут все понятно
+force = какая то хуйня
+no_hwp = не понял в чем разница с passive
+hwp_only = означает использовать только если проц поддерживает hwp. тоже хуйня какая то. в чем разница с active?
+
+на этой странице добрые люди раскопали что если есть EPP то EPB игнорируется = https://bbs.archlinux.org/viewtopic.php?id=282383
+
+далее 
+прорабатываю вот это - https://www.grid5000.fr/w/CPU_parameters
+как быстро проверить активирован прям щас ли HT
+	# lscpu | grep 'Thread(s) per core
+должно быть два
+
+как по быстрому отключить все гипертред ядра
+# for i in $(cat /sys/devices/system/cpu/cpu*/topology/thread_siblings_list | awk -F',' '{print $2}' | sort -u); do echo 0 > /sys/devices/system/cpu/cpu$i/online; done
+
+вот так это выяглядит
+# cat /sys/devices/system/cpu/cpu*/topology/thread_siblings_list
+0,4
+1,5
+2,6
+3,7
+0,4
+1,5
+2,6
+3,7
+
+соотвественно они выбирают второй столбик и гасят его. это понятно
+
+как обратно включить все ядра
+	# for i in $(ls /sys/devices/system/cpu/cpu*/online); do echo $i; echo 1 > $i; done
+
+
+
+далее
+супер полезная штука
+позволяет узнать с какими параметрами было запущено ядро
+# cat /proc/cmdline
+BOOT_IMAGE=/boot/vmlinuz-5.4.0-91-generic root=UUID=aa7152b0-f48f-4f20-ad1a-7e0c404584d3 ro systemd.unified_cgroup_hierarchy intel_pstate=enable quiet splash vt.handoff=1
+
+посмотреть доступные C-states 
+и их latency(скока время надо чтобы выйти из него видиом в наносекундах)
+# cat /sys/devices/system/cpu/cpu0/cpuidle/state*/name
+POLL
+C1
+C1E
+C3
+C6
+C7s
+C8
+C9
+C10
+# cat /sys/devices/system/cpu/cpu0/cpuidle/state*/latency
+0
+2
+10
+70
+85
+124
+200
+480
+890
+
+а вот еще прикольно статистика сколько раз цпу был в том или ином C-state
+# cat /sys/devices/system/cpu/cpu0/cpuidle/state*/usage
+213289
+6654993
+62993531
+18126375
+8198970
+288341
+19190669
+795233
+22827462
+
+ксати grep более нагляден
+# grep "" ./state*/usage
+./state0/usage:213365
+./state1/usage:6658355
+./state2/usage:63069668
+./state3/usage:18148288
+./state4/usage:8204885
+./state5/usage:288341
+./state6/usage:19202062
+./state7/usage:795750
+./state8/usage:22841770
+
+еще вот так можно посмотреть 
+# cpupower idle-info
+CPUidle driver: intel_idle
+CPUidle governor: menu
+analyzing CPU 0:
+
+Number of idle states: 9
+Available idle states: POLL C1 C1E C3 C6 C7s C8 C9 C10
+POLL:
+Flags/Description: CPUIDLE CORE POLL IDLE
+Latency: 0
+Usage: 213414
+Duration: 5459876
+C1:
+Flags/Description: MWAIT 0x00
+Latency: 2
+Usage: 6660290
+Duration: 3345755923
+C1E:
+Flags/Description: MWAIT 0x01
+Latency: 10
+Usage: 63120135
+Duration: 8695098018
+C3:
+Flags/Description: MWAIT 0x10
+Latency: 70
+Usage: 18163008
+Duration: 1251233433
+C6:
+Flags/Description: MWAIT 0x20
+Latency: 85
+Usage: 8209184
+Duration: 4718396659
+C7s:
+Flags/Description: MWAIT 0x33
+Latency: 124
+Usage: 288341
+Duration: 485049448
+C8:
+Flags/Description: MWAIT 0x40
+Latency: 200
+Usage: 19209011
+Duration: 36419309836
+C9:
+Flags/Description: MWAIT 0x50
+Latency: 480
+Usage: 796102
+Duration: 2165680618
+C10:
+Flags/Description: MWAIT 0x60
+Latency: 890
+Usage: 22850358
+Duration: 213721059571
+
+еще вот так
+# cpupower monitor -m Idle_Stats
+    | Idle_Stats                                                   
+ CPU| POLL | C1   | C1E  | C3   | C6   | C7s  | C8   | C9   | C10   
+   0|  0,00|  1,71|  0,97|  0,11|  0,40|  0,00|  7,35|  0,03| 86,38
+   4|  0,01|  1,83|  0,01|  0,06|  0,97|  0,00|  8,55|  0,00| 83,16
+   1|  0,01|  1,59| 34,75|  4,04|  0,97|  0,00|  5,43|  0,00| 31,48
+   5|  0,00|  0,00|  0,34|  0,31| 13,04|  0,00| 24,45|  0,44| 53,47
+   2|  0,00|  1,26|  0,25|  0,34|  9,90|  0,00| 23,90|  0,57| 62,58
+   6|  0,00|  0,45| 18,42|  1,97|  0,10|  0,00|  1,46|  0,00| 73,52
+   3|  0,00|  0,01|  0,31|  0,01|  3,57|  0,00| 12,22|  1,60| 78,97
+   7|  0,01|  0,91| 25,10|  2,60|  0,53|  0,00|  6,23|  0,02| 54,79
+
+также в
+		# powertop
+	нажимаем Shift+Tab и попадем в секцию про C-states
+закладка Overview показывает кто больше всего цпу будит . чаще всего
+
+в этой же статье показано как отключать C-states ради перфоманса  https://www.grid5000.fr/w/CPU_parameters
+
+если мы говорим про драйвер acpi-freq
+то его гавернер powersave он смотрит только на scaling_min_freq и будет держать такую частоту все время
+его гавернер performance он смотрит только на scalin_max_freq и будет держать эту частоту все время
+
+пишут что cpufrequtils - старье и использовать ненадо. что это такое хрен знает
+видимо это юзерская утилита потому что пишут что надо использовать cpupower
+
+на счет турбо частота. если  у нас intel_pstate драйвер то настраивается через no_turbo
+а если acpi-cpufreq то  настраивается через 
+  # echo 1 > /sys/devices/system/cpu/cpufreq/boost
+ценная инфа
+
+в плане частот пишут что якобы частоты сверху можно ограничивать еще здесь
+# cat scaling_available_frequencies 
+2601000 2600000 2500000 2300000 2200000 2100000 2000000 1800000 1700000 1600000 1400000 1300000 1200000 1100000 900000 800000 
+
+
+далее. что такое uncore
+"Uncore" is a term used by Intel to describe the functions of a microprocessor that are not in the core, but which must be closely connected to the core to achieve high performance
+
+если используется acpi-freq драйвер и userspace гавернер то можно прям точно задавать  частоту на которой
+работать процессору вот так
+
+# echo 700000 > /sys/devices/system/cpu/cpu0/cpufreq/scaling_setspeed 
+# cat /proc/cpuinfo 
+cpu MHz  : 697.252 
+# echo 900000 > /sys/devices/system/cpu/cpu0/cpufreq/scaling_setspeed 
+# cat /proc/cpuinfo 
+cpu MHz  : 976.152
+
+To enable userspace governor you must write userspace into
+# echo userspace > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
+
+
+далее
+какая то хуйня случилась с systemctl suspend оно теперь не работает.
+вместо этого работает 
+	# pm-suspend
+
+
+далее.
+надо было перезагрузить USB 
+я это сделал вот так
+
+for port in $(lspci | grep USB | cut -d' ' -f1); do
+    echo -n "0000:${port}"| sudo tee /sys/bus/pci/drivers/xhci_hcd/unbind;
+    sleep 5;
+    echo -n "0000:${port}" | sudo tee /sys/bus/pci/drivers/xhci_hcd/bind;
+    sleep 5;
+done
+
+буду разбирать это потом ниже
+
+
+возвращаюсь к пдф статье
+
+прикол есть intel speed step , есть eist (хуй знает что это ) а есть intel speed shift. суки
+
+из баша кусок
+		# echo $(( 8<<1 ))
+			16
+эта команда берет число 8 переводит в бинарный вид. сдвигает все биты на 1 влево. поэтому становится 16
+	# echo $(( 16>>1 ))
+		8
+соотвественно наоборот. берем число 16 и сдвигаем на 1 бит вправо все биты
+	# # echo  $(( 1 << 32 ))
+    4294967296
+эта команда берет число 1 и сдвигаем все биты на 32 позиции влево. получаем
+10....0
+
+эта хрень работает как битовый AND
+	# echo  $(( 1 << 1 ))
+	2
+	# echo  $(( 1 << 1  & 3  )) 
+	2
+
+тоесть берется 2 и 3 и делается битовый 2 AND 3 ===> 10 AND 11 = 01 = 2
+тоесть знак & это битовый AND
+
+	
+	# echo  $(( 1 << 1  |  3  )) 
+	3
+а это уже битовый OR
+битовый OR дает нам то что мы таким макаром можем включить определенный бит.
+скажем есть у нас число 7 = 111
+и мы хотим включить восьмой бит у этого числа тогда 
+	# echo  $(( 1 << 7  |  7  )) 
+  135
+  действительно
+  1 << 7 = 100000000
+  7 = 00000111
+  тогда 100000000 OR 00000111 = 100000111 = 128+7=135
+  надо учесть что 
+  # echo  $(( 1 << 0 )) 
+   1
+  и команда означает сдвинь биты в числе 1 на ноль позиций
+  и еще надо учесть что биты нумеруются с нулевого бита тогда если мы хотим сдвинуть биты на семь 
+  позиций то 
+  # # echo  $(( 1 << 7 )
+  таким макаром команда
+  # echo  $(( 1 << N  |  X  ))
+  позволяет нам в числе X зажечь бит с номер N
+  как говорится позволяет установить флаг
+
+ далее вылезает тема как кодируются отрицательные числа в баше или где то там.
+ если у нас MSB (самый старщий бит) равено 0 то число положительное
+ если MSB =1 то число отрицательное. но есть еще момент чтобы из 7 получить -7 надо
+ инвертировать все биты и еще добавить +1 пример
+
+ 7 = 0000 0111
+ -7 =1111 1000 + 0000 0001 = 1111 1001
+захрена так делать ? а чтобы +0 и -0 имели одинаковый бинарный вид тоесть
++0 = 0000 0000
+-0 = 1111 1111 + 0000 0001 = 0000 0000
+
+таким макаром чтобы из +N получить -N надо его битово инвертировать и прибавить 1
+получается что если мы просто инвертируем биты у N то мы получаем -(N-1)
+пример
+	# echo $(( ~5 ))
+   -6
+возвращаюсь к моей задаче я хочу у числа N погасить бит k. как это сделать.
+положим N=7
+0000 0111
+хочу погасить бит 2
+посмотрим на его инвертированную форму
+нам надо получить число
+1111 1011
+если мы сделаем AND то бит   2 погасится
+0000 0111 AND 1111 1011 = 0000 0011 
+число 1111 1011 можно получить путем инвертирования из числа 
+      0000 0100 
+а это число легко получить вот так 
+0000 0100 = $ (( 1 << 2   ))
+проверим
+	# echo $(( 1 << 2   ))
+		4
+инвертируем
+	# echo $((  ~(1 << 2)   ))
+	-5
+все верно
+	# echo $((  7 & (~(1 << 2))   ))
+   3
+да все верно. 
+было  0000 0111
+стало 0000 0011
+
+еше пример берем 16 = 0001 0000
+хотим погасить 4 бит
+	# echo $((  16  & (~(1 << 4))   ))
+    0
+да все верно
+
+берем число 129 = 1000 0001
+хотим погасить 7-ый бит
+
+	#  echo $((  129  & (~(1 << 7))   ))
+		1
+да все верно
+таким макаром появилась формула как в числе N установить бит k
+	# echo  $(( 1 << N  |  k  ))
+и как его погасить
+  # echo $((  N  & (~(1 << k))   ))
+
+пример когда вначале устанавливаем бит 7 в числе 7 а потом сбрасываем бит 7 обратно
+	# echo  $(( 1 << 7  |  7  ))
+		135
+	# echo $((  135  & (~(1 << 7))   ))
+		7
+
+все верно
+
+
+далее исходя из pdf то активировать Turbo частоты можно через "MSR IA32_MISC_ENABLE 0x1A0H" через его 38 бит
+тогда делаю это исходя из битовых правил что выше открыл вот так
+	# wrmsr -a 0x1a0H  $((  1 << 38  |   $(rdmsr -d 0x1a0H)   ))
+проверяю
+	# # cat /sys/devices/system/cpu/intel_pstate/no_turbo 
+	1
+параметр -a означает записать для всех cpu
+интересно что sys папка intel_pstate она же неимеет подпапок связанных с индивидуальным цпу 
+поэтому получается что когда мы пишем в no_turbo то ядро берет это число и самостоятельно пихает 
+его в каждый MSR каждого цпу. а я думал что есть некий один универсальный MSR регистр который отвечает 
+за турбо частоту. получается нет хрен там. у каждого ядра есть свой MSR регистра который отвечает за
+турбо частоту.
+
+дезактивируем обратно турбо частоту для всех ядер
+	# wrmsr -a 0x1a0H  $((  $(rdmsr -d 0x1a0H)    & (~(1 << 38))       ))
+	# cat /sys/devices/system/cpu/intel_pstate/no_turbo 
+  0
+все сработало!
+главное помнить что wrmsr юзать с ключом -a
+если без него юзать то видимо он записывает только в цпу0 потом когда проверяю результат
+через /sys то вижу что no_turbo без изменений. ксати это вопрос если в одних цпу активирован турбо
+в других дезактивирован то что отображается в /sys no_turbo. хрен знает проверяеть не буду.
+
+еще важный момент номер регистра обязательно писать с больших букв. иначе будут непонятный ошибки.
+
+далее написано что номер текущего P-state (кстати я все это рассматриваю когда у нас драйвер intel_pstate)
+работает ли это если драйвер acpi-freq незнаю надо проверять но не буду.
+так вот номер текущего P-state можно подсмотреть в MSR IA32_PERF_STATUS 0x198H в битах 15:0
+смотрим
+
+# rdmsr -a  -d 0x198H  --bitfield 15:0  
+1792
+1792
+1792
+1792
+1792
+1792
+1792
+1792
+
+ключ -а говорит что надо прочитать на всех ядрах. по дефолту только с ядра 0 считывает.
+
+далее там написано что драйвер intel_pstate если хочет сменить P-state то он кладет номер желаемого
+стейта в MSR IA32_PERF_CTL 0x199H в биты 15:0
+
+я попробовал формально работает тоесть хотя бы нахер не посылает 
+ # wrmsr -a  0x199H  $(rdmsr -p 1  -d 0x199h) 
+но по факту проверить работает или нет не возможно. потому что сам драйвер постоянно меняет 
+у меня частоту между 600 и 700 MHz. поэтому я то ее выставляю а он то ее сразу сбивает.
+
+наверно можно было бы попробвать на драйвере acpi-freq и гавернере userspace.
+я проверил ксатти что если гавернер userspace то частоту текущую задаем через 
+	# echo 80000 > scaling_setspeed
+единственное что она должна лежать на отрезке 
+		scalin_min_freq << scaling_setspeed << scaling_max_freq 
+
+
+далее странно почему то на thunkpad-е + ubuntu22 + процессоре  i5-4210M 
+я пытаюсь прочитать IA32_PERF_STATUS 0x198H а он пишет что 
+	Failed to parse register number
+
+я скачал sdm vol4. там для всех процессоров IA32_PERF_STATUS имеет адрес 0x198H и никакой другой.
+непонятно.
+
+ксатати прога cpuid тоже подходит чтобы посмотреть инфо о процессоре
+кстати intel SGX как я понял это такая хрень в цпу которую можно через биос активировать и дезактивировать
+что прога может создават област в памяти к которым есть доступ только для проги.  с других прог втом
+числе и ядра доступа туда нет. типа такая доп защита. 
+
+
+ксатати rdmsr якобы поддерживает ввод адреса регистра через буквы
+ #rdmsr -d IA32_PERF_STATUS --bitfield 15:0
+но выводит какую то хрень. так что нахуй это.
+
+
+вобщем я не понял из за его эта ошибка на thinkpad
+		# rdmsr ...
+			Failed to parse register number
+не работает  с любыми MSR регистрами.
+
+
+далее MSR регистры APERF (0xE8) MPERF (0xE7)
+значит у нас есть некая TSC частота у компа ее можно узнать вот так
+# journalctl --boot | grep 'kernel: tsc:' -i
+сен 21 03:33:39 lenovo kernel: tsc: Detected 1800.000 MHz processor
+сен 21 03:33:39 lenovo kernel: tsc: Refined TSC clocksource calibration: 1800.000 MHz
+
+так вот как я понял MPERF этот счетчик увеличивается на 1 каждый цикл колебания на частоте TSC тоест 
+в данном случае 1800 MHz. (ну там еще приписка что при условии что цпу находится в состоянии C0 но тем не менее)
+
+а счетчик APERF он увеличивается на 1 на каждый цикл колебания но уже отталкиваясь ои текущей на данный момент частоты цпу.
+
+поэтому текущую частоту цпу можно рассчитать как 
+		F = (delta APERF - delta MPERF) * TSC
+где delta это разница между двумя снятыми значениями.
+
+пример
+# rdmsr -d 0xE8 && rdmsr -d 0xE7
+447779959355
+1119623961280
+
+# rdmsr -d 0xE8 && rdmsr -d 0xE7
+447798498807
+1119635791672
+
+# echo "scale=8; (447779959355 - 447798498807 ) / (1119623961280 - 1119635791672)" | bc | xargs -I % echo "%* 1800" | bc
+2820.78678600
+
+получили 2820 MHz
+что является верным
+
+замечу что TSC частота она постоянная и не зависит от активации турбо и прочего. это константа все время.
+получается что MPERF он по времени прибавляется равномерно потому что TSC не меняется.
+а APERF прибавляется так быстро какова текущая частота цпу. если она медленее чем 1800 то будет прибавляться
+медленее чем MPERF а если быстрее то быстрее.
+
+таким макаром зная TSC и зная показания этих счетчиков можно узнавать текущую частоту цпу.
+
+прикольно
+
+далее немного обратно вернусь. в 0x198H биты 15:0 у нас указывается текущий P-state 
+его номер.
+
+так я взял зажал частоту на 400МГЦ и 700МГц чтобы она не дергалась
+и посмотрел чему равен P-state
+
+# cpupower frequency-set -d 400MHZ -u 400MHz
+# rdmsr -a  -d 0x198H  --bitfield 15:0
+1024
+1024
+1024
+1024
+1024
+1024
+1024
+1024
+
+# cpupower frequency-set -d 700MHZ -u 700MHz
+
+# rdmsr -a  -d 0x198H  --bitfield 15:0
+1792
+1792
+1792
+1792
+1792
+1792
+1792
+1792
+
+отсюда получаем закон если частота N то ее-ный 
+	P-state = 2.56 * N
+
+
+далее они пишут что на основе этих счетчиков также можно вычислить текущий P-state
+по формуле
+		P = (delta APERF - delta MPERF) * P(max)
+
+где P(max) это макс P-state
+я считаю что это полная хуйня. у меня P(max)= 3900MHz * 2.56 = 9984
+
+если мы возьмем предыдущие значения
+где мы получили 2820 MHz
+
+# rdmsr -d 0xE8 && rdmsr -d 0xE7
+447779959355
+1119623961280
+
+# rdmsr -d 0xE8 && rdmsr -d 0xE7
+447798498807
+1119635791672
+
+то согласно моей формуле 
+		P-state = 2.56 * N = 7219
+
+а согласно их формуле
+# echo "scale=8; (447779959355 - 447798498807 ) / (1119623961280 - 1119635791672)" | bc | xargs -I % echo "%* 9984" | bc
+15645
+
+что очевидно хуйня полная.
+в их форулу нужно подставлять не P-max а P соотвествующий частоте TSC 1800MHz , тоесть 1800 * 2.56 = 4608
+тогда
+получим тоже самое что и по моей формуле
+# echo "scale=8; (447779959355 - 447798498807 ) / (1119623961280 - 1119635791672)" | bc | xargs -I % echo "%* 4608" | bc
+7221
+
+
+
+
+
+
+
+
+
+
+||
+===  остановился здесь
+
 
 
 $$$$$$$$$$$$$$$$
 $$$$$$$$$$$$$$$$
 $$$$$$$$$$$$$$$$
 
+нужно проработать чешскую статью в pdf которая
 
-прораьтьат тсатью (https://docs.kernel.org/admin-guide/pm/intel_pstate.html#coordination-of-p-state-limits)
 
-
-MSR - model specific regiter ?
 
 есть такая ошибка в логах 
 : msr: Write to unrecognized MSR 0x38f by i7z (pid: 3751)
@@ -9350,34 +9959,6 @@ MSR - model specific regiter ?
 
 
 ноутбук lenovo как у него настроить принудительно вентилятор ?
-
-
-
-
-еще одна утилита управлением питанием цпу
-# x86_energy_perf_policy -r
-cpu0: EPB 15
-cpu0: HWP_REQ: min 4 max 10 des 0 epp 128 window 0x0 (0*10^0us) use_pkg 0
-cpu0: HWP_CAP: low 1 eff 7 guar 16 high 39
-...
-покзавает профиль питания цпу. 
-както отличается от гавернеров и intel_pstep
-
-устновить новый профиль
-# x86_energy_perf_policy  power
-
-виды профилей
-  normal  default Set a policy with a normal balance between performance and energy efficiency.  The processor will  tolerate  minor  performance  compromise  for
-       potentially significant energy savings.  This is a reasonable default for most desktops and servers.  "default" is a synonym for "normal".
-
-  performance Set a policy for maximum performance, accepting no performance sacrifice for the benefit of energy efficiency.
-
-  balance-performance Set a policy with a high priority on performance, but allowing some performance loss to benefit energy efficiency.
-
-  balance-power Set a policy where the performance and power are balanced.  This is the default.
-  
-  power Set a policy where the processor can accept a measurable performance impact to maximize energy efficiency.
-
 
 
 
@@ -9494,6 +10075,66 @@ dnsmasq как плагин к netowkr mamager
 dnsmasq по дефолту не читает /etc/hosts
 что вот это за хуйня в nsswitch "mdns4_minimal [NOTFOUND=return]" ?
 nlookup vs host ? ( а также ошибка linux Host not found: 3(NXDOMAIN))
+
+
+что за хрень pm-suspend
+
+по какой то причине хуево работала usb  мышь. 
+я захотел перезагрузить USB подсистему. в  итоге помогла эта статья https://gist.github.com/planetceres/917840478e1e4d45f8373667630e51a0
+которая привела на эту стать https://davidjb.com/blog/2012/06/restartreset-usb-in-ubuntu-12-04-without-rebooting/
+также я захватил эту статью https://www.baeldung.com/linux/control-usb-power-supply
+и еще вот это https://superuser.com/questions/1707773/how-to-turn-usb-connected-device-on-and-off-in-linux
+в целом непонятно - как находить usb устройства и как их гасить
+
+
+
+
+| opera
+ее установка в ubuntu
+я изрядно поебался с этим.
+
+если ставить из snap то при запуске вылезает ошибка на экране вида уже не помню какого
+а если при этом посмотреть journalctl -f 
+то мы увидим ошибку :
+	snap Failed to add PIDs to scope's control group Permission denied
+
+я нашел пост что это изза корявого snap
+цитирую 
+(https://serverfault.com/questions/478946/how-can-i-create-and-use-linux-cgroups-as-a-non-root-user)
+
+If you have recent enough Linux distribution you should be able to run processes in transient (temporary) cgroups, e.g.
+
+$ systemd-run --user --scope /bin/bash
+However, systemd is broken in many Linux distributions Ubuntu versions prior 21.10 and that fails with something like
+
+systemd[2601]: run-rbe547d13ad2c41d7857ea9e660e51ab9.scope: Failed to add PIDs to scope's control group: Permission denied
+
+The reason for this failure is that running transient cgroups without root requires support for cgroupv2 but Canonical really wants to push snap and using cgroupv2 would have broken snap until the snap had been patch enough. Ubuntu 21.10 is the first Ubuntu release that has smart enough snap to work with cgroupv2 so any older Ubuntu version is intentionally broken for transient cgroups to allow snap to run at all.
+
+I guess distributions that do not even try to support the misfeature called snap will have much less problems supporting cgroupv2 and this should work with older distribution versions, too.
+
+поэтому опера из snap на ubuntu 18 неработает.
+
+если ее ставить из пакетов то надо найти такую версию которая при установке не будет 
+ругаться что ей не хватает установленных зависимостей
+для ubuntu 18 это версия https://download3.operacdn.com/ftp/pub/opera/desktop/90.0.4480.80/linux/
+
+когда наконец мы ее поставили из пакета то еще один прикол - ютуб видео работают а 
+видео с сайтов где кино нет. это потому что нужно в убунту поставить пакет с кодеками.
+ставится оно так :
+(https://gist.github.com/mkaraki/684cd27d6e09c19f986de03f63a55b5c)
+	# sudo apt-get update
+	# sudo apt-get install -y chromium-codecs-ffmpeg-extra
+  # Import to opera
+	# sudo ln -sf /usr/lib/chromium-browser/libffmpeg.so /usr/lib/x86_64-linux-gnu/opera/libffmpeg.so
+
+это просто пиздец.
+потом заходим на сайт = https://html5test.com/
+и смотрим указано ли там что наш браузер теперь поддерживает H.264
+если да. то сайты с кино должны заработать.
+
+опера это пиздец. установка.
+
 
 | laptop
 | sn
