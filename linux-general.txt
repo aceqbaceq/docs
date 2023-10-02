@@ -9931,13 +9931,296 @@ done
 # echo "scale=8; (447779959355 - 447798498807 ) / (1119623961280 - 1119635791672)" | bc | xargs -I % echo "%* 4608" | bc
 7221
 
+далее.
+как я понял P-state были и до speedShift но спид шифт часть работы по переходу в другой п-стейт
+перенес на процессор(что конкретно было перенесено хуй знает) и это дало то что скорость переключения
+на п-стейт стало быстрее в 10 раз
+еще стало быстрее переключаться с п-стейта до макс частоты
+но мне непонятно все равно зачем нам быстрее
+особого профита не вижу
+мы же непереключается с нуля до максимуа по 1000 раз в секунду. бред
+
+нашел affected_cpus - там будет ядро и его гипертрединг братец
+
+далее. есть сайт где подробно можно также посмотреть инфо про свой  цпу https://en.wikichip.org/wiki/intel/core_i5/i5-8265u
+
+далее. оказывается есть группа инструкций AVX фишка в том что такая инструкция сжирает мегадохнера 
+энергии поэтому чтобы процессор не сгорел во время выполнения этой инструкции цпу автоматом понижает свою 
+частоту. вот пример таблицы для другого проца 
+https://stackoverflow.com/questions/56852812/simd-instructions-lowering-cpu-frequency
+для своего я не нашел.
+
+в итоге можно получить прикол - из за того что у цпу уменьшается частота на AVX команде
+на одном ядре - на других ядрах тоже частота будет понижена.как я понял только AVX-512 вызывают серьезное
+понижение частоты. с остальными все не так плохо.
+
+далее прикольная тема про C-states
+как же цпу туда впадает? может быть сам? хуй там!
+как я понял шедулер видит что в течение какогото времени цпу будет нехер делать
+и тогда шедулер запускает HLT команду и цпу переходит в C1\C1E до того момента пока снаружи интеррапт
+не прилетит! гениально.
+
+или шедулер может запустить MWAIT команду и тогда цпу перейдет в более глубойи C* стейт
+
+в пдфке рассматриваются режимы работы intel_pstate но опять же я так и непонял в чем разница
+active without HWP по сравнению с passive режимом. эти суки опять сделали вид что вопросов тут нет
+
+что касается C-states то у них тоже есть свои драйверы это intel_idle и acpi_idle
+(ровно по аналогии с драйверами не idle состояний intel_pstate и acpi-freq)
+текущйи драйвер можно определить через 
+		# cat /sys/devices/system/cpu/cpuidle/current_driver
+		intel_idle
+а так есть два драйвера acpi_idle который типа лоховской например потому что он поддерживает только 
+4 вида c-states и козырный это intel_idle
+прадва непонятно нахцй это все нужно если все управляется через HLT и MWAIT команды
+можно чтото подкручивать через grub
+пдфка об этом пишет вот что:
+
+
+If you want control over C-states, you should use kernel parameters:
+intel_idle:
+• intel_idle.max_cstate=0: this parameter disables the intel_idle, the Linux kernel will use the acpi_idle driver to use Cstates. System firmware (BIOS) provides a list of available C-states to the operating system using an ACPI table.
+• intel_idle.max_cstate=n: Limit the maximum depth of C-state from n = 1 to 9 to specify maximum depth of C-state.
+• Disable C1e: C1e can be disabled in BIOS setup for low latency. When C1E is enabled, the processor will try to lower
+processor clock speed and voltage when it enters the C1 C-state, which might result in higher latency. From Linux kernel
+3.9, the intel_idle driver treats C1 and C1E as separate states. So, the user can control whether C1E is used without
+disabling it in BIOS setup.
+
+acpi_idle (intel_idle disable):
+• idle=poll: If a user wants the absolute minimum latency, kernel parameter “idle_poll” can be used to keep the processors
+in C0 even when they are idle (the processors will run in a loop when idle, constantly checking to see if they are needed).
+Hyperthreading should probably be disabled, as keeping processors in C0 can interfere with proper operation of logical
+cores. It can improve the performance but will use a lot of power and make the system run hot, not recommended.
+• idle=halt: C-states can also be limited to C1 with the kernel parameter “idle=halt”.
+• Idle=nomwait: Disable mwait instruction for CPU C-states
+
+далее я временно по idle хрени читаю вот это - https://docs.kernel.org/admin-guide/pm/cpuidle.html
+
+как я понял когда в очереди шедулера нет тасков то там всегда есть таск Idle.
+и шедулер помешает этот таск на цпу. в этом таске как я понял там стоят только команды HLT и MWAIT.
+таким макаром у нас с точки зрения ОС на цпу всегда выполняется какаято таска. в частности  Idle таск.
+а с физической точки зрения в этот момент цпу находится в спящем состоянии одном из C-states (кроме C0 который означает реально работающий цпу). хитро.
+это типа как человек имеет список задач. а если задача нет то всегда есть задача - отдохнуть.
+с точки зрения планировщика человек занимается отдыхом. а по факту он спит.
+
+написано что Idle task или idle loop как они его зовут работает так - он вначале вызывает governer (про гавернеры idle состояий поговорим ниже)
+тот ему там чтото предписывает а потом он  запускает драйвер (intel_idle\acpi_idle) который уже выполняет конкретную команду что ему предписал гавернер. 
+вот откуда появляется Idle гавернер и idle драйвер.
+потому что перед нами стоит хитрая задача - как нам поглубже засунуть в сон цпу но с другой стороны
+угадать с интервалом времеи сна и тд. ведь у нас скоро цпу будет пробужен интерраптом.
+как я понял задача гавернера подобоать оптимальную (не знаю с какой точки зрения) конкретную команду
+конкретны уровень C-state в который цпу должен перейти. как это высчитывается непонятно. но именно для этого нужен гавернер. пишут то что гавернер принимает решение на абстрактном уровене. после этого шедулер обращается к драйверу. и он уже преврашает абстрактное решение в конкретику этого цпу.
+все C-state характеризуются двумя парамтрами - сколько времени надо провести цпу в этот C-state чтобы сохранить больше энергии чем это было бы если бы он вошел в менее энергосберегающий режим. и второй параметр 
+сколько времени надо цпу чтобы выйти из этого состояния в рабочее. непонятно первый параметр он включает в себя второй или нет. 
+написано что гавернер знает сколько времени спал цпу до этого тоесть некая статистика как до этого было с ц-стейтами. также гавернер видит все таймеры через которые процессы в ОС должны будут быть пробужены в ближайшее время. но это не панацея потому что цпу может быть пробужен не только таймерами.
+
+значит еще раз покажу где посмотреть текущий idle драйевер и текущий idle гавернер
+	# cat /sys/devices/system/cpu/cpuidle/current_driver 
+	intel_idle
+	# cat /sys/devices/system/cpu/cpuidle/current_governor_ro 
+	menu
+
+самое интересное что у меня на леново эта папка выглядит по одному а на финкпаде по другому покаызываю
+lenovo:
+	# pwd
+	/sys/devices/system/cpu/cpuidle
+	# grep . -Ri
+	current_governor_ro:menu
+	current_driver:intel_idle
+
+thinkpad:
+		# pwd
+		/sys/devices/system/cpu/cpuidle
+		# grep "" -Ri
+		current_governor:menu
+		current_driver:intel_idle
+		available_governors:ladder menu teo 
+		current_governor_ro:menu
+
+то есть видно что в леново нет датчика 
+		available_governors:ladder menu teo
+непонятно почему
+
+итак тем не менее гавернеры бывают:
+	ladder
+	menu 
+	teo
+
+хотя дока говорит что еще должен быть haltpoll
+но я его не вижу
+
+в чем разница гавернеров пока не раскрывается
+
+также я скажу в чем прикол если отключать C-states. помимо увеличения выделения тепла будет и профит
+состоит в том что цпу всегда готов выполнять команды. поэтому всякие там сетевые передачи пакетов
+и прочие хрени которые требуют низкой латенции все будут рады. идея как бы такая - прилеает пакет в сет карту.
+это рождает интеррапт который летит на ядро цпу. а ядро в это время спит в C-10. и нужно время чтобы ядро пробудить. соответственно сетевой пакет его время обработки вырастает. если же мы вырубаем те или иные C-states то такой проблемы нет. 
+
+далее рассматривается вот что. у нас регулярно срабатывает шедулер таймер интеррапт. то есть на цпу прилетает 
+сигнал и если он спит то будет разбужен а если он чтото делал то прекратит это делать и в конечном итоге
+управление будет передано на шедулер. так вот дока пишет то что если цпу уже находится в состоянии Idle
+то будить его вредно потому что как я понимаю если его разбудить раньше времени то вся фишка в энергоэкономии
+типа пропадет. правда при этом получается пропадает откликаемость системы.. но тем не менее идея такая - раз уж мы поместили цпу на какоето заданное заранее время в некоторый С-state то трогать его ненадо. 
+так вот чтобы  сделать так чтобы на ядро находящееся в C-state не прилетал интеррапт нужно 
+либо скомпилировать ядро в с опцией
+	CONFIG_NO_HZ_IDLE=y
+либо в GRUB указать 
+	nohz=on
+в этой статье 
+	https://www.kernel.org/doc/Documentation/timers/NO_HZ.txt 
+читаю вот так про это 
+	If a CPU is idle, there is little point in sending it a scheduling-clock
+interrupt.  After all, the primary purpose of a scheduling-clock interrupt
+is to force a busy CPU to shift its attention among multiple duties,
+and an idle CPU has no duties to shift its attention among.
+
+а! ну  я согласен! у нас шедулер таймер это строго периодический процесс целью которого является то что если 
+за заданный слайс времени программа не собирается сама ( с помощью спец сисколла) возвращать управления обратно шедулеру то этот таймер через заданны слайс времени заставляет цпу прекратит выполнять то что он выполнял передать управление шедулеру который выкинет нахер код той  программы скорей всего и засунет на
+цпу код другого процесса.  а если цпу у нас находится в Idle состоянии то никаких программ которые бы щас конкурировали за цпу нет. и вызывать шедулер просто напросто нахрен нет смысла! согласен.
+насколько я понимаю данная настройка отключает на idle цпу прилет только интеррапта от таймера шедулера
+все остальные интеррапты при этом остаются. так что если прилетит пакет в сетевую карту то его интеррапт
+отлично будет направлен на цпу. так что все окей. я понял.
+я где то читал что якобы если цпу в idle то ядро направит интеррапт на другое ядро которое не idle что 
+тоже умно.
+
+далее читаю в той же доке
+	The CONFIG_NO_HZ_IDLE=y Kconfig option causes the kernel to avoid sending
+scheduling-clock interrupts to idle CPUs, which is critically important
+both to battery-powered devices and to highly virtualized mainframes.
+A battery-powered device running a CONFIG_HZ_PERIODIC=y kernel would
+drain its battery very quickly, easily 2-3 times as fast as would the
+same device running a CONFIG_NO_HZ_IDLE=y kernel.  A mainframe running
+1,500 OS instances might find that half of its CPU time was consumed by
+unnecessary scheduling-clock interrupts.  In these situations, there
+is strong motivation to avoid sending scheduling-clock interrupts to
+idle CPUs.
+
+все понятно
+
+что касается терминов
+	An idle CPU that is not receiving scheduling-clock interrupts is said to
+be "dyntick-idle", "in dyntick-idle mode", "in nohz mode", or "running
+tickless".  The remainder of this document will use "dyntick-idle mode".
+
+там еще  в этой статье указаны всякие полезные моменты про это дело = https://www.kernel.org/doc/Documentation/timers/NO_HZ.txt
+
+
+вовзращаемся обратно к исходной доке https://docs.kernel.org/admin-guide/pm/cpuidle.html
+она говорит что если у нас тиклесс система то ее idle governor обычно равен menu
+проверяем как у меня ядро было скомпилировано
+
+# cat config-$(uname -r) | grep -i hz | grep -v '#'
+CONFIG_NO_HZ_IDLE=y
+CONFIG_NO_HZ=y
+
+эти обе настройки как раз о том чтобы цпу в idle состоянии не было потревожено интерраптом шедулер таймера.
+почему две настройки незнаю но вот как об этом написано в прошлой статье
+	Omit scheduling-clock ticks on idle CPUs (CONFIG_NO_HZ_IDLE=y or
+	CONFIG_NO_HZ=y for older kernels).  This is the most common
+	approach, and should be the default.
+
+посмотрим наш текущий idle гаверне
+	# cat current_governor_ro 
+	menu
+ага. все совпадает
+
+вот что статья (более верхняя) пишет о том как работает menu гаверне
+	It first obtains the time until the closest timer event with the assumption that the scheduler tick will be stopped. That time, referred to as the sleep length in what follows, is the upper bound on the time before the next CPU wakeup. It is used to determine the sleep length range, which in turn is needed to get the sleep length correction factor.
+
+далее опять малек отскакиваем назад. утилита powertop
+она показвывает какие проги и прочие хрени больше всего заставляют цпу выходить из сна.
+там тыкаем на Shift+tab и там всякие Tunables - параметры которые подкрутит в /sys чтобы 
+меньше жрало энергию.
+полезная прога.
+правда после такой подкрутки могут быть приколы . например мышка начнет постоянно впадать в спящий режим.
+хахаха.
+
+и тогда нас спасет этот скрипт
+for port in $(lspci | grep USB | cut -d' ' -f1); do
+    echo -n "0000:${port}"| sudo tee /sys/bus/pci/drivers/xhci_hcd/unbind;
+    sleep 5;
+    echo -n "0000:${port}" | sudo tee /sys/bus/pci/drivers/xhci_hcd/bind;
+    sleep 5;
+done
+
+
+двигаю дальше по документу
+	The menu governor maintains two arrays of sleep length correction factors. One of them is used when tasks previously running on the given CPU are waiting for some I/O operations to complete and the other one is used when that is not the case. Each array contains several correction factor values that correspond to different sleep length ranges organized so that each range represented in the array is approximately 10 times wider than the previous one
 
 
 
+в общем там дальше описывает как работает этот гавернер и еще один гавернер.
+но вникать далее в конкретику не стал.
+
+далее интереснее. описание полей в /sys
+и также там как бы написано то что  цпу переводится в Idle состояние не так что цпу сам себя туда переводит
+а что цпу просит некий другой hardware перевести себя в idle state. цитирую например
+	Total number of times the hardware has been asked by the given CPU to enter this idle state.
+то есть как я понимаю когда мы на цпу пихаем команду MWAIT то не сам цпу себя сует в C-state а типа что некое внешне к нему оборудование?.. 
+
+итак датчики C-state в /sys
+# ls -1 /sys/devices/system/cpu/cpu0/cpuidle/state8
+above
+below
+desc
+disable
+latency
+name
+power
+residency
+s2idle
+time
+usage
+
+
+публикую значения
+# grep "" -Ri
+disable:0           # данный c-state активирован
+above:17258501      # 17 миллионов раз цпу находился в спячке меньше чем планировалось. был пробужден раньше
+below:0             # сколько раз цпу можно было бы засунуть в более глубокий c-state (таких просто нет)
+time:281080574856   # это где то 3-е суток. при том что аптайм у бука 11 суток
+power:0             # в этом c-state цпу потребляет 0 милливат
+residency:5000      # это 5мс(миллисекунд) если я верно все понимаю
+latency:890         # чтобы пробудить цпу из этого c-state надо 0.89 мс
+usage:28962786      # этот цпу был помещен в этот c-state 29 миллионов раз
+desc:MWAIT 0x60     # видимо в этот стейт можно перейти через эту команду
+name:C10            # это стейт C10
 
 
 
+disable = отключен ли данный ц-стейт
 
+above  = как я понял это число раз когда данный ц-стейт был запущен но по факту цпу находился в нем
+меньше времени чем это планировалось. (например из за интеррапта от сетевой карты как я понимаю)
+
+below = сколько  раз была такая штука что цпу можно было бы держать в idle стейт дольше чем
+позволяет этот ц-стейт. или засунуть в более продвинутый c-state . но прикол в том что более глубокого
+c-state пока не бывает.Total number of times this idle state had been asked for, but certainly a deeper idle state would have been a better match for the observed idle duration.
+
+time = суммарное время в течение которого цпу находися в этот ц-стейт. в микросекундах
+
+power = какую мощность потребляет цпу находясь в этом ц-стейт. в милливатах
+
+residency = планируемая длительность нахождения в этом ц-стейте. в микросекундах
+
+latency = сколько нужно микросекунд чтобы пробудить цпу из данного состояния
+
+usage = число раз сколько цпу был помещен в этот c-state
+
+desc = описание этого стейта
+
+name = имя стейта
+
+
+
+получается из 29 миллионов раз когда цпу был в этом стейте 17 миллионов раз тоесть половина раз
+цпу был разбужен раньше чем положено
+
+как  я понимаю above и below в какойто степени показывают эффективность гавернера. что он хорошо
+попадает выбирает нужный c-state или плохо.
+
+
+поле disable позволяет для данного цпу отключить этот ц-стейт.
 
 
 ||
