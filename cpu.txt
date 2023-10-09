@@ -1297,6 +1297,9 @@ hwmon /sys/devices/virtual/thermal/thermal_zone0/hwmon1/temp1_input
 (7,	44,	32767)
 
 
+настройка чтобы финфан юзал этот конфиг
+    # echo 'THINKFAN_ARGS="-c /etc/thinkfan.conf"' | sudo tee -a /etc/default/thinkfan
+
 первая часть конфига это тепераутарные датчики чтото типа того
 вторая часть это таблица с тесператураами и насколько быстро при этом ддолен врашаться
 вентиляор.
@@ -1345,6 +1348,41 @@ hwmon /sys/devices/virtual/thermal/thermal_zone0/hwmon1/temp1_input
 
 и все зараобтало! решение нашел здест (https://github.com/vmatare/thinkfan/issues/45)
 при этом и в sensors стало показывать частоту врашения вентилятора а до этого ноль рисовало
+ 
+# sensors
+thinkpad-isa-0000
+Adapter: ISA adapter
+fan1:        3841 RPM   <====
+CPU:          +39.0°C  
+GPU:           +0.0°C  
+temp3:         +0.0°C  
+temp4:         +0.0°C  
+temp5:         +0.0°C  
+temp6:         +0.0°C  
+temp7:         +0.0°C  
+temp8:         +0.0°C  
+
+
+
+также если все заработало то вот тут поле "speed" начнет показывать неноль
+    # cat /proc/acpi/ibm/fan
+        status:   enabled
+        speed:    3846      <=========
+        level:    4
+        commands: level <level> (<level> is 0-7, auto, disengaged, full-speed)
+        commands: enable, disable
+        commands: watchdog <timeout> (<timeout> is 0 (off), 1-120 (seconds))
+
+
+из всего того что я нашел в интернете на lenovo idepad l340 нихуя невозможно заставить 
+как то через софт управлять этим ебаным цпу вентилятором. мега долбоебы в этом леново.
+
+
+есть еще fancontrol и его часть pwmconfig
+еще есть yaml для thinkfan.conf
+еще есть /sys/class/hwmon  и там видно сколько темп датчиков и что они значат
+
+
 
 
 далее. 
@@ -4010,8 +4048,114 @@ computer performance monitoring, and toggling certain CPU features
 
 итак MSR это для дебага, мониторинга, и активации фич.
 
+MSR дает инфо о мощности потребления, температуре, и счетчики скорости
+
+хочу сказать что /dev/cpu_dma_latency называется как PM_QOS
 
 
+далее
+малек про corefreq
+    # corefreq-cli -c
+CPU Freq(MHz) Ratio  Turbo  C0(%)  C1(%)  C3(%)  C6(%)  C7(%)  Min TMP:TS  Max
+000   20.47 ( 0.20)   1.14   3.20   4.23   0.03   0.53  92.01  20 / 31:63 / 36
+001   15.08 ( 0.15)   0.84   2.25   5.35   0.06   3.07  89.27  21 / 31:63 / 37
+002   16.13 ( 0.16)   0.90   2.35   4.61   0.02   0.76  92.26  21 / 32:62 / 37
+003    9.04 ( 0.09)   0.50   1.37   5.04   0.03   1.26  92.30  21 / 31:63 / 37
+004   13.68 ( 0.14)   0.76   2.02   5.39   0.03   0.53  92.03  21 / 31:63 / 36
+005   18.47 ( 0.18)   1.03   3.02   4.58   0.06   3.05  89.29  21 / 31:63 / 37
+006    9.16 ( 0.09)   0.51   1.41   5.54   0.02   0.76  92.26  21 / 32:62 / 37
+007    8.02 ( 0.08)   0.45   1.28   5.13   0.03   1.26  92.30  22 / 31:63 / 37
+
+    # corefreq-cli -m
+CPU Pkg  Apic  Core/Thread  Caches      (w)rite-Back (i)nclusive              
+ #   ID   ID    ID     ID  L1-Inst Way  L1-Data Way      L2  Way      L3  Way 
+000:BSP    0     0      0    32768  8     32768  8    262144  4   6291456 12 i
+001:  0    2     1      0    32768  8     32768  8    262144  4   6291456 12 i
+002:  0    4     2      0    32768  8     32768  8    262144  4   6291456 12 i
+003:  0    6     3      0    32768  8     32768  8    262144  4   6291456 12 i
+004:  0    1     0      1    32768  8     32768  8    262144  4   6291456 12 i
+005:  0    3     1      1    32768  8     32768  8    262144  4   6291456 12 i
+006:  0    5     2      1    32768  8     32768  8    262144  4   6291456 12 i
+007:  0    7     3      1    32768  8     32768  8    262144  4   6291456 12 i
+
+    # corefreq-cli -i
+CPU     IPS            IPC            CPI
+000     0.031122/s     0.477467/c     2.094384/i
+001     0.002259/s     0.165889/c     6.028122/i
+002     0.003316/s     0.210896/c     4.741664/i
+003     0.002221/s     0.208388/c     4.798741/i
+004     0.003764/s     0.214930/c     4.652674/i
+005     0.002457/s     0.118093/c     8.467935/i
+006     0.003547/s     0.185199/c     5.399586/i
+007     0.002950/s     0.088187/c    11.339553/i
+
+
+вот эта опция дает исчерпывающую инфо о возможностях цпу
+      # corefreq-cli -s
+Processor                             [Intel(R) Core(TM) i5-8265U CPU @ 1.60GHz]
+|- Architecture                                                 [Whiskey Lake/U]
+|- Vendor ID                                                      [GenuineIntel]
+|- Microcode                                                        [0x000000ea]
+|- Signature                                                           [  06_8E]
+|- Stepping                                                            [     12]
+|- Online CPU                                                          [  8/  8]
+|- Base Clock                                                          [100.005]
+|- Frequency            (MHz)                      Ratio                        
+                 Min    400.02                    <   4 >                       
+                 Max   1800.09                    <  18 >                       
+              Level1    800.04                    [   8 ]                       
+              Level2   1800.09                    [  18 ]                       
+               Turbo   1500.07                    <  15 >                       
+                                                                                
+...
+...
+Instruction Set Extensions                                                      
+|- 3DNow!/Ext [N/N]          ADX [Y]          AES [Y]  AVX/AVX2 [Y/Y] 
+|- AMX-BF16     [N]     AMX-TILE [N]     AMX-INT8 [N]    AMX-FP16 [N] 
+|- AVX512-F     [N]    AVX512-DQ [N]  AVX512-IFMA [N]   AVX512-PF [N] 
+|- AVX512-ER    [N]    AVX512-CD [N]    AVX512-BW [N]   AVX512-VL [N] 
+|- AVX512-VBMI  [N] AVX512-VBMI2 [N]  AVX512-VNNI [N]  AVX512-ALG [N] 
+|- AVX512-VPOP  [N] AVX512-VNNIW [N] AVX512-FMAPS [N] AVX512-VP2I [N] 
+|- AVX512-BF16  [N] AVX-VNNI-VEX [N] AVX-VNN-INT8 [N] AVX-NE-CONV [N] 
+|- AVX-IFMA     [N]    CMPccXADD [N]      MOVDIRI [N]   MOVDIR64B [N] 
+|- BMI1/BMI2  [Y/Y]         CLWB [N]      CLFLUSH [Y] CLFLUSH-OPT [Y] 
+|- CLAC-STAC    [Y]         CMOV [Y]    CMPXCHG8B [Y]  CMPXCHG16B [Y] 
+|- F16C         [Y]          FPU [Y]         FXSR [Y]   LAHF-SAHF [Y] 
+...
+...
+и так далее. 
+только нет знаний чтобы понять что написано
+
+
+далее
+я поставил софт который управляет вентилятором бука => NBFC
+ставил по инструкции:
+https://github.com/hirschmann/nbfc/wiki/How-to-install-NBFC-on-Ubuntu-18.04#3-manually-download-nugetexe-and-paste-to-nbfc-latest-stable
+
+удивительно это первый случай когда сложная установка сработала в точности от начала 
+и до конца на 100% успешно.  вот так молодцы...
+однако проблема в том что моего бука в списке нет.
+я применил один из рекомендованных. но увы. хрен так.
+программа не видит вентилятора
+
+  # mono /opt/nbfc/nbfc.exe status -a
+  Service enabled   : True
+  Read-only   : False
+  Selected config name  : Lenovo Ideapad U430p
+  Temperature   : 35
+
+  Fan display name  : System Fan
+  Auto control enabled  : True
+  Critical mode enabled : False
+  Current fan speed : 0.00
+  Target fan speed  : 0.00
+  Fan speed steps   : 511
+
+
+в общем я посмотрел все продукты которые связаны с регулировкой скорости вентилятора на лэптопе
+https://wiki.archlinux.org/title/fan_speed_control#NBFC
+
+но как я понял мой бук нельзя никак заставить по человечески работать с вентилятором.
 
 
 
