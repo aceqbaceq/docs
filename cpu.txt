@@ -4158,6 +4158,391 @@ https://wiki.archlinux.org/title/fan_speed_control#NBFC
 но как я понял мой бук нельзя никак заставить по человечески работать с вентилятором.
 
 
+далее. 
+тема модули ядра.
+и вторая тема температура и вентиляторы.
+
+если юзать modprobe то проблема в том что надо знать 
+имя модуля. наебка в том что имя модуля совсем не значит что оно 
+совпадает с именем файла модуля. но есть выход юзать insmod 
+он в качестве аргумента отлично сжовывает имя файла модуля!
+c другой стороны когда юзаешь insmod то часто эта сука 
+не может загрузить модуль и пишет ошибку что символ не найден
+далее я нашел как узнать имя модуля из файла модуля
+
+$ readelf -x .gnu.linkonce.this_module foo.ko
+$ objdump -s -j .gnu.linkonce.this_module foo.ko
+
+там будет портянка на выхлопе но имя модуля видно
+0x00000000 00000000 00000000 00000000 00000000 ................
+0x00000010 00000000 00000000 656d6331 34303300 ........emc1403.
+
+
+далее. удалять модуль лучше всего вот так
+потому что видно все модули зависимые которые будут 
+удалены вместе с ним
+# modprobe -rv amc6821
+rmmod amc6821
+
+
+
+
+отступление. про bash process substitution
+я хочу сделать echo "123" | grep 1
+через bash process substitution 
+однако не смогу потому что echo не умеет писать в файл
+поэтому так не всегда возможсно
+$ echo "123" >(grep 1)
+    123 /dev/fd/63
+ 
+
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+| далее про модули.
+| и про hwmon
+модуль это драйвер.
+так вот при загрузке модуля у него есть параметры. эти параметры можно задавать.
+список параметров можно посмотреть в /sys/module/имя_модуля/parameters
+для того чтобы при загрузке компа модуль загружался сразу с нужными параметрами 
+надо 
+    # cat /etc/modprobe.d/thinkfan.conf 
+    options thinkpad_acpi fan_control=1 experimental=1
+проверяем что они применились
+    # cat /sys/module/thinkpad_acpi/parameters/experimental 
+    1
+    # cat /sys/module/thinkpad_acpi/parameters/fan_control 
+    Y
+
+теперь когда мы поговорили про модули в целом переходим к задаче температуры и 
+вентиляторов.
+
+для того чтобы считывать температуру\обороты вентилятора как я понял 
+нужно поставить пакет lm-sensors. как я понял альтернативы этому пакету нет.
+в состав пакета входит два бинарника: sensors, sensors-detect
+
+sensors показывает то что он нарыл из датчиков на мат плате.
+а sensors-detect предназначен для того чтобы определить эти датчики.
+насколько я понял sensors-detect работает вот как - он каким то 
+макаром пытается найти датчики на мат плате, а потом он определяет 
+какие модули нужно подгрузить в линукс чтобы эти датчики
+были видны для sensors. кстати как я понял модуль и драйвер в линуксе это нечто как я понял разное.
+ниже я покажу.
+шарманка работает походу так: мы подгружаем нужный модули.
+при этом возникает новая папка 
+    /sys/class/hwmon/hwmon*
+при этом эта папка это симлинк в другую папку в /sys
+    # ls -1al
+    hwmon0 -> ../../devices/LNXSYSTM:00/LNXSYBUS:00/ACPI0003:00/power_supply/ADP0/hwmon0
+    hwmon1 -> ../../devices/LNXSYSTM:00/LNXSYBUS:00/PNP0A08:00/device:19/PNP0C09:00/PNP0C0A:00/power_supply/BAT0/hwmon1
+    hwmon2 -> ../../devices/platform/coretemp.0/hwmon/hwmon2
+    hwmon3 -> ../../devices/virtual/thermal/thermal_zone1/hwmon3
+    hwmon4 -> ../../devices/pci0000:00/0000:00:14.0/usb1/1-3/1-3:1.2/0003:046D:C52B.0003/0003:046D:4009.0008/power_supply/hidpp_battery_0/hwmon4
+    hwmon5 -> ../../devices/platform/thinkpad_hwmon/hwmon/hwmon5
+
+но то что это симлинк щас нас мало волнует.
+
+понятно что не каждый модуль создает папку в /sys/class/hwmon/
+
+далее интересный вопрос. вот у нас есть папка /sys/class/hwmon/hwmon*
+как понять какой модуль ее породил? тут трудновато это определить.
+зайдем пока со стороны. вот  у нас есть папка в которой показаны модули которые
+щас загружены 
+    /sys/module/*
+например модуль 
+    /sys/module/8250_dw
+так вот мы берем модуль и из него можно определить какие драйверы он порождает
+для этого идем в подпапку 
+    ./8250_dw/drivers
+смотрим что в этой папке
+# ls -l
+platform:dw-apb-uart -> ../../../bus/platform/drivers/dw-apb-uart
+так вот из этой строчки видно что данный модуль порождает драйвер drivers/dw-apb-uart
+
+еще раз хочу подчеркнуть такую вещь. вот у нас есть файл модуля 
+        /lib/modules/5.4.0-91-generic/kernel/drivers/thermal/intel/int340x_thermal/int3402_thermal.ko
+
+выясняем какое имя у этого модуля
+        # objdump -s -j .gnu.linkonce.this_module int3402_thermal.ko 
+        int3402_thermal.ko:     file format elf64-x86-64
+        Contents of section .gnu.linkonce.this_module:
+        0000 00000000 00000000 00000000 00000000  ................
+        0010 00000000 00000000 696e7433 3430325f  ........int3402_
+        0020 74686572 6d616c00 00000000 00000000  thermal.........
+
+видим что модуль имеет имя int3402_thermal
+далее мы загружаем этот модуль
+        # modprobe -v int3402_thermal
+        insmod /lib/modules/5.4.0-91-generic/kernel/drivers/thermal/intel/int340x_thermal/int3402_thermal.ko 
+после этого появляется папка ровно с именем этого модуля
+        /sys/module/int3402_thermal
+в ее подпапке drivers находится инфо какой драйвер породил этот модуль
+        # ls -l ./int3402_thermal/drivers
+        'platform:int3402 thermal' -> '../../../bus/platform/drivers/int3402 thermal'
+из того куда ведет симлинк видно что он ведет в папку drivers и что имя драйвера "int3402 thermal"
+
+один модуль как я понял может порождать несколько драйверов
+        # pwd
+        /sys/module/thinkpad_acpi/drivers
+        # ls -l
+        "platform:thinkpad_acpi" -> ../../../bus/platform/drivers/thinkpad_acpi
+        "platform:thinkpad_hwmon" -> ../../../bus/platform/drivers/thinkpad_hwmon
+тоесть модуль thinkpad_acpi породил два драйвера thinkpad_acpi   и   thinkpad_hwmon
+
+так вот возвращаюсь к вопросу о том что у нас есть папка /sys/class/hwmon/hwmon*/
+как нам понять какой модуль породил эту папку. оказывается по крайней мере в ряде случаев
+можно определить вот так  в подпапке ./hwmon*/device/driver
+в ряде случаев есть папка module
+и она явно показывает какой модуль породил нашу папку
+        # pwd
+        /sys/class/hwmon/hwmon5/device/driver
+        # ls -l
+        module -> ../../../../module/thinkpad_acpi
+то есть в данном случае взятом для примера папка hwmon5
+была порождена модулем thinkpad_acpi
+
+
+вот следущий пример
+    # pwd
+    /sys/class/hwmon/hwmon4/device/device/driver
+    # ls -l
+    module -> ../../../../module/hid_logitech_hidpp
+тоесть папка hwmon4 была порождена модулем hid_logitech_hidpp
+
+вот еще пример
+    # pwd
+    /sys/class/hwmon/hwmon2/device/driver
+    # ls -l
+    module -> ../../../../module/coretemp
+папка hwmon2 порождена модулем coretemp
+
+но как я уже сказал что так работает только в ряде случаев.
+а в других случаях такого нет
+    # pwd
+    /sys/class/hwmon/hwmon0/device/device/driver
+    # ls -l
+    ACPI0003:00 -> ../../../../devices/LNXSYSTM:00/LNXSYBUS:00/ACPI0003:00
+но я только еще добавлю что как я понимаю не все драйверы порождаются модулями. 
+как я понимаю ряд драйверов встроен в ядро само. без всяких модулей
+
+так теперь ответ на вопрос - почему я вцепился в папку hwmon
+дело в том что из нее данные читает sensors.
+вот почему эта папка нам так важна.
+на счет sensors скажу что его конфиг 
+    /etc/sensors3.conf
+он никакого влияния на то что увидит ли sensors датчики или нет неимеет.
+этот конфиг только позволяет наводить марафет. например можно переимовать при выводе имя вентилятора.
+но если sensors не нашел датчик на матплате вентилятора то толку от sensors3.conf нет никакого. 
+шарманка работает следущим образом как я понимаю. мы запускаем sensors-detect
+он пытается найти все датчики на мат плате какимто там своим способом. потом он 
+он ищет какие модули ядра надо загрузить из имеющихся которые с одной стороны будут считывать данные из 
+этих датчиков а с другой стороны эти модули  создадут папку в /sys/class/hwmon/hwmon* .
+и sensors-detect прописывает эти модули в 
+    # cat /etc/modules | grep -v '#'
+    coretemp
+таким образом грузится комп, загружает модули указанные в /etc/modules
+эти модули создают папку в /sys/class/hwmon/hwmon*
+далее мы запускаем sensors он анализирует папку /sys/class/hwmon/*
+и оттуда читает данные и выводит на экран. а данные туда попадают от ядра через модули которые уже непосредстрвенно
+считывают данные из датчиков на мат плате
+    sensors <--- /sys/class/hwmon/* <---- ядро (общий код) <--- модуль <---- датчик на мат плате
+    
+значит я провел эксперимент.
+берем вывод sensors
+    # sensors
+    coretemp-isa-0000
+    Adapter: ISA adapter
+    Package id 0:  +40.0°C  (high = +100.0°C, crit = +100.0°C)
+    Core 0:        +38.0°C  (high = +100.0°C, crit = +100.0°C)
+    Core 1:        +39.0°C  (high = +100.0°C, crit = +100.0°C)
+    Core 2:        +38.0°C  (high = +100.0°C, crit = +100.0°C)
+    Core 3:        +38.0°C  (high = +100.0°C, crit = +100.0°C)
+
+    thinkpad-isa-0000
+    Adapter: ISA adapter
+    THINKPAD Fan:    0 RPM
+
+во первых - если  я сделаю конфиг /etc/sensors3.conf полностью пустым это практически никак 
+не повлияет на вывод.  потому что как я уже сказал он аболютно не влияет будет ли найдет дайтчик на мат плате 
+или нет. он только занимается декорироваием вывод на экран.
+
+во вторых. каждая секция вывод на экран получается путем считывания отдельной подпапки из /sys/class/hwmon/hwmonX
+причем есть подсказка как нам понять в какой подпапке он искать инфо
+вот у нас есть 
+     coretemp-isa-0000
+это означает что нужно искать папку в которой 
+    # cat /sys/class/hwmon/hwmonX/name
+будет равен "coretemp"
+
+вторая секция в выводе называется 
+        thinkpad-isa-0000
+это значит что нам нужно искать папку
+в которой 
+        # cat /sys/class/hwmon/hwmonX/name
+будет равен "thinkpad"
+
+тогда я нахожу эти папки пользуясь этим методом
+    # cat /sys/class/hwmon/hwmon2/name
+    coretemp
+    # cat /sys/class/hwmon/hwmon5/name
+    thinkpad
+а далее я делаю вот что. я пользуюсь методом который описал выше. я ищу а какой модуль породил эту папку
+    # pwd
+    /sys/class/hwmon/hwmon5/device/driver
+    # ll
+    module -> ../../../../module/thinkpad_acpi/
+таким образом папка hwmon5 которая породила в выводе sensors секцию 
+    thinkpad-isa-0000
+    Adapter: ISA adapter
+    THINKPAD Fan:    0 RPM
+была создана модулем thinkpad_acpi
+по аналогии
+    # pwd
+    /sys/class/hwmon/hwmon2/device/driver
+    # ll
+    module -> ../../../../module/coretemp/
+таким образом папка hwmon2 которая породила в выводе sensors 
+    coretemp-isa-0000
+    Adapter: ISA adapter
+    Package id 0:  +40.0°C  (high = +100.0°C, crit = +100.0°C)
+    Core 0:        +38.0°C  (high = +100.0°C, crit = +100.0°C)
+    Core 1:        +39.0°C  (high = +100.0°C, crit = +100.0°C)
+    Core 2:        +38.0°C  (high = +100.0°C, crit = +100.0°C)
+    Core 3:        +38.0°C  (high = +100.0°C, crit = +100.0°C)
+была создана модулем coretemp
+
+а теперь важный момент проверить это. проверить вот как мы щас выгрузим эти модули
+из памяти. и если все что выше верно то вывод sensors станет пустым!
+    # modprobe -rv thinkpad_acpi
+    rmmod thinkpad_acpi
+    rmmod nvram
+    # modprobe -rv  coretemp
+    rmmod coretemp
+    # sensors
+    No sensors found!
+    Make sure you loaded all the kernel drivers you need.
+    Try sensors-detect to find out which these are.
+
+вот! сработало!
+
+теперь загружаем модули обратно.
+    # modprobe -v coretemp
+    insmod /lib/modules/5.4.0-91-generic/kernel/drivers/hwmon/coretemp.ko 
+    # modprobe -v nvram
+    insmod /lib/modules/5.4.0-91-generic/kernel/drivers/char/nvram.ko 
+    # modprobe -v thinkpad_acpi
+    insmod /lib/modules/5.4.0-91-generic/kernel/drivers/platform/x86/thinkpad_acpi.ko fan_control=1 experimental=1 
+
+    # sensors
+        thinkpad-isa-0000
+        Adapter: ISA adapter
+        THINKPAD Fan:    0 RPM
+
+и тут мы видим прикол. 
+у нас отображается секция которая обусловлена модулем thinkpad_acpi
+а секция обусловленная модулем coretemp исчезла.
+но это еще больше доказывает что все вышние рассуждения правильные.
+дело в том что по какойто причине модуль coretemp когда мы его обратно загружаем он как то 
+не совсем верно загружается.
+если модуль загрузился верно то в hwmon папка должна выглядеть както так
+    # pwd
+    /sys/class/hwmon/hwmon2
+    # ls -1
+    device
+    fan1_input
+    name
+    power
+    pwm1
+    pwm1_enable
+    subsystem
+    temp1_input
+    temp1_label
+    temp2_input
+    temp2_label
+    temp3_input
+    temp4_input
+    temp5_input
+    temp6_input
+    temp7_input
+    temp8_input
+    uevent
+
+тоесть должно быть дохрена файлов вида tempX_input
+именно в них содержится инфо о температуре. именно отсюда их считывает sensors.
+так вот после выгрузки и загрузки обратно coretemp папка выглядит у меня вот так щас
+
+значит на одном компе выгрузка coretemp (кстати это модуль температуры для новых цпу интел) 
+и загрузка обратно дала то что он загружается но температуру не показыывает.
+я попробовал на другом компе. у которого более новое ядро.
+я взял другой комп. вот как у него выглядит вывод sensors
+    # sensors
+    coretemp-isa-0000
+    Adapter: ISA adapter
+    Package id 0:  +38.0°C  (high = +84.0°C, crit = +100.0°C)
+    Core 0:        +37.0°C  (high = +84.0°C, crit = +100.0°C)
+    Core 1:        +37.0°C  (high = +84.0°C, crit = +100.0°C)
+
+а вот как выглядит папка hwmon созданная coretemp
+    # pwd
+    /sys/class/hwmon/hwmon3
+    # ls -1
+    device
+    name
+    power
+    subsystem
+    temp1_crit
+    temp1_crit_alarm
+    temp1_input
+    temp1_label
+    temp1_max
+    temp2_crit
+    temp2_crit_alarm
+    temp2_input
+    temp2_label
+    temp2_max
+    temp3_crit
+    temp3_crit_alarm
+    temp3_input
+    temp3_label
+    temp3_max
+    uevent
+
+все красиво все хорошо. мы видим файлы tempN_*
+выгружаю модуль и загружаю обратно
+    # modprobe -rv coretemp
+    rmmod coretemp
+    # modprobe -v coretemp
+    insmod /lib/modules/6.2.0-33-generic/kernel/drivers/hwmon/coretemp.ko 
+    # sensors
+    coretemp-isa-0000
+    Adapter: ISA adapter
+    Package id 0:  +37.0°C  (high = +84.0°C, crit = +100.0°C)
+    Core 0:        +37.0°C  (high = +84.0°C, crit = +100.0°C)
+    Core 1:        +37.0°C  (high = +84.0°C, crit = +100.0°C)
+
+
+тоесть все отработал шоколадно. тоесть есть предположение что модуль хреново загружается
+обратно на более старом ядре линукса можеть быть.
+    
+кстати hwmon описан вот тут = https://docs.kernel.org/hwmon/index.html
+
+
+
+  ls -1  | awk -F "." '{print $1}'| tee  >( xargs -L1  -I%  modprobe -v %  )
+ 
+
+# lsmod | grep " 0" | sort | awk '{print $1}' | head -n 5 | tee |  grep -v hid | grep -v coretemp | xargs -L1 modprobe -rv ;modprobe -rv coretemp && modprobe -v coretemp
+
+
+
+https://docs.kernel.org/hwmon/sysfs-interface.html
+
+
 
 ||
 ===  остановился здесь
