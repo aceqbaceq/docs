@@ -4528,6 +4528,55 @@ platform:dw-apb-uart -> ../../../bus/platform/drivers/dw-apb-uart
 
 тоесть все отработал шоколадно. тоесть есть предположение что модуль хреново загружается
 обратно на более старом ядре линукса можеть быть.
+
+кстати отойдем несколько в сторону , хотел напомнить как у меня на thinkpad я управляю вентилятором.
+для этого установлен пакет thinkpad.
+он в частности поставляет модуль thinkpad_acpi который в свою очередь создает папку в hwmon
+в которой есть инфо и о температуре цпу и об оборотах вентилятора.
+также есть служба systemd thinkfan которая читает конфиг /etc/thinkfan.cfg
+в которо указывается какие датчики из hwmon читать , привожу конфиг,
+и он их читает, и на основе этого подкручивает обороты вентилятора.
+
+    # cat /etc/thinkfan.conf 
+    hwmon /sys/devices/platform/thinkpad_hwmon/hwmon/hwmon2/temp6_input
+    hwmon /sys/devices/platform/thinkpad_hwmon/hwmon/hwmon2/temp3_input
+    hwmon /sys/devices/platform/thinkpad_hwmon/hwmon/hwmon2/temp7_input
+    hwmon /sys/devices/platform/thinkpad_hwmon/hwmon/hwmon2/temp4_input
+    hwmon /sys/devices/platform/thinkpad_hwmon/hwmon/hwmon2/temp8_input
+    #hwmon /sys/devices/platform/thinkpad_hwmon/hwmon/hwmon2/temp1_input
+    hwmon /sys/devices/platform/thinkpad_hwmon/hwmon/hwmon2/temp5_input
+    hwmon /sys/devices/platform/thinkpad_hwmon/hwmon/hwmon2/temp2_input
+    hwmon /sys/devices/platform/coretemp.0/hwmon/hwmon3/temp3_input
+    hwmon /sys/devices/platform/coretemp.0/hwmon/hwmon3/temp1_input
+    hwmon /sys/devices/platform/coretemp.0/hwmon/hwmon3/temp2_input
+    hwmon /sys/devices/virtual/thermal/thermal_zone0/hwmon1/temp1_input
+
+    (6,	33,	43)
+    (7,	43,	32767)
+
+тоесть схема такая.
+    вентилятор <----> systemd thinkfan <---- /etc/thinkfan.cfg  <---- /sys/..../hwmon/ <--- ядро <--- module thinkfan_acpi
+
+тоесть если высокая температура на цпу. надо проверить что модуль thinkfan_acpi загружен.
+    # lsmod | grep thinkfan_acpi
+что служба thinkfan  не выдает ошибок
+    # systemcl status thinkfan
+и посмотреть каковы обороты вентилятора
+    # sensors
+либо через 
+    # pwd
+    /sys/class/hwmon/hwmon2
+    # cat fan1_input 
+    4778
+и посмотреть в конфиг  в таблицу, какой температуре мы назначили какие обороты
+    # cat /etc/thinkfan.conf
+    ...
+    (6,	33,	43)
+    (7,	43,	32767)
+
+
+
+
 ^^
 ||
 ===  остановился здесь
