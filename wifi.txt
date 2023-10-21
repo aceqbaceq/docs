@@ -190,4 +190,453 @@ nmcli
 
 ==
 
+| NetworkManager
+| wifi
 
+как добавить новую wifi сеть
+
+создаем файл
+    # cat /etc/NetworkManager/system-connections/iphone4-24G 
+    [connection]
+    id=iphone4-24G                             # имя лучше как у  SSID, влияет на nmcli conn list
+    uuid=f30f4402-c16e-479f-b348-24a194b9e3a6  # неважно, можно просто сгенерировать
+    type=wifi
+    interface-name=wlp2s0                      # имя сет карты
+    permissions=
+
+    [wifi]
+    mac-address-blacklist=
+    mode=infrastructure
+    ssid=iphone4-24G                            # SSID имя
+
+    [wifi-security]
+    key-mgmt=wpa-psk
+    psk=пароль                                  # вай фай пароль
+
+    [ipv4]
+    dns-search=
+    method=auto
+
+    [ipv6]
+    addr-gen-mode=stable-privacy
+    dns-search=
+    method=auto
+
+    # systemctl retstart NetworkManager
+    # nmcli conn up iphone4-24G
+
+
+далее есть такой прикол что если wifi сеть работает в режиме hidden 
+то когда мы запросим список сетей то NetworkManager долбодятел
+будет показывать две продублированные сети. как я понял когда искал ответ - решения нет
+    # nmcli dev wifi list
+    IN-USE  SSID          MODE   CHAN  RATE        SIGNAL  BARS  SECURITY  
+    *       iphone4-24G   Infra  2     270 Mbit/s  92      ▂▄▆█  WPA2      
+    *       iphone4-24G   Infra  2     270 Mbit/s  78      ▂▄▆_  WPA2      
+
+единственное решение только в том что надо подождать пару минут
+и дубли исчезнут
+
+
+
+==
+
+| wifi
+| энергосбережение
+
+значит я имел полнейший пиздец. он состоял в том что было два ноутбука связанныех по вай фай друг с другом.
+и при этом через ssh был полнейший пиздец в плане залипаний при нажатии. это был **!*!*!!*!*!*!
+работать по ssh было совершенно невозможно. 
+так вот дело было в том что в NetworkManager была установлена энергосбережение для вай фай карточки.
+я его нахуй отключил. и ссш перестал залипать мгновенно!!!! мгновеннно!
+как это сделать:
+согласно вот этому
+https://gist.github.com/jcberthon/ea8cfe278998968ba7c5a95344bc8b55
+надо это
+
+# cat /etc/NetworkManager/conf.d/default-wifi-powersave-on.conf 
+[connection]
+wifi.powersave = 3
+
+заменить на
+
+# cat /etc/NetworkManager/conf.d/default-wifi-powersave-on.conf 
+[connection]
+wifi.powersave = 2
+
+и рестартовать сетевую службу
+
+# systemctl restart NetworkManager
+
+но это был не конец пиздеца. потому что оказалось что уровень приема сигнала через стенку на 5GHz
+был гораздо хуевее чем на 2.4GHz. поэтому нужно было еще сменить эту хрень.
+тоесть 
+  5GHz
+    # iwconfig
+    wlp2s0    IEEE 802.11  ESSID:"vasya"  
+          Mode:Managed  Frequency:5.18 GHz  Access Point: 9C:53:22:14:D8:25   
+          Bit Rate=6 Mb/s   Tx-Power=30 dBm   
+          Retry short limit:7   RTS thr:off   Fragment thr:off
+          Encryption key:off
+          Power Management:off
+          Link Quality=39/70  Signal level=-71 dBm                     <=== уровень сигнала
+          Rx invalid nwid:0  Rx invalid crypt:0  Rx invalid frag:0
+          Tx excessive retries:0  Invalid misc:30   Missed beacon:0
+
+    2.4GHz
+    # iwconfig
+    wlp2s0    IEEE 802.11  ESSID:"vasya"  
+          Mode:Managed  Frequency:2.427 GHz  Access Point: 9C:53:22:14:D8:23   
+          Bit Rate=1 Mb/s   Tx-Power=20 dBm   
+          Retry short limit:7   RTS thr:off   Fragment thr:off
+          Encryption key:off
+          Power Management:off
+          Link Quality=61/70  Signal level=-49 dBm                    <=== уровень сигнала
+          Rx invalid nwid:0  Rx invalid crypt:0  Rx invalid frag:0
+          Tx excessive retries:0  Invalid misc:11   Missed beacon:0
+
+
+
+
+
+
+| полезные команды про сеть и  вай фай в линуксе
+
+как понять какой модуль рулит сетевой карточкой
+
+    # lspci -v | grep Ethernet -C 10
+
+    00:19.0 Ethernet controller: Intel Corporation Ethernet Connection I217-LM (rev 04)
+	Subsystem: Lenovo ThinkPad T440p
+	Flags: bus master, fast devsel, latency 0, IRQ 31
+	Memory at f0500000 (32-bit, non-prefetchable) [size=128K]
+	Memory at f053f000 (32-bit, non-prefetchable) [size=4K]
+	I/O ports at 3080 [size=32]
+	Capabilities: [c8] Power Management version 2
+	Capabilities: [d0] MSI: Enable+ Count=1/1 Maskable- 64bit+
+	Capabilities: [e0] PCI Advanced Features
+	Kernel driver in use: e1000e
+	Kernel modules: e1000e   <===== имя модуля который обеспечивает драйвер
+	
+
+убираем модуль
+    # modprobe -rv e1000e
+    rmmod e1000e
+
+
+отключаем из автозагрузки
+    # cat /etc/modprobe.d/my-blacklist.conf 
+        # останавливаем проводную сетевую карточку
+        blacklist e1000e
+    
+
+
+далее еще что интересно. вот мы выгрузили модуль из памяти. 
+    # lsmod | grep e1000
+        (пусто)
+но и lspci и другие команды будут по прежнему показывать проводную карточку.
+тоесть
+
+    # lspci -v | grep Ethernet -C 10
+    00:19.0 Ethernet controller: Intel Corporation Ethernet Connection I217-LM (rev 04)
+	Subsystem: Lenovo ThinkPad T440p
+	Flags: fast devsel, IRQ 20
+	Memory at f0500000 (32-bit, non-prefetchable) [size=128K]
+	Memory at f053f000 (32-bit, non-prefetchable) [size=4K]
+	I/O ports at 3080 [size=32]
+	Capabilities: [c8] Power Management version 2
+	Capabilities: [d0] MSI: Enable- Count=1/1 Maskable- 64bit+
+	Capabilities: [e0] PCI Advanced Features
+	Kernel modules: e1000e
+
+и
+
+    # lshw -class network
+    *-network UNCLAIMED       
+       description: Ethernet controller
+       product: Ethernet Connection I217-LM
+       vendor: Intel Corporation
+       physical id: 19
+       bus info: pci@0000:00:19.0
+       version: 04
+       width: 32 bits
+       clock: 33MHz
+       capabilities: pm msi cap_list
+       configuration: latency=0
+       resources: memory:f0500000-f051ffff memory:f053f000-f053ffff ioport:3080(size=32)
+
+	
+тоесть эти две команды они показывают не те устройства который подключены прямо щас. нет.
+они показывают вообще все железо что есть на компе. но не факт что оно подключено
+
+
+| wifi
+| 5 GHz
+| 2.4 GHz
+
+как узнать на какой частоте щас работает wifi карточка.
+то есть на частоте 2.4GHz или 5 GHz ?
+
+а вот как
+    # iwconfig
+    wlp2s0    IEEE 802.11  ESSID:"iphone4-50G"  
+          Mode:Managed  Frequency:5.18 GHz  Access Point: 9C:53:22:14:D8:25     <=== 5 GHz !!!!
+          Bit Rate=6 Mb/s   Tx-Power=30 dBm   
+          Retry short limit:7   RTS thr:off   Fragment thr:off
+          Power Management:off
+          Link Quality=54/70  Signal level=-56 dBm  
+          Rx invalid nwid:0  Rx invalid crypt:0  Rx invalid frag:0
+          Tx excessive retries:0  Invalid misc:0   Missed beacon:0
+
+еще пример
+    # iwconfig          
+    wlp2s0    IEEE 802.11  ESSID:"iphone4-24G"  
+          Mode:Managed  Frequency:2.417 GHz  Access Point: 9C:53:22:14:D8:23   <=== 2.4 GHz !!!!
+          Bit Rate=1 Mb/s   Tx-Power=20 dBm   
+          Retry short limit:7   RTS thr:off   Fragment thr:off
+          Encryption key:off
+          Power Management:off
+          Link Quality=66/70  Signal level=-44 dBm  
+          Rx invalid nwid:0  Rx invalid crypt:0  Rx invalid frag:0
+          Tx excessive retries:0  Invalid misc:38   Missed beacon:0
+
+          
+что при этом еще интересно отметить что когда мы говорим про частоту 2.4 GHz
+или 5 Ghz то на самом деле (я этого не знал) --> частота на самое деле не такая. 
+она зависит от так называемого канала. вокруг базовой частоты есть несколько полос (каналов)
+и они другие! пример:
+на thinkpad карточка которая поддерживает только частоты вокруг 2.4 GHz
+     $ iwlist wlp3s0 frequency
+          wlp3s0    13 channels in total; available frequencies :
+          Channel 01 : 2.412 GHz
+          Channel 02 : 2.417 GHz
+          Channel 03 : 2.422 GHz
+          Channel 04 : 2.427 GHz
+          Channel 05 : 2.432 GHz
+          Channel 06 : 2.437 GHz
+          Channel 07 : 2.442 GHz
+          Channel 08 : 2.447 GHz
+          Channel 09 : 2.452 GHz
+          Channel 10 : 2.457 GHz
+          Channel 11 : 2.462 GHz
+          Channel 12 : 2.467 GHz
+          Channel 13 : 2.472 GHz
+          Current Frequency:2.417 GHz (Channel 2)
+
+значит мы видим что карточка которая поддерживает 2.4 GHz
+она на самом деле работает вокруг этой частоты. и в зависимости от канала (некоей полосы конкретной)
+она может иметь часатоты в диапазоне 
+    ( 2.412 - 2.472 ) Ghz
+
+и что текущая частота на карточке она работает на 2.417 GHz
+вот я щас тоже самое проверю через другую команду
+    $ iwconfig wlp3s0  | grep Frequency
+          Mode:Managed  Frequency:2.417 GHz  Access Point: 9C:53:22:14:D8:23   
+
+    
+    
+а вот на леново карточка поддерживает и 2.4 GHz и 5 Ghz
+и тут уже вот такой диапазон
+        # iwlist frequency
+          wlp2s0    32 channels in total; available frequencies :
+          Channel 01 : 2.412 GHz
+          Channel 02 : 2.417 GHz
+          Channel 03 : 2.422 GHz
+          Channel 04 : 2.427 GHz
+          Channel 05 : 2.432 GHz
+          Channel 06 : 2.437 GHz
+          Channel 07 : 2.442 GHz
+          Channel 08 : 2.447 GHz
+          Channel 09 : 2.452 GHz
+          Channel 10 : 2.457 GHz
+          Channel 11 : 2.462 GHz
+          Channel 12 : 2.467 GHz
+          Channel 13 : 2.472 GHz
+          Channel 36 : 5.18 GHz
+          Channel 40 : 5.2 GHz
+          Channel 44 : 5.22 GHz
+          Channel 48 : 5.24 GHz
+          Channel 52 : 5.26 GHz
+          Channel 56 : 5.28 GHz
+          Channel 60 : 5.3 GHz
+          Channel 64 : 5.32 GHz
+          Channel 100 : 5.5 GHz
+          Channel 104 : 5.52 GHz
+          Channel 108 : 5.54 GHz
+          Channel 112 : 5.56 GHz
+          Channel 116 : 5.58 GHz
+          Channel 120 : 5.6 GHz
+          Channel 124 : 5.62 GHz
+          Channel 128 : 5.64 GHz
+          Channel 132 : 5.66 GHz
+          Channel 136 : 5.68 GHz
+          Channel 140 : 5.7 GHz
+          Current Frequency:2.417 GHz (Channel 2)
+
+          
+    # iwconfig wlp2s0  | grep Frequency
+          Mode:Managed  Frequency:2.417 GHz  Access Point: 9C:53:22:14:D8:23  
+
+
+          
+логи для вайфай в убунте
+    # journalctl -f -u wpa_supplicant
+        CTRL-EVENT-REGDOM-CHANGE init=BEACON_HINT type=UNKNOWN
+        SME: Trying to authenticate with 9c:53:22:14:d8:23 (SSID='iphone4-24G' freq=2417 MHz)
+        Trying to associate with 9c:53:22:14:d8:23 (SSID='iphone4-24G' freq=2417 MHz)
+        RRM: Ignoring radio measurement request: Not associated
+        Associated with 9c:53:22:14:d8:23
+        CTRL-EVENT-SUBNET-STATUS-UPDATE status=0
+        WPA: Key negotiation completed with 9c:53:22:14:d8:23 [PTK=CCMP GTK=CCMP]
+        CTRL-EVENT-CONNECTED - Connection to 9c:53:22:14:d8:23 completed [id=0 id_str=]
+        CTRL-EVENT-SIGNAL-CHANGE above=1 signal=-44 noise=-112 txrate=1000
+        CTRL-EVENT-SIGNAL-CHANGE above=1 signal=-39 noise=-113 txrate=1000
+
+        
+| wifi
+| Archer
+
+а вот кстати как вернуть к жизни превращенный в кирпич Archer C20 = https://superuser.com/questions/1776296/how-to-recover-bricked-archer-c20
+
+===
+
+| wifi 
+| сеть
+| полезные команды
+
+ разбираю статью
+https://askubuntu.com/questions/1397239/wi-fi-connection-keeps-disconnecting
+
+получить инфо о сетевых карточках
+$ sudo  lshw -class network
+  *-network UNCLAIMED       
+       description: Ethernet controller
+       product: Ethernet Connection I217-LM
+       vendor: Intel Corporation
+       physical id: 19
+       bus info: pci@0000:00:19.0
+       version: 04
+       width: 32 bits
+       clock: 33MHz
+       capabilities: pm msi cap_list
+       configuration: latency=0
+       resources: memory:f0500000-f051ffff memory:f053f000-f053ffff ioport:3080(size=32)
+  *-network
+       description: Wireless interface
+       product: Wireless 7260
+       vendor: Intel Corporation
+       physical id: 0
+       bus info: pci@0000:03:00.0
+       logical name: wlp3s0
+       version: 6b
+       serial: 28:b2:bd:80:bd:8a
+       width: 64 bits
+       clock: 33MHz
+       capabilities: pm msi pciexpress bus_master cap_list ethernet physical wireless
+       configuration: broadcast=yes driver=iwlwifi driverversion=6.2.0-33-generic firmware=17.3216344376.0 7260-17.ucode ip=192.168.0.104 latency=0 link=yes multicast=yes wireless=IEEE 802.11
+       resources: irq:33 memory:f0400000-f0401fff
+
+       
+далее. прикольная команда
+    $ lspci -knn | grep Net -A3
+    03:00.0 Network controller [0280]: Intel Corporation Wireless 7260 [8086:08b2] (rev 6b)
+        Subsystem: Intel Corporation Wireless-N 7260 [8086:c262]
+        Kernel driver in use: iwlwifi
+        Kernel modules: iwlwifi
+
+ключ -k дает то что будет показан и модуль и драйвер который рулит железкой
+     -nn дает то что будет показан вендор через буквы и через цифры
+прикол в том что модуль порождает драйвер. при том что имя модуля может быть одно
+а имя драйвера котоырй он порождает другое. также если драйвер вмонтирован в ядро то 
+драйвер будет а модуля у него не будет.
+
+например
+    00:1d.0 USB controller [0c03]: Intel Corporation 8 Series/C220 Series Chipset Family USB EHCI #1 [8086:8c26] (rev 04)
+        Subsystem: Lenovo ThinkPad T440p [17aa:220e]
+        Kernel driver in use: ehci-pci
+
+        
+далее. конкретно по вай фай.
+        $ iwlist freq
+        wlp3s0    13 channels in total; available frequencies :
+          Channel 01 : 2.412 GHz
+          Channel 02 : 2.417 GHz
+          Channel 03 : 2.422 GHz
+          Channel 04 : 2.427 GHz
+          Channel 05 : 2.432 GHz
+          Channel 06 : 2.437 GHz
+          Channel 07 : 2.442 GHz
+          Channel 08 : 2.447 GHz
+          Channel 09 : 2.452 GHz
+          Channel 10 : 2.457 GHz
+          Channel 11 : 2.462 GHz
+          Channel 12 : 2.467 GHz
+          Channel 13 : 2.472 GHz
+          Current Frequency:2.417 GHz (Channel 2)
+
+        
+следущая команда
+она ищет все SSID 
+тоесть все вай фай сети
+    $ iwlist scan
+                Cell 02 - Address: 9C:53:22:14:D8:23   # мак адрес точки доступа
+                    Channel:2                          # через какой канал наша nic подключилась 
+                    Frequency:2.417 GHz (Channel 2)    # на какой частоте мы подключились
+                    Quality=69/70  Signal level=-41 dBm  # качество сигнала с точкой
+                    Encryption key:on
+                    ESSID:"iphone4"                      # SSID
+                    Bit Rates:1 Mb/s; 2 Mb/s; 5.5 Mb/s; 11 Mb/s; 9 Mb/s
+                              18 Mb/s; 36 Mb/s; 54 Mb/s
+                    Bit Rates:6 Mb/s; 12 Mb/s; 24 Mb/s; 48 Mb/s 
+                    Mode:Master
+                    Extra:tsf=0000001534c9f25e
+                    Extra: Last beacon: 10467444ms ago
+                    IE: IEEE 802.11i/WPA2 Version 1
+                        Group Cipher : CCMP
+                        Pairwise Ciphers (1) : CCMP
+                        Authentication Suites (1) : PSK
+
+
+в чем прикол. скорости которые указаны это какая то хрень. потому что 
+по факту скорость гораздо выше.
+
+
+следущая команда
+покажет нам кучку полезной информации
+$ iwconfig wlp3s0
+    wlp3s0    IEEE 802.11  ESSID:"iphone4-24G"  
+          Mode:Managed  Frequency:2.417 GHz  Access Point: 9C:53:22:14:D8:23   
+          Bit Rate=300 Mb/s   Tx-Power=22 dBm   
+          Retry short limit:7   RTS thr:off   Fragment thr:off
+          Power Management:off
+          Link Quality=70/70  Signal level=-38 dBm  
+          Rx invalid nwid:0  Rx invalid crypt:0  Rx invalid frag:0
+          Tx excessive retries:1  Invalid misc:2268   Missed beacon:0
+
+
+    # iwconfig wlp2s0
+    wlp2s0    IEEE 802.11  ESSID:"iphone4-50G"  
+          Mode:Managed  Frequency:5.18 GHz  Access Point: 9C:53:22:14:D8:25   
+          Bit Rate=6 Mb/s   Tx-Power=30 dBm   
+          Retry short limit:7   RTS thr:off   Fragment thr:off
+          Encryption key:off
+          Power Management:off
+          Link Quality=47/70  Signal level=-63 dBm  
+          Rx invalid nwid:0  Rx invalid crypt:0  Rx invalid frag:0
+          Tx excessive retries:0  Invalid misc:430   Missed beacon:0
+
+
+еще одна команда
+    # inxi -Fxz | grep Network -A5
+    Network:   Card-1: Qualcomm Atheros QCA9377 802.11ac Wireless Network Adapter driver: ath10k_pci bus-ID: 02:00.0
+    IF: wlp2s0 state: up mac: <filter>
+    Card-2: Realtek RTL8111/8168/8411 PCI Express Gigabit Ethernet Controller port: 3000 bus-ID: 03:00.0
+    IF: N/A state: N/A speed: N/A duplex: N/A mac: N/A
+    Card-3: Atheros usb-ID: 001-004
+    IF: null-if-id state: N/A speed: N/A duplex: N/A mac: N/A
+
+
+еще одна команда
+# nmcli device wifi list
+IN-USE  SSID         MODE   CHAN  RATE        SIGNAL  BARS  SECURITY 
+*       iphone4-50G  Infra  36    135 Mbit/s  44      ▂▄__  WPA2

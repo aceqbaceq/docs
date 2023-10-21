@@ -4526,9 +4526,10 @@ platform:dw-apb-uart -> ../../../bus/platform/drivers/dw-apb-uart
     Core 1:        +37.0°C  (high = +84.0°C, crit = +100.0°C)
 
 
-тоесть все отработал шоколадно. тоесть есть предположение что модуль хреново загружается
+тоесть все отработало шоколадно. тоесть есть предположение что модуль хреново загружается
 обратно на более старом ядре линукса можеть быть.
 
+///
 кстати отойдем несколько в сторону , хотел напомнить как у меня на thinkpad я управляю вентилятором.
 для этого установлен пакет thinkpad.
 он в частности поставляет модуль thinkpad_acpi который в свою очередь создает папку в hwmon
@@ -4573,6 +4574,139 @@ platform:dw-apb-uart -> ../../../bus/platform/drivers/dw-apb-uart
     ...
     (6,	33,	43)
     (7,	43,	32767)
+///
+
+возврашаемся к sensors
+в его выводе можно увидеть вот такие строчки
+
+тут я еще покажу полезную штуку. а именно получить инфо о модуле ядра
+например. берем вай карточку и находим тот модуль который она юзает
+# lspci -knn | grep Network -A2
+02:00.0 Network controller [0280]: Qualcomm Atheros QCA9377 802.11ac Wireless Network Adapter [168c:0042] (rev 31)
+	Subsystem: Lenovo QCA9377 802.11ac Wireless Network Adapter [17aa:0901]
+	Kernel driver in use: ath10k_pci
+	Kernel modules: ath10k_pci
+
+
+итак модуль ath10k_pci
+так вот посмотрим параметры этого модуля
+
+# modinfo ath10k_pci
+filename:       /lib/modules/5.4.0-91-generic/kernel/drivers/net/wireless/ath/ath10k/ath10k_pci.ko
+description:    Driver support for Qualcomm Atheros 802.11ac WLAN PCIe/AHB devices
+author:         Qualcomm Atheros
+srcversion:     AF3831193716991120B9A1C
+depends:        ath10k_core
+retpoline:      Y
+intree:         Y
+name:           ath10k_pci
+parm:           irq_mode:0: auto, 1: legacy, 2: msi (default: 0) (uint)
+parm:           reset_mode:0: auto, 1: warm only (default: 0) (uint)
+
+здесь интересны строки с "parm:"
+
+а вот еще параметры другого модуля
+# modinfo thinkpad_acpi
+filename:       /lib/modules/6.2.0-33-generic/kernel/drivers/platform/x86/thinkpad_acpi.ko
+description:    ThinkPad ACPI Extras
+parm: experimental:Enables experimental features when non-zero (int)
+parm: debug:Sets debug level bit-mask (uint)
+parm: force_load:Attempts to load the driver even on a mis-identified ThinkPad when true (bool)
+parm: fan_control:Enables setting fan parameters features when true (bool)
+parm: brightness_mode:Selects brightness control strategy: 0=auto, 1=EC, 2=UCMS, 3=EC+NVRAM (uint)
+parm: brightness_enable:Enables backlight control when 1, disables when 0 (uint)
+parm: volume_mode:Selects volume control strategy: 0=auto, 1=EC, 2=N/A, 3=EC+NVRAM (uint)
+parm: volume_capabilities:Selects the mixer capabilities: 0=auto, 1=volume and mute, 2=mute only (uint)
+parm: volume_control:Enables software override for the console audio control when true (bool)
+parm: software_mute:Request full software mute control (bool)
+parm: index:ALSA index for the ACPI EC Mixer (int)
+parm: id:ALSA id for the ACPI EC Mixer (charp)
+parm: enable:Enable the ALSA interface for the ACPI EC Mixer (bool)
+parm: hotkey:Simulates thinkpad-acpi procfs command at module load, see documentation
+parm: bluetooth:Simulates thinkpad-acpi procfs command at module load, see documentation
+parm: video:Simulates thinkpad-acpi procfs command at module load, see documentation
+parm: light:Simulates thinkpad-acpi procfs command at module load, see documentation
+parm: cmos:Simulates thinkpad-acpi procfs command at module load, see documentation
+parm: led:Simulates thinkpad-acpi procfs command at module load, see documentation
+parm: beep:Simulates thinkpad-acpi procfs command at module load, see documentation
+parm: brightness:Simulates thinkpad-acpi procfs command at module load, see documentation
+parm: volume:Simulates thinkpad-acpi procfs command at module load, see documentation
+parm: fan:Simulates thinkpad-acpi procfs command at module load, see documentation
+parm: dbg_wlswemul:Enables WLSW emulation (uint)
+parm: wlsw_state:Initial state of the emulated WLSW switch (bool)
+parm: dbg_bluetoothemul:Enables bluetooth switch emulation (uint)
+parm: bluetooth_state:Initial state of the emulated bluetooth switch (bool)
+parm: dbg_wwanemul:Enables WWAN switch emulation (uint)
+parm: wwan_state:Initial state of the emulated WWAN switch (bool)
+parm: dbg_uwbemul:Enables UWB switch emulation (uint)
+parm: uwb_state:Initial state of the emulated UWB switch (bool)
+parm: profile_force:Force profile mode. -1=off, 1=MMC, 2=PSC (int)
+
+так вот на примере этого модуля thinkpad_acpi
+я покажу как мы можем задать его параметры.
+для этого нужно  создать файл в спец папке, в нем указываем options и имя модуля
+а далее указываем опции и их значение.
+    # cat /etc/modprobe.d/thinkfan.conf 
+    options thinkpad_acpi fan_control=1 experimental=1
+
+продублирую сверху то что написано для опций "fan_control" и "experimental":
+    parm: experimental:Enables experimental features when non-zero (int)
+    parm: fan_control:Enables setting fan parameters features when true (bool)
+
+проверить что заданные параметры были активированы можно вот так
+    # cat /sys/module/thinkpad_acpi/parameters/experimental 
+    1
+    # cat /sys/module/thinkpad_acpi/parameters/fan_control 
+    Y
+
+тоесть идем в /sys/module/имя_модуля
+и там ищем наши заданные параметры
+
+
+итак еще раз обсудим такой интересный момент что драйвер может быть интегрирован 
+в ядро а может быть поставлен через модуль.  модуль имеет параметры. 
+они влияют на работу драйвера из модуля.
+как узнать список параметров. 
+    # modinfo имя_модуля | grep parm
+пример
+# modinfo  nvme | grep parm
+parm:           use_threaded_interrupts:int
+parm:           use_cmb_sqes:use controller's memory buffer for I/O SQes (bool)
+parm:           max_host_mem_size_mb:Maxim...
+parm:           sgl_threshold:Use SGLs when ... 
+parm:           io_queue_depth:set io queue depth, should >= 2
+parm:           write_queues:Number of queues ...
+parm:           poll_queues:Number of queues to ...
+
+как настроить эти параметры?
+вот так
+    # cat /etc/modprobe.d/thinkfan.conf 
+    options thinkpad_acpi fan_control=1 experimental=1
+то есть создаем файл в папке /etc/modprobe.d/ с произвольным именем.
+с контентом вида
+    options имя_модуля  имя_параметра_1=значение1 имя_параметра_2=значение2
+
+далее загружаем модуль 
+    # modprobe -v имя_модуля
+далее как проверить что заказанные параметры были по факту установлены
+идем в папку 
+    /sys/module/имя_модуля/parameters/
+и там будут большая часть параметров которые поддерживает модуль 
+но не все. видимо часть параметров которые мы не устанавливаем они там поэтому отсуствуют.
+
+таким макаром я добавил опцию для iwlwifi
+    # cat /etc/modprobe.d/iwlwifi.conf  | grep -v '#'
+    options   iwlwifi power_save=0
+
+далее я запустил модуль
+    # modprobe -v iwlwifi
+и в выводе на экран я увидел новую опцию 
+    insmod ... iwlwifi.ko power_save=0
+и проверяю это с другой стороны
+    # cat /sys/module/iwlwifi/parameters/power_save 
+    N
+итак установленный параметр был применен
+
 
 
 
@@ -4580,6 +4714,13 @@ platform:dw-apb-uart -> ../../../bus/platform/drivers/dw-apb-uart
 ^^
 ||
 ===  остановился здесь
+00) найти связь между именем драйвера и его модулем и config файлом. особенно когда драйвер создается
+не через моуль а через всторенный в ядро. например для acpitz
+
+управление вентилятором это pwm1 и acpi/fan 
+причем одно сразу влиет на другое
+
+энергосбережние для вай фай 
 
 
 ксати помимо hwmon в /sys есть еще термальная зона. от чего она зависит 
@@ -4603,13 +4744,72 @@ https://docs.kernel.org/hwmon/sysfs-interface.html
 
 
 
+2) разобрать модули. и лишние выключить на обоих ноутбуках
+
+(thinkpad)# lspci -v | grep Kernel
+	Kernel modules: ie31200_edac
+	Kernel driver in use: i915
+	Kernel modules: i915
+	Kernel driver in use: snd_hda_intel
+	Kernel modules: snd_hda_intel
+	Kernel driver in use: xhci_hcd
+	Kernel modules: xhci_pci
+	Kernel driver in use: mei_me
+	Kernel modules: mei_me
+	Kernel modules: e1000e
+	Kernel driver in use: ehci-pci
+	Kernel driver in use: snd_hda_intel
+	Kernel modules: snd_hda_intel
+	Kernel driver in use: pcieport
+	Kernel driver in use: pcieport
+	Kernel driver in use: ehci-pci
+	Kernel driver in use: lpc_ich
+	Kernel modules: lpc_ich
+	Kernel driver in use: ahci
+	Kernel modules: ahci
+	Kernel driver in use: i801_smbus
+	Kernel modules: i2c_i801
+	Kernel driver in use: iwlwifi
+	Kernel modules: iwlwifi
+
+(lenovo)# lspci -v | grep Kernel
+	Kernel driver in use: skl_uncore
+	Kernel driver in use: i915
+	Kernel modules: i915
+	Kernel driver in use: proc_thermal
+	Kernel modules: processor_thermal_device
+	Kernel driver in use: intel_pch_thermal
+	Kernel modules: intel_pch_thermal
+	Kernel driver in use: xhci_hcd
+	Kernel driver in use: intel-lpss
+	Kernel modules: intel_lpss_pci
+	Kernel driver in use: mei_me
+	Kernel modules: mei_me
+	Kernel driver in use: ahci
+	Kernel modules: ahci
+	Kernel driver in use: pcieport
+	Kernel driver in use: pcieport
+	Kernel driver in use: pcieport
+	Kernel driver in use: pcieport
+	Kernel driver in use: intel-lpss
+	Kernel modules: intel_lpss_pci
+	Kernel driver in use: snd_hda_intel
+	Kernel modules: snd_hda_intel, snd_sof_pci
+	Kernel modules: i2c_i801
+	Kernel driver in use: ath10k_pci
+	Kernel modules: ath10k_pci
+	Kernel modules: r8169
+	Kernel driver in use: nvme
+	Kernel modules: nvme
+
+кстати видно что есть модули а есть драйвера. и это релаьно разные штуки
+
+
 
 
 $$$$$$$$$$$$$$$$
 $$$$$$$$$$$$$$$$
 $$$$$$$$$$$$$$$$
-
-нужно проработать чешскую статью в pdf которая
 
 
 

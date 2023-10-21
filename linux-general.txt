@@ -7509,6 +7509,21 @@ https://linuxize.com/post/how-to-install-and-configure-samba-on-ubuntu-18-04/
 
 $ nmap -sn 192.168.0.0/24
 
+
+| wifi
+| дома
+
+веб морда
+IP: 192.168.0.1
+p: xaewooch8oewu2PiengieX7Thux4re
+
+SSID: iphone4-24G
+P: eiw0ekee7ooP6bain2ooJ6vu5iesh2
+
+SSID: iphone4-50G
+P: eiw0ekee7ooP6bain2ooJ6vu5iesh2
+
+
 ===
 
 
