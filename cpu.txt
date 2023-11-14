@@ -4266,7 +4266,7 @@ platform:dw-apb-uart -> ../../../bus/platform/drivers/dw-apb-uart
 
 еще раз хочу подчеркнуть такую вещь. вот у нас есть файл модуля 
         /lib/modules/5.4.0-91-generic/kernel/drivers/thermal/intel/int340x_thermal/int3402_thermal.ko
-
+(| module name)
 выясняем какое имя у этого модуля
         # objdump -s -j .gnu.linkonce.this_module int3402_thermal.ko 
         int3402_thermal.ko:     file format elf64-x86-64
@@ -4274,9 +4274,18 @@ platform:dw-apb-uart -> ../../../bus/platform/drivers/dw-apb-uart
         0000 00000000 00000000 00000000 00000000  ................
         0010 00000000 00000000 696e7433 3430325f  ........int3402_
         0020 74686572 6d616c00 00000000 00000000  thermal.........
-
+а далее я выяснил что команда modinfo отлично умеет показывать имя модуля
+поэтому нам суррогат objdump вобщем то и ненужен
+        
 видим что модуль имеет имя int3402_thermal
-далее мы загружаем этот модуль
+немного отхожу в сторону и показываю как нам узнать имена модулей 
+для целой папки их файлов модулей
+    # ls -l | grep -v '^d'  | awk '{print $9}'  | xargs -L1  -I% bash -c 'objdump -s -j .gnu.linkonce.this_module % | grep ".ko" -A3'
+или через modinfo
+    # ls -l | grep -v '^d'  | awk '{print $9}'  | xargs -L1  -I% bash -c 'modinfo % | grep name'
+    
+окей возвращаемся к нашим баранам
+загружаем  модуль 
         # modprobe -v int3402_thermal
         insmod /lib/modules/5.4.0-91-generic/kernel/drivers/thermal/intel/int340x_thermal/int3402_thermal.ko 
 после этого появляется папка ровно с именем этого модуля
@@ -4853,27 +4862,161 @@ lshw
         0000:00:00.0 Host bridge: Intel Corporation ...
 
 
-    
+
+далее про вентилятор , fan
+на него можно влиять либо через 
+    /proc/acpi/ibm/fan
+путем того что туда посылаются  числа от 0 до 7
+    # echo "3" > /proc/acpi/ibm/fan
+причем в этом же счетчике можно увидеть обороты вентилятора
+правда обороты будут неноль только если на вентиляторе есть три провода
+а если есть только два как на леново то обороты всегда будут ноль
+# cat /proc/acpi/ibm/fan
+        status:		enabled
+        speed:		0
+        level:		7
+
+либо в hwmon надо найти такую папку где есть pwm1
+тогда можно управлять через посылание чисел от 0 до 255
+    # echo "200" > /sys/class/hwmon/hwmon5/pwm1
+
+
+далее 
+i7z он походу данные про темпераутуру считывает не из /sys/class/hwmon
+а напрямую из MSR регистров поэтому ему на hwmon наплевать
+
+далее про драйвер coretemp.
+как сказано вот здесь https://www.kernel.org/doc/Documentation/hwmon/coretemp
+это драйвер который позволяет считывать температуру на ядрах цпу на основе термодатчика
+который вмонтирован в сам цпу.
+я выяснил прикол по крайней мере на ядре 5.4.91 что если этот модуль руками удалить
+а потом загрузить то он как то коряво при этом создает свою hwmon папку
+так как в ней нихрена нету датчиков температур и пока комп не перезагрузишь
+ни чо не помогает
+на более новом ядре 6.** вроде такой проблемы нет.
+
+далее.
+команда
+    $ acpi
+она типа умеет показыать инфо о тмпературах, вентиляторах, батарее.
+но порой показывает просто херню мало понятную
+
+
+далее.
+modinfo показывает информацию про модули. аргументом является либо файл который содержит
+модуль. либо аргументом является имя модуля . кстати говоря имя файла *.ko
+и имя модуля это не одно и тоже.
+так вот в версии ядра номер 6 есть интересная фишка. дело в том что если версия ядра
+меньше чем 6 то modinfo показывает информацию только о модулях которые соотвествуют
+классическому определению что такое модуль ядра - это хрень которая загружается из *.ko
+файла. так вот с 6 версии ядра эта команда показывает инфо о модулях которые не являются
+модулями в классическом смысле потому что у них нет *.ko файла потому что они встроены
+в ядро.однаком модинфо о них тоже показывает. хрень конечно полная. однако.
+пример у модуля thermal нет *.ko файла. он вмонтирован в ядро.
+во первых в /lib мы ненайдем файла соотвествующего имени модуля "thermal"
+а как еще доказательсво команда lsmod нам не покажет никакого thermal
+однако 
+    # modinfo thermal
+        name:           thermal
+        filename:       (builtin)
+        license:        GPL
+        file:           drivers/acpi/thermal
+        description:    ACPI Thermal Zone Driver
+        author:         Paul Diefenbaugh
+        parm:           act:Disable or override all lowest active trip points. (int)
+        parm:           crt:Disable or lower all critical trip points. (int)
+        parm:           tzp:Thermal zone polling frequency, in 1/10 seconds. (int)
+        parm:           nocrt:Set to take no action upon ACPI thermal zone critical trips points. (int)
+        parm:           off:Set to disable ACPI thermal support. (int)
+        parm:           psv:Disable or override all passive trip points. (int)
+повторюсь такая хрень работает только на 6 версии ядра
+кстати в выводе тоже интересная щтука. в поле "filename"
+        filename:       (builtin)
+как раз указывается *.ko файл из которого модуль грузится. но так как эта хрень 
+вмонтирована в ядро то и написано "builtin"
+а вот поле "file" отвечает за нечто совсем другое
+        file:           drivers/acpi/thermal
+что значит это поле непонятно. потому что например в  /sys 
+есть чтото но оно лежит по другому пути 
+        /sys/bus/acpi/drivers/thermal
+и видно что это совсем не совпадает
+соотвесвтенно если модуль классический то у него поле "file" отсуствует
+а поле "filename" показывает путь к *.ko файлу
+пример
+    $ modinfo thinkpad_acpi | grep file
+    filename:       /lib/modules/5.4.0-91-generic/kernel/drivers/platform/x86/thinkpad_acpi.ko
+как найти список модулей которые загружены которые builtin = хер его знает как
+
+| thermal zone
+короче эта отделная теманая тема
+ссылки:
+    https://www.kernel.org/doc/Documentation/ABI/testing/sysfs-class-thermal
+    https://www.infradead.org/~mchehab/kernel_docs/driver-api/thermal/sysfs-api.html
+    https://docs.kernel.org/driver-api/thermal/
+в любом случае доки херовые
+я как понял то на верхнем уровне на термал зоны отвечает драйвер thermal
+но вроде бы это только вершина айсберга.
+а дальше подключаются индивиууаные драйверы. как то так.
+вся эта херомантия выводится в папку
+        /sys/class/thermal
+в общем читал я читал про эту тему. но нахер.
+еще на месяц разбирать.
+
+| acpitz
+эту хрень можно найти тут
+    # cat /sys/class/hwmon/hwmon1/name
+    acpitz
+так вот я хотел сказать то что как я понял такого драйвера или модуля нет.
+драйвер у него это thermal
+потому что 
+    # pwd
+        /sys/class/hwmon/hwmon1/device/device
+    # ls -1al
+        driver -> ../../../../bus/acpi/drivers/thermal
+
+| INT3403
+INT3403 где то он встречается в /sys когда мы про сенсоры термометры
+как я понял есть такая хрень как ACPI 
+незнаю как это реализованно  в железе
+но я знаю что это точно реализованно на уровне кода ядра. 
+как я понял есть более обший абстрактный код ядра
+а есть ACPI код и цепочка как я понял выглядит так
+        общий код ядра --> acpi код ядра --> железо
+таким образом acpi код дает некий уровень абстракции между железом
+и общим кодом ядра.
+так вот INT3403 это (читаю тут) 
+
+# cat /usr/src/linux-headers-6.2.0-33-generic/drivers/thermal/intel/int340x_thermal/Kconfig | head -n 30
+
+config INT340X_THERMAL
+	tristate "ACPI INT340X thermal drivers"
+	depends on X86_64 && ACPI && PCI
+	select THERMAL_GOV_USER_SPACE
+	select ACPI_THERMAL_REL
+	select ACPI_FAN
+	select INTEL_SOC_DTS_IOSF_CORE
+	select PROC_THERMAL_MMIO_RAPL if POWERCAP
+	help
+	  Newer laptops and tablets that use ACPI may have thermal sensors and
+	  other devices with thermal control capabilities outside the core
+	  CPU/SOC, for thermal safety reasons.
+	  They are exposed for the OS to use via the INT3400 ACPI device object
+	  as the master, and INT3401~INT340B ACPI device objects as the slaves.
+	  Enable this to expose the temperature information and cooling ability
+	  from these objects to userspace via the normal thermal framework.
+	  This means that a wide range of applications and GUI widgets can show
+	  the information to the user or use this information for making
+	  decisions. For example, the Intel Thermal Daemon can use this
+	  information to allow the user to select his laptop to run without
+	  turning on the fans.
+
+
+
+
+        
 ^^
 ||
 ===  остановился здесь
-
-
-
-
-управление вентилятором это pwm1 и acpi/fan 
-причем одно сразу влиет на другое
-
-энергосбережние для вай фай 
-
-
-ксати помимо hwmon в /sys есть еще термальная зона. от чего она зависит 
-это следущий шаг расследования. и еще i7z он походу вобще от этого всего назависит. 
-возможно он читает температуру напрямую из MSR регистров из цпу.
-
-
-кстати hwmon описан вот тут = https://docs.kernel.org/hwmon/index.html
-
 
 
   ls -1  | awk -F "." '{print $1}'| tee  >( xargs -L1  -I%  modprobe -v %  )

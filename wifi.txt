@@ -243,6 +243,7 @@ nmcli
 
 | wifi
 | энергосбережение
+| powersave
 
 значит я имел полнейший пиздец. он состоял в том что было два ноутбука связанныех по вай фай друг с другом.
 и при этом через ssh был полнейший пиздец в плане залипаний при нажатии. это был **!*!*!!*!*!*!
@@ -296,7 +297,35 @@ wifi.powersave = 2
           Tx excessive retries:0  Invalid misc:11   Missed beacon:0
 
 
+еще по идее можно посмотреть свойства модуля который дает драйвер 
+карточки. и в нем могут быть опции котоые отвечают за энергосбережение 
+на этой карточке.
+например
+    # lspci -k  | grep Net -A5
+        03:00.0 Network controller: Intel Corporation Wireless 7260 (rev 6b)
+            Subsystem: Intel Corporation Wireless-N 7260
+            Kernel driver in use: iwlwifi
+            Kernel modules: iwlwifi
 
+значит имя модуля iwlwifi
+теперт смотрим какие параметры имеет этот модуль
+    # modinfo iwlwifi | grep parm | grep power
+        parm:  power_save:enable WiFi power management (default: disable) (bool)
+        parm:  power_level:default power save level (range from 1 - 5, default: 1) (int)
+значит если мы будем загружать этот модуль с опцией power_save=0
+то карточка будет работать без энергосбережения.
+добавляем вот сюда строку
+    # cat /etc/modprobe.d/iwlwifi.conf | grep -v '#'
+        options   iwlwifi power_save=0
+выгружаем и загружаем обратно модуль
+    # modprobe -rv iwlwifi
+    # modprobe -v iwlwifi
+смотрим применился ли параметр
+    # cat /sys/module/iwlwifi/parameters/power_save 
+    N
+видим что параметр применился
+
+        
 
 
 
