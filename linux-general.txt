@@ -10261,18 +10261,1097 @@ doHash "$password" "$salt" '$1$'
 таким макаром я разобрал как работает вест скрипт от верха до низа.
 
 
-    
-теперь надо сделать две вещи:  <--- остановился здесь
-    - надо взять конкретный i и прогнать по скрипту посмотреть что принимаю при этом
+теперь  надо взять конкретный i и прогнать по скрипту посмотреть что принимают при этом
         его разные переменные какие значения
-    - если с md5 будем считать разобрались. то надо посмотреть соседнюю статью этого чувака
-        где он описывает тоже самое для sha512 потому что моя изначальная цель это получить
-        "руками" sha512 строчку в /etc/shadow
 
 
-            
+запускаю скрипт вот так
+$ ./debug.bash abc 12345678
+тоесть пароль = abc
+salt=12345678
+
+поехали выполнять программу
+
+
+if [[ $# < 1 ]] 
+then
+    echo "Usage: $0 password [salt]" >&2
+    exit 1
+fi
+
+этот кусок программа проскочит так как "$#"="2"
+
+password=$(stringToHex "$1")
+
+значит у нас будет 
+password=$(stringToHex "abc")
+
+
+функция stringToHex
+
+stringToHex() { 
+    for((i=0; i<${#1}; i++))
+    do
+        printf '\\x%x' "'${1:i:1}"
+    done
+}
+
+значит #1=3
+значит
+
+stringToHex() { 
+    for((i=0; i<3; i++))
+    do
+        printf '\\x%x' "'${1:i:1}"
+    done
+}
+
+значит функция берет "abc" начинает у него брать символы начиная с нулевого офссета (самый левый символ) то есть 
+это будет 
+a
+b
+c
+и печатает его в виде ascii кода в формате hex \xNN
+ascii код для a  = 0x61
+          для b  = 0x62
+          для c  = 0x63
+тогда функция вернет 
+password="\x61\x62\x53"
+проверяю в программе
+и дейтсвительно 
+    $ cat debug.txt 
+    password=\x61\x62\x63
+
+
+salt=$(stringToHex "$2")
+тогда будет 
+salt=$(stringToHex "12345678")
+тогда будет 
+stringToHex() { 
+    for((i=0; i<$8; i++))
+    do
+        printf '\\x%x' "'${1:i:1}"
+    done
+}
+
+ascii для 1= 0x31
+      для 2= 0х32
+      ...
+      для 8=0x38
+тогда stringToHex вернет "\x31\x32\x33\x34\x35\x36\x37\x38"
+тогда
+salt="\x31\x32\x33\x34\x35\x36\x37\x38"
+проверяю
+и действиельно
+    salt=\x31\x32\x33\x34\x35\x36\x37\x38
 
     
+[[ -z $salt ]] && salt=$(tr -cd 'a-zA-Z0-9' < /dev/urandom | head -c 8) 
+чтобы эта строка выполниась апускаю скрипт по другому
+     $ ./debug.txt abc
+тогда он возьмет из urandom только символы a-z A-Z 0-9 в количестве 8 штук и присвоит salt
+проверяю
+и действительно
+    salt=5ZhB6Sm3
+запускаю обртано скрипт с 
+    $ ./debug.txt abc 12345678
+
+    
+doHash "$password" "$salt" '$1$'
+тогда будет
+doHash "\x61\x62\x63" "\x31\x32\x33\x34\x35\x36\x37\x38" '$1$'
+
+переходим в doHash()
+
+
+doHash() { 
+    password="$1"
+
+#
+тогда
+password="\x61\x62\x63"
+проверяю
+и дейтисвиельно сходится
+doHash() password=\x61\x62\x63
+#
+
+    passwordLength=$(printf "$password" | wc -c)
+
+#
+значит wc -c считает байты
+значит тогда 
+passwordLength=$(printf "\x61\x62\x63" | wc -c)
+поскольку в поле формат запись \x61 означает прям сам байт записанны в хекм формате 
+а не литеры то это значит что принтф высрет 3 байта из себя. и дейтвительно
+$ printf "\x61\x62\x63" | od -t x1
+61 62 63
+тогда wc -c дожлен насчитать 3 байта и тогда 
+passwordLength="3"
+проверяем
+и действиетьно
+doHash() passwordLength=3
+#
+    salt="$2"
+# 
+salt= "\x31\x32\x33\x34\x35\x36\x37\x38"
+проверяю
+doHash() salt=\x31\x32\x33\x34\x35\x36\x37\x38
+совпало
+#
+    magic="$3"
+#
+magic='$1$'
+проверяю
+doHash() magic=$1$
+совпало
+#
+    [[ -z $magic ]] && magic='$1$'
+
+
+    salt=${salt#'$1$'}
+#
+эта хрень значит искать с начала строки стринг $1$ и вырезать его
+пример
+    $ a='aws$1$'
+    $ echo ${a#'$1$'}
+    aws$1$
+    $ a='$1$aws'
+    $ echo ${a#'$1$'}
+    aws
+    $ a='$1$aws$1$'
+    $ echo ${a#'$1$'}
+    aws$1$
+в нашем конкретном случае salt="\x31\x32\x33\x34\x35\x36\x37\x38"
+поэтому
+    $echo ${salt#'$1$'}
+    \x31\x32\x33\x34\x35\x36\x37\x38
+не приведет ни к чему. поэтому salt останется неизменным
+    
+#
+    salt=${salt:0:32} # 8 first bytes
+#
+эта команда выбирает 32 символа из переменной начиная с оффсета 0 тоесть символы 0-31 
+поскольку salt="\x31\x32\x33\x34\x35\x36\x37\x38"
+тоесть на 1 байт в hex формате приходится 4 символа то это значит что будет выбрано 8 байт в хекс формате
+в нашем случае так как salt изначально был 8 байт то будет выбрано вся переменная
+salt="\x31\x32\x33\x34\x35\x36\x37\x38"
+проверяю на праткике
+salt="\x31\x32\x33\x34\x35\x36\x37\x38"
+совпало
+
+
+    
+    intermediate=$(
+    {
+        # Start intermediate result
+        printf "$password$magic$salt" 
+
+#
+password='\x61\x62\x63'
+magic='$1$'
+salt="\x31\x32\x33\x34\x35\x36\x37\x38"
+поэтому  
+    printf "\x61\x62\x63$1$\x31\x32\x33\x34\x35\x36\x37\x38" = abc$1$12345678
+проверяю
+    abc$1$12345678
+совпало
+что тут интересно. интересно то что 
+вот в таком примере у нас принф печатает содержимое переменной
+    $ cat 10.bash 
+    #!/bin/bash
+    printf "$1\n"
+
+    $ ./10.bash vasya
+    vasya
+
+тоесть 
+    printf "$1\n" = printf "vasya\n"
+вместо $1 подставляется занчение этой переменной
+а вот в этом примере не происходит двойного раскрытия имени переменной
+    $ cat 10.bash 
+    #!/bin/bash
+    a='$1'
+    printf "a=$a\n"
+
+    $ ./10.bash vasya
+    a=$1
+тоесть
+    printf "a=$a\n" = printf "a=$1\n" 
+и дальнейшей второй подставновки вместо $1 ее значения не происходит. поэтому будет 
+напечаатано 
+    a=$1
+а не 
+    vasya
+тоесть если переменная раскрылась один раз и там у нас еще одно имя перееменной. то второй раз
+переенная не раскрывается
+вот еще пример на эту тему
+    $ a=1
+    $ b='$a'
+    $ echo "$b"
+    $a
+вообще если указать имя переменной вот так
+    $ b='$a'
+то ты эту переменную $a вобще никак не раскроешь . даже вот так
+    $ echo "${!b}"
+    bash: $a: bad substitution
+единственный вариант как можно раскрыть переенную два раза это вот так
+    $ a="1"
+    $ b="a"
+    $ echo "${!b}"
+    1
+но у нас не такой случай
+наш случай это 
+    magic='$1$'
+    printf "...$magic..."
+поэтому напечается именно '$1$' а не содержимое переменной $1="abc"
+охуеть как наворочано
+итак в результате команды
+       printf "$password$magic$salt" 
+будет напечатано
+       abc$1$12345678
+#
+    
+    
+        # compute a separate md5 sum
+        alternate=$(printf "$password$salt$password" | md5hex) 
+
+#
+    alternate=$(printf "$password$salt$password" | md5hex) =>
+    $(printf "\x61\x62\x63\x31\x32\x33\x34\x35\x36\x37\x38\x61\x62\x63" | md5hex) =>
+поскольку printf воспринимает \xNN как ascii код символа в hex формате то это эквивалентно 
+    => $(printf "abc12345678abc' | md5hex) =>
+действительно
+    printf "\x61\x62\x63\x31\x32\x33\x34\x35\x36\x37\x38\x61\x62\x63"
+    abc12345678abc
+тогда
+    $(printf "abc12345678abc' | md5hex) => \x5d\x4d\x9e\x21\xef\x9a\xfa\x84\xe1\x87\x6d\x1a\x38\x0a\xaf\xff
+сравниваем
+       \x5d\x4d\x9e\x21\xef\x9a\xfa\x84\xe1\x87\x6d\x1a\x38\x0a\xaf\xff
+все совпало
+#
+
+        # Add one byte from alternate for each character in the password. Wtf?
+        while printf "$alternate" 2> /dev/null
+        do
+          true
+        done | head -c "$passwordLength"
+
+#
+здесь 
+$passwordLength="3"
+printf "$alternate"=printf "\x5d\x4d\x9e\x21\xef\x9a\xfa\x84\xe1\x87\x6d\x1a\x38\x0a\xaf\xff"=]M�!������m8....
+тогда
+printf "\x5d\x4d\x9e\x21\xef\x9a\xfa\x84\xe1\x87\x6d\x1a\x38\x0a\xaf\xff" | head -c3
+высираются байты "\x5d\x4d\x9e" 
+
+
+#
+прежде чем переходить  к следущему куску
+надо прояснить что такое {} в баше.
+для этого я говорю о том что 
+вот этот кусок кода
+
+{
+  printf "1"
+  printf "2"
+  printf "3"
+}
+
+и вот этот кусок кода это одно и тоже
+ { printf "1"; printf "2"; printf "3"; }
+ причем обязательно проставить все ";" иначе будет хуйня
+
+доказать это легко надо лишь проверить что на выходе один и тот же поток 
+байтов
+
+$ {
+  printf "1"
+  printf "2"
+  printf "3"
+} | od -t x1
+0000000 31 32 33
+
+$ {   printf "1";   printf "2";   printf "3"; } | od -t x1
+0000000 31 32 33
+
+итак мы видим что это одно итоже
+а вот разница если мы уберем скобки
+    printf "1";   printf "2";   printf "3"  | od -t x1
+    120000000 33
+тоесть "1" и "2" улетели не в od а на экран. а в od улетело только "3"
+
+
+
+
+        # For every 1 bit in the key length, add a 0.
+        # Otherwise add the first char of the key. WTFFFFF?!
+        for ((i=$passwordLength; i != 0; i>>=1)) 
+        do
+            if (( i & 1 ))
+            then
+                printf '\x00' 
+            else 
+                printf "$password" | head -c 1
+            fi
+        done
+
+    } | md5hex
+    )
+
+
+# 
+$passwordLength="3"
+также printf "$password" = printf "abc"
+значит
+
+        for ((i=3; i != 0; i>>=1)) 
+        do
+            if (( i & 1 ))
+            then
+                printf '\x00' 
+            else 
+                printf "abc" | head -c 1
+            fi
+        done
+
+    } | md5hex
+    )
+
+значит 3 в битовом виде это 11
+из кода цикла видно что для каждого установленного бита в байте 11 печатается printf '\x00'
+значит в результате выполнения цикла как бы отработает вот такой код
+    printf '\x00'
+    printf '\x00'
+
+кстати вот интересно что мы получаем на выходе какой байтовй поток
+    $ printf "\x00" | od -t x1
+    0000000 00
+а понятно. реально будут высираться байты вида 00h
+что интересно попытка печати этих байтов на экране не приводит ни к чему
+    $ printf "\x00\x00\x00\x00"
+на выходе просто ничего не происходит
+вот еще так можно сделать
+    $ head -c 10 < /dev/zero | od -t x1
+    0000000 00 00 00 00 00 00 00 00 00 00
+убедиться что на экране нихерна ненапечатается ни один символ хотя байты поступают
+    $ head -c 10 < /dev/zero | cat
+тоесть этот байт 00h он не является печатным. он является для терминала управлющим. (так же как скажем \n)
+и говорит терминалу что нихрена делать ненадо
+
+    
+далее видим вот такое
+    } | md5hex
+    )
+
+так вот я не зря про { рассуждал выше. в md5hex полетит не то что вылетело из последнего цикла
+а вообще все что стоит по intermediate. давай ка я соберу все то что было непечатано на stdout внутри
+intermediate, я соберу это все в формате единого printf
+    printf "abc\$1\$12345678\x5d\x4d\x9e\x00\x00"
+и все это  перенаправляется на md5hex тоесть
+    printf "abc\$1\$12345678\x5d\x4d\x9e\x00\x00" | md5hex
+получаем
+    \xaa\x8a\x43\x2f\x1d\x8b\x38\x4d\xde\x65\x12\xd8\x43\xf6\xfa\xa3
+проверяем
+    \xaa\x8a\x43\x2f\x1d\x8b\x38\x4d\xde\x65\x12\xd8\x43\xf6\xfa\xa3
+сходится
+итак intermidiate="\xaa\x8a\x43\x2f\x1d\x8b\x38\x4d\xde\x65\x12\xd8\x43\xf6\xfa\xa3"
+
+#
+    
+    
+    for((i=0; i<1000; i++))
+    do
+        intermediate=$({
+            (( i & 1 )) && printf "$password" || printf "$intermediate"
+            (( i % 3 )) && printf "$salt"
+            (( i % 7 )) && printf "$password"
+            (( i & 1 )) && printf "$intermediate" || printf "$password"
+        } | md5hex)
+    done
+
+#
+берем i=0
+intermidiate="\xaa\x8a\x43\x2f\x1d\x8b\x38\x4d\xde\x65\x12\xd8\x43\xf6\xfa\xa3"
+тогда 
+            (( 0 & 1 )) && printf "$password" || printf "$intermediate"
+            (( 0 % 3 )) && printf "$salt"
+            (( 0 % 7 )) && printf "$password"
+            (( 0 & 1 )) && printf "$intermediate" || printf "$password"
+
+(( 0 & 1 )) = (( 0 )) ; это false это код возврата 1 значит отработает printf "$intermediate"
+(( 0 % 3 )) = (( 0 )) ; это false поэтому далее ничего не отрабтает
+(( 0 % 7 )) = (( 0 )) ; это false поэтому далее ничего не отрабтает
+(( 0 & 1 )) ; это false значит отработает  printf "$password"
+значит в итоге у нас отработает 
+    printf "$intermediate"
+    printf "$password"
+что эквилвалетнтно
+    printf "$intermediate$password"
+что эквавалетно 
+    printf ""\xaa\x8a\x43\x2f\x1d\x8b\x38\x4d\xde\x65\x12\xd8\x43\xf6\xfa\xa3"abc"
+
+видно что дальше эта хрент напускатся на md5hex
+    printf "\xaa\x8a\x43\x2f\x1d\x8b\x38\x4d\xde\x65\x12\xd8\x43\xf6\xfa\xa3"abc" | md5hex
+значит новый intermidiate 
+    intermidiate=$(printf "\xaa\x8a\x43\x2f\x1d\x8b\x38\x4d\xde\x65\x12\xd8\x43\xf6\xfa\xa3"abc" | md5hex)
+я посчитал руками это 
+    \x5a\xdd\xbb\x70\x9e\xaa\xe3\x53\x74\x6d\x25\x56\x70\xa8\xef\x5f
+далее я запустил исходный скрипт при i=0 и получил
+    \x5a\xdd\xbb\x70\x9e\xaa\xe3\x53\x74\x6d\x25\x56\x70\xa8\xef\x5f
+все совпадает
+значии далее этот intermidiate таким макаром внутри цикла колбасится 1000 раз
+итоговый intermidiate после 1000 раз будет такой
+    intermidiate="\x40\x1d\x63\xc9\xa4\xd1\xf8\x15\x04\xb6\x88\xda\x52\x2f\x03\x05"
+#
+
+
+
+
+    # Rearrange the bytes and crypt-base64 encode them
+    encoded=$(base64EncodeBytes 22 "$intermediate" 11  4 10 5  3 9 15  2 8 14  1 7 13  0 6 12)
+
+#
+значит это будет запущено вот так
+        encoded=$(base64EncodeBytes 22 "\x40\x1d\x63\xc9\xa4\xd1\xf8\x15\x04\xb6\x88\xda\x52\x2f\x03\x05" 11  4 10 5  3 9 15  2 8 14  1 7 13  0 6 12)
+
+посмотрим еще раз на функцию 
+
+base64EncodeBytes() {
+    n=$1
+    shift 
+    bytes=$(getBytes "$@")
+    int=$(hexToInt "$bytes")
+    intToBase64 "$int" "$n"
+}
+
+она запускает функцию getBytes котрая из $intermediate выбирает байты \xnn в указанном порядке
+тоесть просто переставляет местами
+
+getBytes() { 
+    num=$1
+    echo "$@"
+    shift
+    for i in $@
+    do
+        echo -n "${num:$((i*4)):4}"
+    done
+    echo ""
+}
+
+тоесть на выходе мы будем по прежнему иметь "\xnn\xnn..."
+
+далее запускается hexToInt
+она преобразует из вида \xnn\xnn в  \xNN\xNN\xNN, далее преобразует к виду NNNNNNNNNN типа 40AB45ED21AF
+далее эта хрень направляется в bc и он преобразует это шестанадцатиричное число в десятичное вида 168846464562234234
+
+hexToInt() { 
+    {
+    echo 'ibase=16;'
+    tr a-f A-F <<< "$1" | sed -e 's/\\x//g'
+    } | bc
+}
+
+далее запускается функция intToBase64 "168846464562234234" "22"
+которая преобразует это десятичное число в B64 вид используя 
+глобальную переменную b64="./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+значит работает эта функция так. она берет исходное число "168846464562234234" и делит его на 64
+находит остаток от деления и эта цифра является оффсетом символа в переменной $b64
+скажем остаток от деления 168846464562234234 на 64 это 58. значит берется 58-ый символ (отсчитывая от нуля) в $b64
+это символ "u" это будет первый символ нашего искомого хеша в кодировке B64
+далее исходное число делится на 64 нацело. это и есть новое исходное число. и с этим новым исходным числом 
+цикл повторяется. тоесть оно делитнся на 64 ищется остаток. по нему находится новый символ. и так 22 раза. 
+таким макаром исходное десятичное число превращается в 22 символа из словаря $b64
+
+intToBase64() { 
+    number=$1
+    n=$2
+    for((j=0; j<n; j++))
+    do
+        digit=$(bc <<< "$number % 64")  # остаток от деления
+        number=$(bc <<< "$number / 64") # целое от деления
+        echo -n "${b64:digit:1}"
+    done
+    echo ""
+}
+
+        
+я запустил вызов  base64EncodeBytes() и получил
+    GVDEjIF51EkM3MPmFX6dO1
+а вот я запустил в исходном скрипте
+    GVDEjIF51EkM3MPmFX6dO1
+совпало
+#
+
+    
+    printf "%s%b\$%s\n" "$magic" "$salt" "$encoded"
+
+
+}
+
+# 
+эта хрень печатает просто напросто $magic  $salt и $encoded
+
+$magic='$1$'
+$salt="\x31\x32\x33\x34\x35\x36\x37\x38" без разницы
+$encoded='GVDEjIF51EkM3MPmFX6dO1'
+
+запускаю
+    $ printf "%s%b\$%s\n" "$magic" "$salt" "$encoded"
+    $1$12345678$GVDEjIF51EkM3MPmFX6dO1
+сравниваем с тем что из исходного скрипта
+    $1$12345678$GVDEjIF51EkM3MPmFX6dO1
+совпало
+
+#
+
+кстати не все функции этого скрипта используются алгоритмом например функция 
+stringToNumber() не используется никак
+
+
+таким макаром я вроде как прям пролезнув по шагами скрипта проработал конкретно на цифрах как 
+он работает.
+
+
+
+
+теперь я опишу как раобтает алгоритм НА СЛОВАХ:
+мы запускаем скрипт. вводим в аргументах password и salt
+если солт мы не ввели он будет сформирован рандомно
+далее из солт преобразуется так что из него берется только первые 8 символов
+далее задается константа magic
+
+далее вычисляется переменная intermidiate следущим образом:
+ на stdout посылаются следущие хрени
+    - password+magic+salt"
+    - вычисляется md5 от password+salt+password
+      и потом мы от этого md5 отрезаем ровно столько байтов какова длинна пароля и эти байты тоже посылаем на stdout
+    
+    тут надо помнить что функция md5sum она выводит не сам хеш ибо это набор байтов часто которые
+    не соовествуют по аски кодам печатным символам поэтому коды байтов преобразуются в новые аски коды для которых
+    печатные символы соовествуют аски кодам хеша. тоесть вот это не хеш
+    $ printf "1" | md5sum | awk '{print $1}' 
+    c4ca4238a0b923820dcc509a6f75849b
+    вот это реальный хеш
+    $ printf "1" | md5sum | awk '{print $1}' | xxd -p -r -
+    �P�ou��
+    а вот его байтики 
+    $ printf "1" | md5sum | awk '{print $1}' | xxd -p -r - | xxd -p
+    c4ca4238a0b923820dcc509a6f75849b
+    тоесть надо отличать реальные байты которые составляют даннные 
+    и в какой символ преобразуется этот байт на экране. так вот символ 1 на экране
+    это не тоже самое что байт 0x1 
+    тоесть есть байты котоые и составлят данные. а есть графическая интепретация в символы на экране
+    которые тоже имеют цифровой смысл
+    
+    - берем длинну пароля. берем это число. переводим его в двоичный вид. например это 01010010101
+    далее начинаем перебирать биты начиная с младщего и начинаем на stdout посылать байты  по следущему правилу
+    если текущий бит 1 то посылаем байт \x00 а если бит 0 то берем пароль и посылаем первый байт из пароля
+    тоесть пусть первый байт пароля  тогда для длинны пароля в бинарном виде 01010010101
+    мы на stdout будем посылать байты  \x61  \x00 \x61  \x00  \x61 \x61  \x00  \x61  \x00  \x61   \x00
+
+    так вот берем эти три хрени и от этой конструкции вычисляем md5 это и есть переменная intermidiate
+
+далее запускается цикл из 1000 шагов.(через переменную i)
+на кажом шаге пересчитывается эта переменная intermediate по схеме
+
+            если i нечетный то  на stdout шлем password иначе шлем intermediate
+                но это еще не конец, далее в этом же шаге цикла идет следущий шаг
+            если i НЕделится на 3 то шлем salt
+                далее идет следущий шаг
+            если  i НЕделится на 7 то шлем  password
+                далее идет следущий шаг
+            если i нечетный  то шлем intermediate иначе  шлем password
+
+            для примера пусть i=15 тогда на stdout будет послано
+                password+salt+password+intermediate
+            далее от этой хрени вычисляется md5 тоесть для i=15 вычислятся md5(password+salt+password+intermediate)
+            и это и присваивается переменной intermidiate
+            далее цикл повторяется и так до конца цикла
+
+когда цикл отработал то в получившейся переменной intermidiate переставляются байты по схеме
+             11  4 10 5  3 9 15  2 8 14  1 7 13  0 6 12
+
+далее после перстановки полученный поток байтов в intermidiate перекодируется в так называемый B64
+алгоритм перекодировки такой - берется intermidiate перекодируется в десятичное число. 
+это число делится на 64 находится остаток и этот остаток используется как оффсет для поиска символа в словаре
+словарь этой кодировки 
+            "./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+тоесть если остаток равне 63 то берется символ "z" к примеру
+далее берется это десятичное число и делится на 64 , целое от деления берется как новое значение intermidiate
+и цикл повторяется заново. так просиходит 22 раза. таким макаром мы получаем 22 символа из словаря.
+это и есть типа искомый хеш.
+это пиздец а не алгоритм
+
+
+теперь покажу что результаты работы скрипта совпдают с утилитами официльными котоыре типа делают тоже самое
+
+    $ ./md5crypt.bash abc 12345678
+    $1$12345678$GVDEjIF51EkM3MPmFX6dO1
+
+    $  mkpasswd --method=md5  abc 12345678
+    $1$12345678$GVDEjIF51EkM3MPmFX6dO1
+
+    $ openssl passwd -1 -salt  12345678 -stdin <<< abc
+    $1$12345678$GVDEjIF51EkM3MPmFX6dO1
+
+как видно получили одно и тоже. значит утилита работает правдоподобна
+
+
+
+ДАЛЕЕ я перехожу к тому ради чего все началось с того как вычисляется /etc/SHADOW с использованием SHA-512
+вначале я проверю что скрипт 
+    https://www.vidarholen.net/contents/junk/files/sha512crypt.bash
+выдает верный результат совпадающий с оф утилитами
+
+    $ ./sha512crypt.bash abc 12345678
+    $6$12345678$/2kqzTQ48gi0uN7n3YdhWAqTslf4Lt0yEsFxSucHzxAU7FaXCW..I1OVwaoe6mZIAD.3r1wHv4OIZ90Fuvomd0
+
+    $ mkpasswd --method=sha-512 abc 12345678
+    $6$12345678$/2kqzTQ48gi0uN7n3YdhWAqTslf4Lt0yEsFxSucHzxAU7FaXCW..I1OVwaoe6mZIAD.3r1wHv4OIZ90Fuvomd0
+
+    $ openssl passwd -6 -salt  12345678 -stdin <<< abc
+    $6$12345678$/2kqzTQ48gi0uN7n3YdhWAqTslf4Lt0yEsFxSucHzxAU7FaXCW..I1OVwaoe6mZIAD.3r1wHv4OIZ90Fuvomd0
+
+мы видим что скрипт sha512crypt.bash выдает все тоже самое. значит можно его рассматривать
+
+####################sha512crypt.bash#########################
+#!/bin/bash
+# sha512-crypt for GNU and Bash
+# By Vidar 'koala_man' Holen
+
+b64="./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+
+stringToNumber() { 
+    expression=0
+    for((i=0; i<${#1}; i++))
+    do
+        expression=$(printf '(%s)*256+%d' "$expression" "'${1:$i:1}")
+    done
+    bc <<< "$expression"
+}
+
+# Turn some string into a \xd4\x1d hex string
+stringToHex() { 
+    for((i=0; i<${#1}; i++))
+    do
+        printf '\\x%x' "'${1:i:1}"
+    done
+}
+
+# Turn stdin into a \xd4\x1d style sha512 hash
+sha512hex() { 
+    sum=$(sha512sum) 
+    read sum rest <<< "$sum" # remove trailing dash
+    hex=$(sed 's/../\\x&/g' <<< "$sum")
+    echo "$hex"
+}
+
+# Turn an integer into a crypt base64 string with n characters
+intToBase64() { 
+    number=$1
+    n=$2
+    for((j=0; j<n; j++))
+    do
+        digit=$(bc <<< "$number % 64")
+        number=$(bc <<< "$number / 64")
+        echo -n "${b64:digit:1}"
+    done
+}
+
+base64Index() { 
+    for((i=0; i<64; i++))
+    do
+        if [[ ${b64:i:1} == $1 ]]
+        then
+            echo $i
+            exit 0
+        fi
+    done
+    exit 1
+}
+
+# From hex string $1, get the bytes indexed by $2, $3 ..
+getBytes() { 
+    num=$1
+    shift
+    for i
+    do
+        echo -n "${num:$((i*4)):4}"
+    done
+}
+
+hexToInt() { 
+    {
+    echo 'ibase=16;'
+    tr a-f A-F <<< "$1" | sed -e 's/\\x//g'
+    } | bc
+}
+
+base64EncodeBytes() {
+    n=$1
+    shift 
+    bytes=$(getBytes "$@")
+    int=$(hexToInt "$bytes")
+    intToBase64 "$int" "$n"
+}
+
+doHash() { 
+    password="$1"
+    passwordLength=$(printf "$password" | wc -c)
+    salt="$2"
+    saltLength=$(printf "$salt" | wc -c)
+    magic="$3"
+    [[ -z $magic ]] && magic='$6$'
+
+    salt=${salt#$magic}
+    salt=${salt:0:64} # 16 first bytes
+
+    intermediate=$(
+    {
+        # Start intermediate result
+        printf "$password$salt" 
+
+        # compute a separate sha512 sum
+        alternate=$(printf "$password$salt$password" | sha512hex) 
+
+        # Add one byte from alternate for each character in the password. Wtf?
+        while true; do printf "$alternate"; done | head -c "$passwordLength"
+
+        # For every 1 bit in the key length, add the alternate sum
+        # Otherwise add the entire key (unlike MD5-crypt)
+        for ((i=$passwordLength; i != 0; i>>=1)) 
+        do
+            if (( i & 1 ))
+            then
+                printf "$alternate"
+            else 
+                printf "$password" 
+            fi
+        done
+
+    } | sha512hex
+    )
+    firstByte=$(hexToInt $(getBytes "$intermediate" 0))
+
+    p_bytes=$(for((i=0; i<$passwordLength; i++)); do printf "$password"; done | sha512hex | head -c $((passwordLength*4)) )
+    s_bytes=$(for((i=0; i<16+${firstByte}; i++)); do printf "$salt"; done  | sha512hex | head -c $((saltLength*4)) )
+
+
+    for((i=0; i<5000; i++))
+    do
+        intermediate=$({
+            (( i & 1 )) && printf "$p_bytes" || printf "$intermediate"
+            (( i % 3 )) && printf "$s_bytes"
+            (( i % 7 )) && printf "$p_bytes"
+            (( i & 1 )) && printf "$intermediate" || printf "$p_bytes"
+        } | sha512hex)
+    done
+
+    # Rearrange the bytes and crypt-base64 encode them
+    hex=$(base64EncodeBytes 86 "$intermediate" \
+        63  62 20 41  40 61 19  18 39 60  59 17 38  37 58 16  15 36 57  56 14 35 \
+            34 55 13  12 33 54  53 11 32  31 52 10   9 30 51  50  8 29  28 49  7 \
+             6 27 48  47  5 26  25 46  4   3 24 45  44  2 23  22 43  1   0 21 42)
+
+    printf "%s$salt\$%s\n" "$magic" "$hex" 
+
+}
+
+
+if [[ $# < 1 ]] 
+then
+    echo "Usage: $0 password [salt]" >&2 
+    exit 1
+fi
+
+password=$(stringToHex "$1")
+salt=$(stringToHex "$2")
+[[ -z $salt ]] && salt=$(tr -cd 'a-zA-Z0-9' < /dev/urandom | head -c 16) 
+
+doHash "$password" "$salt" '$6$'
+
+####################sha512crypt.bash#########################
+
+
+разберу его по кускам
+############################
+
+#!/bin/bash
+# sha512-crypt for GNU and Bash
+# By Vidar 'koala_man' Holen
+
+это словарь для кодирования B64
+b64="./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+
+
+вот эта функция хоть и есть в скрипте но по факту нихрена
+не используется в алгоритме вообще
+stringToNumber() { 
+    expression=0
+    for((i=0; i<${#1}; i++))
+    do
+        expression=$(printf '(%s)*256+%d' "$expression" "'${1:$i:1}")
+    done
+    bc <<< "$expression"
+}
+
+
+
+эта штука находит для каждого символа его ascii символ
+переводит его в hex и добавляет \x получается \xnn
+например "a" на входе имеет 0x61 ascii
+и на выходе будет "\x61"
+тоесть "abc" --> "\x61\x62\x63"
+фишка в том что для printf на выходе выдаст одно итоже
+printf "a" = printf "\x61"
+
+# Turn some string into a \xd4\x1d hex string
+stringToHex() { 
+    for((i=0; i<${#1}; i++))
+    do
+        printf '\\x%x' "'${1:i:1}"
+    done
+}
+
+
+эта штука берет входящий аргумент '2232ffeffv33ewfw'
+находит от него sha512 получаем чтото типа "a112b2.."
+и далее к этому добавляется \x на выходе будет "\xa1\x12\xb2.."
+тоесть '2232ffeffv33ewfw' --> sha512sum(2232ffeffv33ewfw) --> "\xa1\x12\xb2.."
+
+# Turn stdin into a \xd4\x1d style sha512 hash
+sha512hex() { 
+    sum=$(sha512sum) 
+    read sum rest <<< "$sum" # remove trailing dash
+    hex=$(sed 's/../\\x&/g' <<< "$sum")
+    echo "$hex"
+}
+
+
+берем десятичное число "3445345464564646" и коневертируем его в B64
+
+# Turn an integer into a crypt base64 string with n characters
+intToBase64() { 
+    number=$1
+    n=$2
+    for((j=0; j<n; j++))
+    do
+        digit=$(bc <<< "$number % 64")
+        number=$(bc <<< "$number / 64")
+        echo -n "${b64:digit:1}"
+    done
+}
+
+# эта хрень вобоще не испольщуется в реальном алгоритме скрипта
+base64Index() { 
+    for((i=0; i<64; i++))
+    do
+        if [[ ${b64:i:1} == $1 ]]
+        then
+            echo $i
+            exit 0
+        fi
+    done
+    exit 1
+}
+
+
+эта функция  получает аргументы  вида \x12\xa1\xb2\xc2\xf1  5 4 1
+и переставляет в \x12\xa1\xb2\xc2\xf1 хрени вида \x.. местами в 
+заданном порядке как указано 5 4 1
+тоесть было  \x12\xa1\xb2\xc2\xf1  стало  \xf1\xc2\x12
+тоесть эта хрень перставляет местами 
+
+# From hex string $1, get the bytes indexed by $2, $3 ..
+getBytes() { 
+    num=$1
+    shift
+    for i
+    do
+        echo -n "${num:$((i*4)):4}"
+    done
+}
+
+
+эта функция на входе получает \xa1\xa2\xb1\xc1
+конвертирует a1a2b1c1
+а его коневертирует в десятичное число
+
+hexToInt() { 
+    {
+    echo 'ibase=16;'
+    tr a-f A-F <<< "$1" | sed -e 's/\\x//g'
+    } | bc
+}
+
+
+эта функция берет \xa1\xa2\xb1\xc1
+и конвертирует его в B64 кодировку
+
+base64EncodeBytes() {
+    n=$1
+    shift 
+    bytes=$(getBytes "$@")
+    int=$(hexToInt "$bytes")
+    intToBase64 "$int" "$n"
+}
+
+
+
+головная функция
+
+doHash() { 
+    password="$1"
+    passwordLength=$(printf "$password" | wc -c)
+    salt="$2"
+    saltLength=$(printf "$salt" | wc -c)
+    magic="$3"
+    [[ -z $magic ]] && magic='$6$'
+
+эта хрень никогда не сработает. потому что salt="\xa1\x12\x31\b1"
+то в нем никогда не будет стринга $magic потому что $magic='$6$'
+и это никак не похоже на \xnn
+    salt=${salt#$magic}
+
+выбирает 16 байтов из солта
+указано 64 символа потому что солт имеет формат "\xa1\x12\x31\b1..."
+    salt=${salt:0:64} # 16 first bytes
+
+
+
+
+    intermediate=$(
+    {
+        # Start intermediate result
+        printf "$password$salt" 
+
+        # compute a separate sha512 sum
+        alternate=$(printf "$password$salt$password" | sha512hex) 
+
+        эта штука берет $alternate и вырезает от из него столько байт сколько длинна пароля
+        причем если длинна пароля длинее чем $alternate то набор байтов продолжается 
+        заново сначала пароля и высирает это на stdout
+        # Add one byte from alternate for each character in the password. Wtf?
+        while true; do printf "$alternate"; done | head -c "$passwordLength"
+
+
+        эта штука берет число которое показывает длину пароля
+        потом по факту это число как бы преобразуется в двоичный вид 0101010101
+        далее анализируется этот вид начиная с младшего бита к старшему
+        и если очередной бит 1 то на stdout высирается "$alternate"
+        а если очередной бит 0 то на stdout высирается "$password"
+        # For every 1 bit in the key length, add the alternate sum
+        # Otherwise add the entire key (unlike MD5-crypt)
+        for ((i=$passwordLength; i != 0; i>>=1)) 
+        do
+            if (( i & 1 ))
+            then
+                printf "$alternate"
+            else 
+                printf "$password" 
+            fi
+        done
+
+
+все что было высрано на stdout оно направляется на sha512hex функцию        
+        
+    } | sha512hex
+    )
+    
+    эта хрень вырезает первый байт из intermediate 
+    результрующий результат это число в dec формате
+    firstByte=$(hexToInt $(getBytes "$intermediate" 0))
+
+    
+    эта хрень берет password повторяет его столько раз сколько длинна пароля в байтах.
+    если длинна пароля 4 символа то будет четыре раза повторен пароль.
+    далее этот четверной пароль бросается на sha512hex тоесть из этого вычисляется sha512 
+    и получаем число вида \x21\x34\x45... и из него вырезается столько \xnn столько штук сколько длинна пароля.
+    тоесть при длинне пароля 4 символа тогда будет вырезано 16 символов тоесть \x21\x34\x45\x67
+    p_bytes=$(for((i=0; i<$passwordLength; i++)); do printf "$password"; done | sha512hex | head -c $((passwordLength*4)) )
+
+    эта хрень берет salt и печатает его 16 раз на stdout и еще столько раз сколько составляет число firstByte
+    далее эти солты посылаются на sha512hex которая считает от этого sha512 и переводит ее в вид \x12\x13\x14\x15
+    и из этой хрени вырезает столько \xnn штук сколькл длинна солта. скажем если солт длинна 3 символа то 
+    вырезано будет \x12\x13\x14
+    s_bytes=$(for((i=0; i<16+${firstByte}; i++)); do printf "$salt"; done  | sha512hex | head -c $((saltLength*4)) )
+
+
+    цикл на 5000 шагов    
+    for((i=0; i<5000; i++))
+    do
+    перевычесляется intermidiate путем того что 
+    если i нечетное то печатается $p_bytes иначе $intermediate
+    далее
+    если i неделится на 3 то печатается  s_bytes
+    далее
+    если i неделится на 7 то печатается  p_bytes
+    далее
+    если i нечетное то печатается intermediate иначе печатается p_bytes
+    и далее вся эта портянка скармилвается функции sha512hex
+    это и есть новый intermediate
+    и таки циклов перевычисления 5000 штук
+        intermediate=$({
+            (( i & 1 )) && printf "$p_bytes" || printf "$intermediate"
+            (( i % 3 )) && printf "$s_bytes"
+            (( i % 7 )) && printf "$p_bytes"
+            (( i & 1 )) && printf "$intermediate" || printf "$p_bytes"
+        } | sha512hex)
+    done
+
+
+берется intermediate которая имеет вид \x11\xa1\xa2... посылается на base64EncodeBytes которая 
+переставляет местами их в соотвествии с тем как указано цифрами 63 62 итд
+а далее эту хрень она перекодирует в B64 формат по алгоритму такому что 
+обновленный intermediate конвертруется в dec формат. потом это число делится на 64 и вычисляется целое 
+от деления и это новый intermidiate и остаток от деления это офффсет на основе которого из словаря
+b64="./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz" выбирается символ который и явялется искомым.
+далее обновленный intermidiate заново делится на 64 и так по кругу пока мы не получим 86 символов
+    # Rearrange the bytes and crypt-base64 encode them
+    hex=$(base64EncodeBytes 86 "$intermediate" \
+        63  62 20 41  40 61 19  18 39 60  59 17 38  37 58 16  15 36 57  56 14 35 \
+            34 55 13  12 33 54  53 11 32  31 52 10   9 30 51  50  8 29  28 49  7 \
+             6 27 48  47  5 26  25 46  4   3 24 45  44  2 23  22 43  1   0 21 42)
+
+эта хрень печатает ту самую штуку которую мы хотим 
+получить в конечном итоге
+резултат имеет вид magic+salt+хеш
+    printf "%s$salt\$%s\n" "$magic" "$hex" 
+
+}
+
+
+если при запуске скрипта не было указано ни одного аргумента
+то скрипт пошлет нахер
+if [[ $# < 1 ]] 
+then
+    echo "Usage: $0 password [salt]" >&2 
+    exit 1
+fi
+
+конвертируем пароль так что каждая литера пароля конвертируется в ее ascii код в hex формате \xnn
+скажем пароль был "a" стал "\x61"
+формально пароль изменился
+но если мы будем печатать пароль через printf то результат на stdout будет одно итоже 
+в обоих случаях  printf "a" = printf "\x61"
+password=$(stringToHex "$1")
+
+тоже самое для солт
+salt=$(stringToHex "$2")
+
+если солт при запуске солта не был указан как аргумент то солт генериуется на основе urandom длинной 16 байт
+[[ -z $salt ]] && salt=$(tr -cd 'a-zA-Z0-9' < /dev/urandom | head -c 16) 
+
+запуск главной функции которая нам и посчитает то что мы хотим
+doHash "$password" "$salt" '$6$'
+
+
+############################
+
+вот так и получается та самая строчка в /etc/shadow
+пиздец
+
+   
 ##########################################
 
 
