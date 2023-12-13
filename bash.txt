@@ -8392,10 +8392,9 @@ cat читает из пайпа кусками. выбирает оттуда 1
 понимают что им никто уже данные не нальет и надо заканчиывать свой процесс.
 
 
-<<----- остановился здесь
 
 
-    
+
 
 про awk
 пример печаатает
@@ -8403,11 +8402,10 @@ cat читает из пайпа кусками. выбирает оттуда 1
     $ awk -v N=2 'NR<=N'
     
 
+
+    
+    
 еще раз расскажу про  ${PIPESTATUS[*]} 
-
-
-
-
 ${PIPESTATUS[*]}
 содержит коды возврата всех процессов в цепочке пайпов.
 если код возврата команды ненулеовй это еще незначит что у нее сломался пайп.
@@ -8420,19 +8418,22 @@ $ kill -1  9088
 $ kill -1  9089
 $ kill -1  9090
 
-мне почемуто пришлось убить все три поцесса прежде чем пайп развалился
+поскольку баш нетрогает процессы в цепочке если у нас один из процессов
+упал то нужно убить все три поцесса прежде чем пайп развалится
 
 код возврата 129-128=1 ровно сигнал 1  я им слал.
 ошибка 129 совершенно не значит что была проблема с пайпом она значит что в процесс
 прилетел сигнал 1
 
---
 
+далее
 $ yes | head -n 100 | xargs -n1 echo | tail -n +1 | head -n2; echo "${PIPESTATUS[@]}"
 y
 y
 141 0 0 0 0
-даже когда неруегается на signal 13 то самый левый пайп завершил работу с ошибкой
+не все хендлеры 13 сигнала чтото пишут на терминал.
+часто ничего не пишут
+
 
 $ yes | head -n 100 | xargs -n1 echo  | head -n2; echo "${PIPESTATUS[@]}"
 y
@@ -8441,6 +8442,7 @@ xargs: echo: terminated by signal 13
 141 0 125 0
 а здесь более правый пайп завершил с ошибкой
 
+
 прикол в том что если код 0 это успешный выход.
 все остальное неуспешный. и что значит конкретно каджый код выше 1 по 125 
 опредлелется программстом программы. закралывая его в фукцию обработки.
@@ -8448,21 +8450,33 @@ xargs: echo: terminated by signal 13
 а вот если код >128 то обычно это значит что в прцесс прилетел сигнал N
 высиляется по формуле код возврата = 128+N.
 
+
 и вот что про ext satus написано на сайте gnu
-
-The exit status of an executed command is the value returned by the waitpid system call or equivalent function. Exit statuses fall between 0 and 255, though, as explained below, the shell may use values above 125 specially. Exit statuses from shell builtins and compound commands are also limited to this range. Under certain circumstances, the shell will use special values to indicate specific failure modes.
-
-For the shell’s purposes, a command which exits with a zero exit status has succeeded. A non-zero exit status indicates failure. This seemingly counter-intuitive scheme is used so there is one well-defined way to indicate success and a variety of ways to indicate various failure modes. When a command terminates on a fatal signal whose number is N, Bash uses the value 128+N as the exit status.
-
-If a command is not found, the child process created to execute it returns a status of 127. If a command is found but is not executable, the return status is 126.
-
-If a command fails because of an error during expansion or redirection, the exit status is greater than zero.
-
-The exit status is used by the Bash conditional commands (see Conditional Constructs) and some of the list constructs (see Lists of Commands).
-
-All of the Bash builtins return an exit status of zero if they succeed and a non-zero status on failure, so they may be used by the conditional and list constructs. All builtins return an exit status of 2 to indicate incorrect usage, generally invalid options or missing arguments.
-
-The exit status of the last command is available in the special parameter $? (see Special Parameters).
+The exit status of an executed command is the value returned by the waitpid
+system call or equivalent function. Exit statuses fall between 0 and 255, 
+though, as explained below, the shell may use values above 125 specially. 
+Exit statuses from shell builtins and compound commands are also limited 
+to this range. Under certain circumstances, the shell will use special 
+values to indicate specific failure modes.
+For the shell’s purposes, a command which exits with a zero exit status has succeeded
+. A non-zero exit status indicates failure. This seemingly 
+counter-intuitive scheme is used so there is one well-defined way
+to indicate success and a variety of ways to indicate various failure
+modes. When a command terminates on a fatal signal whose number is N, Bash
+uses the value 128+N as the exit status.
+If a command is not found, the child process created to execute it returns a
+status of 127. If a command is found but is not executable, the return status is 126.
+If a command fails because of an error during expansion or redirection, 
+the exit status is greater than zero.
+The exit status is used by the Bash conditional commands
+(see Conditional Constructs) and some of the list
+constructs (see Lists of Commands).
+All of the Bash builtins return an exit status of zero if they succeed
+and a non-zero status on failure, so they may be used by the conditional
+and list constructs. All builtins return an exit status of 2 to
+indicate incorrect usage, generally invalid options or missing arguments.
+The exit status of the last command is available in the special 
+parameter $? (see Special Parameters).
 
 так что 141 это 128+13 значит сигнал 13 а 13 это  SIGPIPE ( kill -L )
 это значит этот процесс хотел записат в пайп но не было процесса который бы открыл 
@@ -8505,132 +8519,514 @@ cat полувил сишгнал 1
 вслед за этим не смог писать yes и его тоже убило ядро
 
 
-    я походу понял почему я раньше эту ошик не встречал
+я походу понял почему я раньше эту ошибку не встречал
 $ cat 17830.txt | grep a 1>/dev/null; echo "${PIPESTATUS[@]}"
 0 0
-потому что раньше у меня были такие команды что комада которая справа от пайпа она всегда ждет бесконечно
-данные от команды слева. и в цепочке первой заканчивала работу всегда команда слева. и только потом комнда 
-справа от пайпа. и поэтому немогло быть ситуации при которой возникает сигнал 13. тоесть процесс 
+потому что раньше у меня были такие команды что комада которая 
+справа от пайпа она всегда ждет бесконечно
+данные от команды слева. и в цепочке первой заканчивала работу всегда
+команда слева. и только потом комнда 
+справа от пайпа. и поэтому немогло быть ситуации при которой 
+возникает сигнал 13. тоесть процесс 
 пишет в пайп но его никто не читает. 
 
-как я теперь понимаю в целом цепочка из пайпов подразумевает что чем более правее команда тем 
-она сама никогда не сдыхает. она ждет данных вечно. что первой сдохнет комарда слева.
-а уже за ней сдохнут все остальные. поэтому такого не будет что програма слева пытается писать в пайп
-а програаммы справ уже нет. а значтт пайп читать некому. и ядро шлет процессу сигнал 13. 
-обработчки которго убивает нашу программу слева.
-
-
-$ echo -e "1\n2\n3\n4\n5\n" | xargs -n1 echo   |  tail -n +1 | head -n2; echo "${PIPESTATUS[*]}"
-1
-2
-0 0 0 0
-
-вобщем из того что я понял
-$  xargs -a /tmp/50m.txt  -r  -L1 -n1 echo  | head -n2; echo "${PIPESTATUS[*]}"
-y
-y
-xargs: echo: terminated by signal 13
-125 0
-
-
-$  xargs -a /tmp/50m.txt  -r  -L1 -n1 echo  | head -n2; echo "${PIPESTATUS[*]}"
-y
-y
-xargs: echo: terminated by signal 13
-125 0
-
-
-проблема в том что xargs работает так. он вначале насасывает снаружи данные. потом обрабатывает какойто кучей.
-а потом начинает некоторыми порциями выплеывать наружу. поэтому кадый раз когда он выплбнул у него всегда 
-есть еще. поэтому ему всегда есть что записать. у него всегда есть в буфере данные. поэтому когда он 
-сколоько то из себя выдавил у него в запасе всегда есть еще. наш head оталиваптся. а у xargs
-есть данне. он пробует засунуть очередную порцию в пайп. и тут его ядро нарывает сигналом 13.
-и его хендлер его убивает.
-
-ровно тоже самое проиходит с cat 
-только его хендлер нерушается на приход сигнала 13 а молча вырубает процесс
-$ cat  /tmp/50m.txt  | head -n2; echo "${PIPESTATUS[*]}"
-y
-y
-141 0
-
-у меня вот так получилось 
-$ xargs -a /tmp/50m.txt  -r  -L1 -n1 echo    | { head -n2; kill -15 $(ps aux | grep xargs | grep '/tmp/50m.txt' | awk '{print $2}'); }; echo "${PIPESTATUS[*]}"
-y
-y
-Terminated
-143 0
-
-
-и вот так
- cat  /tmp/50m.txt   | { head -n2; kill -15 $(ps aux | grep cat | grep '/tmp/50m.txt' | awk '{print $2}'); }; echo "${PIPESTATUS[*]}"
-y
-y
-Terminated
-143 0
-
-еще вот так
-$ cat  /tmp/50m.txt   | xargs   -n1  echo   | { head -n2; kill -15 $(ps aux | grep xargs  | awk '{print $2}'); }; echo "${PIPESTATUS[*]}"
-y
-y
-bash: kill: (30039) - No such process
-Terminated
-141 143 0
-
-как бы я ни старался немогу заткнтуть сообщения от хендлера
-$ cat - &>/dev/null
-Terminated
-
-это максимум что могу
-$ cat  /tmp/50m.txt   | xargs   -n1  echo   | { head -n2; kill -15 $(pidof xargs); }; echo "${PIPESTATUS[*]}"
-y
-y
-Terminated
-141 143 0
-
-от termjinated нпкак не могу избавиься
-
-наконец
-$ cat  /tmp/50m.txt  | xargs   -n1  echo   | { head -n2; kill -2 $(pidof xargs); }; echo "${PIPESTATUS[*]}"
-y
-y
-141 130 0
-
-фишка еще и в том что оверхед такого решения по сравнению с дургими ровно такойже как у оригинального 
-решения с голым head. в отличие от awk у которого беешеный оверхед.или tail который тоже имеет 
-порядочный оверхед
 
 
 
 
+далее 
+    set -o pipefail 
+    set +o pipefail
+    это о чем?
+вообще этот билтин баша
+это вещь в себе.
+например если мы используем -o .... то это АКТИВИРУЕТ опцию
+       а если мы используем +o .... то это ОТКЛЮЧАЕТ  опцию
+то все наоборот , антиинтуитивно.
+
+по дефолту эта хрень отключена. 
+значит если мы ее активируем  
+    $ set -o pipefail 
+то даст вот что 
+
+pipefail
+            If  set,  the  return value of a pipeline is the value of
+            the last (rightmost) command to exit with a non-zero status, 
+            or zero if all commands in the pipeline exit successfully.  
+            This option is disabled by default.
+
+значит по дефолту когда эта опция выключена то если у нас есть цепочка команда
+с пайпами то если мы после этого захотим посмотреть код возврата то он будет 
+содержать код возврата последней команды в цепочке.
+а если мы активируем эту опцию то код возврата будет содержать последний код 
+возврата комады в цеопчке который был неравен нулю. таким образом активация 
+этой оции позволяет вскрыть вытащить наружу проблемы с в пайп цепочке.
+сразу скажу что эта опция никоим образом не влияет на переменную "${PEIPSTATUS[*]}"
+эта переменная содержит  в себе все коды возврата всех команда из цепочки
+вне зависимости от усноавлена или нет опция pipefail.
+кстати как узнать установлена ли опция pipefail или нет. вот как
+    $ set -o | grep pipefail
+итак показываю.
+
+    $ set -o | grep pipefail
+    pipefail       	off
+
+    $ yes | xargs -n1 -L1 echo  | head -n5 1>/dev/null; echo "${PIPESTATUS[*]}"
+    xargs: echo: terminated by signal 13
+    141 125 0
+
+    $ yes | xargs -n1 -L1 echo  | head -n5 1>/dev/null; echo "$?"
+    xargs: echo: terminated by signal 13
+    0
+
+таким образом видно что при отключенной опции у нас $?=0 тоесть равен
+коду возврата последней команды в цепочке
+
+активируем опцию
+
+    $ set -o pipefail
+    $ set -o | grep pipefail
+    pipefail       	on
 
 
-set -o pipefail  это о чем?
+    $ yes | xargs -n1 -L1 echo  | head -n5 1>/dev/null; echo "${PIPESTATUS[*]}"
+    xargs: echo: terminated by signal 13
+    141 125 0
+
+    $ yes | xargs -n1 -L1 echo  | head -n5 1>/dev/null; echo "$?"
+    xargs: echo: terminated by signal 13
+    125
+
+видно что при активиированной опции код возврата $?=125 равен первому справа
+ненулевому коду возврата из цепочки
+
+еще интересный шокирующий момент. если мы хотим посмтреть echo "${PIPESTATUS[*]}"
+то это надо делать прям сразу после цепочки команд. если прошляпить хотя бы
+на одну команду. то она протухает. показываю.
+
+тоесть вот я смотрю ее сразу
+    $ yes | xargs -n1 -L1 echo  | head -n5 1>/dev/null; echo "${PIPESTATUS[*]}"
+    141 125 0
+
+а вот я смотрю эту переменную но чуть позже
+    $ yes | xargs -n1 -L1 echo  | head -n5 1>/dev/null; echo $?; echo "${PIPESTATUS[*]}"
+    125
+    0
+
+как говорится почуствуй разницу между 
+    141 125 0
+и
+    0
+    
+в этом тоже конечно засада.
+
+если у нас скрипт. то надо еще подумать активировать ли pipefail
+или нет. потому что не всегда плохой код возврата это плохо
+пример
+    $ yes  | xargs -n1 -L1 echo | head -n 5 1>/dev/null; echo "${PIPESTATUS[*]}"
+    141 125 0
+
+если мы активируем pipefail то $? после этой цепочки будет 125.
+но на самом деле проблемы в этом пайпе нет. просто head сделал свое дело
+и умер раньше чем команды слева. это норм. как уже разбирал выше.
+
+еще раз о set
+если мы хотим посмотреть чему равны все опции то надо set -o
+
+    $ set -o
+    allexport      	off
+    braceexpand    	on
+    emacs          	on
+    errexit        	off
+    errtrace       	off
+    functrace      	off
+    hashall        	on
+    histexpand     	on
+    history        	on
+    ignoreeof      	off
+    interactive-comments	on
+    keyword        	off
+    ...
+    
+а set +o нам выдаст список команд которые можно вбить 
+в шелл чтобы привести эти опции к этому виду
+
+    $ set +o
+    set +o allexport
+    set -o braceexpand
+    set -o emacs
+    set +o errexit
+    set +o errtrace
+    set +o functrace
+    set -o hashall
+    set -o histexpand
+    set -o history
+    set +o ignoreeof
+    set -o interactive-comments
+    set +o keyword
+    ...
+    
+
+    
+    
+еще раз вовзращаюс к разбору примеров из man find
+этот пример ищет в папке /tmp файл с именем "core"
+тип файла обычный
+и печатает на экране имя файла с добавлением Enter в конце файла каждого
+едиснтвенное что я не понял это смысл -print 
+ибо имя файла оно и без этой опции печаается 
+    $ find /tmp -name core -type f -print
+ее аналог
+    $ find /tmp -name core -type f
+
+
+    
+еще пример
+ищет в папке /tmp
+имя файла core
+тип файла обычный
+печатает имя файла и добавляет в конец байт 0x00
+это делается если в имени файла есть символ Enter
+тогда можно передать через pipe на xargs и там тоже обьяснить что символ
+разделения названий файло тоже 0x00
+    $ find /tmp -name core -type f -print0
+если дбавить xargs
+    $ find /tmp -name core -type f -print0 | xargs -o echo 
+
+    
+    
+еще пример
+ищем в папке "."
+тип файла обычный 
+и  с каждым таким файлом печатаать его тип 
+    $ find . -type f -exec file '{}' \;
+
+    
+еще пример
+найти файл у которого есть suid бит и заппсать имя этого файла
+в файл /root/suid.txt в формате "permissions  user  имя_файла"
+либо найти файл размером 100M+ в файл /root/big.txt  в формате
+"размер файла  имя_файла",
+причем размер файла печатается в колонке 10 символов
+с выравниванием по левому краю а печать имя_файла 
+идет с 11 символа
+    $ find / \( -perm -4000 -fprintf /root/suid.txt '%#m %u %p\n' \) , \
+       \( -size +100M -fprintf /root/big.txt '%-10s %p\n' \)
 
 
 
+еще пример
+ищет в папке $HOME
+файлы которые были изменены за последние 24 часа
+    $ find $HOME -mtime 0
+       
+на счет -mtime, -atime, -ctime, -mmin
+m означает modification
+c означает creation
+a означает acccess
+тоесть проверяется то или иное время в свойствах файла
+
+*time означает время в единицах сутки. тоесть -ctime 1 это время 1 сутки
+*min означает минуты. -mmin 10 означает 10 минут.
+
+если число стоит без значков +- то это означает точное совпадение
+если стоит -10 то это означает промежуток [сейчас-10; сейчас]
+а если стоит +10 это промежуток [-бесконечность; сейчас-10]
+
+тоесть -mmin -10 означает файл был модифицирован в течение последних 10 минут. в этом промеж
+утке
+-mmin +10 означает что файл был модифицирован более раньше чем 10 минут назад. и еще
+более раньше. 
+
+-mmin 10 означает что файл был модифицирован точно 10 минут назад
+
+аргумент 0 имеет особое значение
+
+-mmin +0 означает что файл был раньше чем 0 минут назад или более раньше.
+тоесть по факту это любой файл. 
 
 
-меньше всего прокачиать данных нужно естесвтенно через голый head
-чуть больше через tail+head
-и пиздец как много через awk
+    $ ls -l -t
+    15:18 4.txt
+    13:40 1.txt
+    
+    $ find . -mmin -4
+    ./4.txt
+тоесть мы ищем файл который был измнеен в течение между щас и 4 минуты назад.
+    время 15:21
+получается это время  (15:17, 15:21) внутри этого интервала лежит 4.txt (15:18)
 
-две ссылки  с ответом
+
+возвращаюсь к исходному пример
+ищется файлы которые были модифицированы ровно за последние сутки    
+    $ find $HOME -mtime 0
+
+-amin
+-atime
+-cmin
+-ctime
+-mmin
+-mtime
+
+
+a - время доступа к файлу
+m - время изменения содержимого  файла
+c - время  изменения метаданных файла. тоесть 
+инода. тоесть пермишнсы у файла. владелец итп
+
+что я не понимаю. это то что если я захожу и меняю содержимое 
+файла причем просто символ один меняю на другой. тоесть метаданные
+не меняются то все равно меняется и mtime и ctime. что за хуйня
+я не понимаю почему.
+
+
+
+команда 
+    $ touch file
+она меняет acccess time и modify time 
+и еще и  change time 
+вобщем она по дефолту все меняет
+
+
+будем работать на примере ctime. это время изменнеия метаданных у файла.
+
+    $ ls -ltc --time-style="+%d %b %H:%M" | awk '{print $6 "  "$7"  " $8"  " $9}'
+    13  дек  17:45  01.bash
+    25  июн  04:09  temp
+    20  июн  23:38  04.bash
+    16  июн  19:41  LC_CTYPE=ru_RU.utf8
+    16  июн  18:43  06.txt
+    16  июн  17:32  03.bash
+    16  июн  15:58  04.txt
+    16  июн  15:56  05.txt
+    16  июн  15:09  03.txt
+    16  июн  14:38  root
+    16  июн  14:02  02.bash
+
+    $ date "+%d %b %H:%M"
+    13 дек 18:16
+
+    $ find . -type f -cmin 32 -printf "%-10f %Cd %Cb %CH:%CM \n"
+    01.bash    13 дек 17:45 
+
+-cmin 32 означает что мы ищем файл у которого 
+ctime равен (текущее время - ctime файла) выраженное в минутах должно быть 32 целых
+минуты и еще может быть сколько то секунд миллисекунд итд это мы уже отбрасываем.
+главное что промежуток должен составлять полноценных 32 минуты.
+тоесть грубо говоря -cmin 32 означает найди файл который был модифицирован относиельно
+ctime 32 минуты назад. но это должны быть полные минуты. тоесть с учетом секунд.
+поскольку время записывается в свойствах файла с точностью до условно говоря миллисекунд
+или микросекунд но нам самое главное что с точностью до секунд точно и то что
+отсчет идет от текущего момента времени это означает что нам придется подбирать cmin
+в пределах +-1 минута. например у нас файл создан в 17ч:01м:56с  а сейчас время 17ч:02м:20с
+отнимаем одно от другого это будет 24секунды. это значит что  у нас в промежутке нет 
+ни одной полноценной минуты. другой случай файл создан в 17ч:01м:01с 
+значит промежуто равен 1м 15с или одна полноценная минута. как мы видим на листинге ls
+время показано с точностью до минуты. поэтому оба наших файла буду показаны как
+17ч01м но только один из них попадет в поиск find по критерию найди файл модифицированный 
+за последнюю минуту. поэтому я гооврю о том что параметр -cmin он будет гулять туда 
+сюда в пределах 1 минуты.
+примеры
+
+итак имеем вот такой файл
+    13  дек  17:45  01.bash
+сейчас время
+    $ date "+%d %b %H:%M"
+    13 дек 18:28
+я ожидаю его найти как -cmin 43
+    $ find . -type f -cmin 43 -printf "%-10f %Cd %Cb %CH:%CM \n"
+    01.bash    13 дек 17:45 
+сработало
+
+еще ест вот такой файл
+    13  дек  17:48  1.txt
+текущее время 13 дек 18:30
+я ожидаю  его найти как -cmin 42
+
+    $ find . -type f -cmin 42 -printf "%-10f %Cd %Cb %CH:%CM \n"
+    1.txt      13 дек 17:48 
+
+сработало
+
+если мы модифицируем 
+    -cmin 42 
+как 
+    -cmin -42 
+это будет значить что мы ищем файлы у которых ctime лежит в интервале
+    (текущее время-42;текущее время)
+а если заменить на 
+    -cmin +42 
+это будет значить что мы ищем файлы у которых ctime лежит в интервале
+    (-бесконечность ;текущее время-42)
+
+отдьено скажу про 
+    -cmin 0
+это значит что у файл ctime такой что промежуток времени между его ctime
+и текущим мометом такой что он меньше чем одна полная минута. тоесть если мы возьмем
+этот промежтоу времени выразим его в секундах и поделим на 60 то в целой части от деления
+будет 0. и будет какйото остаток но мы его всегда отбрасываем.
+тоесть -cmin 0 это такой файл который был модифицирован меньше чем минуту назад
+-cmin 1 означает что файл был модифицирован одну полную минуту назад.
+-cmin -1 означает что файл был модифицирован в интервале одну полную минуту назад или меньше
+-cmin +1 означае что файл был модифицироован позже чем одну полную минуту назад
+
+-сtime такойже смысл как cmin но он меряется промежутком в 24часа. тоесть это одни 
+полные сутки. 
+-ctime 0 это такой файл который был модифицирован меньше чем одни полные сутки назад
+-ctime 1 означает что файл был модифицирован одни полные сутки назад.
+-ctime -1 означает что файл был модифицирован в интервале одни полные сутки назад или меньше
+-ctime +1 означае что файл был модифицироован позже чем одни полные сутки назад
+    
+соотвественно через -ctime +10 ищется какоето супер старье
+через -cmin -10 ищется наоборот чтот очень молодое
+
+имеем вот такие файлы
+
+$ ls -ltc --time-style="+%d %b %H:%M" | awk '{print $6 "  "$7"  " $8"  " $9}'
+      
+13  дек  17:48  1.txt
+10  дек  23:20  3.txt
+10  дек  23:20  2.txt
+
+я хочу найти все файлы в течеие последних 3-ех суток
+    $ date "+%d %b %H:%M"
+    13 дек 18:27
+
+    $ find . -type f -ctime  -3 -printf "%-10f %Cd %Cb %CH:%CM \n"
+    1.txt      13 дек 17:48 
+    3.txt      10 дек 23:20 
+    2.txt      10 дек 23:20 
+
+хочу найти файлы котрые
+          файлы  старее чем  -1 сутки
+но при этом 
+          файл моложе чем -3 сутки
+        
+тогда
+    $ find . -type f -ctime +1 \! -ctime +3 -printf "%-10f %Cd %Cb %CH:%CM \n"
+    3.txt      10 дек 23:20 
+    2.txt      10 дек 23:20
+    
+
+конструкция 
+    \! -ctime +3
+означает промежуток времени который мы исключаем из рассмотрения
+по умолчанию между  всеми аргументами в find незримо стоит логический AND
+тоест должны выопнтяся одновмренно все условия поиска
+причем надо экранировать ! чтобы баш не расстривал ! как спесимвол
+
+найти файлы с ctime моложе чем 1 сутки (-ctime 0)
+
+    $ date "+%d %b %H:%M"
+    13 дек 18:27
+
+    $ find ~ -type f -ctime 0 -printf "%-10.5f %Cd %Cb %CH:%CM \n" 2>/dev/null | head -n4
+    4bae8      13 дек 03:49 
+    471f2      13 дек 13:06 
+    84b66      13 дек 06:27 
+
+
+найти файлы с ctime моложе чем 1 минута (-cmin 0)
+    $ echo "текущее время  = $(date '+%d %b %H:%M')"; find ~ -type f -cmin 0 -printf "%h/%-8.8f %Cd %Cb %CH:%CM \n" 2>/dev/null  | head -n3
+    текущее время  = 13 дек 18:57
+    /home/vasya/.cache/lxsession/LXDE/run.log  13 дек 18:57 
+    /home/vasya/.psensor/log      13 дек 18:57 
+    /home/vasya/.config/google-chrome/Default/Preferen 13 дек 18:57 
+
+еще раз про разницу
+    -cmin 0  найти все файлы у которых ctime  моложе чем одна полная минута
+    -cmin 1  найти все файлы у которых ctime одна полная минута или меньше
+    если текущее время t, а ctime это знание у файла то 
+    -cmin 0 такой что    (t-ctime) < 1min
+    -cmin 1 такой что    (t-ctime) <= 1min
+    где 1min это полная минута то есть 60 секунд
+
+возвращаюсь  к примеру
+найти все файлы которые были модифицированы (mtime) меньше чем 24 часа от текущего
+момента
+    $ find $HOME -mtime 0
+
+далее найти файл который executable (для текущего юзера)
+    $ find . -executable -type f
+    ./1.txt
+
+проверяем 
+    $ find . -type f -printf "%f   "  -exec  stat --format="%A" '{}'   ';'
+    1.txt   -rwxrwxr-x
+    3.txt   -rw-rw-r--
+    2.txt   -rw-rw-r--
+
+проверка что файл readable (для текущего юзера)
+    $ find . -readable -type f
+    ./1.txt
+    ./3.txt
+    ./2.txt
+
+
+далее
+найти файлы и папки  которые "x" но не "r" для текущего юзера
+что это значит на практике не помню. особенно для папок    
+    $ find /sbin /usr/sbin -executable \! -readable -print
+
+тоже самое но только для файлов обычных
+    $ find ~ -executable \! -readable  -type f -printf "%f   "   -exec stat --format="%A" '{}' ';' 2>/dev/null
+либо
+    $ find ~ -executable ! -readable  -type f -printf "%f   "   -exec stat --format="%A" '{}' ';' 2>/dev/null
+    sudo   ---s--x--x
+    sudoreplay   ---x--x--x
+    sudo   ---s--x--x
+    sudoreplay   ---x--x--x
+    sudo   ---s--x--x
+тоесть работает и  с экранированием "!" и без его экранирования.
+
+дальше
+ищет файлы которых пермишнс в точности 644
+    $ find . -perm 664
+    
+ищет файлы у которых пермишнс такие что установленные биты в маске 664 = 110110100
+также установлены и в пермишнс файлов. 
+что касается неустанолвенных битов в маске если они установлены  в файле 
+то нам похеру
+    $ find . -perm -664
+    
+маска пермишнс 664 = 110110100
+нам надо чтобы в файле в пермишнс был устанолвен хотя бы один бит из тех что
+есть  в маске тогда нам такой файл уже подходит
+    $ find . -perm /664
+    
+    
+    
+далее
+       $ find . -perm /220
+       $ find . -perm /u+w,g+w
+       $ find . -perm /u=w,g=w
+все три команды одинаковые. только в разной форме записаны.
+файлы подходят если либо юзер может писать либо other может писать. 
+
+
+    
+    
+<--- закончил тут 
+1) разобрать примеры из man find 
+
+    
+1.5) две ссылки  с ответом
     https://stackoverflow.com/questions/27800726/ls-terminated-by-signal-13-when-using-xargs/77637318#77637318
     https://superuser.com/questions/554855/how-can-i-fix-a-broken-pipe-error
 
 
-1) разобрать примеры из man find (смотри на соседнем листе)
 2) разобрать три ссылки
     https://www.lix.polytechnique.fr/~liberti/public/computing/prog/c/C/FUNCTIONS/format.html
     https://stackoverflow.com/questions/71284062/how-to-printf-fixed-number-or-digits-in-floating-in-bash
     https://unix.stackexchange.com/questions/589475/how-can-i-exclude-and-when-listing-only-hidden-items
 
 
-
 3) продолжить разбор
     https://tldp.org/LDP/abs/html/fto.html
-
+    
+3.1) man bash читать
+     set [+abefhkmnptuvxBCEHPT] [+o option-name] [arg ...]
+    
 3.5) /usr/bin/nohup 
     
 4) проработать info coreutils 
