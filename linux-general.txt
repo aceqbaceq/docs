@@ -11779,6 +11779,13 @@ $ nmap -sn 192.168.0.0/24
 
 
 
+| openssl
+
+как зашифровать симметрично пароль
+
+    $ echo -n 'пароль' | openssl enc  -aes-256-cbc    -e -v -a -pbkdf2 -salt  -md md5
+    
+
 
 
 
