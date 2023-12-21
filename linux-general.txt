@@ -11786,6 +11786,17 @@ $ nmap -sn 192.168.0.0/24
     $ echo -n 'пароль' | openssl enc  -aes-256-cbc    -e -v -a -pbkdf2 -salt  -md md5
     
 
+| screen
+
+как сделать так чтобы скроллинг экрана по колесу мыши работал
+надо создать файл
+
+~/.screenrc
+
+$ cat .screenrc 
+termcapinfo xterm* ti@:te@
+
+
 
 
 

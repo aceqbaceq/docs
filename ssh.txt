@@ -2210,6 +2210,12 @@ openssl мегауебическая утилита. в том плане что
 некий вменяемый док по этой команде
     https://www.madboa.com/geek/openssl/
 
+| ssh
+
+как зайти исключительно по паролю
+
+ssh  -o PreferredAuthentications=password -o PubkeyAuthentication=no     -v   noroot@IP
+
 
 
  
