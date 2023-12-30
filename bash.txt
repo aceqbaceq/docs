@@ -13782,7 +13782,12 @@ exec внутрь вместо {} подставит имя файла
     
    <---- остановился тут
     
+d)  Using degraded feature set (TCP) for DNS server 192.168.0.1
+на обоих буках
+
     
+0) разобрать С файлы
+
 
 0000000)
 
@@ -13806,6 +13811,8 @@ find /var/crash/. ! -name . \
 
 
 
+                    
+                    
 000) chmod go=  /etc/file1  ???
 
  
@@ -13849,7 +13856,11 @@ find /var/crash/. ! -name . \
 
     
 3.1) man bash читать
-     set [+abefhkmnptuvxBCEHPT] [+o option-name] [arg ...]
+
+set [+abefhkmnptuvxBCEHPT] [+o option-name] [arg ...]
+
+
+3.a) man login 
 
 3.2) sihup vs sigterm
     
