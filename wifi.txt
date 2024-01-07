@@ -187,6 +187,288 @@ nmcli
 # nmcli radio wifi
 # nmcli dev wifi list
 # nmcli dev wifi connect SSID --ask
+# nmcli conn $SSID up
+
+кстати наткнулся на подьебку
+надо юзать ключ -c
+    $ ping -c 3 192.168.0.1
+а если юзать ключ -n котоырй говорит что нужно при вывваоде давать только IP
+и при этом еще и число то будет ругань что "DIFFERENT ADDRESS"
+    $ ping -n 3 192.168.0.1 <===== так делать ненадо
+
+    
+    
+    
+    
+    
+а  вот пример. стоит одна AP за стенкой.
+я пдключаюсь к ней по 2.4 и по 5
+и 5 GHz имеет существенно херовей сигнал
+
+
+# iwconfig wlp2s0
+wlp2s0    IEEE 802.11  ESSID:"iphone4-24G"  
+          Mode:Managed  Frequency:2.447 GHz  Access Point: 9C:53:22:14:D8:23   
+          Bit Rate=1 Mb/s   Tx-Power=20 dBm   
+          Retry short limit:7   RTS thr:off   Fragment thr:off
+          Encryption key:off
+          Power Management:off
+          Link Quality=70/70  Signal level=-40 dBm  
+          Rx invalid nwid:0  Rx invalid crypt:0  Rx invalid frag:0
+          Tx excessive retries:0  Invalid misc:0   Missed beacon:0
+
+# iw dev
+phy#0
+	Unnamed/non-netdev interface
+		wdev 0x13
+		addr 80:30:49:b2:85:cf
+		type P2P-device
+		txpower 0.00 dBm
+	Interface wlp2s0
+		ifindex 3
+		wdev 0x1
+		addr 80:30:49:b2:85:cf
+		ssid iphone4-24G
+		type managed
+		channel 8 (2447 MHz), width: 40 MHz, center1: 2437 MHz
+		txpower 20.00 dBm
+
+		
+тоесть мы видим что     частота 2.447 GHz (канал 8),   bit rate (можно посрать что тут написано)
+Link Quality=70/70  Signal level=-40 dBm (согласно таблице выше это отличный сигнал).
+кстати я хочу сказать в чем разница между Tx-Power=20 dBm и  Signal level=-40 dBm ==>
+как я понял Tx-Power=20 dBm это тупо с какой мощностью шарашит точка в нашу сторону своим излучателем.
+а Signal level=-40 dBm это уже  и есть самая важная для нас характерситика это качество сигнала
+которое до нас долетает (видимо уровень искажений). в целом эти две характиеристкии связаны. 
+но в конечном итоге нам важен высокий Signal lebel в конечном итоге. на Tx-Power влияет то что когда
+мы на точке выставляем мощностт излучения (  слабо, средне, мощно). но в конечном итоге надо 
+смотреть на Signal level
+Далее. ширина канала 40MHz = она влияет на то что если канал шире то срупут больше за единицу 
+времени но если вокруг куча других точек которые юзают этот же канал то мы будем мешать друг 
+другу. если хочется более надежной связи то надо выставлять на AP 20MHz.
+также я прочел что 40MHz она налезает на соседние каналы.
+
+я даже нееочень понимаю как можно работаь на ширине 20MHZ потому что вот значения центральнойй
+частоты каналов
+
+            * 2412 MHz [1] (20.0 dBm)
+			* 2417 MHz [2] (20.0 dBm)
+			* 2422 MHz [3] (20.0 dBm)
+			* 2427 MHz [4] (20.0 dBm)
+			* 2432 MHz [5] (20.0 dBm)
+			* 2437 MHz [6] (20.0 dBm)
+			* 2442 MHz [7] (20.0 dBm)
+			* 2447 MHz [8] (20.0 dBm)
+			* 2452 MHz [9] (20.0 dBm)
+			* 2457 MHz [10] (20.0 dBm)
+			* 2462 MHz [11] (20.0 dBm)
+			* 2467 MHz [12] (20.0 dBm) (no IR)
+			* 2472 MHz [13] (20.0 dBm) (no IR)
+			* 2484 MHz [14] (disabled)
+
+как видно между ними нет зазора даже в 20Mhz . !!!
+
+вот можно посмтртеь на кких каналах сидят соседи
+
+# nmcli dev wifi list
+IN-USE  SSID          MODE   CHAN  RATE        SIGNAL  BARS  SECURITY  
+*       iphone4-24G   Infra  8     130 Mbit/s  100     ▂▄▆█  WPA2      
+*       iphone4-24G   Infra  8     130 Mbit/s  80      ▂▄▆_  WPA2      
+        T             Infra  2     270 Mbit/s  65      ▂▄▆_  WPA1 WPA2 
+        B             Infra  11    130 Mbit/s  45      ▂▄__  WPA1 WPA2 
+        B             Infra  1     130 Mbit/s  42      ▂▄__  WPA1 WPA2 
+        L             Infra  11    135 Mbit/s  42      ▂▄__  WPA1 WPA2 
+        E             Infra  1     270 Mbit/s  37      ▂▄__  WPA2      
+        D             Infra  10    270 Mbit/s  34      ▂▄__  WPA2      
+        k             Infra  2     270 Mbit/s  30      ▂___  WPA2      
+
+
+
+
+теперь смотрим на связь по 5 GHz
+
+
+
+# iwconfig wlp2s0
+wlp2s0    IEEE 802.11  ESSID:"iphone4-50G"  
+          Mode:Managed  Frequency:5.18 GHz  Access Point: 9C:53:22:14:D8:25   
+          Bit Rate=6 Mb/s   Tx-Power=30 dBm   
+          Retry short limit:7   RTS thr:off   Fragment thr:off
+          Encryption key:off
+          Power Management:off
+          Link Quality=46/70  Signal level=-64 dBm  
+          Rx invalid nwid:0  Rx invalid crypt:0  Rx invalid frag:0
+          Tx excessive retries:0  Invalid misc:0   Missed beacon:0
+
+        
+
+          
+# iw dev
+phy#0
+	Unnamed/non-netdev interface
+		wdev 0x13
+		addr 80:30:49:b2:85:cf
+		type P2P-device
+		txpower 0.00 dBm
+	Interface wlp2s0
+		ifindex 3
+		wdev 0x1
+		addr 80:30:49:b2:85:cf
+		ssid iphone4-50G
+		type managed
+		channel 36 (5180 MHz), width: 80 MHz, center1: 5210 MHz
+		txpower 30.00 dBm
+
+		
+отмечу только что канал имет ширину 80 MHz и плохое качество сигнала
+  Link Quality=46/70  Signal level=-64 dBm  
+        
+
+кстати как найти все публичные wifi сети ?
+
+    # iwlist wlp2s0 scan
+мы увиим подрьные парметры всех сетей которые можно увидеть через
+    # nmcli dev wifi list
+    
+далее возможно повтор но вот 100% комана котоаря показыает вссе частоты 
+котоыре поддеридживает карточка
+
+# iwlist wlp2s0 frequency 
+wlp2s0    32 channels in total; available frequencies :
+          Channel 01 : 2.412 GHz
+          Channel 02 : 2.417 GHz
+          Channel 03 : 2.422 GHz
+          Channel 12 : 2.467 GHz
+          Channel 13 : 2.472 GHz
+          Channel 36 : 5.18 GHz
+          Channel 40 : 5.2 GHz
+          Channel 44 : 5.22 GHz
+          Channel 48 : 5.24 GHz
+          Channel 52 : 5.26 GHz
+          Channel 56 : 5.28 GHz
+
+
+согласно этой команде  карточка intel 7260 нихрена 
+не поддеживает 5GHz.
+и кстати да везде все пиздят что она поддеживает 5GHz. но нихуя!
+только 2.4Ghz. 
+но зато она на 2.4GHZ поддетивает 802.11n тоесть больше скорости
+вот ссылка на spec    
+    (  https://ark.intel.com/content/www/us/en/ark/products/75174/intel-wireless-n-7260.html )
+так что можно успокоится. 7260 не поддеживает 5GHZ!
+
+
+          
+          
+ксатти что обоначают стандарты
+
+IEEE 802.11b supports only the 2.4 GHz band
+IEEE 802.11g supports only the 2.4 GHz band
+IEEE 802.11n supports both the 2.4 GHz and 5 GHz bands, but it isn’t required by the specification to support 5 GHz
+IEEE 802.11a supports only the 5 GHz band
+IEEE 802.11ac supports the 5 GHz band and provides higher throughput compared to 802.11n
+IEEE 802.11ax Wi-Fi 6 supports both the 2.4 GHz and 5 GHz bands
+
+IEEE 802.11be, dubbed Extremely High Throughput (EHT), is the next amendment of the IEEE 802.11 standard,[
+ which will be designated Wi-Fi 7.[6][7][8] It will build upon 802.11ax, focusing on WLAN indoor 
+ and outdoor operation with stationary and pedestrian speeds in the 2.4, 5, and 6 GHz frequency bands
+
+
+
+кстати вот эта команда она ищет все вайвай карточки на компе и показыает крактео инфо
+
+# iw dev
+phy#0
+	Unnamed/non-netdev interface
+		wdev 0x13
+		addr 80:30:49:b2:85:cf
+		type P2P-device
+		txpower 0.00 dBm
+	Interface wlp2s0
+		ifindex 3
+		wdev 0x1
+		addr 80:30:49:b2:85:cf
+		ssid iphone4-24G
+		type managed
+		channel 8 (2447 MHz), width: 20 MHz, center1: 2447 MHz
+		txpower 20.00 dBm
+
+а вот так уже можно посмтре развернутую инфо по кокнтетной картчоке
+в том числе частоты
+    
+    # iw phy#0 info
+
+    
+
+вот еще утилита которая типа пощволяет ативировать и дезактивирвоть wifi картчоки
+
+# rfkill list
+0: ideapad_wlan: Wireless LAN
+	Soft blocked: no
+	Hard blocked: no
+1: ideapad_bluetooth: Bluetooth
+	Soft blocked: yes
+	Hard blocked: no
+2: phy0: Wireless LAN
+	Soft blocked: no
+	Hard blocked: no
+3: hci0: Bluetooth
+	Soft blocked: yes
+	Hard blocked: no
+
+	
+# rfkill event
+2024-01-06 15:23:19,656288+0600: idx 0 type 1 op 0 soft 0 hard 0
+2024-01-06 15:23:19,656394+0600: idx 1 type 2 op 0 soft 1 hard 0
+2024-01-06 15:23:19,656411+0600: idx 2 type 1 op 0 soft 0 hard 0
+2024-01-06 15:23:19,656422+0600: idx 3 type 2 op 0 soft 1 hard 0
+
+
+еще пара полезных команла
+    # dmesg | grep iwl
+    # journalctl --since today | grep iwl
+    
+
+вот ееще полезная команда
+
+# cat /proc/net/wireless 
+Inter-| sta-|   Quality        |   Discarded packets               | Missed | WE
+ face | tus | link level noise |  nwid  crypt   frag  retry   misc | beacon | 22
+wlp2s0: 0000   70.  -37.  -256        0      0      0      0      0        0
+
+
+
+кстати в iwconfig есть поле "invalid misc"
+это значит (согласно man iwconfig) что "other packets lost in relation with specific
+wireless operation
+
+
+
+
+
+еще можно вот атак посмретьинфо по сет картчоку
+в том числе драйвер
+
+# lshw -c network
+  *-network                 
+       description: Wireless interface
+       product: QCA9377 802.11ac Wireless Network Adapter
+       vendor: Qualcomm Atheros
+       physical id: 0
+       bus info: pci@0000:02:00.0
+       logical name: wlp2s0
+       version: 31
+       serial: 80:30:49:b2:85:cf
+       width: 64 bits
+       clock: 33MHz
+       capabilities: pm msi pciexpress bus_master cap_list ethernet physical wireless
+       configuration: broadcast=yes driver=ath10k_pci driverversion=5.4.0-91-generic firmware=WLAN.TF.2.1-00021-QCARMSWP-1 ip=192.168.0.101 latency=0 link=yes multicast=yes wireless=IEEE 802.11
+       resources: irq:140 memory:a1000000-a11fffff
+
+
+    
+
+
 
 ==
 
@@ -236,6 +518,9 @@ nmcli
 
 единственное решение только в том что надо подождать пару минут
 и дубли исчезнут
+
+кстати эта  команда еще полезна тем что можно посмотреть какие сети сидят на каких каналах
+если мы хотим канал задать вручную на AP
 
 
 
@@ -317,6 +602,8 @@ wifi.powersave = 2
 добавляем вот сюда строку
     # cat /etc/modprobe.d/iwlwifi.conf | grep -v '#'
         options   iwlwifi power_save=0
+если хотим прописать несклоко опций то делаем это так
+        options   iwlwifi power_save=0    11n_disable=8
 выгружаем и загружаем обратно модуль
     # modprobe -rv iwlwifi
     # modprobe -v iwlwifi
@@ -452,6 +739,9 @@ wifi.powersave = 2
           Channel 13 : 2.472 GHz
           Current Frequency:2.417 GHz (Channel 2)
 
+причем эта команда покзаывает не просто дипазон на котором она щас раобтает. она
+показывает вообще все частоты на которых карточка может раобтать
+          
 значит мы видим что карточка которая поддерживает 2.4 GHz
 она на самом деле работает вокруг этой частоты. и в зависимости от канала (некоей полосы конкретной)
 она может иметь часатоты в диапазоне 
@@ -506,8 +796,121 @@ wifi.powersave = 2
     # iwconfig wlp2s0  | grep Frequency
           Mode:Managed  Frequency:2.417 GHz  Access Point: 9C:53:22:14:D8:23  
 
+          
+есть и другая команда которая покажет на каких частотах может рабоать картчока
+
+    $ iw list
+    	Frequencies:
+			* 2412 MHz [1] (20.0 dBm)
+			* 2417 MHz [2] (20.0 dBm)
+			* 2422 MHz [3] (20.0 dBm)
+			* 2427 MHz [4] (20.0 dBm)
+			* 2432 MHz [5] (20.0 dBm)
+			* 2437 MHz [6] (20.0 dBm)
+			* 2442 MHz [7] (20.0 dBm)
+			* 2447 MHz [8] (20.0 dBm)
+			* 2452 MHz [9] (20.0 dBm)
+			* 2457 MHz [10] (20.0 dBm)
+			* 2462 MHz [11] (20.0 dBm)
+			* 2467 MHz [12] (20.0 dBm) (no IR)
+			* 2472 MHz [13] (20.0 dBm) (no IR)
+			* 2484 MHz [14] (disabled)
+	Band 2:
+		Frequencies:
+			* 5180 MHz [36] (30.0 dBm)
+			* 5200 MHz [40] (30.0 dBm) (no IR)
+			* 5220 MHz [44] (30.0 dBm) (no IR)
+			* 5240 MHz [48] (30.0 dBm) (no IR)
+			* 5260 MHz [52] (30.0 dBm) (no IR, radar detection)
+			* 5280 MHz [56] (30.0 dBm) (no IR, radar detection)
+			* 5300 MHz [60] (30.0 dBm) (no IR, radar detection)
+			* 5320 MHz [64] (30.0 dBm) (no IR, radar detection)
+			* 5500 MHz [100] (30.0 dBm) (no IR, radar detection)
+			* 5520 MHz [104] (30.0 dBm) (no IR, radar detection)
+			* 5540 MHz [108] (30.0 dBm) (no IR, radar detection)
+			* 5560 MHz [112] (30.0 dBm) (no IR, radar detection)
+			* 5580 MHz [116] (30.0 dBm) (no IR, radar detection)
+			* 5600 MHz [120] (30.0 dBm) (no IR, radar detection)
+			* 5620 MHz [124] (30.0 dBm) (no IR, radar detection)
+			* 5640 MHz [128] (30.0 dBm) (no IR, radar detection)
+			* 5660 MHz [132] (30.0 dBm) (no IR, radar detection)
+			* 5680 MHz [136] (30.0 dBm) (no IR, radar detection)
+			* 5700 MHz [140] (30.0 dBm) (no IR, radar detection)
+			* 5720 MHz [144] (30.0 dBm) (no IR)
+			* 5745 MHz [149] (30.0 dBm) (no IR)
+			* 5765 MHz [153] (30.0 dBm) (no IR)
+			* 5785 MHz [157] (30.0 dBm) (no IR)
+			* 5805 MHz [161] (30.0 dBm) (no IR)
+			* 5825 MHz [165] (30.0 dBm) (no IR)
+			* 5845 MHz [169] (30.0 dBm) (no IR)
+			* 5865 MHz [173] (disabled)
+
+
+тоже самое показывет
+    # iw  phy
+    
+не понял в чем разнциа
+
+так что если в выоде нет 5GHz значит карта их не поддерживает
+
+
+а эта комнада показывает как щас подключена карта к AP
+
+$ iw dev
+phy#0
+	Unnamed/non-netdev interface
+		wdev 0x13
+		addr 80:30:49:b2:85:cf
+		type P2P-device
+		txpower 0.00 dBm
+	Interface wlp2s0
+		ifindex 3
+		wdev 0x1
+		addr 80:30:49:b2:85:cf
+		ssid iphone4-50G
+		type managed
+		channel 36 (5180 MHz), width: 80 MHz, center1: 5210 MHz
+		txpower 30.00 dBm
+
+		
+мощность вай фай сигнала меряетя в милли или микродецибелах прчем со знаком минус.
+так какой сигнал можно считать хорошим?
+
+-30 dBm = Excellent.
+-67 dBm = Very Good
+-70 dBm = Okay .
+-80 dBm = Not Good .
+-90 dBm = Unusable 
+
+
+			
+
+а вот так можно помотреть силу сигнала и есть ли ошибки
+
+$ iwconfig wlp2s0
+wlp2s0    IEEE 802.11  ESSID:"iphone4-24G"  
+          Mode:Managed  Frequency:2.452 GHz  Access Point: 9C:53:22:14:D8:23   
+          Bit Rate=1 Mb/s   Tx-Power=20 dBm   
+          Retry short limit:7   RTS thr:off   Fragment thr:off
+          Power Management:off
+          Link Quality=69/70  Signal level=-41 dBm  
+          Rx invalid nwid:0  Rx invalid crypt:0  Rx invalid frag:0
+          Tx excessive retries:0  Invalid misc:0   Missed beacon:0
 
           
+          
+$ iwconfig wlp2s0
+wlp2s0    IEEE 802.11  ESSID:"iphone4-50G"  
+          Mode:Managed  Frequency:5.18 GHz  Access Point: 9C:53:22:14:D8:25   
+          Bit Rate=6 Mb/s   Tx-Power=30 dBm   
+          Retry short limit:7   RTS thr:off   Fragment thr:off
+          Power Management:off
+          Link Quality=48/70  Signal level=-62 dBm  
+          Rx invalid nwid:0  Rx invalid crypt:0  Rx invalid frag:0
+          Tx excessive retries:0  Invalid misc:0   Missed beacon:0
+
+
+        
 логи для вайфай в убунте
     # journalctl -f -u wpa_supplicant
         CTRL-EVENT-REGDOM-CHANGE init=BEACON_HINT type=UNKNOWN
@@ -669,3 +1072,207 @@ $ iwconfig wlp3s0
 # nmcli device wifi list
 IN-USE  SSID         MODE   CHAN  RATE        SIGNAL  BARS  SECURITY 
 *       iphone4-50G  Infra  36    135 Mbit/s  44      ▂▄__  WPA2
+
+
+на этом пиздатсрадания с вайфай не закончислиьс.
+на thinkpad стоит карточка intel 7260
+и у нее есть проблема. она постоянно теряет связь.
+незнаю от чего это завсиит. поомему это началось с версии ядра новой.
+
+в логах это выглядиттак
+    $ journalctl 
+    wpa_supplicat... CTRL-EVENT-BEACON-LOSS
+    
+я нашел тред где все жалуются. а решения нет.
+    https://bugzilla.kernel.org/show_bug.cgi?id=203709
+
+
+есть полезная команда которая покажет как часто терялся этот beacon
+
+$ iw wlp2s0 station dump
+Station 9c:53:22:14:d8:23 (on wlp2s0)
+	inactive time:	8148 ms
+	rx bytes:	98350
+	rx packets:	685
+	tx bytes:	39062
+	tx packets:	147
+	tx retries:	0
+	tx failed:	0
+	beacon loss:	13    <======== !!!
+	beacon rx:	270
+	rx drop misc:	0
+	signal:  	-43 [-43, -73] dBm
+	signal avg:	-43 [-41, -73] dBm
+	beacon signal avg:	213 dBm
+	tx bitrate:	1.0 MBit/s
+	rx bitrate:	57.8 MBit/s MCS 5 short GI
+	rx duration:	0 us
+	authorized:	yes
+	authenticated:	yes
+	associated:	yes
+	preamble:	long
+	WMM/WME:	yes
+	MFP:		no
+	TDLS peer:	no
+	DTIM period:	1
+	beacon interval:300
+	short slot time:yes
+	connected time:	83 seconds
+
+
+еще напомню полезную команду
+
+
+$ iwconfig wlp2s0
+wlp2s0    IEEE 802.11  ESSID:"iphone4-24G"  
+          Mode:Managed  Frequency:2.452 GHz  Access Point: 9C:53:22:14:D8:23   
+          Bit Rate=1 Mb/s   Tx-Power=20 dBm   
+          Retry short limit:7   RTS thr:off   Fragment thr:off
+          Power Management:off
+          Link Quality=70/70  Signal level=-40 dBm  
+          Rx invalid nwid:0  Rx invalid crypt:0  Rx invalid frag:0
+          Tx excessive retries:0  Invalid misc:0   Missed beacon:0
+
+
+в частаостноти она показывает что у нас с power save
+и мощность сигнала
+и еще частоту. 2452NHZ это 9-ый канал
+кстати это
+     Bit Rate=1 Mb/s 
+по моему фуфло.
+оно работает быстрее чем пишет.
+
+пока что вроде помогло то что на AP поставил канал в ручную 9-ый
+и увеличил beacon с 100 до 300
+
+
+| intel 7260
+у него отвалваися wifi
+кстати эта карта бывает single band и dual band
+у меня очепвдно single band поэтому 5GHZ она не поддееживает
+
+это проблемная крточка согласно инету на линукс.
+во такие оации я поставил в свойствах модуля драйвера этой краты
+
+    $ cat /etc/modprobe.d/iwlwifi.conf
+    options iwlwifi power_save=0 11n_disable=8 disable_11ax=1 disable_11ac=1 disable_11be=1
+дальше в этом файле идут и друие строки но они нам неинтересны
+
+    
+    # modprobe -rv iwlwifi
+    # modprobe  -v iwlwifi
+    
+провермть чему равны эти оации можно через
+    # cat /sys/module/iwlwifi/parameters/disable_11*
+    Y
+    Y
+    Y
+
+на счет парметра "11n_disable"
+он может принимать значения 
+    1:full  # полное отключение 802.11n тоесть скосрть станет супер низкая
+    2: disable aggregated TX
+    3: disable aggregated RX
+    8: enable aggregated TX
+    
+говорят над с этим параметром играться елси 7260 регуларно теряет конект.
+aggregated значит что как я понял пакеты собраются в кучу и передаются большими пачками. вроед так.
+TX это когдмы мы шлем на точку
+RX это когда мы читаем сточки
+
+когдатеряется связь то в логах journaclt пишт что BEACON-LOST типа того.
+посмотреть как часто он был потерян чможно через 
+
+    # iw wlp2s0 station dump | grep -i beacon
+либо 
+    #  iwconfig wlp2s0| grep -i beacon
+    
+ввобще чтобы посмтреть статистику по вай фай карте надо юзать эти две команды
+но без grrep
+
+кстати посмотреть некую ифномцию про железку напрмиер ее VEN DEV можно через
+        ## lspci | grep At
+        02:00.0 Network controller: Qualcomm Atheros QCA9377 802.11ac Wireless Network Adapter (rev 31)
+
+        # lspci -vv -nn  -s 02:00.0
+        02:00.0 Network controller [0280]: Qualcomm Atheros QCA9377 802.11ac Wireless \
+        Network Adapter [168c:0042] (rev 31)
+
+так вот у меня intel 7260 имеет ven=8086 dev=08b2
+но мало того! оказывает там чуть ниже еще есть парамтры subsystem
+там написано susystem:  [8086:c262]
+тоесть чтобы тточно опреедлить модеьлль железки нужно знать нетолко VEN DEV но и susystem
+и я пользуясь этим нашел таки свою модель вот здесь
+    https://www.devicekb.com/en/hardware/lookup
+и там есть такая строка
+    PCI\VEN_8086&DEV_08B2&SUBSYS_C2628086           Wireless-N 7260
+    
+фишка в том что если бы  это  быал dual band картчока то это бы присутвовало в ее мени
+так что моя карта 1000%% single band! тоесть 2.4 GHZ only!
+
+это также видно по тем частотм котоыре она поддеживает
+    # iw phy
+    
+
+а вот еще интераная команда. применил ее на atheros
+
+
+# iw  reg get
+global
+country 00: DFS-UNSET
+	(2402 - 2472 @ 40), (6, 20), (N/A)
+	(2457 - 2482 @ 20), (6, 20), (N/A), AUTO-BW, PASSIVE-SCAN
+	(2474 - 2494 @ 20), (6, 20), (N/A), NO-OFDM, PASSIVE-SCAN
+	(5170 - 5250 @ 80), (6, 20), (N/A), AUTO-BW, PASSIVE-SCAN
+	(5250 - 5330 @ 80), (6, 20), (0 ms), DFS, AUTO-BW, PASSIVE-SCAN
+	(5490 - 5730 @ 160), (6, 20), (0 ms), DFS, PASSIVE-SCAN
+	(5735 - 5835 @ 80), (6, 20), (N/A), PASSIVE-SCAN
+	(57240 - 63720 @ 2160), (N/A, 0), (N/A)
+
+
+еще раз скажу наскольлко вот эти две комнды полезные
+
+# iw wlp2s0 station dump
+Station 9c:53:22:14:d8:23 (on wlp2s0)
+	inactive time:	188 ms
+	rx bytes:	33552946
+	rx packets:	68717
+	tx bytes:	7503141
+	tx packets:	22283
+	tx retries:	0
+	tx failed:	0
+	beacon loss:	13
+	beacon rx:	17048
+	rx drop misc:	0
+	signal:  	-43 [-43, -73] dBm
+	signal avg:	-43 [-41, -73] dBm
+	beacon signal avg:	212 dBm
+	tx bitrate:	1.0 MBit/s
+	rx bitrate:	72.2 MBit/s MCS 7 short GI
+	rx duration:	0 us
+	authorized:	yes
+	authenticated:	yes
+	associated:	yes
+	preamble:	long
+	WMM/WME:	yes
+	MFP:		no
+	TDLS peer:	no
+	DTIM period:	1
+	beacon interval:300
+	short slot time:yes
+	connected time:	5250 seconds
+
+
+	# iwconfig wlp2s0
+    wlp2s0    IEEE 802.11  ESSID:"iphone4-24G"  
+          Mode:Managed  Frequency:2.447 GHz  Access Point: 9C:53:22:14:D8:23   
+          Bit Rate=1 Mb/s   Tx-Power=20 dBm   
+          Retry short limit:7   RTS thr:off   Fragment thr:off
+          Encryption key:off
+          Power Management:off
+          Link Quality=63/70  Signal level=-47 dBm  
+          Rx invalid nwid:0  Rx invalid crypt:0  Rx invalid frag:0
+          Tx excessive retries:0  Invalid misc:0   Missed beacon:0
+
+
+    

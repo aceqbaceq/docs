@@ -1,3 +1,10 @@
+| lm-sensors
+смотрим датчики через 
+# sensors
+
+
+сука
+
 
 | cpu 
 | turbo
