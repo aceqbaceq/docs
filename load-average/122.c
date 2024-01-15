@@ -15,7 +15,7 @@ int main(void) {
 
 
 while(1) {
-    long settime = 50;   
+    long settime = 3;   
     t1 = clock();
     for (i=0; i < 10000000000; i++) {
 	t2 = clock();

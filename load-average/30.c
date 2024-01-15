@@ -10,7 +10,7 @@ int main() {
     pid_t pid = vfork();
 
     if (pid == 0) {
-    sleep(2);
+    sleep(10);
     _exit(0);
     }
 
