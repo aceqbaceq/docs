@@ -9,8 +9,8 @@ MAX_TIME="320"  # максимальное число сэмплов котор�
 
 r=(); la=(); by=(); t=( "0" );
 for i in $(seq 1 1 12); do
-#    r+=( $( ps -L a -o stat,cmd | grep -E "R|D" | grep -v -E "STAT|bash|grep|ps|wc" | wc -l )  )
-    r+=( $( vmstat 1 | head -n4 | tail -n1  | awk '{print $1}')  )
+    r+=( $( ps -A -L -o cmd,stat  | grep -E "R|D" | grep -v -E "STAT|bash|grep|ps|wc" | wc -l )  )
+#    r+=( $( vmstat 1 | head -n4 | tail -n1  | awk '{print $1}')  )
 
 
     la+=( $( cat /proc/loadavg | awk '{print $1}')  )
@@ -31,8 +31,8 @@ done
 
 
 for i in $(seq "$MAX_TIME"); do
-#    r+=( $( ps -L a -o stat,cmd | grep -E "R|D" | grep -v -E "STAT|bash|grep|ps|wc" | wc -l )  );
-     r+=( $( vmstat 1 | head -n4 | tail -n1 | awk '{print $1}')  )
+     r+=( $( ps -A -L -o cmd,stat  | grep -E "R|D" | grep -v -E "STAT|bash|grep|ps|wc" | wc -l )  )
+#    r+=( $( vmstat 1 | head -n4 | tail -n1 | awk '{print $1}')  )
 
 
     la+=( $( cat /proc/loadavg | awk '{print $1}')  );  
