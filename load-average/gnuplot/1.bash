@@ -1,7 +1,7 @@
 #!/bin/bash
 
 FM="./log.txt"
-[[ -f "$FM" ]] && true > "$FM"
+[[ -f "$FM" ]] && { cp "$FM" "$FM".$(cat /dev/urandom | tr -d -c 0-9 | head -c3).bak; true > "$FM"; }
 SL_TIME="5"  # интервал сэмплинга
 MAX_TIME="320"  # максимальное число сэмплов которые мы будем собирать
 
