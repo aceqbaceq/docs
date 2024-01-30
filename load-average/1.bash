@@ -18,10 +18,16 @@
 
 
 # блок инициализации
+MEAN_ENABLE="0"   # нужно ли считать среднее арифметическое
+PRINT_SCREEN_ENABLE="0"  #нужно ли печатать на экране 
+FN_ALLOWED_SIZE="320" # макс число строк которое можно считать из файла с данными
+
+
 a=$( bc -l <<< "scale=11; e( -1/12 )" ) # коэифициент который  отвечает какой процент берется от прошлого LA
 
 amount=11   # сколько суммарно минут мы будем собирать точки из  /proc/loadavg
-FN="./data"  # имя файла с данными
+FN="./1.input"  # имя файла с данными
+F_OUTPUT="./1.output"
 k=13   # по скольким точкам усредняем среднее арифметичское
        # расчет такой: скажем  хотим 5 минут. 300с/5+1=61
        # для одной минуты k=13
@@ -42,16 +48,20 @@ e_array=();  # LA расчетный
 
 
 
+ 
 # препринт
-printf "\nкоэфициент = %s\nt-время\np-число R\D процессов\np_LA-реальный LA\nc_LA-расчетный LA \n\n" "$a"
-printf "%3s | %4s | %5s | %5s | \n" "t" "p" "p_LA" "c_LA"      # p_LA реальный LA, c_LA расчетный LA
-printf "%s\n" "----------------------------"
+if [[ "$PRINT_SCREEN_ENABLE"  -eq 1  ]]; then
+	printf "\nкоэфициент = %s\nt-время\np-число R\D процессов\np_LA-реальный LA\nc_LA-расчетный LA \n\n" "$a"
+	printf "%3s | %4s | %5s | %5s | \n" "t" "p" "p_LA" "c_LA"      # p_LA реальный LA, c_LA расчетный LA
+	printf "%s\n" "----------------------------"
 
+fi
 
 
 # если файл $FN есть то читаем данные оттуда
 if [[ -f "$FN" ]]; then
-    for i in $(seq $(wc -l < $FN)); do  
+    FN_SIZE=$(wc -l < "$FN"); [[ "$FN_SIZE"  -gt "$FN_ALLOWED_SIZE"   ]] && { echo "размер $FN_SIZE файла \"$FN\" больше чем разрешенный $FN_ALLOWED_SIZE, урезаю размер чтения..."; FN_SIZE="$FN_ALLOWED_SIZE"; }
+    for i in $(seq "$FN_SIZE"); do  
 	str_temp="$(head  -n +"$i" < $FN | tail -n1)"
 	p="$(  awk '{print $2}' <<< $str_temp  )";  p_array+=("$p")     # число процессов
 	LA="$( awk '{print $3}' <<< $str_temp  )";  LA_array+=("$LA")   # LA
@@ -59,8 +69,10 @@ if [[ -f "$FN" ]]; then
 	[[ "$i" -eq 1 ]] &&  e="$LA" || e=$( printf "%.2f" $( bc -l <<< "scale=11; $e*$a+$p*(1-$a)" | tr "." "," ) | tr "," "." ); e_array+=("$e")
 
 
+if [[ "$PRINT_SCREEN_ENABLE"  -eq 1  ]]; then
 	printf "%3s | %4s | %5s | %5s | \n" "$t" "$p" "$LA" "$e"
 	[[  ! "$i" -eq 1  &&  $(( ("$i"-1) %  12 )) -eq 0  ]] &&  { printf  "^минута %s\n------\n"   "$(( i/12 ))"; }
+fi
 
 
 
@@ -80,12 +92,16 @@ else
     # а уже следущие e высчитываются по формуле
     for i in $(seq 0 1 "$(( time-1 ))")
     do 
-	p=$(ps a -o stat,cmd | grep -E "R|D" | grep -v -E "STAT|bash|grep|ps|wc" | wc -l); p_array+=("$p")
+	p=$(   ps -A -L -o cmd,stat  | grep -E "R|D" | grep -v -E "STAT|bash|grep|ps|wc" |  sed 's/\(.*\)\( .*$\)/\2/' | grep -E "R|D" | wc -l       ); p_array+=("$p")
 	LA=$( awk  '{print $1}' < /proc/loadavg | tr  -d "\n"); LA_array+=("$LA")
 	[[ "$i" -eq 0 ]] &&  e="$LA" || e=$( printf "%.2f" $( bc -l <<< "scale=11; $e*$a+$p*(1-$a)" | tr "." "," ) | tr "," "." ); e_array+=("$e")
 
+
+if [[ "$PRINT_SCREEN_ENABLE"  -eq 1  ]]; then
 	printf "%3s | %4s | %5s | %5s | \n" "$t" "$p" "$LA" "$e"
-	printf "%3s %4s %5s %5s %8s \n"      "$t" "$p"  "$LA" "$e" >>  $FN
+	printf "%3s %4s %5s %5s %8s \n"      "$t" "$p"  "$LA" "$e" >>  $F_OUTPUT
+fi
+
 
 	sleep "$step"
 	t_array+=($t); let t+=("$step")
@@ -93,6 +109,8 @@ else
 
 
 fi
+
+
 
 
 # вычисление среднего арифетического
@@ -116,25 +134,33 @@ fi
 #
 #
 #
-a_array=() # среднее арифметическое число процессов за одну минуту'
-for  (( c="0"; c<"${#p_array[@]}"; c++ )); do 
-    a_sum=0
-    if [[ "$c" -lt "$(( ($k-1) ))"   ]]; then 
-	average="undef"   # для t<60s мы не можем посчитать среднее арифм поэтому приравниеваем к  undef
+if [[ "$MEAN_ENABLE" -eq 1 ]]; then
 
-    else 
-	for j in $( seq  "$(( $c-($k-1) ))"   1  "$c"  ); do
-	    let a_sum=a_sum+"${p_array[j]}"
+	a_array=() # среднее арифметическое число процессов за одну минуту'
+	for  (( c="0"; c<"${#p_array[@]}"; c++ )); do 
+	    a_sum=0
+	    if [[ "$c" -lt "$(( ($k-1) ))"   ]]; then 
+		average="undef"   # для t<60s мы не можем посчитать среднее арифм поэтому приравниеваем к  undef
+
+	    else 
+		for j in $( seq  "$(( $c-($k-1) ))"   1  "$c"  ); do
+		    let a_sum=a_sum+"${p_array[j]}"
+		done
+
+		average=$( printf "%.2f" $( bc <<< "scale=11; $a_sum/$k" | tr "." "," ) | tr "," "." );
+	    fi
+
+
+	    a_array+=("$average")
+
+
 	done
 
-	average=$( printf "%.2f" $( bc <<< "scale=11; $a_sum/$k" | tr "." "," ) | tr "," "." );
-    fi
+else a_array=()
 
 
-    a_array+=("$average")
+fi    #  конец от if [[ "$MEAN_ENABLE" -eq 0 ]];
 
-
-done
 
 
 
@@ -142,21 +168,26 @@ done
 #echo  "a_array=${a_array[*]}"; echo  "a_array size=${#a_array[*]}"
 #exit 1
 
+if [[ "$PRINT_SCREEN_ENABLE"  -eq 1  ]]; then
+	# вывод суммарной инфо на экран и в файл
+	printf "\n\nвывод суммарной инфо \n"
+	printf "\nкоэфициент = %s\nt-время\np-число R\D процессов\np_LA-реальный LA\nc_LA-расчетный LA\na_array-среднее арифметическое \n\n"  "$a"
 
-# вывод суммарной инфо на экран и в файл
-printf "\n\nвывод суммарной инфо \n"
-printf "\nкоэфициент = %s\nt-время\np-число R\D процессов\np_LA-реальный LA\nc_LA-расчетный LA\na_array-среднее арифметическое \n\n"  "$a"
-
-printf "%3s | %4s | %5s | %5s | %8s |\n"     "t" "p" "p_LA" "c_LA" "a_array"      # p_LA реальный LA, c_LA расчетный LA a_a среднее арифметическое
-printf "%s\n" "---------------------------------------"
+	printf "%3s | %4s | %5s | %5s | %8s |\n"     "t" "p" "p_LA" "c_LA" "a_array"      # p_LA реальный LA, c_LA расчетный LA a_a среднее арифметическое
+	printf "%s\n" "---------------------------------------"
+fi
 
 
-[[ -f "$FN" ]] && true > $FN
+[[ -f "$F_OUTPUT" ]] && true > $F_OUTPUT
 for  (( c=0; c<"${#p_array[*]}"; c++ )); do 
-    printf "%3s | %4s | %5s | %5s | %8s | \n"      "${t_array[c]}" "${p_array[c]}"  "${LA_array[c]}" "${e_array[c]}" "${a_array[c]}"
-    [[  ! "$c" -eq 0  &&  $(( ("$c") %  12 )) -eq 0  ]] &&  { printf  "^минута %s\n------\n"   "$(( c/12 ))"; }
 
-    printf "%3s %4s %5s %5s %8s \n"      "${t_array[c]}" "${p_array[c]}"  "${LA_array[c]}" "${e_array[c]}" "${a_array[c]}" >>  $FN
+    if [[ "$PRINT_SCREEN_ENABLE"  -eq 1  ]]; then
+	    printf "%3s | %4s | %5s | %5s | %8s | \n"      "${t_array[c]}" "${p_array[c]}"  "${LA_array[c]}" "${e_array[c]}" "${a_array[c]}"
+	    [[  ! "$c" -eq 0  &&  $(( ("$c") %  12 )) -eq 0  ]] &&  { printf  "^минута %s\n------\n"   "$(( c/12 ))"; }
+    fi
+
+
+    printf "%3s %4s %5s %5s %8s \n"      "${t_array[c]}" "${p_array[c]}"  "${LA_array[c]}" "${e_array[c]}" "${a_array[c]}" >>  $F_OUTPUT
 done
 
 
