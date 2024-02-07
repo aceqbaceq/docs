@@ -2,7 +2,7 @@
 
 
 
-
+: '
 ema=1; ema_mujika="$ema"; ema_moe="$ema"; ema_linux="$ema"
 tau=60
 h=5
@@ -48,15 +48,16 @@ printf  "\n etalon  = %s \n\n oshibka_moe = %s%%\n oshibka_mujika = %s%%\n oshib
                                  | tr "," "."
 
 
+'
 
-exit 1
 
 
-: '
-ema=0.16
+
+
+ema=150
 p=$( bc -l<<<"scale=11;      e(-5/60)     ")
 vklad=0
-minutes=10
+minutes=5
 pred="$ema"
 
 for t in $(seq 0 5 $(( $minutes*60 )) ); do 
@@ -76,7 +77,7 @@ for t in $(seq 0 5 $(( $minutes*60 )) ); do
 
 done
 
-'
+
 
 
 
