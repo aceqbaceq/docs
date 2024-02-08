@@ -2,10 +2,15 @@
 
 
 #
+# используем EMA1min и LA1min для того чтобы оценить r_sr за 5 минут
+#
+
+
+#
 # основные переменные
 #
 f_m="5"  # сколько даннных для начала нужно набрать в минутах
-r=();la_p=0;la_now=0;b_t_1min=0;la_m1min=0;b_t_5s=0;b_t_5s_array=();
+r=();la_p=0;la_now=0;b_t_5min=0;la_m1min=0;b_t_5s=0;b_t_5s_array=();
 size_f_m="$(( $f_m*12 + 1 ))";
 
 
@@ -86,7 +91,7 @@ while true; do
     progress_bar
 
 
-    printf  " r=%-20s |\n %.1f%% %s\n r_summa=%s ema1min=%s la1min=%s |  ema1min/r_summa=%s%% la1min/r_summa=%s%%  | r_sr_1min_pr=%-5.2f r_sr_1min_pr/r_summa=%s%%   \n\n"                               \
+    printf  " r=%-20s |\n %.1f%% %s\n r_summa=%s ema1min=%s la1min=%s |  ema1min/r_summa=%s%% la1min/r_summa=%s%%  | r_sr_5min_pr=%-5.2f r_sr_5min_pr/r_summa=%s%%   \n\n"                               \
                                      " ${r[*]}"    \
                                      $( tr "." "," <<< "$b_t_5min" )   \
                                      "$b_t_5min_graph" \
