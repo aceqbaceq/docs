@@ -96,8 +96,9 @@ while true; do
     progress_bar
 
 
-   printf  " r=%-20s | r_sr_1min_r=%5.2f | r_sr_1min_pr=%5.2f %s \n"                               \
+   printf  " r=%-20s | la_now=%.2f | r_sr_1min_r=%5.2f | r_sr_1min_pr=%5.2f %s \n"                               \
                                      " ${r[*]}"    \
+                                      $( tr "." "," <<< "$la_now" )     \
                                       $( tr "." "," <<< $( bc -l  <<< "scale=2;     ( $la_now-$la_m1min/e(1) )/0.66     ")  )  \
                                       $( tr "." "," <<< "$r_sr_1min_pr" )  \
                                       "$b_t_1min_graph" \
