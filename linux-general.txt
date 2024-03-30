@@ -22575,6 +22575,100 @@ options:    grp:ctrl_shift_toggle
 суки падля блять. как обычно все понамуттили и понамудили.
 
 
+===============================
+| systemd
+| systemctl
+
+сервис я написал 
+
+$ cat acpi-wake.service 
+[Unit]
+Description=ACPI Wake Service
+Before=sleep.target
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c "for i in $(cat /proc/acpi/wakeup| grep enabled| awk '{print $1}'| xargs); do [ $i != PBTN ] && echo $i| tee /proc/acpi/wakeup; done"
+
+
+[Install]
+WantedBy=sleep.target
+[vasya@lenovo system]$ 
+
+
+он запускается если пере запускаом сеорвиса sleep.target
+это значит то что если я загоняю комп в сон через кнопку sleep в интерфейсе или через 
+    $ systrmctl sleep (чтото типа того)
+то этот сервис отработает
+
+а если загоняю комп в сон через 
+    $ sudo  pm-suspend
+то мой сервис КОНЕЧНО не отрабатывает. 
+=======================================
+
+
+| w
+
+интерсная команда
+столбик FROM  в нем указано с какого IP зашли на комп.
+
+Как прога определяет это я не знаю.
+
+
+
+| ufw
+
+ключ --dry-run
+
+    $ ufw  allow in on docker0 proto tcp from 172.17.0.0/24 to  172.17.0.1 port 22 comment SSH
+(всегда можно постмреть в man ufw)
+
+
+| tmux
+
+в чем прикол оказывается этой прги это то что она также как и команда screen призакрытти окна (сигнал HUP)
+все равно проодолжает работать в памтяти. 
+
+как можно это легко определить. набиарем команду 
+    $ w
+    или
+    $ who
+и там будет в списке куча tmux
+
+как посмтреть список сессия 
+    $ tmux ls
+
+как подколчиться к сесссиии
+
+    $ tmux  attach -d -t номер_сессии
+
+    
+    
+| iphone
+| apple
+
+как подключив по usb проводу к компу увидеть фотки с телефона в форме папки на компе ?
+
+    $ sudo apt-get install idevicepair
+    $ sudo apt-get install ifuse
+
+    $ sudo idevicepair pair
+
+    $ mkdir ~/iphone && ifuse  ~/iphone
+
+на экране инфона выскочит предлжоние ввести пароль
+
+перед тем как выдернуть ифон из компа нужно оего отмонтировать
+
+    $ sudo umount ~/iphone
+    
+иначе если повтом воткнуть обратно и подмонтровать то в папку бует не войти
+
+что характеретно монтрование ifuse ~/iphone идет от имени простго юзера
+а вот отмонтироовать можн тоько под рутом   sudo umount ~/iphone
+
+
+=====
 
 | план
 
