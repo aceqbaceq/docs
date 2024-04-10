@@ -1,0 +1,249 @@
+{
+	"auto_complete":
+	{
+		"selected_items":
+		[
+		]
+	},
+	"buffers":
+	[
+	],
+	"build_system": "",
+	"build_system_choices":
+	[
+	],
+	"build_varint": "",
+	"command_palette":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+			[
+				"",
+				"Arithmetic"
+			]
+		],
+		"width": 0.0
+	},
+	"console":
+	{
+		"height": 202.0,
+		"history":
+		[
+		]
+	},
+	"distraction_free":
+	{
+		"menu_visible": true,
+		"show_minimap": false,
+		"show_open_files": false,
+		"show_tabs": false,
+		"side_bar_visible": false,
+		"status_bar_visible": false
+	},
+	"file_history":
+	[
+		"/home/vasya/git/docs/certbot.txt",
+		"/home/vasya/git/docs/yandex_cloud.txt",
+		"/home/vasya/git/docs/linux-general.txt",
+		"/home/vasya/git/docs/hyper-v.txt",
+		"/home/vasya/Desktop/REZUME/где искать работу",
+		"/home/vasya/~RABOTA/тех-инфо.txt",
+		"/home/vasya/Downloads/readme.md",
+		"/home/vasya/~PS/сегодня.txt",
+		"/home/vasya/git/docs/wifi.txt",
+		"/home/vasya/переезд  в киргизстан.txt",
+		"/home/vasya/~RABOTA/mysql-temp.txt",
+		"/home/vasya/git/docs/ansible.txt",
+		"/home/vasya/git/docs/nginx.txt",
+		"/home/vasya/git/docs/apt.txt",
+		"/home/vasya/git/docs/ssh.txt",
+		"/home/vasya/~PS/kvs04-domains",
+		"/home/vasya/~PS/доделать",
+		"/home/vasya/~PS/онлайн платформа",
+		"/home/vasya/~PS/paruskaz.txt",
+		"/home/vasya/~PS/azh.kz/azh.kz-ticket-540938.txt",
+		"/home/vasya/git/docs/dnf-appstream-centos.txt",
+		"/home/vasya/Documents/server blok nginx",
+		"/home/vasya/Downloads/kvs04-kvs05-domains_422833",
+		"/home/vasya/~FOXY/делать.txt",
+		"/home/vasya/~PS/онлайн-платформа сертификаты letsencrypt - kvs05.txt",
+		"/home/vasya/~PS/онлайн-платформа сертификаты letsencrypt.txt",
+		"/tmp/kvs04-filtered.txt",
+		"/home/vasya/Downloads/kvs04-kvs05-domains_422833 с правками (4).txt",
+		"/tmp/kvs05.txt",
+		"/tmp/kvs04.txt",
+		"/home/vasya/git/docs/systemd.txt",
+		"/tmp/kvs04-minus.txt",
+		"/home/vasya/Downloads/kvs04-kvs05-domains_422833 с правками (1).txt",
+		"/home/vasya/Downloads/kvs04-kvs05-domains_422833 с правками.txt",
+		"/tmp/kvs04-kvs05-domains_422833 с правками (2).txt",
+		"/home/vasya/Downloads/kvs04-kvs05-domains_422833 с правками (3).txt",
+		"/home/vasya/~PS/kvs04-kvs05-domains",
+		"/home/vasya/~PS/онлайн-платформа переезд",
+		"/home/vasya/git/docs/toBinary",
+		"/home/vasya/git/docs/- bash shopt",
+		"/home/vasya/git/docs/locale",
+		"/home/vasya/git/docs/c",
+		"/home/vasya/git/docs/недоделано5.txt",
+		"/home/vasya/git/docs/недоделано4.txt",
+		"/home/vasya/git/docs/недоделано3.txt",
+		"/home/vasya/git/docs/недоделано2.txt",
+		"/home/vasya/git/docs/kubernetes.txt",
+		"/home/vasya/git/docs/ps.txt",
+		"/home/vasya/git/docs/C+assembly.txt",
+		"/home/vasya/git/docs/недоделано.txt",
+		"/home/vasya/git/docs/недоделано1.5.txt",
+		"/home/vasya/git/docs/дела",
+		"/home/vasya/~PS/openvpn.log",
+		"/home/vasya/git/docs/xv6.txt",
+		"/home/vasya/git/docs/assembler.txt",
+		"/home/vasya/git/docs/poetry.txt",
+		"/home/vasya/git/docs/notes.txt",
+		"/home/vasya/git/docs/README.md",
+		"/home/vasya/git/docs/gitlab.txt",
+		"/home/vasya/Documents/sardina.txt",
+		"/home/vasya/Documents/kub.txt",
+		"/home/vasya/Documents/план учебы.txt",
+		"/home/vasya/git/docs/kubespray.txt",
+		"/usr/include/elf.h",
+		"/home/vasya/git/docs/ram.txt",
+		"/home/vasya/git/docs/english.txt",
+		"/home/vasya/git/docs/kubespray-ansible.txt",
+		"/home/vasya/git/docs/phase-II.yml",
+		"/home/vasya/git/docs/kubespray-Vagrantfile3.txt",
+		"/home/vasya/git/docs/kubespray-Vagrantfile2.txt",
+		"/home/vasya/git/docs/kubespray-Vagrantfile.txt",
+		"/home/vasya/git/docs/python.txt",
+		"/home/vasya/git/docs/terraform.txt"
+	],
+	"find":
+	{
+		"height": 41.0
+	},
+	"find_in_files":
+	{
+		"height": 0.0,
+		"where_history":
+		[
+		]
+	},
+	"find_state":
+	{
+		"case_sensitive": false,
+		"find_history":
+		[
+			"active_anon",
+			"181503",
+			"214726",
+			"847170",
+			"1498536",
+			"181503"
+		],
+		"highlight": false,
+		"in_selection": false,
+		"preserve_case": false,
+		"regex": false,
+		"replace_history":
+		[
+		],
+		"reverse": false,
+		"scrollbar_highlights": true,
+		"show_context": true,
+		"use_buffer2": true,
+		"use_gitignore": true,
+		"whole_word": false,
+		"wrap": true
+	},
+	"groups":
+	[
+		{
+			"sheets":
+			[
+			]
+		}
+	],
+	"incremental_find":
+	{
+		"height": 41.0
+	},
+	"input":
+	{
+		"height": 0.0
+	},
+	"layout":
+	{
+		"cells":
+		[
+			[
+				0,
+				0,
+				1,
+				1
+			]
+		],
+		"cols":
+		[
+			0.0,
+			1.0
+		],
+		"rows":
+		[
+			0.0,
+			1.0
+		]
+	},
+	"menu_visible": true,
+	"output.find_results":
+	{
+		"height": 0.0
+	},
+	"pinned_build_system": "",
+	"project": "06-04-2024.sublime-project",
+	"replace":
+	{
+		"height": 78.0
+	},
+	"save_all_on_build": true,
+	"select_file":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"select_project":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"select_symbol":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"selected_group": 0,
+	"settings":
+	{
+	},
+	"show_minimap": false,
+	"show_open_files": false,
+	"show_tabs": true,
+	"side_bar_visible": true,
+	"side_bar_width": 150.0,
+	"status_bar_visible": true,
+	"template_settings":
+	{
+	}
+}
