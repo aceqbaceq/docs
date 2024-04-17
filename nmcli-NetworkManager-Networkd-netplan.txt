@@ -1,25 +1,33 @@
 nmcli-NetworkManager-Networkd-netplan
 
-есть целый рой таких херней как NetworkManager, Networkd, netplan
+есть целый рой таких херней как NetworkManager, Networkd(он же
+systemd-networkd), netplan
 в чем разница. и все такое.
 
 
 значит netplan это фронтенд штука по управлению сетью в линуксе.
 а бекендом для него может быть либо NetworkManager либо networkd
+(еще есть херня netctl но ее я не стал разбирать)
 
 вот в чем разгадка.
 
-networkd как пишут больше подходит для настроек карточек для серверов. там где
-больше статического в конифгах картчоки.
+networkd как пишут больше подходит для настроек карточек для серверов.
+там где больше статического в конифгах картчоки.
 
-networkmanager болше подходит лэптопов где больше динамического в настройке
-карточки.
+networkmanager болше подходит лэптопов где больше динамического в 
+настройке карточки.
 
 как я понял запускается netplan и он уже обращается к networkd либо к networkmanager
 передает им конфиги и они уже руками делают настройки карточек.
 
-если нет нетплана то networkd свои нативные конфиги  ищет в /etc/systemd/network
+если нет нетплана то networkd свои нативные конфиги  ищет 
+в /etc/systemd/network
 где лежат нативные конфиги networkmanager я не знаю
+
+как проверить что нетплан есть на компе
+$ sudo dpkg -l | grep -i netplan | awk '{print $2}'
+libnetplan0:amd64
+netplan.io
 
 
 как понять нетплан что использует для бекенда networkd или networkmanager
@@ -32,11 +40,34 @@ networkmanager болше подходит лэптопов где больше 
 значит бкендом явлется networkmanager
 
 
-далее. нетплан он может использовать только один бекенд. чтото одно. либо networkd
+у меня на компе это выглядит так
+$ cat /etc/netplan/01-network-manager-all.yaml  | grep -v "#"
+network:
+  version: 2
+  renderer: NetworkManager
+
+очевидно что у меня нетплан использует на бекенде Networkmanager
+
+
+
+далее. нетплан он может использовать только один бекенд. чтото одно.
+ либо networkd
 либо networkmanager но не оба сразу.
 
 насколкьо я понял если в конфиге нетплан нет строки "renderer:"
- значит бекендом явялется networkd
+значит бекендом явялется networkd
+например если поставить lxd виртуалку с ubuntu то 
+там у нетплана будет вот такой конфиг
+
+# cat /etc/netplan/50-cloud-init.yaml | grep -v '#'
+network:
+    version: 2
+    ethernets:
+        enp5s0:
+            dhcp4: true
+
+из чего я делаю вывод что нетплан использует на бекенде networkd
+
 
 
 далее и networkd и networkmanger это юниты (сервисы)  в systemd
@@ -51,13 +82,34 @@ systemd-networkd.service
 NetworkManager.service
 
 
+на моем компе networkd отключен, работает только NetworkManager
+$ systemctl list-units --type=service --all | grep -E "NetworkM|networkd"
+NetworkManager.service     loaded    active    running  Network Manager                                                                 
+systemd-networkd.service   loaded    inactive  dead     Network Service      
+
+а на виртуалке lxd ubuntu имеем такое
+
+# systemctl list-units  --type=service | grep  -E "NetworkM|networkd"
+  networkd-dispatcher.service                    loaded active running Dispatcher daemon for systemd-networkd
+  systemd-networkd-wait-online.service           loaded active exited  Wait for Network to be Configured
+  systemd-networkd.service                       loaded active running Network Configuration
+
+тоесть  NetworkManager его нет а есть юниты networkd
+
+
+также интересно то что NetworkManager ставится из пакета network-manager
+# apt-get install NetworkManager
+а вот networkd (он же systemd-networkd) как я понимаю он не имеет
+отдельного пакета а входит в пакет systemd
+
+
 далее прикол в тмо что обе эти системы управления сетвыми картчоками 
-они могут одновременно работать на компе. главое чтобы они управлялли разными 
-картчоками. и тогда не буде никакого конфликта
+они могут одновременно работать на компе. 
+главое чтобы они управлялли разными картчоками. 
+и тогда не буде никакого конфликта
 
 далее
-как по ыбстрому узнать какие сет картчоки управляются networkd
-ответ 
+как по быстрому узнать какие сет карточки управляются networkd
 
 # networkctl
 IDX LINK             TYPE               OPERATIONAL SETUP     
@@ -89,7 +141,8 @@ IDX LINK             TYPE               OPERATIONAL SETUP
 465375 lxdbr1           ether              no-carrier  unmanaged 
 
 
-соовтсвтенно все картчоки которые "unmanaged" значит имим networkd неуправляет
+соовтсвтенно все картчоки которые "unmanaged" значит ими
+ networkd неуправляет
 а вот посмотрим что при этоп происано в нетплан
 
 # cat /etc/netplan/01-network-manager-all.yaml 
@@ -102,10 +155,44 @@ network:
            name: lo
         addresses: [ 172.16.10.10/32 ]
 
-видим полное совпдаение. в непталане указан remderer:networkd
-и указано какую карточку нетплан через netowrkd управляет это lo интерфейс.
-тоесть все совпало.
+видим полное совпдаение. в нетплане указан remderer:networkd
+только для карточки lo.
 а все остальыне картчоки управлятся получается через networkmanger.
+тоесть все совпало.
+
+вот по идее конфиг нетплана когда одна карточка управляется
+через нетворкманагер а вторая через нетворкд. (но я не проверял
+рабочий ли этот конфиг)
+
+network:
+  version: 2
+  renderer: NetworkManager
+  ethernets:
+      enp3s0:
+        optional: true
+
+network:
+   version: 2
+   renderer: networkd
+   ethernets:
+      lo:
+        match:
+           name: lo
+        addresses: [ 172.16.10.10/32 ]
+
+
+вот пример с моего компа
+$ networkctl 
+WARNING: systemd-networkd is not running, output will be incomplete.
+
+IDX LINK             TYPE               OPERATIONAL SETUP     
+  1 lo               loopback           n/a         unmanaged 
+  2 enp3s0           ether              n/a         unmanaged 
+  3 wlp2s0           wlan               n/a         unmanaged 
+  4 virbr0           ether              n/a         unmanaged 
+
+вверху даже висит предупреждение что systemd-networkd просто 
+напросто нахрен даже не работает
 
 
 
@@ -127,20 +214,22 @@ network:
         enp5s0:
             dhcp4: true
 
-видим что тут нет строкаи "renderer" что как я уже сказал значит что нетплан 
-исползует networkd.
+видим что тут нет строкаи "renderer" что как я уже сказал значит 
+что нетплан  исползует networkd.
 тоесть все совпало.
 
 
 а как узнать какие картчоки управляются через netoworkmanager? 
-я думаю метдом исключения - узнаем через networkctl какие картчоки управятся
-через netowrkd а остальные карточки оставшися управлятся через netoworkmanger.
-а полный список картчоек можно помотреть через ip -c a
+я думаю метдом исключения - узнаем через networkctl какие картчоки 
+управятся через networkd а остальные карточки оставшися управлятся 
+через netoworkmanger. а полный список картчоек можно помотреть 
+через ip -c a
 
-хотя наверное есть способ узнат напрямую каие картчоки управляются через networkmanger:
+хотя наверное есть способ узнат напрямую какие картчоки управляются 
+через networkmanger:
 # nmcli   device
 DEVICE           TYPE      STATE      CONNECTION 
-wlp2s0           wifi      connected  bshk       
+wlp2s0           wifi      connected  bbb12       
 br-f3471869c7a4  bridge    unmanaged  --         
 docker0          bridge    unmanaged  --         
 docker_gwbridge  bridge    unmanaged  --         
@@ -153,7 +242,29 @@ lo               loopback  unmanaged  --
 tapd7309131      tun       unmanaged  --         
 virbr0-nic       tun       unmanaged  --         
 
-соотвевтенно в колонке STATE указано какие сет карточки уравляются через netowwork manager
+соотвевтенно в колонке STATE указано какие сет карточки уравляются 
+через netowwork manager, в колонке DEVICE указана карточка
+(nmcli это утилита NetworkManager, nmcli это переводится
+как NetworkManager CLI)
+
+а вот как это выглядит на моем компе
+$ nmcli device | awk '{print $1 "\t\t\t\t "  $3}'
+DEVICE               STATE
+wlp2s0               connected
+br-1bdf05b37fcc      connected
+docker0              connected
+lxdbr1               connected
+virbr0               connected
+enp3s0               unavailable
+lo                   unmanaged
+virbr0-nic           unmanaged
+wg0                  unmanaged
+
+что странно. показано что часть карточек обслужиывается не 
+NetworkManager. а кем тогда? если нетворкд вообще остановлен на компе
+
+
+
 
 и вот еще полезная команда. котоаря покажет нетолько сет карточки фищические
 упраляемые через networkmanger но и сет конекты (например VPN коннекты) котоыре 
@@ -161,7 +272,7 @@ virbr0-nic       tun       unmanaged  --
 
 # nmcli   connection
 NAME                        UUID                                  TYPE  DEVICE 
-bsh                         ec06da1e-7503-4aa1-a96d-8d6e5da05667  wifi  wlp2s0 
+bbb1                         ec06da1e-7503-4aa1-a96d-8d6e5da05667 wifi  wlp2s0 
 cartos-ovh                  28302ee0-1ac0-4861-827b-ad56899dbcb8  vpn   wlp2s0 
 
 
@@ -169,7 +280,6 @@ cartos-ovh                  28302ee0-1ac0-4861-827b-ad56899dbcb8  vpn   wlp2s0
 оба проходят через сет карточку wlp2s0
 
 
-nmcli это переводится как (NetworkManager CLI)
 
 
 
