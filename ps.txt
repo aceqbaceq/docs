@@ -155,3 +155,19 @@ vasya    19916  0.0  0.0  34116  5608 pts/20   S    17:41   0:00 bash -rcfile .b
 
 =====
 
+# pstree -p -T
+
+ключ -p показывает числа PID
+-T скрывает треды и показыает только процессы
+
+systemd(1)─┬
+           ├─containerd(9326)
+           ├─containerd-shim(10811)───sh(10840)
+           ├─containerd-shim(12672)───sh(12700)
+           ├─containerd-shim(13059)───sh(13083)
+           ├─containerd-shim(46997)───sh(47017)
+           ├─containerd-shim(48410)───sh(48441)
+           ├─containerd-shim(61032)───sh(61052)
+           ├─containerd-shim(61558)───sh(61579)
+           ├─containerd-shim(62517)───sh(62542)
+

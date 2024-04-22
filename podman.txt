@@ -1,0 +1,1144 @@
+podman run -d  -it --name alp1 alpine sh
+
+podman container inspect alp1 | grep  "\"Pid\":"
+            "Pid": 65252,
+
+# pstree -Asp 65252
+systemd(1)---conmon(65249)---sh(65252)
+
+получается у подмана за контйенером присматривает некий
+процесс conmon
+
+для сравнения у докера дерево прцоессов у контейнера выглядит так
+
+# pstree -Asp 62542
+systemd(1)---containerd-shim(62517)---sh(62542)
+
+кстаи pstree режет полное имя процесса поэтому на самом деле
+containerd-shim-runc-v2
+
+
+podman если обнаруживает crun то он его использует по дефолту
+как low level container runtime
+конфиги подмана 
+
+/usr/share/containers/
+/etc/containers/
+$HOME/.config/containers/ (Rootless containers ONLY)
+
+я подправил этот конфин /etc/containers/libpod.conf
+в нем исправил путь к runc
+
+runc = [
+    "/usr/bin/runc",
+
+в нем же можно исправиить дефолтовый runtime
+
+runtime = "crun"
+
+
+как запустиьт подман под с кастомным рантаймом
+
+podman run --runtime=/usr/bin/runc -d  -it --name alp2-runc alpine sh
+
+как узнать под каким рантаймом был запущен контейр
+
+
+# podman container inspect alp1 | grep -i runtime
+        "OCIRuntime": "crun",
+            "--runtime",
+
+# podman container inspect alp2-runc | grep -i runtime
+        "OCIRuntime": "/usr/bin/runc",
+            "--runtime",
+                "--runtime=/usr/bin/runc",
+
+
+офигеть как круто!
+
+более того ! подман в отличие от докера когда зпускает конетйенер
+через рантайм то он кладет нужные файлы в нужные места которые относятся
+к этим рантаймам. поэтому без всяких проблем можно посмотреть
+статистику по контйенеру нетолько средствами подмана но средставами
+самих рантаймов!
+дело вот в чем  подман или докер или друга программа работы с контейне
+рами верхнего уровня она в конечном итоге обращается к бинарникам
+/usr/bin/crun или /usr/bin/runc и запускает их в некоторыми 
+параметрами в командной строке условно. тоесть в конечном итоге и
+подман и докер и кубелет создают контенер на хосте путем того что
+они вывают бинарники runc и crun с параметрами а уже они создают
+контенейр фактически. так вот мы можем и без всяких докеров и подманов
+создать контейнер сами руками вызывав /usr/bin/runc и /usr/bin/crun
+с нужнымми параметрами. так вот у crun и runc есть некоторые дефолтовые
+папки в которых они сохраняют информацию о созданном контенере!
+
+для crun это 
+	/run/crun
+
+для runc это
+	/run/runc
+
+поэтому порядочная програма типа подмана вызывая crun\runc пути к этим папкам неменяет. и тогда создав конрейрнер через подман 
+мы можем увидеть о нем нетолько средтвами подмана но и сами через crun\runc без проблем! так вот докер сука он делает плохо. он 
+когда вызывает runc\crun он меняет путь к файлам в которые они 
+должны записать файлы статуса об созданном контейнера. 
+например для runc это становистя папка 
+	/run/docker/runtime-runc/moby
+и поэтому создав контейнер через докер мы тыкаемся в runc
+	runc list
+и в ответ тишина сука! потому что в папке /run/runc нет нихуя!
+и нужно ей подскзаать чтобы файлы статуса она искала в папке /run/docker/runtime-runc/moby
+
+показываю!
+вот я созад два контйененера через подман
+
+# podman ps
+CONTAINER ID  COMMAND     NAMES
+80cc32097cda  sh          alp1
+21983f172bb5  sh          alp2-runc
+
+один с использванием crun второй с runc
+тепер пробуем их найти через утилиты crun\runc
+
+# runc list
+ID              PID         STATUS      BUNDLE                                                                                                                     CREATED                          OWNER
+21983f172bb5a9  66144       running     /var/lib/containers...
+
+# crun list
+NAME            PID       STATUS   BUNDLE PATH                            
+80cc32097cdaf4  65897     running  /var/lib/containers/...
+
+
+сравнивая первый столбик того что вывел подман с первым столбиком
+того что вывел crun\runc мы видим что это одни и теже 
+контейнеры!
+
+и если мы зайдем в /run/runc и /run/crun мы увидим там появившиея
+папки!
+все круто!
+
+подман молодец!
+
+но докер сука не такой!
+смотрим его список контейнеров
+
+# docker ps
+CONTAINER ID   IMAGE     COMMAND     CREATED        STATUS       
+01ac07ca92c3   alpine    "/bin/sh"   14 hours ago   Up 14 hours             alp3
+6596da995289   alpine    "/bin/sh"   15 hours ago   Up 15 hours             alp2
+468f2a8127a8   alpine    "sh"        3 days ago     Up 4 hours              alp1
+14868ee1c21a   busybox   "sh"        3 days ago     Up 3 days               bb5
+83678c564b80   busybox   "sh"        3 days ago     Up 3 days               test2
+c42b802541ae   busybox   "sh"        4 days ago     Up 4 days               cnitest
+29ca43e5dcf7   busybox   "sh"        5 days ago     Up 5 days               bb4
+01b4f51b20fa   busybox   "sh"        5 days ago     Up 5 days               bb1
+
+
+
+мы создаем через него контейнеры и используя runc но 
+в папке /run/runc у нас при этмо ничего не повляетя!поэтмоу
+вывод 
+	$ runc list 
+покажет дулю!
+
+
+а чтобы runc увидел контейнеры нужно указать папку где докер 
+при вызове runc заставил его созрантить статусы о созданных 
+контенерах. а именно указать на папку /run/docker/runtime-runc/moby/
+
+# runc --root /run/docker/runtime-runc/moby/ list
+ID           PID         STATUS      BUNDLE
+01ac07ca92   61579       running     /run/con...
+01b4f51b20   10840       running     /run/con...
+14868ee1c2   48441       running     /run/con...
+29ca43e5dc   12700       running     /run/con...
+468f2a8127   62542       running     /run/con...
+6596da9952   61052       running     /run/con...
+83678c564b   47017       running     /run/con...
+c42b802541   13083       running     /run/con...
+
+вот только тепер мы через runc увидели которые которые докер 
+через этот же runc создал.
+сранвиися первый столбик мы видим что они совпдаают.
+
+круто!
+
+
+так вот оказывается runc\crun это не просто хрень которая берет
+некоторую rootfs (об этом щас поговоирим) создает неймсейсы, cgroups, 
+и запускает процесс в этих неймсейсах! после этого crun\runc
+сохраняют подроблейнушую информацию о параметрах контейра в 
+файле! например 
+
+для runc:
+	/run/runc/21983f1/state.json - файл
+
+для crun:
+	/run/crun/80cc3209/ - папка 
+в ней файлы
+	config.json
+	seccomp.bpf
+	status
+
+таикм образом вышестоящая хреь которая запускала crun\runc
+из этого файла знает подробнкйшую инфомрацию о созданном 
+конейнере! походу как раз таки когда мы пишем 
+	$ docker container inspect alp1
+или 
+	$ podman container inspect alp1
+то они как раз таки лезут в эти систмные папки crun\runc и 
+читают инфо именно оттуда !
+
+далее! что еще замеачательо что походу podman использует CNI по дефолту.
+а не CNM как докер.  и дейсивттельно!
+
+# podman network ls
+NETWORK ID    NAME        VERSION     PLUGINS
+2f259bab93aa  podman      0.4.0       bridge,portmap,firewall,tuning
+
+# podman network inspect podman
+[
+    {
+        "cniVersion": "0.4.0",
+        "name": "podman",
+        "plugins": [
+            {
+                "bridge": "cni-podman0",
+                "hairpinMode": true,
+                "ipMasq": true,
+                "ipam": {
+                    "ranges": [
+                        [
+                            {
+                                "gateway": "10.88.0.1",
+                                "subnet": "10.88.0.0/16"
+                            }
+                        ]
+                    ],
+                    "routes": [
+                        {
+                            "dst": "0.0.0.0/0"
+                        }
+                    ],
+                    "type": "host-local"
+                },
+                "isGateway": true,
+                "type": "bridge"
+            },
+            {
+                "capabilities": {
+                    "portMappings": true
+                },
+                "type": "portmap"
+            },
+            {
+                "type": "firewall"
+            },
+            {
+                "type": "tuning"
+            }
+        ]
+    }
+]
+
+и десввииельно мы видим что сеть в у подмана поднята на основе CNI!
+что тип сети это бридж. что мастер порт бриджа это cni-podma0
+что IPAM модуль это host-local
+
+проверяем
+и действеиильно такой бридж есть!
+
+# ip -c l sh type bridge  dev cni_bridge0
+29: cni_bridge0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP mode DEFAULT group default qlen 1000
+    link/ether 0a:58:0a:0f:14:01 brd ff:ff:ff:ff:ff:ff
+
+вот его свичевые порты за коорыми конейреры сидят
+# ip -c l sh  master cni_bridge0
+30: veth81b1acc2@if3: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue master cni_bridge0 state UP mode DEFAULT group default 
+    link/ether 72:a1:13:f5:4b:6a brd ff:ff:ff:ff:ff:ff link-netns 1234567890
+31: vethd58787ee@if3: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue master cni_bridge0 state UP mode DEFAULT group default 
+    link/ether 86:80:54:28:60:2e brd ff:ff:ff:ff:ff:ff link-netnsid 3
+
+но если сеть поднята на оснвое CNI то это значит где то 
+на хосте должны лежать бинарники bridge, host-local
+и они релаьно лежат вот тут!
+
+	/usr/lib/cni
+
+и я нашел пакет который их туда поставил
+# dpkg -S /usr/lib/cni/host-local 
+containernetworking-plugins: /usr/lib/cni/host-local
+
+и вот описание пакета!
+# apt-cache show   containernetworking-plugins
+...
+...
+ Interfaces
+  - bridge: Creates a bridge, adds the host and the container to it.
+  - ipvlan: Adds an [ipvlan] interface in the container.
+  - loopback: Set the state of loopback interface to up.
+  - macvlan: Creates a new MAC address, forwards all traffic
+             to that to the container.
+  - ptp: Creates a veth pair.
+  - vlan: Allocates a vlan device.
+  - host-device: Move an already-existing device into a container.
+ .
+ IPAM: IP Address Management
+  - dhcp: Runs a daemon to make DHCP requests on behalf of the container.
+  - host-local: Maintains a local database of allocated IPs
+  - static: Allocates a static IPv4/IPv6 address.
+ .
+ Other
+  - flannel: Generates an interface corresponding to a flannel config file
+  - tuning: Tweaks sysctl parameters of an existing interface
+  - portmap: An iptables-based portmapping plugin.
+             Maps ports from the host's address space to the container.
+  - bandwidth: Allows bandwidth-limiting through use of traffic control tbf.
+  - sbr: Configures source based routing for an interface.
+  - firewall: Uses iptables or firewalld to add rules to allow traffic
+              to/from the container.
+
+охренеть!
+
+так вот что еще классно это то что подман пробрасывая сеть
+внутрт контейнера через CNI делает в отличие от докера
+это по человечески! а именно напомню как мы работаем с сетью
+через CNI.
+мы создаем на диске общий конфиг сети
+
+# cat mybridge2.conf 
+{
+    "cniVersion": "0.2.0",
+    "name": "vasya-bridge",
+    "type": "bridge",
+    "bridge": "cni_bridge2",
+    "isGateway": true,
+    "ipMasq": true,
+    "ipam": {
+        "type": "host-local",
+        "subnet": "172.30.30.0/24",
+        "routes": [
+            { "dst": "0.0.0.0/0" },
+            { "dst": "8.8.8.8/32", "gw":"172.30.30.1"}
+        ]
+    }
+}
+
+далее мы пробрасываем в контейнер сетевую карту вот так
+
+
+# ip netns add 6778
+
+
+# sudo CNI_COMMAND=ADD \
+       CNI_CONTAINERID=6778 \
+       CNI_NETNS=/var/run/netns/6778 \
+       CNI_IFNAME=ef1 \
+       CNI_PATH=`pwd` \
+       ./bridge <mybridge2.conf
+
+тоесть что здесь важно обраттить внимание что мы должны перед запуском
+бинарника CNI создать сетевой неймспейс , если его делать по челове
+чески то делется это через ip netns add , при этом у нас создасттся
+файл в папке /var/run/netns отвечающий за этот неймспейс. чтобы
+можно было посмотреть созданные неймспейсы позже через команду 
+ip netns ls. и только потом мы уже вызываем бинарник CNI.
+тоесть здесь важно омтетить что сетевой неймспейс создает не 
+бинарник CNI а до этого тот кто этот CNI вызвает. 
+поэтому! когда я далее смотрю в свойства контенера коорый создает
+подман через crun\runc я вижу что он создает сетевые немспейсы
+правильно! коректно!
+пример
+
+# podman container inspect alp1 | grep netns
+   "SandboxKey": "/run/netns/cni-4c56b002-5c86-c4d5-fded-da31570ea098",
+# podman container inspect alp2-runc | grep netns
+   "SandboxKey": "/run/netns/cni-a96152c8-766b-71b0-1822-5a8d8bff0b8a",
+
+смотрим откуда он это взял
+$ /run/crun/80cc32/config.json | jq | grep -A5 -B5 netns
+      {
+        "type": "network",
+        "path": "/run/netns/cni-4c56b002-5c86-c4d5-fded-da31570ea098"
+      }
+
+
+
+# cat /run/runc/2198/state.json | jq | grep -A5 -B5 netns
+      {
+        "type": "NEWNET",
+        "path": "/run/netns/cni-a96152c8-766b-71b0-1822-5a8d8bff0b8a"
+      }
+
+совпало! тоесть дейтсвительно подман показывая инфо о конетйнере
+читает его из файла отчета нижелещаего crun\runc
+и то что у подмана называтся  SandboxKey это ничто иное как
+сетевой неймсейс конейнера!  так вот подман созает этот неймспейс
+по человечески!(а это именно подман его создает а не runc\crun 
+или CNI) потому что он его создает в папке /run/netns!
+это значит что мы этот сетевоей неймспейс можем сразу легко
+посмреть через штатную утилиту которая отвечает за показ 
+сетевых неймспейсов созанны по человечески!
+
+$ ip netns ls | grep cni
+cni-a96152c8-766b-71b0-1822-5a8d8bff0b8a (id: 17)
+cni-4c56b002-5c86-c4d5-fded-da31570ea098 (id: 16)
+
+ты меня спросишь а что значит создать сетевой нейсмепесйс по 
+человечески? и что это нам дает? 
+отвечаю! - сетевой неймспйс можно созддать по человечески (через
+ip netns add) а можно по уродски.  как это делается по уродски я 
+щас не помнью . но ! дело в том что у сетевого неймспейса всегда
+есть id. но не всегда есть имя. при создании ему всегда присваиваеися
+id а вот имя ему присваивается если мы ему даем имя при создании.
+если создавать новый сет неймспес через ip netns add то ему дается
+и имя и id. почему это важно? потому что когда неймспейс создан в
+него начинаются вставляться veth порты. так вот если veth порт 
+засунут в сет неймсспейс у коиторого ест имя то мы этот veth порт
+можем легко найти!
+показываю!
+мы смотрим какие veth порты сидят в сет стеке хоста
+вот пример veth порта
+# ip -c l sh up  type veth
+15: veth91534ca@if14: ... master docker0  
+    link/ether ea:24:cf:5e:2e:c3 ... link-netnsid 0
+
+мы помним что veth порты создаются всегда парами. так 
+вот мы смотрим веф порт который сидит  в сет неймспейсе хоста.
+и в его свойствах указано где искать его брата! вот в этой
+строке
+	link-netnsid 0
+
+посмотрим еще на один веф порт сидящий в нашем сет неймспйсе
+91: vethab591301@if3: ... master cni-podman0  
+    link/ether 02:33:91:14:57:3b ... link-netns cni-4c56b002-5c86-c4d5-fded-da31570ea098
+
+у него укзаано что его брата надо искать вот тут
+	link-netns cni-4c56b002-5c86-c4d5-fded-da31570ea098
+
+
+а теперь сравним эти две строки
+	link-netnsid 0
+и
+	link-netns cni-4c56b002-5c86-c4d5-fded-da31570ea098
+
+и суть тут в том что во втором случае у нас указано ИМЯ сете
+вого неймспейса 
+а в первом случае у нас указан ID неймспейса.
+
+и в чем проблема скажешь ты? а проблема вот в чем - у нас братья 
+у вефов сидят в каком то другом сетевом неймспйесе. мы хотим
+войти в тот неймспейс чтобы посмотреть параметры того брата. 
+но пизда состоит в том что утилиты которые позволяют входить
+в другой сет неймспейс требует для этого либо pid процесса который
+сидит в том неймспейсе , либо файл на диске который отвечает за 
+тот неймсейс! толкьо так мы можем попаст в тот неймспейс!
+теперь смотри задача в чем - у нас есть контейнер. мы смотрим
+его свойствах файл котоырй лежит на фс хоста и который отвечает
+за сет неймспейс внутри контененера. мы используя этот файл 
+проникаем в неймспейс контейера и смотрим параметры сетевой карты
+которая в нем лежит. смотрим свойтва того veth интерфейса. 
+А ПОТОМ мы хотим узнать а какой veth интерфейс в сетевом стеке
+нашего хоста является братом того интерфейса. и как сука это 
+узнать? а узнать можно вот как если в свойствах контейнера
+указано что файл отвечающий за сет неймспейс контйенера на
+хосте лежит в папке
+	   /run/netns
+напрмиер
+      "/run/netns/cni-a96152c8-766b-71b0-1822-5a8d8bff0b8a"
+
+то в сет стеке нашего хоста тот veth порт который являтся 
+братом того вефа который сидит в нутри контйенера в своих
+свойствах будет иметь имя
+		cni-a96152c8-766b-71b0-1822-5a8d8bff0b8a
+тоесть
+92: veth0d663180@if3: ... 
+    link/ether 76:f5:1a:94:54:a7 ... link-netns cni-a96152c8-766b-71b0-1822-5a8d8bff0b8a
+ТОЕСТЬ! мы смотрим в свойства контйенера и  СРАЗУ МГНОВЕННО
+на сет стеке хоста находим veth порт котоорый ведет 
+внутро контенера!!! это же круто! 
+
+А ЕСЛИ ФАЙЛ отвечающий за сет неймспейс конйенера лежит не в 
+папке 	
+	/run/netns
+то жопа! тогда veth порт в сет стеке хоста который вдеет внутрь 
+контйенера в своих свойствах будет иметь вид 
+		link-netnsid 0
+ты скажешь и что? а то что для такого контйенера нихуя не понятно
+какой veth порт на хосте ведет в конйенер! мы не можем его
+опрееделить потому что нет ниакой связи между свойствами контйенера
+и link-netnsid 0 вот в чем пзец!
+щас покажу на примере
+имеем конейнер
+	# docker container inspect  alp1  | grep -i sand
+     "SandboxKey": "/var/run/docker/netns/096c66682935",
+
+мы видим что файл отвечающий за нетспейс лежит не в папке
+	/run/netns
+поэтому мы можем понять какой же veth порт на нашем хосте ведет
+в этот контейнер!
+это может быть любой из этих портов
+
+veth91534ca@if14: 
+    link/ether ea:24:cf:5e:2e:c3 ... link-netnsid 0
+
+vethedd4829@if27:  
+    link/ether 3a:21:75:61:83:ad ... link-netnsid 1
+
+vethd58787ee@if3: 
+    link/ether 86:80:54:28:60:2e ... link-netnsid 3
+
+veth2456cc4@if51:  
+    link/ether 62:8a:ca:2b:48:64 ... link-netnsid 8
+
+veth327b6fc@if80:  
+    link/ether 1a:0b:78:07:8f:58 ... link-netnsid 15
+
+а если на хосте тысячки контееоров? как искать?
+
+дело в том что между файлом /var/run/docker/netns/096c66682935
+и link-netnsid X почти нет никакой связти. точнее она есть
+я ее в отеьной статье нахожу. но это получается огромный мудеж
+как найти эту связь!
+А ВСЕ ПОЧЕМУ? помуточ то докер долбоеб сохраняет информцию 
+о сетевом неймсейсе который ОН СОЗДАЕТ НЕ ВТОЙ ПАПКЕ !
+еще раз обьясную если файл отвечаючащий за сет неймспейс
+сохраняется в папке /run/netns то тогда этот файл виден 
+в свофствах контйенера и ЭТОТ ЖЕ ФАЙЛ ВИДЕН В в свойствах veth
+интерфейса! и мы тогда этот веф интререфейс находим мгнвоенно!
+
+так что же делать в случае докера! есть более менее простой выход
+но требует дополинительное телодивжение!
+нужно создать симлинк из папки докера в папку /run/netns
+
+# ln -s /var/run/docker/netns/096c66682935 /run/netns/096c66682935
+теперь у нас есть этот файл в нужной папке
+# ip netns ls
+096c66682935 (id: 15)
+
+и теперь у нас линукс ядро корректирует записи в veth 
+интерфейсах и нужный нам veth интерфейс теперь в своих 
+своствах содержит не тот бесполезный 
+
+link-netnsid 15
+
+а совершенно полезный link-netns !!!!
+# ip -c l sh up  type veth | grep 096c66682935
+    link/ether 1a:0b:78:07:8f:58 ... link-netns 096c66682935
+
+и как мы видим значение этого link-netns 096c66682935
+абсолтн совпдаает с названием файла лежащего в /run/netns!!!
+
+тоесть до того как мы создали симлинк у нас веф инфреейс 
+выглядел вот так
+
+veth327b6fc@if80:  
+    link/ether 1a:0b:78:07:8f:58 ... link-netnsid 15
+
+а после стал выглядеть вот так
+
+# ip -c l sh up  type veth | grep 096c66682935
+veth327b6fc@if80:  
+    link/ether 1a:0b:78:07:8f:58 ... link-netns 096c66682935
+
+ты чуствшь разницу? до того мы не могли его идентифицировать!
+а после сразу можем. могнвоенно!
+
+НО ТЫ ПОНИМАЕШЬ какая проблем тут зарыта?  я же не могу 
+постоянно создавать симлинки из папки докера в папку /run/netns !!
+а монтировать папку в папку это тоже не вариант!
+
+ПОЭТОМУ ТО как раобтает  с сетевыми неймспйесами докер ЭТО ПОЛНЫЙ
+ДОЛБОЕБИЗМ!!! вот что  я хотел скзаать.
+а подман работатет так как положено!!!!
+
+получается докер и с папками runc\crun работает плохо! и с
+папками netns он тоже работает плохо!! у подмана таких проблем
+вобще нет! подман молодец!
+а я говорю о том что на хосте может быть мегадохрена веф портов.
+на каждый под создается свой веф пара.
+
+veth026cdd0d@if2:
+veth5f233620@if2:
+veth45f751ad@if2:
+veth6bf711ce@if2:
+veth280e64fe@if2:
+veth054dd844@if2:
+
+поэтому руками найти веф порт ведущий в под это нереальная задача.
+да я знаю как это сделат. я об этом пишу в отддлеьном докумнете.
+но это хреновый трудоекий вариант!
+поэтмоу докер остой. подман молодец!
+
+и тут я перехожу к интересной вещи. про к8.
+итак к8 создает через кубелет на хостах контейнеры. в конечном
+итоге через runc либо crun. в моем случае через runc
+и тут очень интеересно как это просиходит. так как создаются
+они через docker но пскольку к8 не поддерживает CNM у докера
+то к8 создает через докер контенеры с точки зрения докера БЕЗ СЕТИ.
+тоесть это выглдяи так. к8 дает команду кубелету. а тот дает 
+команду докеру создать контейнеры БЕЗ СЕТИ сточки зрения докера.
+тогда докер дает команду runc создать контейнер без сети!
+когда докер создает контейнер без сети то это значит что 
+он создает новый сетевой неймспейс ( в котором по дефолту есть
+lo порт) но в него никакие вефы не вставляет!
+вообще runc когда ему говоряи создать контйенер то он ни о каких сетях
+внутри контйенера знать не знает ни до создания ни после. ему
+докер говорит о том что создай контйенер и чтобы у него было 
+вот такой то сетевой неймспейс ! все!
+вот я взял типичны контейнер с бридж сетью который создал докер через runc,
+нашел файл статуса который создал runc  ивот что там есть на счет сети
+
+
+# cat /run/docker/runtime-runc/moby/468f2a8127a/state.json | jq  | grep -E "net|NEWNET"  -A30 -B5
+
+ {
+        "type": "NEWNET",
+        "path": ""
+      },
+
+
+
+  "networks": [
+      {
+        "type": "loopback",
+        "name": "",
+        "bridge": "",
+        "mac_address": "",
+        "address": "",
+        "gateway": "",
+        "ipv6_address": "",
+        "ipv6_gateway": "",
+        "mtu": 0,
+        "txqueuelen": 0,
+        "host_interface_name": "",
+        "hairpin_mode": false
+      }
+
+
+
+   "NEWNET": "/proc/62542/ns/net",
+   
+
+ТОЕСТЬ указан лишь файл отвечающий за сет неймспейс 
+и указано что есть внутри lo интефрейс. и все
+
+
+а вот файл статуса runc контенера который создал подман 
+
+ {
+        "type": "NEWNET",
+        "path": "/run/netns/cni-a96152c8-766b-71b0-1822-5a8d8bff0b8a"
+      },
+
+
+ "networks": null,
+
+ "NEWNET": "/proc/66144/ns/net",
+
+
+
+заметим что он несколько отлчаеися. но суть у него такая же самая.
+а именно внутри runc файла state.json о сетях дателей вобщем то нет! 
+по большому счетудается лишь путь к файлу с сетевым неймспейсом!
+
+тоода у меня вопрос  откуда докер получает инфомрацию о сети в контейнере? когда 
+мы вводим docker describe container_id ?
+
+
+        "NetworkSettings": {
+            "Bridge": "",
+            "SandboxID": "096c666829353c7c9fbba7933bc3aa021407b99e9be14babe67bea2142f8e7d9",
+            "SandboxKey": "/var/run/docker/netns/096c66682935",
+            "Ports": {},
+            "HairpinMode": false,
+            "LinkLocalIPv6Address": "",
+            "LinkLocalIPv6PrefixLen": 0,
+            "SecondaryIPAddresses": null,
+            "SecondaryIPv6Addresses": null,
+            "EndpointID": "18d4a3826d329f9e703fb4b592db483700f8483183685811a14efcfbb1e00873",
+            "Gateway": "172.17.0.1",
+            "GlobalIPv6Address": "",
+            "GlobalIPv6PrefixLen": 0,
+            "IPAddress": "172.17.0.4",
+            "IPPrefixLen": 16,
+            "IPv6Gateway": "",
+            "MacAddress": "02:42:ac:11:00:04",
+            "Networks": {
+                "bridge": {
+                    "IPAMConfig": null,
+                    "Links": null,
+                    "Aliases": null,
+                    "MacAddress": "02:42:ac:11:00:04",
+                    "NetworkID": "de425cb5bdc8d6a78e9a057255b81b1cca3894eb49107a8e1f4702323ec85f63",
+                    "EndpointID": "18d4a3826d329f9e703fb4b592db483700f8483183685811a14efcfbb1e00873",
+                    "Gateway": "172.17.0.1",
+                    "IPAddress": "172.17.0.4",
+                    "IPPrefixLen": 16,
+                    "IPv6Gateway": "",
+                    "GlobalIPv6Address": "",
+                    "GlobalIPv6PrefixLen": 0,
+                    "DriverOpts": null,
+                    "DNSNames": null
+                }
+            }
+        }
+    }
+]
+
+получается отчет runc ему эту информацию не поставляет.  
+может бытт он налету сканирует сеетвой неймспейс контенера? я думаю что нет. (щас докажу.)
+так вот я думаю что докер эту информацию просто хранит где то внутри себя. думаю что 
+прям в оперативной памяти. 
+я вот нашел вот такой файл
+	/run/docker/libnetwork/3dfeef59e930.sock
+и вот кто его открытым имеет
+# lsof | grep 3dfeef59e930.sock | awk '{print $1}'
+dockerd
+dockerd
+dockerd
+dockerd
+dockerd
+dockerd
+dockerd
+
+
+так вот возвращаюсь к к8. когда он точнее его кубелет обращаетя к докеру и говорит создоай
+контенеер без сети. то докер создает пустой неймспейс сетевой потом обращается к runc чтобы
+тот создал контейнер в этом сетевом неймспейсе.  то далее к8 уже после этого берет этот 
+сет неймспейс котоырй докер создал и скармливает его в CNI и тот уже создает сетевые карточки
+в этом неймспейсе тоесть CNI в этом неймспйесе создает веф. дает ему IP а второй веф создает
+на хосте компа и втыкает этот веф в бридж которй тоже создал CNI. но докер об этом всем
+не знает! поэтому если смотреть в свойства котонейтнера который создал докер но который находится
+под присмотром к8 то в свойствах docker describe будет нахрен пусто на счет карточек и 
+IP адресов внутри этого контенера! хотя конечно это не так! ОХРЕНЕТЬ!!!!! все потому что 
+контенейр создает докер+runc а сет в него сует к8 руками CNI! есл бы докер вручную скаировал
+неймспейс сетевой то коненчо он бы увидел наличие сетевых картчоек!
+
+а как подман делает? в плане настроек сети? подман юзает как уже скаазал CNI. 
+и он польщзуется функцоналом CNI. 
+
+
+an# podman network ls
+NETWORK ID    NAME        VERSION     PLUGINS
+2f259bab93aa  podman      0.4.0       bridge,portmap,firewall,tuning
+
+
+# podman  network inspect podman
+[
+    {
+        "cniVersion": "0.4.0",
+        "name": "podman",
+        "plugins": [
+            {
+                "bridge": "cni-podman0",
+                "hairpinMode": true,
+                "ipMasq": true,
+                "ipam": {
+                    "ranges": [
+                        [
+                            {
+                                "gateway": "10.88.0.1",
+                                "subnet": "10.88.0.0/16"
+                            }
+                        ]
+                    ],
+                    "routes": [
+                        {
+                            "dst": "0.0.0.0/0"
+                        }
+                    ],
+                    "type": "host-local"
+                },
+                "isGateway": true,
+                "type": "bridge"
+            },
+            {
+                "capabilities": {
+                    "portMappings": true
+                },
+                "type": "portmap"
+            },
+            {
+                "type": "firewall"
+            },
+            {
+                "type": "tuning"
+            }
+        ]
+    }
+]
+
+
+и действиельно 
+
+видим папку
+	/var/lib/cni/networks/podman
+
+в ней файлы
+	10.88.0.4
+	10.88.0.5
+	last_reserved_ip.0
+	lock
+
+
+# grep "" *
+10.88.0.4:80cc32097cdafb0a3402844d0f4af16b18f1fc24969fa7a199e411dc27b00b46
+10.88.0.4:eth0
+10.88.0.5:21983f172bb5a995a680e9769ecab43c7cd4b896dff74cbefe1e9439f9f67b3b
+10.88.0.5:eth0
+last_reserved_ip.0:10.88.0.5
+
+
+еще вот такая папка
+/var/lib/cni/results
+
+в ней файлы
+	podman-21983f172bb5a995a680e9769ecab43c7cd4b896dff74cbefe1e9439f9f67b3b-eth0
+	podman-80cc32097cdafb0a3402844d0f4af16b18f1fc24969fa7a199e411dc27b00b46-eth0
+
+
+
+# cat podman-21983f172bb5a995a680e9769ecab43c7cd4b896dff74cbefe1e9439f9f67b3b-eth0 | jq
+{
+  "kind": "cniCacheV1",
+  "containerId": "21983f172bb5a995a680e9769ecab43c7cd4b896dff74cbefe1e9439f9f67b3b",
+  "config": "ewogICJjbmlWZXJzaW9uIjogIjAuNC4wIiwKICAibmFtZSI6ICJwb2RtYW4iLAogICJwbHVnaW5zIjogWwogICAgewogICAgICAidHlwZSI6ICJicmlkZ2UiLAogICAgICAiYnJpZGdlIjogImNuaS1wb2RtYW4wIiwKICAgICAgImlzR2F0ZXdheSI6IHRydWUsCiAgICAgICJpcE1hc3EiOiB0cnVlLAogICAgICAiaGFpcnBpbk1vZGUiOiB0cnVlLAogICAgICAiaXBhbSI6IHsKICAgICAgICAidHlwZSI6ICJob3N0LWxvY2FsIiwKICAgICAgICAicm91dGVzIjogW3sgImRzdCI6ICIwLjAuMC4wLzAiIH1dLAogICAgICAgICJyYW5nZXMiOiBbCiAgICAgICAgICBbCiAgICAgICAgICAgIHsKICAgICAgICAgICAgICAic3VibmV0IjogIjEwLjg4LjAuMC8xNiIsCiAgICAgICAgICAgICAgImdhdGV3YXkiOiAiMTAuODguMC4xIgogICAgICAgICAgICB9CiAgICAgICAgICBdCiAgICAgICAgXQogICAgICB9CiAgICB9LAogICAgewogICAgICAidHlwZSI6ICJwb3J0bWFwIiwKICAgICAgImNhcGFiaWxpdGllcyI6IHsKICAgICAgICAicG9ydE1hcHBpbmdzIjogdHJ1ZQogICAgICB9CiAgICB9LAogICAgewogICAgICAidHlwZSI6ICJmaXJld2FsbCIKICAgIH0sCiAgICB7CiAgICAgICJ0eXBlIjogInR1bmluZyIKICAgIH0KICBdCn0K",
+  "ifName": "eth0",
+  "networkName": "podman",
+  "cniArgs": [
+    [
+      "IgnoreUnknown",
+      "1"
+    ],
+    [
+      "K8S_POD_NAMESPACE",
+      "alp2-runc"
+    ],
+    [
+      "K8S_POD_NAME",
+      "alp2-runc"
+    ],
+    [
+      "K8S_POD_INFRA_CONTAINER_ID",
+      "21983f172bb5a995a680e9769ecab43c7cd4b896dff74cbefe1e9439f9f67b3b"
+    ]
+  ],
+  "result": {
+    "cniVersion": "0.4.0",
+    "dns": {},
+    "interfaces": [
+      {
+        "mac": "2a:6c:cf:ff:1c:85",
+        "name": "cni-podman0"
+      },
+      {
+        "mac": "76:f5:1a:94:54:a7",
+        "name": "veth0d663180"
+      },
+      {
+        "mac": "5e:61:5b:c0:40:9c",
+        "name": "eth0",
+        "sandbox": "/run/netns/cni-a96152c8-766b-71b0-1822-5a8d8bff0b8a"
+      }
+    ],
+    "ips": [
+      {
+        "address": "10.88.0.5/16",
+        "gateway": "10.88.0.1",
+        "interface": 2,
+        "version": "4"
+      }
+    ],
+    "routes": [
+      {
+        "dst": "0.0.0.0/0"
+      }
+    ]
+  }
+}
+
+
+
+тоесть CNI система запоминает где и какие сет настройки. и подман у нее эту инфо
+запрашвает
+
+вот я зашел на хост с к8. на нем есть поды.
+смотрю те же самые папки CNI
+и вижу тоже самое
+
+# cat  /var/lib/cni/cache/results/bridge-147768d33dd326e0e4eb42cdbc4dc694f5ae8bee764f183a3f1fe3c03200f817-eth0  | jq
+{
+  "kind": "cniCacheV1",
+  "containerId": "147768d33dd326e0e4eb42cdbc4dc694f5ae8bee764f183a3f1fe3c03200f817",
+  "config": "CnsKICAiY25pVmVyc2lvbiI6ICIwLjMuMSIsCiAgIm5hbWUiOiAiYnJpZGdlIiwKICAicGx1Z2lucyI6IFsKICAgIHsKICAgICAgInR5cGUiOiAiYnJpZGdlIiwKICAgICAgImJyaWRnZSI6ICJicmlkZ2UiLAogICAgICAiYWRkSWYiOiAidHJ1ZSIsCiAgICAgICJpc0RlZmF1bHRHYXRld2F5IjogdHJ1ZSwKICAgICAgImZvcmNlQWRkcmVzcyI6IGZhbHNlLAogICAgICAiaXBNYXNxIjogdHJ1ZSwKICAgICAgImhhaXJwaW5Nb2RlIjogdHJ1ZSwKICAgICAgImlwYW0iOiB7CiAgICAgICAgICAidHlwZSI6ICJob3N0LWxvY2FsIiwKICAgICAgICAgICJzdWJuZXQiOiAiMTAuMjQ0LjAuMC8xNiIKICAgICAgfQogICAgfSwKICAgIHsKICAgICAgInR5cGUiOiAicG9ydG1hcCIsCiAgICAgICJjYXBhYmlsaXRpZXMiOiB7CiAgICAgICAgICAicG9ydE1hcHBpbmdzIjogdHJ1ZQogICAgICB9CiAgICB9CiAgXQp9Cg==",
+  "ifName": "eth0",
+  "networkName": "bridge",
+  "cniArgs": [
+    [
+      "IgnoreUnknown",
+      "1"
+    ],
+    [
+      "K8S_POD_NAMESPACE",
+      "kube-system"
+    ],
+    [
+      "K8S_POD_NAME",
+      "coredns-5dd5756b68-ck9fd"
+    ],
+    [
+      "K8S_POD_INFRA_CONTAINER_ID",
+      "147768d33dd326e0e4eb42cdbc4dc694f5ae8bee764f183a3f1fe3c03200f817"
+    ]
+  ],
+  "capabilityArgs": {
+    "ipRanges": [
+      [
+        {
+          "subnet": "10.244.0.0/24"
+        }
+      ]
+    ],
+    "portMappings": []
+  },
+  "result": {
+    "cniVersion": "0.3.1",
+    "dns": {},
+    "interfaces": [
+      {
+        "mac": "4e:2f:72:c8:2c:2f",
+        "name": "bridge"
+      },
+      {
+        "mac": "62:b1:78:87:a3:57",
+        "name": "veth026cdd0d"
+      },
+      {
+        "mac": "f2:6d:b4:4e:46:70",
+        "name": "eth0",
+        "sandbox": "/proc/2280/ns/net"
+      }
+    ],
+    "ips": [
+      {
+        "address": "10.244.0.91/16",
+        "gateway": "10.244.0.1",
+        "interface": 2,
+        "version": "4"
+      }
+    ],
+    "routes": [
+      {
+        "dst": "0.0.0.0/0",
+        "gw": "10.244.0.1"
+      }
+    ]
+  }
+}
+
+тоеть CNI хранит в себе имя контйенера котрый запустил к8. какиеу него интефрейсы. какой у него IP
+
+охренеть!
+
+
+тесть в случае куба. важно понимать кто у него отвечает за создаие контенеров сверху. кто снизу.
+и кто за CNI сеть -сеть для подов.
+в моем случае  за создание конейнеров сверху отвечает докер. за создание контенеров снизу
+отвечает runc. за сеть для контейнеров отвечает CNI.
+потжму получается что докер про контейнер знает все кроме его сетевых настроек!
+а за сетевые настройки знает только CNI.
+ну а к8 аггрегирует эту инфо от обоих источников в одну кучу!
+поэтому например берем мы под . и смотрим его в к8
+# kubectl describe pods    depl1-586d9d8464-hv4vt | grep -i ip
+IP:               10.244.0.103
+
+также смотрим параметры контейнера
+Containers:
+  nginx:
+    Container ID:   docker://418a725b2c8b4bc6a5a7a2f34c2050626e1d9c3682190b58c1aa1623a3349377
+    Image:          nginx:1.14.1
+
+идем на хост и  через докер смотрим своства этого конйтенера
+$ docker container inspect  418a725b2c8b4b
+    "NetworkSettings": {
+            "Bridge": "",
+            "SandboxID": "",
+            "HairpinMode": false,
+            "LinkLocalIPv6Address": "",
+            "LinkLocalIPv6PrefixLen": 0,
+            "Ports": {},
+            "SandboxKey": "",
+            "SecondaryIPAddresses": null,
+            "SecondaryIPv6Addresses": null,
+            "EndpointID": "",
+            "Gateway": "",
+            "GlobalIPv6Address": "",
+            "GlobalIPv6PrefixLen": 0,
+            "IPAddress": "",
+            "IPPrefixLen": 0,
+            "IPv6Gateway": "",
+            "MacAddress": "",
+            "Networks": {}
+        }
+    }
+
+и видим что якобы нихрена никаких IP, сетевых карточек в контейнере нет!
+
+а ну точнее чуть по другому. в свойствах докер покзывает что контеер сидит в сети
+другого контейнера
+
+       "NetworkMode": "container:ab5627f7296ee26be536d172490f4367c6d9eae66b9f57bc6e8f6d7ff8cf2ba7",
+
+
+а когда так есть то он никогда сетевые настройки не покзывате.
+ну окей. мы идем в свойства этого другого контейнера!
+
+$ docker inspect ab5627f7296ee26be536d172490f4367c6d9eae66b9f57bc6e8f6d7ff8cf2ba7
+
+
+  "NetworkMode": "none",
+
+тоесть это означает что докер подколючил своими силиами через CNM этот контейнер 
+к сети none
+
+# docker network ls
+NETWORK ID     NAME       DRIVER    SCOPE
+ccb048a8effd   bridge     bridge    local
+787b262011fb   host       host      local
+bb4f019254c8   minikube   bridge    local
+45a9ceb1ef01   none       null      local
+
+та самая сеть none которая по факту дает то что в нутои конейтрера есть только l0
+интфреейс.
+
+
+и вот еще свойства этого кнтейнера
+
+  "NetworkSettings": {
+            "Bridge": "",
+            "SandboxID": "34cd5525c654c8d0e8bf7c97d4aad6eefc4f0f98affd148a742344f48b9c7e99",
+            "HairpinMode": false,
+            "LinkLocalIPv6Address": "",
+            "LinkLocalIPv6PrefixLen": 0,
+            "Ports": {},
+            "SandboxKey": "/var/run/docker/netns/34cd5525c654",
+            "SecondaryIPAddresses": null,
+            "SecondaryIPv6Addresses": null,
+            "EndpointID": "",
+            "Gateway": "",
+            "GlobalIPv6Address": "",
+            "GlobalIPv6PrefixLen": 0,
+            "IPAddress": "",
+            "IPPrefixLen": 0,
+            "IPv6Gateway": "",
+            "MacAddress": "",
+            "Networks": {
+                "none": {
+                    "IPAMConfig": null,
+                    "Links": null,
+                    "Aliases": null,
+                    "NetworkID": "4d29558aecf56d24029143977c6f1defd2d2108c77db26ddc1991b93951e8824",
+                    "EndpointID": "404bfeeab5b1770fbd801ae8588413ca590a7f1242a6b970bc02c15e003c956c",
+                    "Gateway": "",
+                    "IPAddress": "",
+                    "IPPrefixLen": 0,
+                    "IPv6Gateway": "",
+                    "GlobalIPv6Address": "",
+                    "GlobalIPv6PrefixLen": 0,
+                    "MacAddress": "",
+                    "DriverOpts": null
+                }
+            }
+        }
+    }
+]
+
+
+тоесть с точки зрения докер ниаких IP в контйеере нет!
+однако если мы заходим в сет неймспейс то конечно там все есть!
+
+nsenter --net=/var/run/docker/netns/34cd5525c654  ip -c a
+1: lo: <LOOPBACK,UP,LOWER_UP> 
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+2: eth0@if17:  
+    link/ether e2:0e:f3:a0:9b:18 brd ff:ff:ff:ff:ff:ff link-netnsid 0
+    inet 10.244.0.103/16 brd 10.244.255.255 scope global eth0
+
+
+адрес 10.244.0.103 ровно тотт что нам выше показал k8 !!!
+но докер об этом НЕДОГАДЫВАЕТСЯ!
+
+чтобы узнать какой CNI провайдер используется на хосте где крутится к8 
+идем вот сюда
+
+# cat  /etc/cni/net.d/1-k8s.conflist
+
+{
+  "cniVersion": "0.3.1",
+  "name": "bridge",
+  "plugins": [
+    {
+      "type": "bridge",
+      "bridge": "bridge",
+      "addIf": "true",
+      "isDefaultGateway": true,
+      "forceAddress": false,
+      "ipMasq": true,
+      "hairpinMode": true,
+      "ipam": {
+          "type": "host-local",
+          "subnet": "10.244.0.0/16"
+      }
+    },
+    {
+      "type": "portmap",
+      "capabilities": {
+          "portMappings": true
+      }
+    }
+  ]
+}
+
+итак мы видим что кубелет юзает CNI типа bridge ! а ip адреса назначает подам через 
+host-local ! значит ихние адреса сохраняются в /var/lib/cni/... !!!
+
+интересно было бы посмотреть что тут будет написано кода у нас CNI делает например calico
+или flannel
+ВАЖНО замечу что CNI отвечает за то чтобы наладить внутри одного хоста сеть для подов.
+тоесть при создании под(группа контереов) должна получить внутри себя сет карточку. получить
+IP. эти поды в рамках хоста должны друг с другом иметь связь. и чтобы с сет стека хоста
+тоже до них можно было достучаться. это все делает CNI.
+кто занимается связью подов между хостами (какой компонент) пока не знаю. 
+
+ В ИТОГЕ что касаетя к8 на базе миникуба. как там эта сеть выглядит для подов?
+ а выглядит это так. все поды получают IP из одной сети 10.244.0.0/16
+ все они через veth на сет стеке хоста ходят в сет стек хоста через линуас софт бридж
+вот его мастер порт 
+
+#  ip -c l sh up type bridge
+3: bridge: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP mode DEFAULT group default qlen 1000
+    link/ether 4e:2f:72:c8:2c:2f brd ff:ff:ff:ff:ff:ff
+
+инфомрация о выданых IP хранится в /var/lib/cni/networks/bridge/...
+
+это все как говортся я узнал вынюхивая все как говортся снизу без участия к8 в целом,
+испольуя инфо об CNI, контейререх итд.
+средствами самого к8 это можно узнать вот так
+
+# kubectl describe  nodes  minikube | grep CIDR
+PodCIDR:                      10.244.0.0/24
+PodCIDRs:                     10.244.0.0/24
+
+к сожалению деталей про CNI нет у к8 никаких!!!!
+
+и все. вот так все !
+
+
+
+
+
+
+
+ЗАДАЧА: заупстить crun из под containerd и из под докера
