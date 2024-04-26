@@ -187,3 +187,39 @@ PING ub3 (172.20.0.3): 56 data bytes
 $ docker inspect --format='{{index .RepoDigests 0}}' $IMAGE
 
 ===
+
+| build
+
+
+как создавать имаджи для докера
+
+пишем Dockerfile
+
+# cat Dockerfile 
+FROM alpine:latest
+
+COPY 22.exe  /opt/22.exe
+
+# Запускаем контейнер
+CMD ["/bin/sh"]
+
+
+
+создаем имадж
+# docker build .  --tag "22:latest"
+
+
+смотрим что за имадж получился
+# docker image ls
+REPOSITORY    TAG       IMAGE ID       CREATED         SIZE
+22            latest    c8dfd75e6c33   2 minutes ago   7.39MB
+
+
+запуск имаджа
+# docker run -itd  --name "22"   22:latest
+
+смотрим контенер
+# docker ps
+CONTAINER ID   IMAGE       COMMAND     CREATED          STATUS          PORTS     NAMES
+184ee03f078f   22:latest   "/bin/sh"   27 seconds ago   Up 25 seconds             22
+
