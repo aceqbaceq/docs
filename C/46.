@@ -1,0 +1,28 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+void vasya (int a, int *c){
+
+    puts("I am inside the function");
+    printf("a=%d\n", a);
+
+};
+
+int main(){
+
+  int ma;
+  void *mb;
+  int *mc;
+
+  ma = 1;
+  mb = &ma;
+  mc = &ma;
+
+  puts ("i am inside the main before calling the function");
+  printf("ma=%d, mc=%d, mb=%d\n",  ma,  *mc, *(int*)mb );
+
+  vasya(ma, mc);
+
+
+return(0);
+};

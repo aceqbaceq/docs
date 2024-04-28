@@ -1,0 +1,13 @@
+ioctl(255, TIOCGPGRP, [8463])           = 0
+ioctl(255, TIOCSPGRP, [8465])           = 0
+ioctl(255, TIOCGPGRP, [8465])           = 0
+ioctl(255, TIOCGWINSZ, {ws_row=43, ws_col=190, ws_xpixel=0, ws_ypixel=0}) = 0
+ioctl(1, TIOCGWINSZ, {ws_row=43, ws_col=190, ws_xpixel=0, ws_ypixel=0}) = 0
+ioctl(0, TIOCGWINSZ, {ws_row=43, ws_col=190, ws_xpixel=0, ws_ypixel=0}) = 0
+ioctl(1, TIOCGWINSZ, {ws_row=43, ws_col=190, ws_xpixel=0, ws_ypixel=0}) = 0
+ioctl(0, TIOCGWINSZ, {ws_row=43, ws_col=190, ws_xpixel=0, ws_ypixel=0}) = 0
+ioctl(0, TIOCSWINSZ, {ws_row=43, ws_col=190, ws_xpixel=0, ws_ypixel=0}) = 0
+ioctl(255, TIOCSPGRP, [8465])           = 0
+ioctl(0, TIOCGWINSZ, {ws_row=43, ws_col=190, ws_xpixel=0, ws_ypixel=0}) = 0
+ioctl(0, TIOCSWINSZ, {ws_row=43, ws_col=190, ws_xpixel=0, ws_ypixel=0}) = 0
+ioctl(0, SNDCTL_TMR_STOP or TCSETSW, {c_iflags=0x4400, c_oflags=0x5, c_cflags=0xbf, c_lflags=0x8a31, c_line=0, c_cc[VMIN]=1, c_cc[VTIME]=0, c_cc="\x03\x1c\x7f\x15\x04\x00\x01\x00\x11\x13\x1a\x00\x12\x0f\x17\x00\x00\x00\x00"}) = 0

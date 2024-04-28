@@ -1,0 +1,314 @@
+SIGNAL(7)                                                                       Linux Programmer's Manual                                                                       SIGNAL(7)
+
+NNAAMMEE
+       signal - overview of signals
+
+DDEESSCCRRIIPPTTIIOONN
+       Linux supports both POSIX reliable signals (hereinafter "standard signals") and POSIX real-time signals.
+
+   SSiiggnnaall ddiissppoossiittiioonnss
+       Each signal has a current _d_i_s_p_o_s_i_t_i_o_n, which determines how the process behaves when it is delivered the signal.
+
+       The entries in the "Action" column of the tables below specify the default disposition for each signal, as follows:
+
+       Term   Default action is to terminate the process.
+
+       Ign    Default action is to ignore the signal.
+
+       Core   Default action is to terminate the process and dump core (see ccoorree(5)).
+
+       Stop   Default action is to stop the process.
+
+       Cont   Default action is to continue the process if it is currently stopped.
+
+       A  process  can  change the disposition of a signal using ssiiggaaccttiioonn(2) or ssiiggnnaall(2).  (The latter is less portable when establishing a signal handler; see ssiiggnnaall(2) for details.)
+       Using these system calls, a process can elect one of the following behaviors to occur on delivery of the signal: perform the default action; ignore the signal; or catch the  sig‐
+       nal  with  a  _s_i_g_n_a_l  _h_a_n_d_l_e_r, a programmer-defined function that is automatically invoked when the signal is delivered.  (By default, the signal handler is invoked on the normal
+       process stack.  It is possible to arrange that the signal handler uses an alternate stack; see ssiiggaallttssttaacckk(2) for a discussion of how to do this and when it might be useful.)
+
+       The signal disposition is a per-process attribute: in a multithreaded application, the disposition of a particular signal is the same for all threads.
+
+       A child created via ffoorrkk(2) inherits a copy of its parent's signal dispositions.  During an eexxeeccvvee(2), the dispositions of handled signals are reset to the default; the  disposi‐
+       tions of ignored signals are left unchanged.
+
+   SSeennddiinngg aa ssiiggnnaall
+       The following system calls and library functions allow the caller to send a signal:
+
+       rraaiissee(3)        Sends a signal to the calling thread.
+
+       kkiillll(2)         Sends a signal to a specified process, to all members of a specified process group, or to all processes on the system.
+
+       kkiillllppgg(3)       Sends a signal to all of the members of a specified process group.
+
+       pptthhrreeaadd__kkiillll(3) Sends a signal to a specified POSIX thread in the same process as the caller.
+
+       ttggkkiillll(2)       Sends a signal to a specified thread within a specific process.  (This is the system call used to implement pptthhrreeaadd__kkiillll(3).)
+
+       ssiiggqquueeuuee(3)     Sends a real-time signal with accompanying data to a specified process.
+
+   WWaaiittiinngg ffoorr aa ssiiggnnaall ttoo bbee ccaauugghhtt
+       The following system calls suspend execution of the calling process or thread until a signal is caught (or an unhandled signal terminates the process):
+
+       ppaauussee(2)        Suspends execution until any signal is caught.
+
+       ssiiggssuussppeenndd(2)   Temporarily changes the signal mask (see below) and suspends execution until one of the unmasked signals is caught.
+
+   SSyynncchhrroonnoouussllyy aacccceeppttiinngg aa ssiiggnnaall
+       Rather  than  asynchronously catching a signal via a signal handler, it is possible to synchronously accept the signal, that is, to block execution until the signal is delivered,
+       at which point the kernel returns information about the signal to the caller.  There are two general ways to do this:
+
+       * ssiiggwwaaiittiinnffoo(2), ssiiggttiimmeeddwwaaiitt(2), and ssiiggwwaaiitt(3) suspend execution until one of the signals in a specified set is delivered.  Each of these calls returns information  about  the
+         delivered signal.
+
+       * ssiiggnnaallffdd(2)  returns a file descriptor that can be used to read information about signals that are delivered to the caller.  Each rreeaadd(2) from this file descriptor blocks until
+         one of the signals in the set specified in the ssiiggnnaallffdd(2) call is delivered to the caller.  The buffer returned by rreeaadd(2) contains a structure describing the signal.
+
+   SSiiggnnaall mmaasskk aanndd ppeennddiinngg ssiiggnnaallss
+       A signal may be _b_l_o_c_k_e_d, which means that it will not be delivered until it is later unblocked.  Between the time when it is generated and when it is delivered a signal  is  said
+       to be _p_e_n_d_i_n_g.
+
+       Each  thread in a process has an independent _s_i_g_n_a_l _m_a_s_k, which indicates the set of signals that the thread is currently blocking.  A thread can manipulate its signal mask using
+       pptthhrreeaadd__ssiiggmmaasskk(3).  In a traditional single-threaded application, ssiiggpprrooccmmaasskk(2) can be used to manipulate the signal mask.
+
+       A child created via ffoorrkk(2) inherits a copy of its parent's signal mask; the signal mask is preserved across eexxeeccvvee(2).
+
+       A signal may be generated (and thus pending) for a process as a whole (e.g., when sent using kkiillll(2)) or for a specific thread (e.g., certain signals, such as SSIIGGSSEEGGVV and SSIIGGFFPPEE,
+       generated  as  a  consequence  of  executing  a specific machine-language instruction are thread directed, as are signals targeted at a specific thread using pptthhrreeaadd__kkiillll(3)).  A
+       process-directed signal may be delivered to any one of the threads that does not currently have the signal blocked.  If more than one of the threads  has  the  signal  unblocked,
+       then the kernel chooses an arbitrary thread to which to deliver the signal.
+
+       A  thread  can obtain the set of signals that it currently has pending using ssiiggppeennddiinngg(2).  This set will consist of the union of the set of pending process-directed signals and
+       the set of signals pending for the calling thread.
+
+       A child created via ffoorrkk(2) initially has an empty pending signal set; the pending signal set is preserved across an eexxeeccvvee(2).
+
+   SSttaannddaarrdd ssiiggnnaallss
+       Linux supports the standard signals listed below.  Several signal numbers are architecture-dependent, as indicated in the "Value" column.  (Where  three  values  are  given,  the
+       first  one  is usually valid for alpha and sparc, the middle one for x86, arm, and most other architectures, and the last one for mips.  (Values for parisc are _n_o_t shown; see the
+       Linux kernel source for signal numbering on that architecture.)  A dash (-) denotes that a signal is absent on the corresponding architecture.
+
+       First the signals described in the original POSIX.1-1990 standard.
+
+       Signal     Value     Action   Comment
+       ──────────────────────────────────────────────────────────────────────
+       SSIIGGHHUUPP        1       Term    Hangup detected on controlling terminal
+                                     or death of controlling process
+       SSIIGGIINNTT        2       Term    Interrupt from keyboard
+       SSIIGGQQUUIITT       3       Core    Quit from keyboard
+       SSIIGGIILLLL        4       Core    Illegal Instruction
+       SSIIGGAABBRRTT       6       Core    Abort signal from aabboorrtt(3)
+       SSIIGGFFPPEE        8       Core    Floating-point exception
+       SSIIGGKKIILLLL       9       Term    Kill signal
+       SSIIGGSSEEGGVV      11       Core    Invalid memory reference
+       SSIIGGPPIIPPEE      13       Term    Broken pipe: write to pipe with no
+                                     readers; see ppiippee(7)
+       SSIIGGAALLRRMM      14       Term    Timer signal from aallaarrmm(2)
+       SSIIGGTTEERRMM      15       Term    Termination signal
+       SSIIGGUUSSRR11   30,10,16    Term    User-defined signal 1
+       SSIIGGUUSSRR22   31,12,17    Term    User-defined signal 2
+       SSIIGGCCHHLLDD   20,17,18    Ign     Child stopped or terminated
+       SSIIGGCCOONNTT   19,18,25    Cont    Continue if stopped
+       SSIIGGSSTTOOPP   17,19,23    Stop    Stop process
+       SSIIGGTTSSTTPP   18,20,24    Stop    Stop typed at terminal
+       SSIIGGTTTTIINN   21,21,26    Stop    Terminal input for background process
+       SSIIGGTTTTOOUU   22,22,27    Stop    Terminal output for background process
+
+       The signals SSIIGGKKIILLLL and SSIIGGSSTTOOPP cannot be caught, blocked, or ignored.
+
+       Next the signals not in the POSIX.1-1990 standard but described in SUSv2 and POSIX.1-2001.
+
+       Signal       Value     Action   Comment
+       ────────────────────────────────────────────────────────────────────
+       SSIIGGBBUUSS      10,7,10     Core    Bus error (bad memory access)
+       SSIIGGPPOOLLLL                 Term    Pollable event (Sys V).
+                                       Synonym for SSIIGGIIOO
+       SSIIGGPPRROOFF     27,27,29    Term    Profiling timer expired
+       SSIIGGSSYYSS      12,31,12    Core    Bad system call (SVr4);
+                                       see also sseeccccoommpp(2)
+       SSIIGGTTRRAAPP        5        Core    Trace/breakpoint trap
+       SSIIGGUURRGG      16,23,21    Ign     Urgent condition on socket (4.2BSD)
+
+       SSIIGGVVTTAALLRRMM   26,26,28    Term    Virtual alarm clock (4.2BSD)
+       SSIIGGXXCCPPUU     24,24,30    Core    CPU time limit exceeded (4.2BSD);
+                                       see sseettrrlliimmiitt(2)
+       SSIIGGXXFFSSZZ     25,25,31    Core    File size limit exceeded (4.2BSD);
+                                       see sseettrrlliimmiitt(2)
+
+       Up to and including Linux 2.2, the default behavior for SSIIGGSSYYSS, SSIIGGXXCCPPUU, SSIIGGXXFFSSZZ, and (on architectures other than SPARC and MIPS) SSIIGGBBUUSS was to terminate the process (without  a
+       core  dump).   (On  some  other  UNIX systems the default action for SSIIGGXXCCPPUU and SSIIGGXXFFSSZZ is to terminate the process without a core dump.)  Linux 2.4 conforms to the POSIX.1-2001
+       requirements for these signals, terminating the process with a core dump.
+
+       Next various other signals.
+
+       Signal       Value     Action   Comment
+       ────────────────────────────────────────────────────────────────────
+       SSIIGGIIOOTT         6        Core    IOT trap. A synonym for SSIIGGAABBRRTT
+       SSIIGGEEMMTT       7,-,7      Term    Emulator trap
+       SSIIGGSSTTKKFFLLTT    -,16,-     Term    Stack fault on coprocessor (unused)
+       SSIIGGIIOO       23,29,22    Term    I/O now possible (4.2BSD)
+       SSIIGGCCLLDD       -,-,18     Ign     A synonym for SSIIGGCCHHLLDD
+       SSIIGGPPWWRR      29,30,19    Term    Power failure (System V)
+       SSIIGGIINNFFOO      29,-,-             A synonym for SSIIGGPPWWRR
+       SSIIGGLLOOSSTT      -,-,-      Term    File lock lost (unused)
+       SSIIGGWWIINNCCHH    28,28,20    Ign     Window resize signal (4.3BSD, Sun)
+       SSIIGGUUNNUUSSEEDD    -,31,-     Core    Synonymous with SSIIGGSSYYSS
+
+       (Signal 29 is SSIIGGIINNFFOO / SSIIGGPPWWRR on an alpha but SSIIGGLLOOSSTT on a sparc.)
+
+       SSIIGGEEMMTT is not specified in POSIX.1-2001, but nevertheless appears on most other UNIX systems, where its default action is typically to terminate the process with a core dump.
+
+       SSIIGGPPWWRR (which is not specified in POSIX.1-2001) is typically ignored by default on those other UNIX systems where it appears.
+
+       SSIIGGIIOO (which is not specified in POSIX.1-2001) is ignored by default on several other UNIX systems.
+
+       Where defined, SSIIGGUUNNUUSSEEDD is synonymous with SSIIGGSSYYSS on most architectures.  Since glibc 2.26, SSIIGGUUNNUUSSEEDD is no longer defined on any architecture.
+
+   RReeaall--ttiimmee ssiiggnnaallss
+       Starting with version 2.2, Linux supports real-time signals as originally defined in the POSIX.1b real-time extensions (and now included in POSIX.1-2001).  The range of supported
+       real-time signals is defined by the macros SSIIGGRRTTMMIINN and SSIIGGRRTTMMAAXX.  POSIX.1-2001 requires that an implementation support at least __PPOOSSIIXX__RRTTSSIIGG__MMAAXX (8) real-time signals.
+
+       The  Linux  kernel supports a range of 33 different real-time signals, numbered 32 to 64.  However, the glibc POSIX threads implementation internally uses two (for NPTL) or three
+       (for LinuxThreads) real-time signals (see pptthhrreeaaddss(7)), and adjusts the value of SSIIGGRRTTMMIINN suitably (to 34 or 35).  Because the range of available real-time signals varies accord‐
+       ing to the glibc threading implementation (and this variation can occur at run time according to the available kernel and glibc), and indeed the range of real-time signals varies
+       across UNIX systems, programs should _n_e_v_e_r _r_e_f_e_r _t_o _r_e_a_l_-_t_i_m_e _s_i_g_n_a_l_s _u_s_i_n_g _h_a_r_d_-_c_o_d_e_d _n_u_m_b_e_r_s, but instead should always refer to real-time signals  using  the  notation  SSIIGGRRTT‐‐
+       MMIINN+n, and include suitable (run-time) checks that SSIIGGRRTTMMIINN+n does not exceed SSIIGGRRTTMMAAXX.
+
+       Unlike standard signals, real-time signals have no predefined meanings: the entire set of real-time signals can be used for application-defined purposes.
+
+       The default action for an unhandled real-time signal is to terminate the receiving process.
+
+       Real-time signals are distinguished by the following:
+
+       1.  Multiple  instances  of  real-time  signals can be queued.  By contrast, if multiple instances of a standard signal are delivered while that signal is currently blocked, then
+           only one instance is queued.
+
+       2.  If the signal is sent using ssiiggqquueeuuee(3), an accompanying value (either an integer or a pointer) can be sent with the signal.  If the receiving process establishes  a  handler
+           for this signal using the SSAA__SSIIGGIINNFFOO flag to ssiiggaaccttiioonn(2), then it can obtain this data via the _s_i___v_a_l_u_e field of the _s_i_g_i_n_f_o___t structure passed as the second argument to the
+           handler.  Furthermore, the _s_i___p_i_d and _s_i___u_i_d fields of this structure can be used to obtain the PID and real user ID of the process sending the signal.
+
+       3.  Real-time signals are delivered in a guaranteed order.  Multiple real-time signals of the same type are delivered in the order they were sent.  If different real-time signals
+           are  sent  to  a process, they are delivered starting with the lowest-numbered signal.  (I.e., low-numbered signals have highest priority.)  By contrast, if multiple standard
+           signals are pending for a process, the order in which they are delivered is unspecified.
+
+       If both standard and real-time signals are pending for a process, POSIX leaves it unspecified which is delivered first.  Linux, like many other implementations, gives priority to
+       standard signals in this case.
+
+       According  to  POSIX,  an implementation should permit at least __PPOOSSIIXX__SSIIGGQQUUEEUUEE__MMAAXX (32) real-time signals to be queued to a process.  However, Linux does things differently.  In
+       kernels up to and including 2.6.7, Linux imposes a system-wide limit on the number of queued real-time signals for all processes.  This limit can be viewed and  (with  privilege)
+       changed  via  the  _/_p_r_o_c_/_s_y_s_/_k_e_r_n_e_l_/_r_t_s_i_g_-_m_a_x file.  A related file, _/_p_r_o_c_/_s_y_s_/_k_e_r_n_e_l_/_r_t_s_i_g_-_n_r, can be used to find out how many real-time signals are currently queued.  In Linux
+       2.6.8, these _/_p_r_o_c interfaces were replaced by the RRLLIIMMIITT__SSIIGGPPEENNDDIINNGG resource limit, which specifies a per-user limit for queued signals; see sseettrrlliimmiitt(2) for further details.
+
+       The addition of real-time signals required the widening of the signal set structure (_s_i_g_s_e_t___t) from 32 to 64 bits.  Consequently, various system calls were superseded by new sys‐
+       tem calls that supported the larger signal sets.  The old and new system calls are as follows:
+
+       LLiinnuuxx 22..00 aanndd eeaarrlliieerr   LLiinnuuxx 22..22 aanndd llaatteerr
+       ssiiggaaccttiioonn(2)            rrtt__ssiiggaaccttiioonn(2)
+       ssiiggppeennddiinngg(2)           rrtt__ssiiggppeennddiinngg(2)
+       ssiiggpprrooccmmaasskk(2)          rrtt__ssiiggpprrooccmmaasskk(2)
+       ssiiggrreettuurrnn(2)            rrtt__ssiiggrreettuurrnn(2)
+       ssiiggssuussppeenndd(2)           rrtt__ssiiggssuussppeenndd(2)
+       ssiiggttiimmeeddwwaaiitt(2)         rrtt__ssiiggttiimmeeddwwaaiitt(2)
+
+   IInntteerrrruuppttiioonn ooff ssyysstteemm ccaallllss aanndd lliibbrraarryy ffuunnccttiioonnss bbyy ssiiggnnaall hhaannddlleerrss
+       If a signal handler is invoked while a system call or library function call is blocked, then either:
+
+       * the call is automatically restarted after the signal handler returns; or
+
+       * the call fails with the error EEIINNTTRR.
+
+       Which of these two behaviors occurs depends on the interface and whether or not the signal handler was established using the SSAA__RREESSTTAARRTT flag (see ssiiggaaccttiioonn(2)).  The details vary
+       across UNIX systems; below, the details for Linux.
+
+       If a blocked call to one of the following interfaces is interrupted by a signal handler, then the call is  automatically  restarted  after  the  signal  handler  returns  if  the
+       SSAA__RREESSTTAARRTT flag was used; otherwise the call fails with the error EEIINNTTRR:
+
+       * rreeaadd(2), rreeaaddvv(2), wwrriittee(2), wwrriitteevv(2), and iiooccttll(2) calls on "slow" devices.  A "slow" device is one where the I/O call may block for an indefinite time, for example, a termi‐
+         nal, pipe, or socket.  If an I/O call on a slow device has already transferred some data by the time it is interrupted by a signal handler, then the call will return a  success
+         status  (normally,  the number of bytes transferred).  Note that a (local) disk is not a slow device according to this definition; I/O operations on disk devices are not inter‐
+         rupted by signals.
+
+       * ooppeenn(2), if it can block (e.g., when opening a FIFO; see ffiiffoo(7)).
+
+       * wwaaiitt(2), wwaaiitt33(2), wwaaiitt44(2), wwaaiittiidd(2), and wwaaiittppiidd(2).
+
+       * Socket interfaces: aacccceepptt(2), ccoonnnneecctt(2), rreeccvv(2), rreeccvvffrroomm(2), rreeccvvmmmmssgg(2), rreeccvvmmssgg(2), sseenndd(2), sseennddttoo(2), and sseennddmmssgg(2), unless a timeout has been set on  the  socket  (see
+         below).
+
+       * File locking interfaces: fflloocckk(2) and the FF__SSEETTLLKKWW and FF__OOFFDD__SSEETTLLKKWW operations of ffccnnttll(2)
+
+       * POSIX message queue interfaces: mmqq__rreecceeiivvee(3), mmqq__ttiimmeeddrreecceeiivvee(3), mmqq__sseenndd(3), and mmqq__ttiimmeeddsseenndd(3).
+
+       * ffuutteexx(2) FFUUTTEEXX__WWAAIITT (since Linux 2.6.22; beforehand, always failed with EEIINNTTRR).
+
+       * ggeettrraannddoomm(2).
+
+       * pptthhrreeaadd__mmuutteexx__lloocckk(3), pptthhrreeaadd__ccoonndd__wwaaiitt(3), and related APIs.
+
+       * ffuutteexx(2) FFUUTTEEXX__WWAAIITT__BBIITTSSEETT.
+
+       * POSIX semaphore interfaces: sseemm__wwaaiitt(3) and sseemm__ttiimmeeddwwaaiitt(3) (since Linux 2.6.22; beforehand, always failed with EEIINNTTRR).
+
+       * rreeaadd(2) from an iinnoottiiffyy(7) file descriptor (since Linux 3.8; beforehand, always failed with EEIINNTTRR).
+
+       The  following  interfaces are never restarted after being interrupted by a signal handler, regardless of the use of SSAA__RREESSTTAARRTT; they always fail with the error EEIINNTTRR when inter‐
+       rupted by a signal handler:
+
+       * "Input" socket interfaces, when a timeout (SSOO__RRCCVVTTIIMMEEOO) has been set on the socket using sseettssoocckkoopptt(2): aacccceepptt(2), rreeccvv(2), rreeccvvffrroomm(2), rreeccvvmmmmssgg(2) (also with a non-NULL _t_i_m_e_‐
+         _o_u_t argument), and rreeccvvmmssgg(2).
+
+       * "Output" socket interfaces, when a timeout (SSOO__RRCCVVTTIIMMEEOO) has been set on the socket using sseettssoocckkoopptt(2): ccoonnnneecctt(2), sseenndd(2), sseennddttoo(2), and sseennddmmssgg(2).
+
+       * Interfaces used to wait for signals: ppaauussee(2), ssiiggssuussppeenndd(2), ssiiggttiimmeeddwwaaiitt(2), and ssiiggwwaaiittiinnffoo(2).
+
+       * File descriptor multiplexing interfaces: eeppoollll__wwaaiitt(2), eeppoollll__ppwwaaiitt(2), ppoollll(2), ppppoollll(2), sseelleecctt(2), and ppsseelleecctt(2).
+
+       * System V IPC interfaces: mmssggrrccvv(2), mmssggssnndd(2), sseemmoopp(2), and sseemmttiimmeeddoopp(2).
+
+       * Sleep interfaces: cclloocckk__nnaannoosslleeeepp(2), nnaannoosslleeeepp(2), and uusslleeeepp(3).
+
+       * iioo__ggeetteevveennttss(2).
+
+       The sslleeeepp(3) function is also never restarted if interrupted by a handler, but gives a success return: the number of seconds remaining to sleep.
+
+   IInntteerrrruuppttiioonn ooff ssyysstteemm ccaallllss aanndd lliibbrraarryy ffuunnccttiioonnss bbyy ssttoopp ssiiggnnaallss
+       On  Linux,  even  in  the  absence  of signal handlers, certain blocking interfaces can fail with the error EEIINNTTRR after the process is stopped by one of the stop signals and then
+       resumed via SSIIGGCCOONNTT.  This behavior is not sanctioned by POSIX.1, and doesn't occur on other systems.
+
+       The Linux interfaces that display this behavior are:
+
+       * "Input" socket interfaces, when a timeout (SSOO__RRCCVVTTIIMMEEOO) has been set on the socket using sseettssoocckkoopptt(2): aacccceepptt(2), rreeccvv(2), rreeccvvffrroomm(2), rreeccvvmmmmssgg(2) (also with a non-NULL _t_i_m_e_‐
+         _o_u_t argument), and rreeccvvmmssgg(2).
+
+       * "Output"  socket  interfaces,  when  a  timeout  (SSOO__RRCCVVTTIIMMEEOO) has been set on the socket using sseettssoocckkoopptt(2): ccoonnnneecctt(2), sseenndd(2), sseennddttoo(2), and sseennddmmssgg(2), if a send timeout
+         (SSOO__SSNNDDTTIIMMEEOO) has been set.
+
+       * eeppoollll__wwaaiitt(2), eeppoollll__ppwwaaiitt(2).
+
+       * sseemmoopp(2), sseemmttiimmeeddoopp(2).
+
+       * ssiiggttiimmeeddwwaaiitt(2), ssiiggwwaaiittiinnffoo(2).
+
+       * Linux 3.7 and earlier: rreeaadd(2) from an iinnoottiiffyy(7) file descriptor
+
+       * Linux 2.6.21 and earlier: ffuutteexx(2) FFUUTTEEXX__WWAAIITT, sseemm__ttiimmeeddwwaaiitt(3), sseemm__wwaaiitt(3).
+
+       * Linux 2.6.8 and earlier: mmssggrrccvv(2), mmssggssnndd(2).
+
+       * Linux 2.4 and earlier: nnaannoosslleeeepp(2).
+
+CCOONNFFOORRMMIINNGG TTOO
+       POSIX.1, except as noted.
+
+NNOOTTEESS
+       For a discussion of async-signal-safe functions, see ssiiggnnaall--ssaaffeettyy(7).
+
+SSEEEE AALLSSOO
+       kkiillll(1), ggeettrrlliimmiitt(2), kkiillll(2), rreessttaarrtt__ssyyssccaallll(2), rrtt__ssiiggqquueeuueeiinnffoo(2), sseettiittiimmeerr(2), sseettrrlliimmiitt(2), ssggeettmmaasskk(2), ssiiggaaccttiioonn(2), ssiiggaallttssttaacckk(2),  ssiiggnnaall(2),  ssiiggnnaallffdd(2),  ssiiggppeenndd‐‐
+       iinngg(2), ssiiggpprrooccmmaasskk(2), ssiiggrreettuurrnn(2), ssiiggssuussppeenndd(2), ssiiggwwaaiittiinnffoo(2), aabboorrtt(3), bbssdd__ssiiggnnaall(3), kkiillllppgg(3), lloonnggjjmmpp(3), pptthhrreeaadd__ssiiggqquueeuuee(3), rraaiissee(3), ssiiggqquueeuuee(3), ssiiggsseett(3), ssiiggssee‐‐
+       ttooppss(3), ssiiggvveecc(3), ssiiggwwaaiitt(3), ssttrrssiiggnnaall(3), ssyyssvv__ssiiggnnaall(3), ccoorree(5), pprroocc(5), nnppttll(7), pptthhrreeaaddss(7), ssiiggeevveenntt(7)
+
+CCOOLLOOPPHHOONN
+       This page is part of release 4.15 of the Linux _m_a_n_-_p_a_g_e_s project.  A description of the project, information about reporting bugs, and the latest version of  this  page,  can  be
+       found at https://www.kernel.org/doc/man-pages/.
+
+Linux                                                                                   2017-09-15                                                                              SIGNAL(7)

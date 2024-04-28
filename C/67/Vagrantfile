@@ -1,0 +1,31 @@
+VAGRANTFILE_API_VERSION = "2"
+
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+  # Use the same key for each machine
+     config.ssh.insert_key = false
+ 
+      
+
+    config.vm.define "vagrant5" do |settings|
+      settings.vm.box = "ubuntu/xenial64"
+      settings.vm.network "private_network", ip: "10.20.0.10"
+      settings.vm.network "forwarded_port", guest: 80, host: 8080
+          settings.vm.provider "virtualbox" do |hw|
+            hw.memory = "680"
+            hw.cpus = 1
+          end
+
+    end
+
+
+
+
+
+
+
+
+
+
+end
+
+
