@@ -14,17 +14,27 @@ int main(int argc, char *argv[], char *envp[])
 
 
 
-unsigned int i=1;
+unsigned int i=0;
 while(argv[i]) {
-  printf("$%u=%s\n", i, argv[i]);
-  //do something
+  printf("argv: $%u=%s\n", i, argv[i]);
   i++;
 };
+
+printf ("----------\n");
+
+i=0;
+while(envp[i]) {
+  printf("envp: $%u=%s\n", i, envp[i]);
+  i++;
+};
+
+printf ("----------\n");
+
 
 
 pid_t p;
 p=getpid();
-printf ("pid=%u\n", p);
+printf ("155.exe : pid=%u\n", p);
 
 
 exit (0);
