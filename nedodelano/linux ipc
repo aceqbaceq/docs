@@ -1,0 +1,5 @@
+linux ipc
+
+речь идет о semaphores, shared memory, message queue
+
+<<=== надо это все ну примерах в C посмотреть

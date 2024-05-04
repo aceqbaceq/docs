@@ -1,0 +1,344 @@
+===
+что инесно lsns.
+есть же куча процессов котоыре имеют одинаковы неймсейс. как же тогда
+она рисует вывод? а она рисует тогда именно тот процесс которйы имеет 
+самй малый pid с этим неймсейсо. тоесть ели унас
+pid=1 имеет mnt ns1 и pid=100 имеет этот же ns1 mnnt pid то lsns на экране
+покажет тлоько pid=1 
+
+вот ест дерево процессов
+
+# pstree -pTS
+systemd(1)─┬─agetty(420)
+           ├─containerd(412)
+           ├─containerd-shim(29432)───sh(29463,cgroup,ipc,mnt,net,pid,uts)
+           ├─containerd-shim(30145)───nginx(30164,cgroup,ipc,mnt,net,pid,uts)───nginx(30240)
+           ├─containerd-shim(34615)─┬─bash(34637,cgroup,ipc,mnt,net,pid,uts)
+           │                        └─bash(38017,cgroup,ipc,mnt,net,pid,uts)
+           ├─containerd-shim(34711)───pause(34744,cgroup,ipc,mnt,net,pid,uts)
+           ├─cron(390)
+           ├─dbus-daemon(391)
+           ├─dockerd(538)
+           ├─lxd-agent(206)─┬─bash(244)
+         
+
+
+вывод lsns для mnt неспейсов
+~# lsns -t mnt
+        NS TYPE NPROCS   PID USER             COMMAND
+4026531841 mnt      94     1 root             /sbin/init
+4026531862 mnt       1    16 root             kdevtmpfs
+4026532287 mnt       1 30296 root             /lib/systemd/systemd-udevd
+4026532343 mnt       1 30291 systemd-timesync /lib/systemd/systemd-timesyncd
+4026532344 mnt       1 30300 root             /lib/systemd/systemd-logind
+4026532345 mnt       1 30295 systemd-network  /lib/systemd/systemd-networkd
+4026532346 mnt       1 30286 systemd-resolve  /lib/systemd/systemd-resolved
+4026532351 mnt       1 34744 65535            /pause
+4026532355 mnt       2 34637 root             /bin/bash
+4026532407 mnt       1 29463 root             /bin/sh
+4026532460 mnt       2 30164 root             nginx: master process nginx -g daemon off;
+
+видно что в выводе lsns нет shim процессов. почему. потмоу что у них mnt неймспейс
+такой же как прцесса init pid=1 поэтому в выводе показан только init а shim
+не показаны
+
+вот я беру один из shim и смоьрю  у него какой mnt нейфпейс
+# lsns -t mnt -p 29432
+        NS TYPE NPROCS PID USER COMMAND
+4026531841 mnt      94   1 root /sbin/init
+
+и он говоорит что он такойже как у init процесса
+
+===
+
+
+
+сказано что docekr exec создает еще один runc контейер.проверить.
+я проверил это брехня.
+вот есть список контйнеов
+
+# docker ps
+CONTAINER ID   IMAGE                       COMMAND                  NAMES
+1039308ebcab   ubuntu                      "/bin/bash"              bash1
+6e7ef51bb5a9   22                          "/bin/sh"                22
+38ef3c7c3c3f   registry.k8s.io/pause:3.6   "/pause"                 pause1
+b7d1bf6c45eb   nginx                       "/docker-entrypoint.…"   nginx
+
+вот список контенеров с точки зрения runc
+# runc --root=/run/docker/runtime-runc/moby/   list | awk '{print $1}' 
+ID
+1039308ebcab089aec76043ccdc61ead3a076f9e0c439f469dd4fdfb7e1ff6ae
+38ef3c7c3c3fb90ab51816278e59be5c73186c09bb9574994fdb1107afe4d644
+6e7ef51bb5a9e1d6bf9cbe868268e9a5317dee0942f3d01eeb56e588d8202173
+b7d1bf6c45ebc133f7d579b49a8203090f6a00d66be24abc85ed2cb70e6f9b5f
+
+как видим их 4 как и в докере показано. id теже самые.
+
+теперь я  делаю exec в контейнер bash1
+
+$ docker exec -it bash1 bash
+
+понятно что докер нам покажет что контейеров по прежнему 4. 
+вопрос что покажет runc
+
+~# runc --root=/run/docker/runtime-runc/moby/   list | awk '{print $1}' 
+ID
+1039308ebcab089aec76043ccdc61ead3a076f9e0c439f469dd4fdfb7e1ff6ae
+38ef3c7c3c3fb90ab51816278e59be5c73186c09bb9574994fdb1107afe4d644
+6e7ef51bb5a9e1d6bf9cbe868268e9a5317dee0942f3d01eeb56e588d8202173
+b7d1bf6c45ebc133f7d579b49a8203090f6a00d66be24abc85ed2cb70e6f9b5f
+
+с точки зрения runc число контйенеров отсалось тоже самое.
+
+так что пиздят. docker exec не приводит к образованию +1 контейенера.
+другой вопрос а что все таки называть контейнером. дело в том что так как 
+нет такой независимой единой единицы как контенер (как скажем диск, или файл или процесс)
+то фраза "мы создали +1 контейнер" она размыта не определена. создать контейнер
+значит точно создать процесс. но каким свойствами должен обладать процесс по 
+миниммуму чтобы его можно было идентифицировать как "контейнер". ведь то что runc
+показыает 4 контейрера это мнение runc. а кто сказал что runc это конечная инстацния.
+мы можем на компе поднять crun. и с его помощью тоже создать контйенеры. тогда crun
+покажет свои контенеры а runc покажет свои контеенеры. 
+
+что точно понятно если есть два процесса и у них одинаковая cgrppup и все одтнаковые
+неймспейсы то они сидят в одном контейнере. это точно. возможно  если у двух
+процессов отличается хотя бы один неймспейс или отличаются цгруппы видимо это 
+уже и значит что они лежат уже в разных контейнерах
+
+итак мы запустили bash через  docker exec, найдем pid этого баш процесса
+# ps aux | grep docker | grep bash1
+root       38003  0.0  4.2 1696128 18896 pts/9   Sl+  08:25   0:00 docker exec -it bash1 bash
+
+pid=38003
+
+найдем pid баш процесса в исходном контйенере bash1
+
+# docker inspect bash1 | grep -i pid
+            "Pid": 34637
+
+посмотрим а что docker top покажет
+
+root@docker1:~# docker top bash1
+UID                 PID                 PPID               TTY                   CMD
+root                34637               34615              pts/0                 /bin/bash
+root                38017               34615              pts/1                 bash
+
+тоесть что интересно docker top показывает что оба баш процесса - тот что
+был запущен при создании контйенера и тот бащ что мы запустили через docker exec
+они с точки зрения баша лежат в одном контейнере!
+
+посмотрим какие неймсейсы и цгруппы  у них совплаают
+вначале посмотрим это через lsns
+
+# lsns -p 34637
+        NS TYPE   NPROCS   PID USER COMMAND
+4026531834 time      104     1 root /sbin/init
+4026531837 user      104     1 root /sbin/init
+4026532355 mnt         2 34637 root /bin/bash
+4026532356 uts         2 34637 root /bin/bash
+4026532357 ipc         2 34637 root /bin/bash
+4026532358 pid         2 34637 root /bin/bash
+4026532359 cgroup      2 34637 root /bin/bash
+4026532360 net         2 34637 root /bin/bash
+
+# lsns -p 38017
+        NS TYPE   NPROCS   PID USER COMMAND
+4026531834 time      104     1 root /sbin/init
+4026531837 user      104     1 root /sbin/init
+4026532355 mnt         2 34637 root /bin/bash
+4026532356 uts         2 34637 root /bin/bash
+4026532357 ipc         2 34637 root /bin/bash
+4026532358 pid         2 34637 root /bin/bash
+4026532359 cgroup      2 34637 root /bin/bash
+4026532360 net         2 34637 root /bin/bash
+
+как видно у этих процессов совпадают все неймспейсы!
+lsns всем хорош но не пказывает что там с цгруппами.
+поэтму посмотрим в /proc
+
+# ls -1al /proc/34637/ns
+lrwxrwxrwx 1 root root 0 Apr 29 07:25 cgroup -> 'cgroup:[4026532359]'
+lrwxrwxrwx 1 root root 0 Apr 29 07:25 ipc -> 'ipc:[4026532357]'
+lrwxrwxrwx 1 root root 0 Apr 29 07:25 mnt -> 'mnt:[4026532355]'
+lrwxrwxrwx 1 root root 0 Apr 29 07:25 net -> 'net:[4026532360]'
+lrwxrwxrwx 1 root root 0 Apr 29 07:25 pid -> 'pid:[4026532358]'
+lrwxrwxrwx 1 root root 0 Apr 30 10:00 pid_for_children -> 'pid:[4026532358]'
+lrwxrwxrwx 1 root root 0 Apr 29 07:25 time -> 'time:[4026531834]'
+lrwxrwxrwx 1 root root 0 Apr 30 10:00 time_for_children -> 'time:[4026531834]'
+lrwxrwxrwx 1 root root 0 Apr 29 07:25 user -> 'user:[4026531837]'
+lrwxrwxrwx 1 root root 0 Apr 29 07:25 uts -> 'uts:[4026532356]'
+
+# ls -1al /proc/38017/ns
+lrwxrwxrwx 1 root root 0 Apr 30 08:26 cgroup -> 'cgroup:[4026532359]'
+lrwxrwxrwx 1 root root 0 Apr 30 08:26 ipc -> 'ipc:[4026532357]'
+lrwxrwxrwx 1 root root 0 Apr 30 08:26 mnt -> 'mnt:[4026532355]'
+lrwxrwxrwx 1 root root 0 Apr 30 08:26 net -> 'net:[4026532360]'
+lrwxrwxrwx 1 root root 0 Apr 30 08:26 pid -> 'pid:[4026532358]'
+lrwxrwxrwx 1 root root 0 Apr 30 10:00 pid_for_children -> 'pid:[4026532358]'
+lrwxrwxrwx 1 root root 0 Apr 30 08:26 time -> 'time:[4026531834]'
+lrwxrwxrwx 1 root root 0 Apr 30 10:00 time_for_children -> 'time:[4026531834]'
+lrwxrwxrwx 1 root root 0 Apr 30 08:26 user -> 'user:[4026531837]'
+lrwxrwxrwx 1 root root 0 Apr 30 08:26 uts -> 'uts:[4026532356]'
+
+как видим у них и цгруппа совпадает. из чего я едалаю вывод что когда докер
+запускает docker exec то он создает процесс который в точности лежит во всех неймспесах
+и цгруппе что и процесс в исходном контейнере.
+
+а сейчас проведем итересный эксперимент
+создаю +1 баш процесс у которого тот же pid namespace что и у 34637 процесса
+# nsenter --pid=/proc/34637/ns/pid  /bin/bash
+
+появился ли он в docker top ?
+~# docker top bash1
+UID                 PID                 PPID               TTY                 CMD
+root                34637               34615              pts/0               /bin/bash
+root                38017               34615              pts/1               bash
+
+ответ нет.
+
+проверяю что наш nssnter bash дейтвиельно лежит в одном пид неймпейсе с 34637
+# pidof nsenter
+38259
+# pstree -AspT 38259
+--nsenter(38259)---bash(38260)
+# lsns -t pid -p 34637
+        NS TYPE NPROCS   PID USER COMMAND
+4026532358 pid       3 34637 root /bin/bash
+# lsns -t pid -p 38260
+        NS TYPE NPROCS   PID USER COMMAND
+4026532358 pid       3 34637 root /bin/bash
+
+да все верно.
+
+теперь сделаем даже более ядрено.
+содадим новый процесс такой что у него все неймспейсы совпдаают с 34637 и даже
+цгруппа такая же самая.
+
+# nsenter -a -t 34637  /bin/bash
+
+(наконец то я научился через nsenter создавать процесс который полностью такой же 
+как заданный  всего то надо было ключ -a и ключ -t )
+
+найдем этот процесс. и проверим его свойства
+
+# pidof nsenter
+38339
+# pstree -AspT 38339
+systemd(1)---lxd-agent(206)---bash(6351)---nsenter(38339)---bash(38340)
+
+# lsns -p 34637
+        NS TYPE   NPROCS   PID USER COMMAND
+4026531834 time      106     1 root /sbin/init
+4026531837 user      106     1 root /sbin/init
+4026532355 mnt         4 34637 root /bin/bash
+4026532356 uts         4 34637 root /bin/bash
+4026532357 ipc         4 34637 root /bin/bash
+4026532358 pid         3 34637 root /bin/bash
+4026532359 cgroup      4 34637 root /bin/bash
+4026532360 net         4 34637 root /bin/bash
+
+# lsns -p 38340
+        NS TYPE   NPROCS   PID USER COMMAND
+4026531834 time      106     1 root /sbin/init
+4026531837 user      106     1 root /sbin/init
+4026532355 mnt         4 34637 root /bin/bash
+4026532356 uts         4 34637 root /bin/bash
+4026532357 ipc         4 34637 root /bin/bash
+4026532358 pid         3 34637 root /bin/bash
+4026532359 cgroup      4 34637 root /bin/bash
+4026532360 net         4 34637 root /bin/bash
+
+из чего видно что оба эти процесса полнсотью аналогичный.
+а теперь помотрим покажет ли этот процесс (38430) docker top
+
+# docker top bash1
+UID                 PID                 PPID       CMD
+root                34637               34615      /bin/bash
+root                38017               34615      bash
+
+и мы видим что нет! невидит docker top!
+
+проверим из нашего нового баша что мы видим зато все три процесса
+# ps aux
+USER         PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
+root           1  0.0  0.1   4628   624 pts/0    Ss+  Apr28   0:00 /bin/bash
+root          10  0.0  0.8   4628  3692 pts/1    Ss+  08:25   0:00 bash
+root          31  0.0  0.8   5048  3816 ?        S    10:10   0:00 /bin/bash
+root          34  0.0  0.7   7484  3188 ?        R+   10:11   0:00 ps aux
+
+да. мы из нашего вручную запущенно (через nsenter) видим все процессы внутри
+контйенера в том числе и себя.
+
+
+проверим еще раз что 38340 входит в тот же цгрупп что и 34637
+для этого будет полезно напомнить какой id имеет контйнер bash1
+# docker inspect bash1 | grep -i id
+        "Id": "1039308ebcab089aec76043ccdc61ead3a076f9e0c439f469dd4fdfb7e1ff6ae",
+            "Pid": 34637,
+
+смотрим цгруппы
+# systemd-cgls --no-pager
+└─system.slice 
+  |
+..  
+..
+..
+  ├─lxd-agent.service 
+  │ ├─38339 nsenter -a -t 34637 /bin/bash
+  │ ├─38340 /bin/bash
+..
+..
+..
+  ├─docker-1039308ebcab089aec76043ccdc61ead3a076f9e0c439f469dd4fdfb7e1ff6ae.scope …
+  │ ├─34637 /bin/bash
+  │ └─38017 bash
+
+
+откуда мы видим что 38340 и 34637 НЕВХОДЯТ В ОДНУ CGROUP !!!!!!
+поэтому докер топ и не покызвает 38340 входящим в контейнер.
+
+еще можно руками это проверить
+$ cat /sys/fs/cgroup/system.slice/docker-1039308ebcab089aec76043ccdc61ead3a076f9e0c439f469dd4fdfb7e1ff6ae.scope/cgroup.procs
+34637
+38017
+
+# cat /sys/fs/cgroup/system.slice/lxd-agent.service/cgroup.procs 
+38339
+38340
+
+охренет! значит дефсиктльеоно 38340 нехводит в цгруппу 34637!!
+
+не пойму как жетак ведь у нас вроде как proc рисует что они входят
+в одну цгруппу
+
+C# lsns -t cgroup -p 34637
+        NS TYPE   NPROCS   PID USER COMMAND
+4026532359 cgroup      4 34637 root /bin/bash
+
+# lsns -t cgroup -p 38340
+        NS TYPE   NPROCS   PID USER COMMAND
+4026532359 cgroup      4 34637 root /bin/bash
+
+
+# ls -1al /proc/38340/ns | grep cgroup
+cgroup -> cgroup:[4026532359]
+# ls -1al /proc/34637/ns | grep cgroup
+cgroup -> cgroup:[4026532359]
+
+что за хрень!
+
+а далее вот что я сделал. как засунуть процесс в цгруппу. нужно всего навсего
+добавить в спец файл pid процесса
+
+
+
+
+<===== создать через runc контенейнер с нуля руками чтобы понять что там нужно
+чтобы его создать
+
+
+
+
+
+
+

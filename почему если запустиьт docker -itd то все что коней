@@ -1,0 +1,33 @@
+почему если запустиьт docker -itd то все что конейер пишет на stdput оно 
+есть в docekr logs
+а если docker -d
+то в docker logs ничего нет
+
+==
+
+где докер хранит логи контейнера?
+смотрим в 
+# docker inspect 129 | grep Log
+        "LogPath": "/var/lib/docker/containers/cf2be129a981d006913759fc06cc954f8da718e257a808a1c1ffe4eb02c1da33/cf2be129a981d006913759fc06cc954f8da718e257a808a1c1ffe4eb02c1da33-json.log",
+
+значит в /var/lib/docker/container_id/*.log
+
+проверяю
+# cat *.log
+{"log":"SIGTERM is caught....shutting down\r\n","stream":"stdout","time":"2024-04-26T15:01:11.293692941Z"}
+{"log":"SIGTERM is caught....shutting down\r\n","stream":"stdout","time":"2024-04-26T15:01:53.626111287Z"}
+{"log":"SIGTERM is caught....shutting down\r\n","stream":"stdout","time":"2024-04-26T15:07:15.833573819Z"}
+{"log":"SIGTERM is caught....shutting down\r\n","stream":"stdout","time":"2024-04-26T15:08:11.797026673Z"}
+{"log":"SIGTERM is caught....shutting down\r\n","stream":"stdout","time":"2024-04-26T15:08:30.999712198Z"}
+
+десвтиетно!
+
+а где докер хранит фс которую он монтирует внутро контейнера?
+
+
+# docker inspect 129 | grep MergedDir
+                "MergedDir": "/var/lib/docker/overlay2/7134eb1f1b2ae32c36e614035102fce26f4d096fe274d554279ed74cb8365450/merged",
+
+тоесть в /var/lib/docker/overlay2/...
+
+

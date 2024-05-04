@@ -1,0 +1,15 @@
+по дефолту докер пробрасыавет stdout и stderr на хост. 
+для этого ненущжно ниакких доп ключей
+
+еси мы добавлыем -i то еще пробратывает и stdin с контнера на хост
+
+пруф
+docker run --name t1 busybox sleep 2
+$ docker inspect t1 | grep -i std
+            "AttachStdin": false,
+            "AttachStdout": true,
+            "AttachStderr": true,
+            "OpenStdin": false,
+            "StdinOnce": false,
+
+            

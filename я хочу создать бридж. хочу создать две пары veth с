@@ -1,0 +1,64 @@
+я хочу создать бридж. хочу создать две пары veth сет карточек.
+один конец я засуну в бридж а второй конец я засуну в другой
+сет неймспейс. эти две карты которые сидят в другом сет 
+неймспейсе будут эмулировать как бы контейнеры. 
+далее я в этих нейпспейсах присвою ip адреса тем картам причем
+из одной сети 10.0.0.0\24 
+и далее я будут пинговать из одного "контейнера" второй "контейнер"
+это и есть конечная цель. чтобы пинг работал.
+
+
+   brctl addbr bridge2
+ 
+   ip link add veth-1 type veth peer name veth-1b
+   ip link add veth-2 type veth peer name veth-2b
+ 
+   brctl addif bridge2 veth-1
+   brctl addif bridge2 veth-2
+   brctl show bridge2
+ 
+   ip netns add  system3
+   ip netns add  system4
+ 
+   ip link set dev veth1-b netns system3  <== вот так будет ошибка
+   Cannot find device veth-1b
+
+   а работает вот так
+   ip link set dev "veth-1b"  netns system3
+   ip link set dev "veth-2b"  netns system4
+ 
+   ip netns exec system3 ip address add 10.0.0.3/24 dev "veth-1b"
+   ip netns exec system4 ip address add 10.0.0.4/24 dev "veth-2b"
+
+   ip netns exec system3  ip  link set  "veth-1b" up
+   ip netns exec system4  ip  link set  "veth-2b" up
+
+   ip link set "veth-1" up
+   ip link set "veth-2" up
+
+   ip link set "bridge2" up
+
+   iptables -A FORWARD -p all -i bridge2 -j ACCEPT  (!!) <== супер важно
+
+   ip netns exec system3 ping 10.0.0.4
+
+   чтобы шарманка заработала  супеважно чтобы 
+   все 5 сетевых карточек были переведны в положение UP,
+   тоесть veth-1, veth-1b, veth-2, veth-2b, bridge2
+
+
+   также без команды (!!) нихера  связь работать не будет!
+   это супер важная команда. без нее вообще никак
+
+
+   дополнение. не особо важное, но все таки. если мы хотим
+   чтобы внутри сетевого стека какогото мы могли пинговать 
+   сами себя. тоесть чтобы мы сидя в сет неймспейсе могли 
+   пинговать карточки которые сидят в этом неймспейсе, то 
+   есть чтобы мы могли пинговать "сами себя"
+   для этого ОБЯЗАТЕЛЬНО нужно на сетевом стеке поднять LO
+   интерфейс
+
+   ip netns exec  system3 link set lo up
+   ip netns exec  system4 link set lo up
+

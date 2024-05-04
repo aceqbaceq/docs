@@ -1,0 +1,32 @@
+docker stat  имя_контейнера 
+покажет стаститику не для всеъ конетенов а только для искомгого!
+
+CONTAINER ID   NAME      CPU %     MEM USAGE / LIMIT     MEM %     NET I/O          BLOCK I/O        
+ea4435dedd67   bash1     0.00%     12.99MiB / 437.5MiB   2.97%     32.4MB / 291kB   115MB / 81.9MB
+
+==
+можно подкрутить сколько мощности цпу можно потребрять контйенеру.
+причем это можно обновляьт налету. ненужно ни стопить конйенер
+ни перезапускать. все работает мгновенно!
+
+# docker update --cpus=0.2 bash1
+
+--cpus=0.2 = это означает что конйерер может максимально жрать 20% от одного ядра!
+класс!
+
+==
+изучай это = https://labs.iximiuz.com/tutorials/containers-vs-pods
+systemd-cgls --no-pager ==?
+какой лимит по памяти и свапу в контйенер по дефолту? (узнать из cgroups)
+
+использую это = https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/8/html/managing_monitoring_and_updating_the_kernel/using-cgroups-v2-to-control-distribution-of-cpu-time-for-applications_managing-monitoring-and-updating-the-kernel
+
+cpu.mac = 10000 100000 =>  0.01s   0.1s > 10% , означает что на отрезке 0.1s нашеу
+процессу можно работать 0.01s остаьно время процсс должен спать. вопрос на 
+скольких цпу ему можно раобоатьт ?
+
+# grep ""  memory.max
+62914560
+ это 60MB 
+ тоесть процессу монжно жрать только 60МБ оперативки?
+ sleep infinit = охрнееть

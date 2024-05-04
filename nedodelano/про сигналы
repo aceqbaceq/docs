@@ -1,0 +1,43 @@
+про сигналы
+вот скрипт
+
+~# cat 01.bash 
+
+pid=$1
+cat /proc/$pid/status|egrep '(Sig|Shd)(Pnd|Blk|Ign|Cgt)'|while read name mask;do
+    bin=$(echo "ibase=16; obase=2; ${mask^^*}"|bc)
+    echo -n "$name $mask $bin "
+    i=1
+    while [[ $bin -ne 0 ]];do
+        if [[ ${bin:(-1)} -eq 1 ]];then
+            kill -l $i | tr '\n' ' '
+        fi
+        bin=${bin::-1}
+        set $((i++))
+    done
+    echo
+done
+
+
+
+натрвлаиеи нп процесс и видим вот такое
+
+# ./01.bash 1
+SigPnd: 0000000000000000 0 
+ShdPnd: 0000000000000000 0 
+SigBlk: 0000000000000000 0 
+SigIgn: 0000000000001000 1000000000000 PIPE 
+SigCgt: 0000000180000a00 110000000000000000000101000000000 USR1 USR2 
+root@7dcb5e2d2540:~# cat 01.bash 
+
+
+
+
+
+методом провекри я  пришел к выводу что те сигналы которые указаны в стркое
+SigCgt:
+для них в коде программы прописаны кастомные хендлеры!
+напрмиер эта строчка
+SigCgt: 0000000000006002 110000000000010 INT ALRM TERM
+означает что у процечсса есть три кастмоным хендлера. для INT, ALRM, TERM
+

@@ -36,7 +36,7 @@ char * const ptr_env[] = { env1, env2, NULL };
         {
               int ret_c = -1;
               ret_c =  execve(ptr_path, ptr_arg,  ptr_env);
-     
+
                 if (ret_c == -1)
                 {
                     printf ("ERROR: execve() is FAILED\n" );

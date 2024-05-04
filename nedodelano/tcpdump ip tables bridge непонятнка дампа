@@ -1,0 +1,20 @@
+tcpdump ip tables bridge непонятнка дампа
+docker+shim+runc зачем shim
+
+docker+crun запустить что зараобтало = V. решение нужно скачать с инета причем с .git
+папкой. откомпилиртваьт. и все рабоает!
+
+
+containerd+?+runc что межуд ними 
+lxc vm+contanerd+minikube стартанутть миникуб на основе containerd
+lxc vm+без докер\подман\containerd+minikube запустить к8 на миникуб без докеров
+
+# update-alternatives --config iptables
+There are 2 choices for the alternative iptables (providing /usr/sbin/iptables).
+
+  Selection    Path                       Priority   Status
+------------------------------------------------------------
+  0            /usr/sbin/iptables-nft      20        auto mode
+* 1            /usr/sbin/iptables-legacy   10        manual mode
+  2            /usr/sbin/iptables-nft      20        manual mode
+wtf? 
