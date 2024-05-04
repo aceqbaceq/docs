@@ -49,3 +49,199 @@ cgroup on /sys/fs/cgroup type cgroup2 (rw,nosuid,nodev,noexec,relatime)
 так вот когда актививровали V2 то про этот пакет надо заббыть.
 
 ---
+cgroup это набор хреновин в ядре. которые позволяют лимитировать ресурсы.
+регулиовать можно потребление CPU, RAM, block I\O
+
+//
+если взять процесс как понять в каком cgroup он работает ? в v1 или  в v2 ?
+
+
+//
+
+
+//
+интересные штуки в листингге
+$ docker create --name "bash1" -it  ubuntu /bin/bash
+8bec2a016a8239fe4a4ce2c15e3cdb7e5a2f6df8728ed8600b66b7018d2bc22b
+
+$ docker start bash1
+bash1
+
+$ docker top bash1
+UID                 PID                 PPID                C                   STIME               TTY                 TIME                CMD
+root                24110               24083               2                   18:07               pts/0               00:00:00            /bin/bash
+
+$ cat /proc/24110/stat
+24110 (bash) S 24083 24110 24110 34816 24110 4194560 1179 221 35 3 8 0 0 0 20 0 1 0 7273428 4726784 849 18446744073709551615 1 1 0 0 0 0 0 3686404 1266761467 0 0 0 17 6 0 0 1 0 0 0 0 0 0 0 0 0 0
+
+$ docker ps
+CONTAINER ID   IMAGE     COMMAND       CREATED          STATUS          PORTS     NAMES
+8bec2a016a82   ubuntu    "/bin/bash"   26 seconds ago   Up 20 seconds             bash1
+
+
+$ systemd-cgls  | grep 24110 -B 10
+│   │ │ ├─ 4457 bash
+│   │ │ ├─ 4468 ssh-agent -a /home/vasya/.ssh/ssh-agent.lenovo.sock
+│   │ │ ├─19972 bash
+│   │ │ ├─19981 mc
+│   │ │ ├─19983 bash -rcfile .bashrc
+│   │ │ ├─23210 bash
+│   │ │ ├─23233 mc
+│   │ │ ├─23235 bash -rcfile .bashrc
+│   │ │ ├─23988 bash
+│   │ │ ├─24184 systemd-cgls
+│   │ │ └─24185 grep --color=auto 24110 -B 10
+--
+  │ └─1388 /usr/bin/timidity -Os -iAD
+  ├─rsyslog.service
+  │ └─1286 /usr/sbin/rsyslogd -n
+  ├─lvm2-lvmetad.service
+  │ └─510 /sbin/lvmetad -f
+  ├─upower.service
+  │ └─3815 /usr/lib/upower/upowerd
+  ├─systemd-resolved.service
+  │ └─1050 /lib/systemd/systemd-resolved
+  ├─docker-8bec2a016a8239fe4a4ce2c15e3cdb7e5a2f6df8728ed8600b66b7018d2bc22b.scope
+  │ └─24110 /bin/bash
+
+$ cat /proc/24110/cgroup 
+0::/system.slice/docker-8bec2a016a8239fe4a4ce2c15e3cdb7e5a2f6df8728ed8600b66b7018d2bc22b.scope
+
+
+$ ls -1
+cgroup.controllers
+cgroup.events
+cgroup.freeze
+cgroup.max.depth
+cgroup.max.descendants
+cgroup.procs
+cgroup.stat
+cgroup.subtree_control
+cgroup.threads
+cgroup.type
+cpu.max
+cpu.pressure
+cpuset.cpus
+cpuset.cpus.effective
+cpuset.cpus.partition
+cpuset.mems
+cpuset.mems.effective
+cpu.stat
+cpu.uclamp.max
+cpu.uclamp.min
+cpu.weight
+cpu.weight.nice
+io.max
+io.pressure
+io.stat
+io.weight
+memory.current
+memory.events
+memory.events.local
+memory.high
+memory.low
+memory.max
+memory.min
+memory.oom.group
+memory.pressure
+memory.stat
+pids.current
+pids.events
+pids.max
+rdma.current
+rdma.max
+
+$ ls -1 |  grep free
+cgroup.freeze
+
+$ cat cgroup.freeze 
+0
+
+$ uname -ar
+Linux lenovo 5.4.0-91-generic #102~18.04.1-Ubuntu SMP Thu Nov 11 14:46:36 UTC 2021 x86_64 x86_64 x86_64 GNU/Linux
+
+$ ps aux | grep docker
+root      1478  0.0  0.5 1818488 85888 ?       Ssl  мая02   0:17 /usr/bin/dockerd -H fd:// --containerd=/run/containerd/containerd.sock
+
+
+$ systemctl status docker
+● docker.service - Docker Application Container Engine
+   Loaded: loaded (/lib/systemd/system/docker.service; enabled; vendor preset: enabled)
+   Active: active (running) since Thu 2024-05-02 21:55:56 +06; 20h ago
+     Docs: https://docs.docker.com
+ Main PID: 1478 (dockerd)
+    Tasks: 14
+   CGroup: /system.slice/docker.service
+           └─1478 /usr/bin/dockerd -H fd:// --containerd=/run/containerd/containerd.sock
+
+
+$ cat /lib/systemd/system/docker.service 
+[Unit]
+Description=Docker Application Container Engine
+Documentation=https://docs.docker.com
+After=network-online.target docker.socket firewalld.service containerd.service time-set.target
+Wants=network-online.target containerd.service
+Requires=docker.socket
+
+[Service]
+Type=notify
+ExecStart=/usr/bin/dockerd -H fd:// --containerd=/run/containerd/containerd.sock
+ExecReload=/bin/kill -s HUP $MAINPID
+TimeoutStartSec=0
+RestartSec=2
+Restart=always
+
+StartLimitBurst=3
+
+StartLimitInterval=60s
+
+LimitNOFILE=infinity
+LimitNPROC=infinity
+LimitCORE=infinity
+
+TasksMax=infinity
+
+Delegate=yes
+
+KillMode=process
+OOMScoreAdjust=-500
+
+[Install]
+WantedBy=multi-user.target
+
+$ ps -o cgroup 24110
+CGROUP
+0::/system.slice/docker-8bec2a016a8239fe4a4ce2c15e3cdb7e5a2f6df8728ed8600b66b7018d2bc22b.scope
+
+
+$ systemctl status 24110 | grep CGroup
+Warning: The unit file, source configuration file or drop-ins of docker-8bec2a016a8239fe4a4ce2c15e3cdb7e5a2f6df8728ed8600b66b7018d2bc22b.scope changed on disk. Run 'systemctl daemon-reload' to reload units.
+   CGroup: /system.slice/docker-8bec2a016a8239fe4a4ce2c15e3cdb7e5a2f6df8728ed8600b66b7018d2bc22b.scope
+
+$ systemctl status 24110 
+Warning: The unit file, source configuration file or drop-ins of docker-8bec2a016a8239fe4a4ce2c15e3cdb7e5a2f6df8728ed8600b66b7018d2bc22b.scope changed on disk
+● docker-8bec2a016a8239fe4a4ce2c15e3cdb7e5a2f6df8728ed8600b66b7018d2bc22b.scope - libcontainer container 8bec2a016a8239fe4a4ce2c15e3cdb7e5a2f6df8728ed8600b66b
+   Loaded: loaded (/run/systemd/transient/docker-8bec2a016a8239fe4a4ce2c15e3cdb7e5a2f6df8728ed8600b66b7018d2bc22b.scope; transient)
+Transient: yes
+  Drop-In: /run/systemd/transient/docker-8bec2a016a8239fe4a4ce2c15e3cdb7e5a2f6df8728ed8600b66b7018d2bc22b.scope.d
+           └─50-DevicePolicy.conf, 50-DeviceAllow.conf
+   Active: active (running) since Fri 2024-05-03 18:07:57 +06; 7min ago
+    Tasks: 1 (limit: 4915)
+   Memory: 6.6M
+      CPU: 103ms
+   CGroup: /system.slice/docker-8bec2a016a8239fe4a4ce2c15e3cdb7e5a2f6df8728ed8600b66b7018d2bc22b.scope
+           └─24110 /bin/bash
+
+мая 03 18:07:57 lenovo systemd[1]: Started libcontainer container 8bec2a016a8239fe4a4ce2c15e3cdb7e5a2f6df8728ed8600b66b7018d2bc22b.
+
+
+$ systemctl status 1
+● init.scope - System and Service Manager
+   Loaded: loaded
+Transient: yes
+   Active: active (running) since Thu 2024-05-02 21:55:48 +06; 20h ago
+     Docs: man:systemd(1)
+
+мая 03 12:44:27 lenovo systemd[1]: Started Daily apt upgrade and clean activities.
+
+

@@ -11,10 +11,10 @@
 int main(int argc, char *argv[], char *envp[])
 {
 
-char const path[] = "./155.exe";
+char const path[] = "/bin/bash";
 char const * ptr_path = path;
 
-char arg1[] = "--155.exe";
+char arg1[] = "-bash";
 char * const ptr_arg[] = { arg1, NULL };
 
 

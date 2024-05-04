@@ -11,11 +11,13 @@
 int main(int argc, char *argv[], char *envp[])
 {
 
-char const path[] = "./155.exe";
+char const path[] = "/bin/ls";
 char const * ptr_path = path;
 
-char arg1[] = "--155.exe";
-char * const ptr_arg[] = { arg1, NULL };
+char arg1[] = "blablablabla";
+char arg2[] = "-1";
+char arg3[] = "/mnt";
+char * const ptr_arg[] = { arg1, arg2, arg3,NULL };
 
 
 char env1[22] = "VAR1=12";

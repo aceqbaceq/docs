@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+
 
 int main(void) {
    Display *d;
@@ -21,6 +23,12 @@ int main(void) {
                            BlackPixel(d, s), WhitePixel(d, s));
    XSelectInput(d, w, ExposureMask | KeyPressMask);
    XMapWindow(d, w);
+
+   close(0);
+   close(1);
+   close(2);
+
+
 
    while (1) {
       XNextEvent(d, &e);

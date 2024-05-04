@@ -1,3 +1,6 @@
+psi = ?
+
+====
 если у процеса есть /dev/pts/X
 то гоорят это процес открыл терминал!!! как буто этот процесс как челоек
 сидит перед терминалом. ХУЙНЯ!!!!
@@ -118,8 +121,318 @@ shim
 
 
 на счет создания руками в докере аналога пода.
-у пода под деолу  у его кнтйенеров обшиме нееймсейсы .
+но чтобы понять что нам надо создавать в докере 
+нам надо понять а что общего в контейнеров в поде
+начнем разбираться!
+
+беру под из двух контейнеров ( и третий инфрастркутурный или пауз контйнер)
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-st1
+spec:
+  containers:
+    - name: app
+      image: nginx:alpine
+      ports:
+        - containerPort: 80
+      resources:
+        limits:
+          memory: "256Mi"
+    - name: sidecar
+      image: curlimages/curl:8.3.0
+      command: ["/bin/sleep", "3650d"]
+      resources:
+        limits:
+          memory: "128Mi"
+
+
+определяею id пауз контйнера. 
+# crictl pods
+POD ID              NAME                                
+1292eb7698c82       pod-st1                             
+нахожу его pid
+# crictl inspectp 1292eb7698c82 | grep -i pid
+    "pid": 2509,
+
+
+опредееляю id остальных контйееоров
+# kubectl describe pods pod-st1  | grep Container\ ID
+    Container ID:   containerd://d60ecbcde508ab7373989f530ea6442ca73d182dcec610e09b2bb8a116b52f46
+    Container ID:  containerd://0c17aa64111ecd0b06a5687b6ff59d6dc65cd3780e1077e23a48a3f4d199b7e0
+нахожу их pid-ы
+
+# crictl inspect d60ecbcde508ab7373989f530ea6442ca73d182dcec610e09b2bb8a116b52f46 | grep -i pid
+    "pid": 2538,
+# crictl inspect   0c17aa64111ecd0b06a5687b6ff59d6dc65cd3780e1077e23a48a3f4d199b7e0   | grep -i pid
+    "pid": 2590,
+
+теперь найду их пиды по другому. я знаю пид пауз контейнера.
+его родителем должен быть shim процесс. а остальные контенеры должын быть чайлдами
+шима.
+
+# pstree -AspT 2509
+systemd(1)---containerd-shim(2489)---pause(2509)
+
+# pstree -AspT 2489
+systemd(1)---containerd-shim(2489)-+-nginx(2538)-+-nginx(2597)
+                                   |             `-nginx(2598)
+                                   |-pause(2509)
+                                   `-sleep(2590)
+
+все так и есть все совпало!
+итак имеем три pid = 2509, 2538, 2590
+
+теперь смотрю в каких неймспейсах сидят эти три процесса
+
+
+# lsns  -p 2509
+        NS TYPE   NPROCS   PID USER  COMMAND
+4026531834 time      109     1 root  /sbin/init
+4026531835 cgroup    109     1 root  /sbin/init
+4026531837 user      109     1 root  /sbin/init
+4026532371 net         5  2509 65535 /pause
+4026532425 mnt *       1  2509 65535 /pause  
+4026532426 uts         5  2509 65535 /pause
+4026532427 ipc         5  2509 65535 /pause
+4026532428 pid *       1  2509 65535 /pause
+
+# lsns  -p 2538
+        NS TYPE   NPROCS   PID USER  COMMAND
+4026531834 time      109     1 root  /sbin/init
+4026531835 cgroup    109     1 root  /sbin/init
+4026531837 user      109     1 root  /sbin/init
+4026532371 net         5  2509 65535 /pause
+4026532429 mnt  *      3  2538 root  nginx: master process nginx -g daemon off; 
+4026532426 uts         5  2509 65535 /pause
+4026532427 ipc         5  2509 65535 /pause
+4026532430 pid  *      3  2538 root  nginx: master process nginx -g daemon off;
+
+# lsns  -p 2590
+        NS TYPE   NPROCS   PID USER            COMMAND
+4026531834 time      110     1 root            /sbin/init
+4026531835 cgroup    110     1 root            /sbin/init
+4026531837 user      110     1 root            /sbin/init
+4026532371 net         5  2509 65535           /pause
+4026532431 mnt  *      1  2590 systemd-network /bin/sleep 3650d
+4026532426 uts         5  2509 65535           /pause
+4026532427 ipc         5  2509 65535           /pause
+4026532432 pid  *      1  2590 systemd-network /bin/sleep 3650d
+
+звездочкой "*" я показал какие неймспесы у этих процессов разные.
+это pid mnt неймспейсы. остальные у них общие.
+
+осталось  с цгруппами прояснить. тут немножко засада. есть две версии цгрупп.
+у меня на компе работате вторая
+$ mount | grep cgroup
+cgroup on /sys/fs/cgroup type cgroup2 (rw,nosuid,nodev,noexec,relatime)
+
+а миникуб умеет запускать к8 только на первой версии
+ксатти видно что вроде как может две версии цгрупп однрверменно
+рабооать на компе .. кхмм..
+(minikube)# mount | grep cgroup
+tmpfs on /sys/fs/cgroup type tmpfs (ro,nosuid,nodev,noexec,size=4096k,nr_inodes=1024,mode=755,inode64)
+cgroup2 on /sys/fs/cgroup/unified type cgroup2 (rw,nosuid,nodev,noexec,relatime,nsdelegate)
+cgroup on /sys/fs/cgroup/systemd type cgroup (rw,nosuid,nodev,noexec,relatime,xattr,name=systemd)
+cgroup on /sys/fs/cgroup/net_cls,net_prio type cgroup (rw,nosuid,nodev,noexec,relatime,net_cls,net_prio)
+cgroup on /sys/fs/cgroup/cpu,cpuacct type cgroup (rw,nosuid,nodev,noexec,relatime,cpu,cpuacct)
+cgroup on /sys/fs/cgroup/memory type cgroup (rw,nosuid,nodev,noexec,relatime,memory)
+cgroup on /sys/fs/cgroup/cpuset type cgroup (rw,nosuid,nodev,noexec,relatime,cpuset)
+cgroup on /sys/fs/cgroup/blkio type cgroup (rw,nosuid,nodev,noexec,relatime,blkio)
+cgroup on /sys/fs/cgroup/devices type cgroup (rw,nosuid,nodev,noexec,relatime,devices)
+cgroup on /sys/fs/cgroup/pids type cgroup (rw,nosuid,nodev,noexec,relatime,pids)
+cgroup on /sys/fs/cgroup/freezer type cgroup (rw,nosuid,nodev,noexec,relatime,freezer)
+cgroup on /sys/fs/cgroup/hugetlb type cgroup (rw,nosuid,nodev,noexec,relatime,hugetlb)
+cgroup on /sys/fs/cgroup/perf_event type cgroup (rw,nosuid,nodev,noexec,relatime,perf_event)
+cgroup on /sys/fs/cgroup/rdma type cgroup (rw,nosuid,nodev,noexec,relatime,rdma)
+cgroup on /sys/fs/cgroup/misc type cgroup (rw,nosuid,nodev,noexec,relatime,misc)
+
+
+
+вот что покзывает ctr про цгруппу нашего  пауз контйенера 
+# ctr -n k8s.io c info  1292eb | grep -i cgroup 
+            "cgroupsPath": "/kubepods/burstable/pod7c7a6b56-6d3c-4b55-9a3c-7d2d4d8555c7/1292eb",
+
+я нашел эту папку как подпапку в  /sys/fs/cgroup/unified/ вот тут
+/sys/fs/cgroup/unified/kubepods/burstable/pod7c7a6b56-6d3c-4b55-9a3c-7d2d4d8555c7/1292eb
+
+насколько  я понимаю раз оно лежит в папке unified это значит что containerd
+использует cgroup v2 при создании контйнеров (<====найти еще доказательства)
+
+псмоотрим инфо про цгруппу для оставшихся двух контеоров
+
+# ctr -n k8s.io c info  d60ecbcde508ab7373989f530ea6442ca73d182dcec610e09b2bb8a116b52f46 | grep -i cgroup 
+                "destination": "/sys/fs/cgroup",
+                "type": "cgroup",
+                "source": "cgroup",
+            "cgroupsPath": "/kubepods/burstable/pod7c7a6b56-6d3c-4b55-9a3c-7d2d4d8555c7/d60ecbcde508ab7373989f530ea6442ca73d182dcec610e09b2bb8a116b52f46",
+
+
+# ctr -n k8s.io c info  0c17aa64111ecd0b06a5687b6ff59d6dc65cd3780e1077e23a48a3f4d199b7e0 | grep -i cgroup 
+                "destination": "/sys/fs/cgroup",
+                "type": "cgroup",
+                "source": "cgroup",
+            "cgroupsPath": "/kubepods/burstable/pod7c7a6b56-6d3c-4b55-9a3c-7d2d4d8555c7/0c17aa64111ecd0b06a5687b6ff59d6dc65cd3780e1077e23a48a3f4d199b7e0",
+
+тоесть онивсе лежат в одной папке /kubepods/burstable/pod7c7a6b56-6d3c-4b55-9a3c-7d2d4d8555c7/ 
+но в разных ее подпапках
+
+вот что показывает эта команда
+/# systemd-cgls --no-pager
+Control group /:
+-.slice
+├─kubepods 
+│ ├─burstable 
+│ │ ├─pod7c7a6b56-6d3c-4b55-9a3c-7d2d4d8555c7 
+│ │ │ ├─0c17aa64111ecd0b06a5687b6ff59d6dc65cd3780e1077e23a48a3f4d199b7e0 
+│ │ │ │ └─2590 /bin/sleep 3650d
+│ │ │ ├─1292eb7698c823176d46bd0fc4f805471312a29a92dd4ec447a11555886953e3 
+│ │ │ │ └─2509 /pause
+│ │ │ └─d60ecbcde508ab7373989f530ea6442ca73d182dcec610e09b2bb8a116b52f46 
+│ │ │   ├─2538 nginx: master process nginx -g daemon off;
+│ │ │   ├─2597 nginx: worker process
+│ │ │   └─2598 nginx: worker process
+
+тоесть тоже самое
+
+самое странное то что на моем компе если я захожу в свойства процесса
+то цгруппу можно увидеть вот так просто
+
+$ cat /proc/self/cgroup 
+0::/user.slice/user-1000.slice/user@1000.service/gnome-terminal-server.service
+
+$ echo $$BASHPID
+19983
+
+# systemd-cgls --no-pager
+..
+..
+├─user.slice
+│ └─user-1000.slice
+│   ├─user@1000.service
+│   │ ├
+│   │ │
+│   │ ├
+│   │ │
+│   │ ├
+│   │ │
+│   │ ├─gnome-terminal-server.service
+│   │ │ ├─
+│   │ │ ├─19983 bash -rcfile .bashrc    <=============
+ 
+тоесть через /proc/pid/cgroup четко видно где в какой "папке" цгруп сидит процесс
+
+если же я этоже смотрю для процесса пауз контйенера на миникубе
+я вижу нечто совсем другое напоминаю что наш пауз контйенер это pid=2509
+
+# cat /proc/2509/cgroup 
+13:misc:/
+12:rdma:/kubepods/burstable/pod7c7a6b56-6d3c-4b55-9a3c-7d2d4d8555c7/1292eb76...
+11:perf_event:/kubepods/burstable/pod7c7a6b56-6d3c-4b55-9a3c-7d2d4d8555c7/1292eb76...
+10:hugetlb:/kubepods/burstable/pod7c7a6b56-6d3c-4b55-9a3c-7d2d4d8555c7/1292eb76...
+9:freezer:/kubepods/burstable/pod7c7a6b56-6d3c-4b55-9a3c-7d2d4d8555c7/1292eb76...
+8:pids:/kubepods/burstable/pod7c7a6b56-6d3c-4b55-9a3c-7d2d4d8555c7/1292eb76...
+7:devices:/kubepods/burstable/pod7c7a6b56-6d3c-4b55-9a3c-7d2d4d8555c7/1292eb76...
+6:blkio:/kubepods/burstable/pod7c7a6b56-6d3c-4b55-9a3c-7d2d4d8555c7/1292eb76..
+5:cpuset:/kubepods/burstable/pod7c7a6b56-6d3c-4b55-9a3c-7d2d4d8555c7/1292eb76..
+4:memory:/kubepods/burstable/pod7c7a6b56-6d3c-4b55-9a3c-7d2d4d8555c7/1292eb76..
+3:cpu,cpuacct:/kubepods/burstable/pod7c7a6b56-6d3c-4b55-9a3c-7d2d4d8555c7/1292eb76...
+2:net_cls,net_prio:/kubepods/burstable/pod7c7a6b56-6d3c-4b55-9a3c-7d2d4d8555c7/1292eb76...
+1:name=systemd:/kubepods/burstable/pod7c7a6b56-6d3c-4b55-9a3c-7d2d4d8555c7/1292eb76...
+0::/kubepods/burstable/pod7c7a6b56-6d3c-4b55-9a3c-7d2d4d8555c7/1292eb76...
+
+если проссуммировать что я здесь вижу то здес указано что все лежит в папке
+/kubepods/burstable/pod7c7a6b56-6d3c-4b55-9a3c-7d2d4d8555c7/1292eb76...
+это ровно тоже самое что я получил выше из вывода ctr про этот контейнер
+
+"cgroupsPath": "/kubepods/burstable/pod7c7a6b56-6d3c-4b55-9a3c-7d2d4d8555c7/d60ecbcde508ab7373989f530ea6442ca73d182dcec610e09b2bb8a116b52f46",
+
+ксатти а что же там лежит?
+$ ls -1 ..55c7/1292eb7698c823176d46bd0fc4f805471312a29a92dd4ec447a1155588695
+cgroup.controllers
+cgroup.events
+cgroup.freeze
+cgroup.kill
+cgroup.max.depth
+cgroup.max.descendants
+cgroup.procs
+cgroup.stat
+cgroup.subtree_control
+cgroup.threads
+cgroup.type
+cpu.pressure
+cpu.stat
+io.pressure
+memory.pressure
+
+кстати 
+# cat cgroup.procs 
+2509
+ага совпало
+
+значит тут надо останоится и почитать про эту цгрупп. как там все устроено!
+читаю "cgroups.txt"
+
+тоеть я вижу что все конейры пода входят каждая в свою папку а они входят
+в более общую папку а та в свою папку. надо понять что это все значит.
+значит ли это что они входят в одну цгруппу или нет. <===
+также надо понять как это так что на компе две версии цгрупп <====
+тажке надо понять такую вещь как менежде цгрупп ,типа можно менеджером
+деламть systemd а можно и когоото еще паралельно <=====
+как я понял цгруппы это такое же своства процесса в недрах ядра как и неймспейсы.
+а чтобы рукаодить этими свойствами нужно делать соотвствующие сисколлы.
+
+
+
+
+
+//
+
+//
+важный вопос - так как создание конерера труебт не тлько неймсейсов но и цгруппы а их
+два вида то получается что runc -? contaienrd -? kubelt-? должны иметь строку
+которая задает какую версию cgroup мы собиарея использвать. (хотя ведь на компе вроде
+как тлько одна версия цгрупп может в данный момент раобтать ? тогда зачем это 
+прописывать?),
+практика покзал что на компе (например на миникубе) может радтать сразу две версии цгрупп.
+а как это настрваиется чтобы так работатло?
+
+(minikube)# mount | grep cgroup
+
+cgroup2 on /sys/fs/cgroup/unified type cgroup2 (rw,nosuid,nodev,noexec,relatime,nsdelegate)
+
+cgroup on /sys/fs/cgroup/systemd type cgroup (rw,nosuid,nodev,noexec,relatime,xattr,name=systemd)
+cgroup on /sys/fs/cgroup/net_cls,net_prio type cgroup (rw,nosuid,nodev,noexec,relatime,net_cls,net_prio)
+cgroup on /sys/fs/cgroup/cpu,cpuacct type cgroup (rw,nosuid,nodev,noexec,relatime,cpu,cpuacct)
+cgroup on /sys/fs/cgroup/memory type cgroup (rw,nosuid,nodev,noexec,relatime,memory)
+cgroup on /sys/fs/cgroup/cpuset type cgroup (rw,nosuid,nodev,noexec,relatime,cpuset)
+cgroup on /sys/fs/cgroup/blkio type cgroup (rw,nosuid,nodev,noexec,relatime,blkio)
+cgroup on /sys/fs/cgroup/devices type cgroup (rw,nosuid,nodev,noexec,relatime,devices)
+cgroup on /sys/fs/cgroup/pids type cgroup (rw,nosuid,nodev,noexec,relatime,pids)
+cgroup on /sys/fs/cgroup/freezer type cgroup (rw,nosuid,nodev,noexec,relatime,freezer)
+cgroup on /sys/fs/cgroup/hugetlb type cgroup (rw,nosuid,nodev,noexec,relatime,hugetlb)
+cgroup on /sys/fs/cgroup/perf_event type cgroup (rw,nosuid,nodev,noexec,relatime,perf_event)
+cgroup on /sys/fs/cgroup/rdma type cgroup (rw,nosuid,nodev,noexec,relatime,rdma)
+cgroup on /sys/fs/cgroup/misc type cgroup (rw,nosuid,nodev,noexec,relatime,misc)
+
+
+
+//
+
+//
+важный вопопрос
+расммотрет shim , его деревом процессов , его цгруп его нейсмсейс.
+кто его родиеь. с какими паргумтнами он запущен. как онобзатеся  с 
+containerd - черз сокет или пайпы или то и другое. 
+
+//
+
+
+
+у его контйенеров общие все неймспейсы .
 на счет общие ли у них цгруппы это вопрос!
+
 но разные pid , mnt нейспейсы 
 поэтому в бытовом плане у пода конейтеов общая только сеть! это дает только то что
 онм мргу друн сдругом на lo интефрсе через бинды обшаться
@@ -148,9 +461,8 @@ $ ls -1 /proc/$$BASHPID/ns
 покажт для посдеднего ближашего баша неважно инерактивнй он или нет
 
 как посдить два докре коентейнер а одну пид неймсейс 
+docker run --name c1 --ipc=container:c2 -d ubuntu sh -c 'sleep 1d'
+docker run --name c1 --mnt=container:c2 -d ubuntu sh -c 'sleep 1d'
+docker run --name c1 --net=container:c2 -d ubuntu sh -c 'sleep 1d'
 docker run --name c1 --pid=container:c2 -d ubuntu sh -c 'sleep 1d'
-
-
-
-===
 

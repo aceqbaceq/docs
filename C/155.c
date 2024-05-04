@@ -36,6 +36,7 @@ pid_t p;
 p=getpid();
 printf ("155.exe : pid=%u\n", p);
 
+sleep(200);
 
 exit (0);
 

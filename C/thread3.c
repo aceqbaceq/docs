@@ -62,7 +62,7 @@ void set_sig_handler(void)
         action.sa_flags = SA_SIGINFO; 
         action.sa_sigaction = handler;
 
-        if (sigaction(SIGTERM, &action, NULL) == -1) { 
+        if (sigaction(SIGINT, &action, NULL) == -1) { 
             perror("sigusr: sigaction");
             _exit(1);
         }
