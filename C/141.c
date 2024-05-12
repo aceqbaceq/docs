@@ -36,8 +36,8 @@ int main(void) {
          XFillRectangle(d, w, DefaultGC(d, s), 20, 20, 10, 10);
          XDrawString(d, w, DefaultGC(d, s), 10, 50, msg, strlen(msg));
       }
-      if (e.type == KeyPress)
-         break;
+      //if (e.type == KeyPress)
+        // break;
    }
 
    XCloseDisplay(d);

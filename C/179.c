@@ -32,11 +32,11 @@ int main(int argc, char **argv) {
     //close(pipefd[0]); // reader
 
 
-    char ch3[1024];
+    char ch3[4];
     memset(ch3, '0', sizeof(ch3));
 
 
-    for (int t=0; t<100; t++)
+    for (int t=0; t<2; t++)
     {
     if (write(pipefd[1], ch3, sizeof(ch3)) < 0)
     {
@@ -55,7 +55,7 @@ int main(int argc, char **argv) {
 
 
 
-    if (read(pipefd[0], ptr_buf, 10) == -1)
+    if (read(pipefd[0], ptr_buf, 100) == -1)
     {
 	perror("read()");
 	printf ("Error no is : %d\n", errno);

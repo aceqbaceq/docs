@@ -1,0 +1,291 @@
+| lxd
+| vmstat 
+| st
+| steal
+
+
+все началось с того что я вспомнил что один уебок спросил как узнать изнутри виртуальной машины на линуксе о том что от данной виртуалки гипервизор отнимает cpu.
+как узнать что гипервизор тырит цпу от виртуалки.
+
+TLDR:
+короткий ответ поле "st" у vmstat. оно показыает сколько % времени
+виртуалка простаивает колом из за того что гипервизор недает коду этой
+виртуалки залезть на cpu 
+если скажем st = 50% это значит что за таймслайс скажем 1с
+у нас 50% времени код виртуалки исполнялся на цпу а 50% времени 
+код виртуалки не исполнялся. тоесть она стояла колом. потому что шедулер
+гипервизора недавал коду этой виртуалки попасть на цпу.
+если 
+	$ vmstat 1
+и мы имеем st = 20 то это значит что 80% времени от 1секунды у нас код
+виртуалки выполнялся на цпу. а 20% от 1секунды у нас код виртуалки не 
+исполнялся на цпу. 20% времени она считай была заморожена.
+
+
+LONG READ:
+теперь я дам более развернутый ответ.
+а еще там гораздо ниже я сделаю всякие доп заметки которые всплыли 
+походу всего этого дела
+
+
+общий план такой. я создам две vm используя lxd.
+я заставлю их выполняться на фиксрованных ядрах цпу хоста.
+далее я на них запущу нагрузку. эти виртуалки будут мешать друг другу.
+также я на самом хосте запущу нагрузку на этих же ядрах. 
+мешание станет еще сильнее.
+а потом я посмтрю внутри каждой виртуалки какой st будет показывать vmstat
+
+
+>> что я выснил. если мы через цгруппу огрничиваем ограничиваем цпу
+
+$ lxc info ub1 | grep -i pid
+PID: 11366
+
+$ pstree -AspT 11366
+systemd(1)---lxd(11356)---systemd(11366)-+-dbus-daemon(11975)
+                                         |-networkd-dispat(11991)
+                                         |-packagekitd(13012)
+                                         |-polkitd(12153)
+                                         |-rsyslogd(12000)
+                                         |-systemd-journal(11461)
+                                         |-systemd-logind(12006)
+                                         |-systemd-network(11893)
+                                         |-systemd-resolve(11917)
+                                         `-systemd-udevd(11639)
+
+
+$ lxc config set ub1 limits.cpu.allowance 10ms/100ms
+
+что дает 
+$ cat /sys/fs/cgroup/lxc.payload.ub1/cpu.max 
+10000 100000
+
+что значит процессам в этой цгруппе разрешается суммарно им всем
+работать 10 000 микросекунд(10^-6) на интервале 100 000 микросекунд
+тоесть разрешается 10% времени работать. а 90% их из цпу выгоняют.
+
+при этом если посмртреть в свойства всех тредов 
+любого процесса входящего в эту цгруппу то 
+мы увидим что им разрешено пользооваться всеми ядрами
+
+$ cat /proc/13012/status | grep -i cpu
+Cpus_allowed:	ff
+Cpus_allowed_list:	0-7
+$ cat /proc/13012/task/130 | grep -i cpu
+13012/ 13025/ 13028/ 
+$ cat /proc/13012/task/13012/status | grep -i cpu
+Cpus_allowed:	ff
+Cpus_allowed_list:	0-7
+$ cat /proc/13012/task/13025/status | grep -i cpu
+Cpus_allowed:	ff
+Cpus_allowed_list:	0-7
+$ cat /proc/13012/task/13028/status | grep -i cpu
+Cpus_allowed:	ff
+Cpus_allowed_list:	0-7
+
+тогда возникает вопрос если у нас процесс многотредовый 
+и ему разрещено раобтать 10%. то как это будет выглядеть? это каждому треду
+можно грузить ядро на 10% или все треды в сумме могут грузить цпу 
+на 10%. ответ -  все суммарно треды могут грузить цпу только на 10%.
+на практике это выглядит так - если я запускаю однтредовый процесс
+то он грузит одно ядро на 10% в top
+если я запускаю 8-ми тредовый процесс то каждый тред грузит свое ядро 
+на 1.3%
+прикольно!
+в целом логика понятная - ядро следит не за процентами оно следит 
+за тем сколько миллисекунд суммарно все треды всех процессов которые 
+сидят в этой цгруппе находились на всех ядрах цпу. как только сумма 
+по всем тредам всех прцоессов нахождения на всех ядрах цпу
+суммарно достигает 10мс то ядро выкидывает все эти процессы с цпу. 
+и шедулер их не сует в цпу в течение  следущих 90мс.
+в целом это похоже вот на что. есть группа людей. они пришли в клуб
+приставок. и им говорят можете как хотите делить между собой время
+но в течение 100 минут мы можете все просидеть за приставками 
+только 10минут. и так  в течение каждого интервала 100 минут.
+возникаает вопрос вот я за 100 минут отыграл 5 минут.
+наступает следущий интервал 100 минут - ядро сбрасывает лимит
+каждые 100 минут обратно до 10 минут? или нет? тоесть если
+я за первый интервал 100 минут отыграл 5 минут то за следущий интервал
+100 минут я могу отыграть 10минут? я думаю что да. я думаю что 
+внезавсимости от того скоько ты отыграл за прошлые 100 минут
+как тоько наступает новый интервал 100 минут лимит обратно сбрасывется
+до 10минут разрешенных
+
+
+
+
+$ pidof qemu-system-x86_64  | xargs -n1    echo  | xargs -I%  cat /proc/%/status | grep Cpus_allowed_list
+Cpus_allowed_list:	0-7
+Cpus_allowed_list:	0-7
+Cpus_allowed_list:	0-7
+
+
+$ cat /proc/17949/cmdline
+/snap/lxd/25505/bin/qemu-system-x86_64
+-S -name cont0-uuid702d8a50-3777-4184-b584-6be05fa3753c-daemonize-cpuhost-nographic-serialchardev:console-nodefaults-no-user-config-sandboxon,obsolete=deny,elevateprivileges=allow,spawn=allow,resourcecontrol=deny-readconfig/var/snap/lxd/common/lxd/logs/cont0/qemu.conf-spiceunix=on,disable-ticketing=on,addr=/var/snap/lxd/common/lxd/logs/cont0/qemu.spice-pidfile/var/snap/lxd/common/lxd/logs/cont0/qemu.pid-D/var/snap/lxd/common/lxd/logs/cont0/qemu.log-smbiostype=2,manufacturer=Canonical Ltd.,product=LXD-runaslxd[vasya@lenovo C]$
+
+
+$ ps -o cmd -fww  -p 17949
+/snap/lxd/25505/bin/qemu-system-x86_64 
+-S 
+-name cont0 
+-uuid 702d8a50-3777-4184-b584-6be05fa3753c 
+-daemonize 
+-cpu host 
+-nographic 
+-serial chardev:console 
+-nodefaults 
+-no-user-config 
+-sandbox on,obsolete=deny,elevateprivileges=allow,spawn=allow,resourcecontrol=deny -readconfig /var/snap/lxd/common/lxd/logs/cont0/qemu.conf 
+-spice unix=on,disable-ticketing=on,addr=/var/snap/lxd/common/lxd/logs/cont0/qemu.spice 
+-pidfile /var/snap/lxd/common/lxd/logs/cont0/qemu.pid 
+-D /var/snap/lxd/common/lxd/logs/cont0/qemu.log 
+-smbios type=2,manufacturer=Canonical Ltd.,product=LXD 
+-runas lxd
+
+===
+
+
+==
+$ lxc config show cont0
+architecture: x86_64
+config:
+  image.architecture: amd64
+  image.description: ubuntu 22.04 LTS amd64 (release) (20230424)
+  image.label: release
+  image.os: ubuntu
+  image.release: jammy
+  image.serial: "20230424"
+  image.type: disk-kvm.img
+  image.version: "22.04"
+  limits.cpu: 3-3
+  limits.memory: 384MB
+  volatile.base_image: f1dd0e76efe8a8c973a1816bc990f15b669ec990f5fef07919bf04fc67776422
+  volatile.cloud-init.instance-id: b2f75bca-e0be-4441-be39-8adb85955a55
+  volatile.eth0.hwaddr: 00:16:3e:2c:6a:91
+  volatile.last_state.power: STOPPED
+  volatile.last_state.ready: "false"
+  volatile.uuid: 702d8a50-3777-4184-b584-6be05fa3753c
+  volatile.uuid.generation: 702d8a50-3777-4184-b584-6be05fa3753c
+  volatile.vsock_id: "3041309828"
+devices: {}
+ephemeral: false
+profiles:
+- default
+stateful: false
+description: ""
+[vasya@lenovo C]$ lxc config set cont0 limits.cpu 3-3,2-2
+[vasya@lenovo C]$ lxc start cont0
+
+==
+
+смотрю ресурсы компа
+с точки зрения lxd
+
+$ lxc info --resources
+CPU (x86_64):
+  Vendor: GenuineIntel
+  Name: Intel(R) Core(TM) i5-8265U CPU @ 1.60GHz
+  Caches:
+    - Level 1 (type: Data): 32KiB
+    - Level 1 (type: Instruction): 32KiB
+    - Level 2 (type: Unified): 256KiB
+    - Level 3 (type: Unified): 6MiB
+  Cores:
+    - Core 0
+      Frequency: 1000Mhz
+      Threads:
+        - 0 (id: 0, online: true, NUMA node: 0)
+        - 1 (id: 4, online: true, NUMA node: 0)
+    - Core 1
+      Frequency: 1000Mhz
+      Threads:
+        - 0 (id: 1, online: true, NUMA node: 0)
+        - 1 (id: 5, online: true, NUMA node: 0)
+    - Core 2
+      Frequency: 1000Mhz
+      Threads:
+        - 0 (id: 2, online: true, NUMA node: 0)
+        - 1 (id: 6, online: true, NUMA node: 0)
+    - Core 3
+      Frequency: 1000Mhz
+      Threads:
+        - 0 (id: 3, online: true, NUMA node: 0)
+        - 1 (id: 7, online: true, NUMA node: 0)
+  Frequency: 1000Mhz (min: 400Mhz, max: 1600Mhz)
+
+я хочу ограничить виртуалку двумя ядрами причем
+я хочу жестко задать аффинити тоесть чтобы виртуалка работала
+на конкретных ядрах. для этого нужно найти "номера" этих ядер 
+с точки зрения lxd
+
+в итоге я выбираю эти ядра ( сточки зрения lxd это треды) : 
+	Core 2 
+	  thread id: 2
+и
+
+	Core 3 
+	  thread id: 3
+
+в итоге искомые "номера" это  2-2 и 3-3
+
+дебилизм в том что новой документации от lxd 5 нихуя ненайти 
+в каком виде подставлять эти номера ,  в старом
+lxd надо было подставлять номера как 2,2 3,3
+а в новом lxd 5 надо подставлять как 2-2,3-3
+суки
+
+щас покажу уже наконец как это надо вставлять в командную строку.
+итак  я имею у виртальной машины сейчас вот так
+
+$ lxc config show cont1 | grep limits | grep cpu
+  limits.cpu: "1"
+
+тогда я вставляю вот так
+$ lxc config set  cont1 limits.cpu 2-2,3-3
+
+проверяю
+$ lxc config show cont1 | grep limits | grep cpu
+  limits.cpu: 2-2,3-3
+
+также я урезаю память
+$ lxc config show cont1 | grep limits | grep memory
+  limits.memory: 512MB
+$ lxc config set  cont1 limits.memory 384MB
+
+но память урезать конечно это фигня. главная сложность была заставить
+виртуалку запускаться на конкретных ядрах!
+если я нехочу прописывать конкретные ядра а просто ограничить чтобы 
+виртуалка имела 1 цпу который будет запускаться на любых ядрах хоста
+то тогда это делается конечно очень просто
+$ lxc config set  cont1 limits.cpu 1
+
+
+итак моя виртуалка будет иметь два вирт цпу и они будут на хосте
+привязаны к конкретным цпу на хосте. я не понимаю как это все устроено
+но с точки зрения ОС хоста каждый вирт цпу виртуалки это всего навсего
+тред ! я это потом ниже все покажу раскажу.  <========= !!!!
+щас не это главное
+
+>>> у треда можно найти его цпу аффинити
+>>> если две вирт то стид 50% если две вирт и хост что равно три
+виртуалки то уже 66%. потому что кажой достается 33%. значит каждая 66% стоит
+>>> на счет где найти документацию по поводу как выставлять лимиты
+по цпу и памяти в вртуалке или контейнере lxd
+	https://documentation.ubuntu.com/lxd/en/latest/reference/instance_options/#instance-resource-limits:limits.cpu
+
+это пипец как трудно ее найти. 
+https://docs.ubuntu.com/ - LXD  - Сonfiguration options - Instance options
+охуеть! невозможно найти если незнать где искать.
+
+там можно увидеть что  вот эта настройка
+	limits.cpu
+она работает только для виртуалок
+а вот эта настройка
+	limits.cpu.allowance
+она работает ттолько ДЛЯ КОНТЕЙНЕРОВ!
+
+
+>>> lxd конйенеры работают на основе qemu которая раотат в связке с kvm
+
+
