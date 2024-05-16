@@ -1,0 +1,4 @@
+| runc
+
+runc как пишут это CLI wrapper вокруг libcontainer
+

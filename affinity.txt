@@ -1,0 +1,7 @@
+
+
+| sched_getaffinity
+| affinity
+
+<========= ??? написать прогу
+

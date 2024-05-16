@@ -28,12 +28,746 @@ LONG READ:
 походу всего этого дела
 
 
+создаю виртуалку
+$ lxc image ls (смотрю имадж чтобы у него был тип virtual machine)
+$ lxc launch  local:ed7509d7e83f  cont0
+
+далее мне надо сделать так чтобы виртуалка была привязана , запускалась
+только на жестко оговоренных ядрах чтобы она не скакала с ядра на ядро.
+для этого нужно найти номера ядер с точки зрения lxd. 
+точнее у lxd ядра называются тредами.
+итак для этого смотрю ресурсы компа с точки зрения lxd
+
+$ lxc info --resources
+CPU (x86_64):
+  Vendor: GenuineIntel
+  Name: Intel(R) Core(TM) i5-8265U CPU @ 1.60GHz
+  Caches:
+    - Level 1 (type: Data): 32KiB
+    - Level 1 (type: Instruction): 32KiB
+    - Level 2 (type: Unified): 256KiB
+    - Level 3 (type: Unified): 6MiB
+  Cores:
+    - Core 0
+      Frequency: 1000Mhz
+      Threads:
+        - 0 (id: 0, online: true, NUMA node: 0)
+        - 1 (id: 4, online: true, NUMA node: 0)
+    - Core 1
+      Frequency: 1000Mhz
+      Threads:
+        - 0 (id: 1, online: true, NUMA node: 0)
+        - 1 (id: 5, online: true, NUMA node: 0)
+    - Core 2
+      Frequency: 1000Mhz
+      Threads:
+        - 0 (id: 2, online: true, NUMA node: 0)
+        - 1 (id: 6, online: true, NUMA node: 0)
+    - Core 3
+      Frequency: 1000Mhz
+      Threads:
+        - 0 (id: 3, online: true, NUMA node: 0)
+        - 1 (id: 7, online: true, NUMA node: 0)
+  Frequency: 1000Mhz (min: 400Mhz, max: 1600Mhz)
+
+я хочу ограничить виртуалку двумя ядрами причем
+я хочу как уже сказал жестко задать аффинити тоесть чтобы виртуалка работала
+на конкретных ядрах. для этого нужно найти "номера" этих ядер 
+с точки зрения lxd
+
+в итоге я выбираю эти ядра ( сточки зрения lxd это треды) : 
+	Core 2 
+	  thread id: 2
+и
+
+	Core 3 
+	  thread id: 3
+
+в итоге искомые "номера" это  2-2 и 3-3
+
+дебилизм в том что новой документации от lxd 5 нихуя ненайти 
+в каком виде подставлять эти номера ,  в старом
+lxd надо было подставлять номера как 2,2 3,3
+а в новом lxd 5 надо подставлять как 2-2,3-3
+суки
+
+наконец вот как это надо вставлять в командную строку.
+итак  я имею у виртальной машины сейчас вот так
+
+$ lxc config show cont1 | grep limits | grep cpu
+  limits.cpu: "1"
+
+тогда я вставляю вот так
+$ lxc config set  cont1 limits.cpu 2-2,3-3
+
+проверяю
+$ lxc config show cont1 | grep limits | grep cpu
+  limits.cpu: 2-2,3-3
+
+также я урезаю память
+$ lxc config show cont1 | grep limits | grep memory
+  limits.memory: 512MB
+$ lxc config set  cont1 limits.memory 384MB
+
+но память урезать конечно это фигня. главная сложность была заставить
+виртуалку запускаться на конкретных ядрах!
+если я нехочу прописывать конкретные ядра а просто ограничить чтобы 
+виртуалка имела 1 цпу который будет запускаться на любых ядрах хоста
+то тогда это делается конечно очень просто
+$ lxc config set  cont1 limits.cpu 1
+
+
+по аналогии создаю вторую виртуалку.
+итак есть две виртуалки в каждой по 2 вирт цпу. и они привязаны
+к одним и тем же ядрам на хосте.
+
+теперь я на каждой виртуалке запускаю тестовую программу (бенчмарк)
+который загружает цпу. 
+
+(виртуалка1)#  stress --cpu 2  --vm-bytes 50M --timeout 30
+(виртуалка2)#  stress --cpu 2  --vm-bytes 50M --timeout 30
+
+далее я запускаю на обоих виртуалках vmstat 
+(виртуалка1)# vmstat 1 --wide
+(виртуалка2)# vmstat 1 --wide
+
+и на обоих я вижу одно и тоже
+--procs--  --------cpu--------
+ r    b    us  sy  id  wa  st
+ 2    0    50   0   0   0  50
+
+тоест 50% времени виртуалка ее код работает на цпу хоста а 50% код
+виртуалки застоплен
+
+далее я уже на самом хосте на этих же ядрах запустил нагрузку на цпу
+(хост)$ taskset -c 2,3 stress --cpu 2  --vm-bytes 50M --timeout 60
+теперь получается что 33% времени цпу обслуживает программу с хоста
+33% времени цпу обслуживает код первой виртуалки, 33% времени цпу
+осбуживает код второй вирталки.
+смотрю показания vmstat на обоих виртуалках. они показывают одно
+и тоже
+--procs--  --------cpu--------
+ r    b    us  sy  id  wa  st
+ 2    0    34   0   0   0  66
+
+тоесть 66% времени теперь код виртуалки невыполняется на цпу хоста.
+66% времени виртуалка просто зафризена
+
+вот что значит показания st у vmstat
+
+НА ЭТОМ ОСНОВНОЙ МАТЕРИАЛ ПО ТЕМЕ ВСЕ.
+
+ТЕПЕРЬ. я рассмотрю сопуствующие вопросы которые пришли по ходу
+делания этого материала.
+
+Если запустить top на хосте то будет видно что когда мы запускаем виртуалку
+то появляется процесс на основе файла 
+	qemu-system-x86_64
+у lxd он лежит вот тут
+	/snap/lxd/25505/bin/qemu-system-x86_64
+из чего я делаю вывод что lxd создает виртуалки на основе QEMU.
+На самом деле виртуалка работает на связке QEMU+KVM.
+на данный момент я мало понял в чем их разница и все такое. но вроде 
+бы дело вот в чем - чтобы работала виртуалка для нее проэмулировать  цпу, память, 
+и периферийные устройства. так вот KVM позволяет эмулировать цпу и память, а
+QEMU позволяет эмулировать все остальные железки которые нужны виртуалке.
+вообще как обычно этот вопрос охуенно замутнен в интеренете. далее как я  понял
+QEMU при желании может эмулировать и цпу и память тоже но делает он это медленно
+а вот KVM делает это супер быстро. KVM позволяет ( то что называется аппаратная
+виртуализация) использовать существующий железный цпу как виртуальный для 
+виртуалки и с памятью тоже самое ( что это на самом деле значит хуй знает ибо
+навскидку ненайдешь крому воды.).
+Так вот что еще интересно что получается что вроде как с точки зрения ОС хоста
+виртуалная машина это всего навсего тоже процесс. Это я тоже не понимаю но 
+это так. процесс этот можно найти через ps aux по строкам с "qemu-system-x86_64"
+щас мы их все найдем. я почему то поебался с xargs. почемуто
+заставить его работать через одну команду xargs неработает. пришлось
+использовать два xargs
+
+$ pidof qemu-system-x86_64  | xargs -n1    echo  | xargs -I%  cat /proc/%/status | grep Cpus_allowed_list
+Cpus_allowed_list:	0-7
+Cpus_allowed_list:	0-7
+Cpus_allowed_list:	0-7
+
+таким макаром я нашел на своем хосте три виртуалки (две которые были запущены
+для проверки vmstat и еще третья). как видно я нашел каждый процесс который
+отвечает за виртуалку и посмотреть в свойствах этого процесса на счет на каких
+цпу шедулер будет размещать этот процесс.
+как видно никаких ограничений не видно. я как бы не понял а как же ограничение
+которое я задал чтобы тлоько на двух ядрах причем конкретных?
+далее я предополжил что процесс состоит на самом деле из кучи тредов
+так оно и оказалось
+
+$ ls -1al /proc/23910/task/
+dr-xr-xr-x 7 lxd nogroup 0 мая 12 22:39 23910
+dr-xr-xr-x 7 lxd nogroup 0 мая 12 22:39 23911
+dr-xr-xr-x 7 lxd nogroup 0 мая 12 22:39 23915
+dr-xr-xr-x 7 lxd nogroup 0 мая 12 22:39 23916
+dr-xr-xr-x 7 lxd nogroup 0 мая 12 22:39 23917
+dr-xr-xr-x 7 lxd nogroup 0 мая 12 22:34 23921
+
+и была надежда что ограничение на разрешенные цпу установлено
+для некоторых тредов. так оно и оказалось
+
+$ cat  /proc/23910/task/23910/status | grep -i cpu
+Cpus_allowed:	ff
+Cpus_allowed_list:	0-7
+ cat  /proc/23910/task/23911/status | grep -i cpu
+Cpus_allowed:	ff
+Cpus_allowed_list:	0-7
+$ cat  /proc/23910/task/23915/status | grep -i cpu
+Cpus_allowed:	ff
+Cpus_allowed_list:	0-7
+$ cat  /proc/23910/task/23916/status | grep -i cpu
+Cpus_allowed:	04
+Cpus_allowed_list:	2
+$ cat  /proc/23910/task/23917/status | grep -i cpu
+Cpus_allowed:	08
+Cpus_allowed_list:	3
+$ cat  /proc/23910/task/23921/status | grep -i cpu
+Cpus_allowed:	ff
+Cpus_allowed_list:	0-7
+ 
+
+тоесть видно что все треды неограничены но треды 23916 и 23917
+ограничены. первый может запускаться только на ядре=2 а второй на ядер=3
+вот и разгадка. 
+теперь стало понятно каким же механизмом lxd (kvm+QEMU) обеспечивает 
+цпу аффинити для виртуалки.
+
+далее мне стало интересно а вкакой cgroup лежат треды у виртуалки
+$ ls -1 /proc/23910/task
+23910
+23911
+23915
+23916
+23917
+23921
+
+$ cat  /proc/23910/task/23910/cgroup 
+0::/
+$ cat  /proc/23910/task/23911/cgroup 
+0::/
+$ cat  /proc/23910/task/23915/cgroup 
+0::/
+$ cat  /proc/23910/task/23916/cgroup 
+0::/
+$ cat  /proc/23910/task/23917/cgroup 
+0::/
+$ cat  /proc/23910/task/23921/cgroup 
+0::/
+
+оказалось что ничего интересного
+
+
+далее
+кстати а как выглядит строка параметров запуска виртуалки?
+$ pidof qemu-system-x86_64  | xargs -n1    echo  | xargs -I%  ps -o cmd -fww  -p %
+CMD
+/snap/lxd/25505/bin/qemu-system-x86_64 -S -name cont0 -uuid 702d8a50-3777-4184-b584-6be05fa3753c -daemonize -cpu host -nographic -serial chardev:console -nodefaults -no-user-config -sandbox on,obsolete=deny,elevateprivileges=allow,spawn=allow,resourcecontrol=deny -readconfig /var/snap/lxd/common/lxd/logs/cont0/qemu.conf -spice unix=on,disable-ticketing=on,addr=/var/snap/lxd/common/lxd/logs/cont0/qemu.spice -pidfile /var/snap/lxd/common/lxd/logs/cont0/qemu.pid -D /var/snap/lxd/common/lxd/logs/cont0/qemu.log -smbios type=2,manufacturer=Canonical Ltd.,product=LXD -runas lxd
+
+если это разложить в более понятно виде то вот так
+
+/snap/lxd/25505/bin/qemu-system-x86_64 
+-S 
+-name cont0 
+-uuid 702d8a50-3777-4184-b584-6be05fa3753c 
+-daemonize 
+-cpu host 
+-nographic 
+-serial chardev:console 
+-nodefaults 
+-no-user-config -sandbox on,obsolete=deny,elevateprivileges=allow,spawn=allow,resourcecontrol=deny -readconfig /var/snap/lxd/common/lxd/logs/cont0/qemu.conf 
+-spice unix=on,disable-ticketing=on,addr=/var/snap/lxd/common/lxd/logs/cont0/qemu.spice 
+-pidfile /var/snap/lxd/common/lxd/logs/cont0/qemu.pid 
+-D /var/snap/lxd/common/lxd/logs/cont0/qemu.log 
+-smbios type=2,manufacturer=Canonical Ltd.,product=LXD 
+-runas lxd
+
+тоесть при желании можно руками запусить вот таким образом
+новую виртуалку.
+теперь что значат ключи
+
+-S =  freeze CPU at startup (use 'c' to start execution)
+неочень понятно что это значит
+
+-name cont0
+расшифровка
+-name string1[,process=string2][,debug-threads=on|off]
+                set the name of the guest
+                string1 sets the window title and string2 the process name (on Linux)
+                When debug-threads is enabled, individual threads are given a separate name (on Linux)
+                NOTE: The thread names are for debugging and not a stable API.
+ну тоже не совсем понятно
+
+-uuid 702d8a50-3777-4184-b584-6be05fa3753c 
+расшифровка
+-uuid %08x-%04x-%04x-%04x-%012x
+                specify machine UUID
+вопрос где тот uuid фигурирует?
+
+-daemonize
+расшифровка
+-daemonize      daemonize QEMU after initializing
+тоже непонятно о чем речь. скорей всего имеетя ввиду что если мы запускаем
+виртуалку в терминале руками через команную строку то процесс унаследует
+открытые файлы терминала (/dev/pts/N) и вот они от этих файлов избавляются,
+закрывают их. чтобы если управляющий терминала процесс закроется и у него
+закроется дескпритор который ведет в /dev/ptmx то чтобы от ядра к нашему
+проецссу не прилетел SIGHUP сигнал. ибо если у qemu процесса не обработчика
+SIGHUP сигнала то дефолтовый хендлер ядра сигнала SIGHUP тогда уничтожит
+этот qemu процесс.
+
+-cpu host
+эта хрень видимо означает какой цпу будет эмулировать qemu для
+виртуалки. и видимо это значит что эмулировать ничего ненадо. а надо просто
+заюзать цпу самого хоста.(видимо это раотает только если у нас в линуксе
+актвирован модуль KVM. незнаю)
+
+-nographic
+расшифровка
+-nographic      disable graphical output and redirect serial I/Os to console
+эта хрень видимо запускает ВМ без виртуальной графической карты.
+щас проверим. вот так у меня на хосте выглядит
+$ lspci | grep -i vga
+00:02.0 VGA compatible controller: Intel Corporation Device 3ea0 (rev 02)
+а вот так выглядит внутри ВМ
+# lspci | grep -i vga
+04:00.0 VGA compatible controller: Red Hat, Inc. Virtio GPU (rev 01)
+кхм.. странно получается сточки зрения виртуалки у нее граф карточка 
+есть. непонятно...
+или они имеют ввиду то что сам qemu несоздат в X11 моего хоста компьютера графичес
+кое окно! в которое он бы выводил то что ОС виртуалки пихает на свою 
+виртуальную графическую карту. наверно так!
+
+-serial chardev:console
+расшифровка
+я ее нашел вот тут (https://qemu.weilnetz.de/w32/2011/2011-02-10/qemu-doc.html)
+-serial dev
+Redirect the virtual serial port to host character device dev. The default device is vc in graphical mode and stdio in non graphical mode.
+This option can be used several times to simulate up to 4 serial ports.
+
+что эта хрень значит.  а она значит то что при запуске qemu процесса
+он внутри вм создаст COM порт. и потом он этот com порт пробросит на наш хост
+в тот файл который мы ему укажем. файл который лежит в /dev папке
+и имеет тип Character.  к примеру все tty спец файлы имеют тип Character
+	$ ls -1al /dev/tty
+	crw-rw-rw- 1 root tty 5, 0 мая 13 16:00 /dev/tty
+
+насклоко я понимаю этот тип спец файла подразумевает что обмен может идти
+на уровне отдельных байтов. ( вотличие от блочных спец файлов где обмен идет
+блоками). хотя вот тут я прочитал про это дело несколько другое (https://linux-kernel-labs.github.io/refs/heads/master/labs/device_drivers.html#:~:text=In%20the%20kernel%2C%20a%20character,struct%20file%20and%20struct%20inode%20.)
+там написано что спец файлы ведут на драйверы. это понятно. и что драйрверы
+делятся на две категории - символные и блочные. плоэтому если спец файл имеет
+тип C значит он ведет на смиволный драйвер.  потом в интеетенете я нашел 
+вот такое : 
+	Character devices are those for which no buffering is performed, and block devices are those which are accessed through a cache. Block devices must be random access, but character devices are not required to be, though some are. Filesystems can only be mounted if they are on block devices
+
+еще как я понял фишка вот в чем когда мы в си используем 
+	read(fd,)
+	write(fd,)
+и у нас файл дескриптор смотрит на символьный спец файл то это говорит ядру
+которое уже по факту выполняет чтение запись на это устройство что можно реально
+взять то что указано в read() и write() хотя бы это был 1 байт и его пихать
+на это устройство.
+а вот если дескриптор смотрит на блочноый спец файл то ядро понимает что 
+железка она так неработает. на нее нельзя записть 1 байт или считать  1 байт.
+она работает только сблоками. поэтому ядру нужно преобразовать тот байт
+или байты которые указаны  в качестве аргумента read() write() В БЛОК байтов
+определенного размера и только тогда такой запрос можно будет послать на 
+железку. 
+ <<==== заокнчил тут
+
+
+и здесь тоже интересно. если ввести
+      $ qemu-system-x86_64 -chardev help
+       qemu-system-x86_64: -chardev help: Available chardev backend types: 
+       serial
+       wctablet
+       vc
+то тут нет никакого "console"
+но если зайти в конфиг qemu для этой виртуальной машины.
+а конфиг можно найти если через lsof псмотреть спсиок открытых файлов
+процессом вирт машины
+       $ lsof -p 23910
+так вот заходим в конфиг
+
+
+# cat /var/snap/lxd/common/lxd/logs/cont0/qemu.conf
+# Machine
+[machine]
+graphics = "off"
+type = "q35"
+accel = "kvm"   <===== используется модуль kvm! ( у qemu это зовется акселератор)
+usb = "off"
+
+[global]
+driver = "ICH9-LPC"
+property = "disable_s3"
+value = "1"
+
+[global]
+driver = "ICH9-LPC"
+property = "disable_s4"
+value = "1"
+
+[boot-opts]
+strict = "on"
+
+# Memory
+[memory]
+size = "366M"
+
+# CPU
+[smp-opts]
+cpus = "2"
+sockets = "1"
+cores = "2"
+threads = "1"
+
+[object "mem0"]
+qom-type = "memory-backend-memfd"
+size = "366M"
+policy = "bind"
+host-nodes.0 = "0"
+
+[numa]
+type = "node"
+nodeid = "0"
+memdev = "mem0"
+
+[numa]
+type = "cpu"
+node-id = "0"
+socket-id = "0"
+core-id = "0"
+thread-id = "0"
+
+[numa]
+type = "cpu"
+node-id = "0"
+socket-id = "0"
+core-id = "1"
+thread-id = "0"
+
+# Firmware (read only)
+[drive]
+file = "/snap/lxd/current/share/qemu/OVMF_CODE.4MB.fd"
+if = "pflash"
+format = "raw"
+unit = "0"
+readonly = "on"
+
+# Firmware settings (writable)
+[drive]
+file = "/dev/fd/4"
+if = "pflash"
+format = "raw"
+unit = "1"
+
+# Qemu control
+[chardev "monitor"]
+backend = "socket"
+path = "/var/snap/lxd/common/lxd/logs/cont0/qemu.monitor"
+server = "on"
+wait = "off"
+
+[mon]
+chardev = "monitor"
+mode = "control"
+
+# Console
+[chardev "console"]  <===== вот она секция про chardev:console !
+backend = "socket"
+path = "/var/snap/lxd/common/lxd/logs/cont0/qemu.console"
+server = "on"
+wait = "off"
+
+[device "qemu_pcie0"]
+driver = "pcie-root-port"
+bus = "pcie.0"
+addr = "1.0"
+chassis = "0"
+multifunction = "on"
+
+# Balloon driver
+[device "qemu_balloon"]
+driver = "virtio-balloon-pci"
+bus = "qemu_pcie0"
+addr = "00.0"
+multifunction = "on"
+
+# Random number generator
+[object "qemu_rng"]
+qom-type = "rng-random"
+filename = "/dev/urandom"
+
+[device "dev-qemu_rng"]
+driver = "virtio-rng-pci"
+bus = "qemu_pcie0"
+addr = "00.1"
+rng = "qemu_rng"
+
+# Input
+[device "qemu_keyboard"]
+driver = "virtio-keyboard-pci"
+bus = "qemu_pcie0"
+addr = "00.2"
+
+# Input
+[device "qemu_tablet"]
+driver = "virtio-tablet-pci"
+bus = "qemu_pcie0"
+addr = "00.3"
+
+# Vsock
+[device "qemu_vsock"]
+driver = "vhost-vsock-pci"
+bus = "qemu_pcie0"
+addr = "00.4"
+guest-cid = "3041309828"
+vhostfd = "3"
+
+# Virtual serial bus
+[device "dev-qemu_serial"]
+driver = "virtio-serial-pci"
+bus = "qemu_pcie0"
+addr = "00.5"
+
+# LXD serial identifier
+[chardev "qemu_serial-chardev"]
+backend = "ringbuf"
+size = "16B"
+
+[device "qemu_serial"]
+driver = "virtserialport"
+name = "org.linuxcontainers.lxd"
+chardev = "qemu_serial-chardev"
+bus = "dev-qemu_serial.0"
+
+# Spice agent
+[chardev "qemu_spice-chardev"]
+backend = "spicevmc"
+name = "vdagent"
+
+[device "qemu_spice"]
+driver = "virtserialport"
+name = "com.redhat.spice.0"
+chardev = "qemu_spice-chardev"
+bus = "dev-qemu_serial.0"
+
+# Spice folder
+[chardev "qemu_spicedir-chardev"]
+backend = "spiceport"
+name = "org.spice-space.webdav.0"
+
+[device "qemu_spicedir"]
+driver = "virtserialport"
+name = "org.spice-space.webdav.0"
+chardev = "qemu_spicedir-chardev"
+bus = "dev-qemu_serial.0"
+
+# USB controller
+[device "qemu_usb"]
+driver = "qemu-xhci"
+bus = "qemu_pcie0"
+addr = "00.6"
+p2 = "8"
+p3 = "8"
+
+[chardev "qemu_spice-usb-chardev1"]
+backend = "spicevmc"
+name = "usbredir"
+
+[device "qemu_spice-usb1"]
+driver = "usb-redir"
+chardev = "qemu_spice-usb-chardev1"
+
+[chardev "qemu_spice-usb-chardev2"]
+backend = "spicevmc"
+name = "usbredir"
+
+[device "qemu_spice-usb2"]
+driver = "usb-redir"
+chardev = "qemu_spice-usb-chardev2"
+
+[chardev "qemu_spice-usb-chardev3"]
+backend = "spicevmc"
+name = "usbredir"
+
+[device "qemu_spice-usb3"]
+driver = "usb-redir"
+chardev = "qemu_spice-usb-chardev3"
+
+[device "qemu_pcie1"]
+driver = "pcie-root-port"
+bus = "pcie.0"
+addr = "1.1"
+chassis = "1"
+
+# SCSI controller
+[device "qemu_scsi"]
+driver = "virtio-scsi-pci"
+bus = "qemu_pcie1"
+addr = "00.0"
+
+[device "qemu_pcie2"]
+driver = "pcie-root-port"
+bus = "pcie.0"
+addr = "1.2"
+chassis = "2"
+
+# Config drive (9p)
+[fsdev "qemu_config"]
+fsdriver = "local"
+security_model = "none"
+readonly = "on"
+path = "/var/snap/lxd/common/lxd/devices/cont0/config.mount"
+
+[device "dev-qemu_config-drive-9p"]
+driver = "virtio-9p-pci"
+bus = "qemu_pcie2"
+addr = "00.0"
+multifunction = "on"
+mount_tag = "config"
+fsdev = "qemu_config"
+
+# Config drive (virtio-fs)
+[chardev "qemu_config"]
+backend = "socket"
+path = "/var/snap/lxd/common/lxd/logs/cont0/virtio-fs.config.sock"
+
+[device "dev-qemu_config-drive-virtio-fs"]
+driver = "vhost-user-fs-pci"
+bus = "qemu_pcie2"
+addr = "00.1"
+tag = "config"
+chardev = "qemu_config"
+
+[device "qemu_pcie3"]
+driver = "pcie-root-port"
+bus = "pcie.0"
+addr = "1.3"
+chassis = "3"
+
+# GPU
+[device "qemu_gpu"]
+driver = "virtio-vga"
+bus = "qemu_pcie3"
+addr = "00.0"
+
+[device "qemu_pcie4"]
+driver = "pcie-root-port"
+bus = "pcie.0"
+addr = "1.4"
+chassis = "4"
+
+# VM Generation ID
+[device "vmgenid0"]
+driver = "vmgenid"
+guid = "702d8a50-3777-4184-b584-6be05fa3753c"
+
+[device "qemu_pcie5"]
+driver = "pcie-root-port"
+bus = "pcie.0"
+addr = "1.5"
+chassis = "5"
+
+[device "qemu_pcie6"]
+driver = "pcie-root-port"
+bus = "pcie.0"
+addr = "1.6"
+chassis = "6"
+
+[device "qemu_pcie7"]
+driver = "pcie-root-port"
+bus = "pcie.0"
+addr = "1.7"
+chassis = "7"
+
+[device "qemu_pcie8"]
+driver = "pcie-root-port"
+bus = "pcie.0"
+addr = "2.0"
+chassis = "8"
+multifunction = "on"
+
+
+
+и вот мы увидим секцию
+# Console
+[chardev "console"]  <===== вот она секция про chardev:console !
+backend = "socket"
+path = "/var/snap/lxd/common/lxd/logs/cont0/qemu.console"
+server = "on"
+wait = "off"
+
+получается что наверное COM порт внутри виртуалки перенаправляется 
+на хосте в сокет файл  /var/snap/lxd/common/lxd/logs/cont0/qemu.console
+
+
+ксати не очень понятно как вирт hdd прбрасывается внутрь ВМ.
+тоесть у VMWARE там понятно. там на хостовой ос есть файл который и яялется
+бекендом для диска внутри ВМ. но его надо создавать. а тут мнекажется никкого
+файла нет носителя?  хотя нет. я нашел. в открытых файлах lsof этого процесса
+есть файл 
+ /var/snap/lxd/common/lxd/storage-pools/st-pool-3/virtual-machines/cont0/root.img
+и действильно он вот тут на хосте лежит
+
+	# stat /var/snap/lxd/common/lxd/storage-pools/st-pool-3/virtual-machines/cont0/root.img
+
+  	File: /var/snap/lxd/common/lxd/storage-pools/st-pool-3/virtual-machines/cont0/root.img
+  	Size: 10737418240	Blocks: 5535560    IO Block: 4096   regular file
+
+размер у него 10GB
+а теперь посмотрим каие диски видны внутри ВМ
+
+# lsblk -f
+NAME    FSTYPE FSVER LABEL           UUID         FSAVAIL FSUSE% MOUNTPOINTS
+sda                                                                                  
+├─sda1  ext4   1.0   cloudimg-rootfs 96b0f856-0    7.2G    24%    /
+├─sda14                                                                              
+└─sda15 vfat   FAT32 UEFI            C6CA-1310     98.3M     6% /boot/efi
+
+ну вот это он и есть. 
+
+так я возвращаюсь к вопросу флага
+-serial chardev:console
+стало понятно что COM порт с ВМ наружу пробрасывается в сокет файл на хосте.
+а мне вот интресно как в линуксе посмриреть какие COM порты у него есть?
+для этого ищи темы 
+	"| serial" 
+	"| COM"  
+	"| console"
+
+
+
+
+====
+итак моя виртуалка будет иметь два вирт цпу и они будут на хосте
+привязаны к конкретным цпу на хосте. я не понимаю как это все устроено
+но с точки зрения ОС хоста каждый вирт цпу виртуалки это всего навсего
+тред ! я это потом ниже все покажу раскажу.  <========= !!!!
+щас не это главное
+
+
+
+
+
+
+
+
+
+
+====
 общий план такой. я создам две vm используя lxd.
 я заставлю их выполняться на фиксрованных ядрах цпу хоста.
 далее я на них запущу нагрузку. эти виртуалки будут мешать друг другу.
 также я на самом хосте запущу нагрузку на этих же ядрах. 
 мешание станет еще сильнее.
 а потом я посмтрю внутри каждой виртуалки какой st будет показывать vmstat
+
+
 
 
 >> что я выснил. если мы через цгруппу огрничиваем ограничиваем цпу
@@ -111,6 +845,67 @@ Cpus_allowed_list:	0-7
 как тоько наступает новый интервал 100 минут лимит обратно сбрасывется
 до 10минут разрешенных
 
+>> папка с логами контейнера в lxd
+ sudo cat  /var/snap/lxd/common/lxd/logs/ub1/console.log
+
+>> походу lxd базируется на lxc. и оно само умеет создвать контейнеры
+без runc или crun
+вопрос вот в чем.
+вот дерево процессов у докера
+$ pstree -AspT 24083
+systemd(1)---containerd-shim(24083)---bash(24110)
+тут нет в завсиимости докер сервера. но он тоже как участвует.
+еще и контейнерд сервер тоже учатствввует.
+вопрос - если грохнуть докер сервер. или контйенрд сервер
+или шим то это грохнет контйенер?
+
+у подмана схема вот такая
+# pstree -AspT 17223
+systemd(1)---conmon(17220)---sh(17223)
+вопрос убиение каких процессов убивает контейре?
+
+у lxd схема такая
+$ pstree -AspT 11366
+systemd(1)---lxd(11356)---systemd(11366)-+-dbus-daemon(11975)
+                                         |-networkd-dispat(11991)
+                                         |-packagekitd(13012)
+                                         |-polkitd(12153)
+                                         |-rsyslogd(12000)
+                                         |-systemd-journal(11461)
+                                         |-systemd-logind(12006)
+                                         |-systemd-network(11893)
+                                         |-systemd-resolve(11917)
+                                         `-systemd-udevd(11639)
+
+ вопрос убинеие каких процессов убьет и контейнер?
+
+
+у lxc вот так
+# pstree -AspT 1734
+systemd(1)---lxc-start(1733)---init(1734)-+-crond(2069)
+                                          |-getty(2180)
+                                          |-getty(2181)
+                                          |-getty(2182)
+                                          |-getty(2183)
+                                          |-getty(2184)
+                                          |-syslogd(2041)
+                                          `-udhcpc(2162)
+
+поэтому мне инересно чьи контенеры лучше выживают? тоесть когда 
+у нас падает не процсс внути конейтерра а процесс который снаружи
+конотролиируе эттот контенер. если обслуга контенерера падает то
+у кого контйенер лучше выжывает?
+скажем известно что если докер серввер грохнуть чрез килл
+то якобы и все контенеры тут же подыхают (надо проверть в том числе
+что это по факту значит). вот в этом разрезе мне интересны
+все эти контейнер менеджеры.
+я вот еще что подумал. от того что докер сервис не является парентом
+для конетенейнера это ничего страшного. шим через сокет связан 
+с контйенерд.  а тот через сокет с докер сервисом. поэтмуо возможно
+шим процесс следит через сокеты о здоровье сервиса докер? и поэтому 
+коода докер сервис сдох то шим останаливает контейнер??!?!?!? может так?
+
+
 
 
 
@@ -179,94 +974,6 @@ description: ""
 
 ==
 
-смотрю ресурсы компа
-с точки зрения lxd
-
-$ lxc info --resources
-CPU (x86_64):
-  Vendor: GenuineIntel
-  Name: Intel(R) Core(TM) i5-8265U CPU @ 1.60GHz
-  Caches:
-    - Level 1 (type: Data): 32KiB
-    - Level 1 (type: Instruction): 32KiB
-    - Level 2 (type: Unified): 256KiB
-    - Level 3 (type: Unified): 6MiB
-  Cores:
-    - Core 0
-      Frequency: 1000Mhz
-      Threads:
-        - 0 (id: 0, online: true, NUMA node: 0)
-        - 1 (id: 4, online: true, NUMA node: 0)
-    - Core 1
-      Frequency: 1000Mhz
-      Threads:
-        - 0 (id: 1, online: true, NUMA node: 0)
-        - 1 (id: 5, online: true, NUMA node: 0)
-    - Core 2
-      Frequency: 1000Mhz
-      Threads:
-        - 0 (id: 2, online: true, NUMA node: 0)
-        - 1 (id: 6, online: true, NUMA node: 0)
-    - Core 3
-      Frequency: 1000Mhz
-      Threads:
-        - 0 (id: 3, online: true, NUMA node: 0)
-        - 1 (id: 7, online: true, NUMA node: 0)
-  Frequency: 1000Mhz (min: 400Mhz, max: 1600Mhz)
-
-я хочу ограничить виртуалку двумя ядрами причем
-я хочу жестко задать аффинити тоесть чтобы виртуалка работала
-на конкретных ядрах. для этого нужно найти "номера" этих ядер 
-с точки зрения lxd
-
-в итоге я выбираю эти ядра ( сточки зрения lxd это треды) : 
-	Core 2 
-	  thread id: 2
-и
-
-	Core 3 
-	  thread id: 3
-
-в итоге искомые "номера" это  2-2 и 3-3
-
-дебилизм в том что новой документации от lxd 5 нихуя ненайти 
-в каком виде подставлять эти номера ,  в старом
-lxd надо было подставлять номера как 2,2 3,3
-а в новом lxd 5 надо подставлять как 2-2,3-3
-суки
-
-щас покажу уже наконец как это надо вставлять в командную строку.
-итак  я имею у виртальной машины сейчас вот так
-
-$ lxc config show cont1 | grep limits | grep cpu
-  limits.cpu: "1"
-
-тогда я вставляю вот так
-$ lxc config set  cont1 limits.cpu 2-2,3-3
-
-проверяю
-$ lxc config show cont1 | grep limits | grep cpu
-  limits.cpu: 2-2,3-3
-
-также я урезаю память
-$ lxc config show cont1 | grep limits | grep memory
-  limits.memory: 512MB
-$ lxc config set  cont1 limits.memory 384MB
-
-но память урезать конечно это фигня. главная сложность была заставить
-виртуалку запускаться на конкретных ядрах!
-если я нехочу прописывать конкретные ядра а просто ограничить чтобы 
-виртуалка имела 1 цпу который будет запускаться на любых ядрах хоста
-то тогда это делается конечно очень просто
-$ lxc config set  cont1 limits.cpu 1
-
-
-итак моя виртуалка будет иметь два вирт цпу и они будут на хосте
-привязаны к конкретным цпу на хосте. я не понимаю как это все устроено
-но с точки зрения ОС хоста каждый вирт цпу виртуалки это всего навсего
-тред ! я это потом ниже все покажу раскажу.  <========= !!!!
-щас не это главное
-
 >>> у треда можно найти его цпу аффинити
 >>> если две вирт то стид 50% если две вирт и хост что равно три
 виртуалки то уже 66%. потому что кажой достается 33%. значит каждая 66% стоит
@@ -287,5 +994,98 @@ https://docs.ubuntu.com/ - LXD  - Сonfiguration options - Instance options
 
 
 >>> lxd конйенеры работают на основе qemu которая раотат в связке с kvm
+>>> получается у lxd вртутлки на основе qemu+kvm а контейеры на основе lxc
+
+>>> vmstat в новом debian 12 там стоит более новый пакет procps
+и его утилита vmstat теперь имеет новое поле "gu"
+
+# vmstat 1 -w
+--procs-- .... ----------cpu----------
+   r    b .... us  sy  id  wa  st  gu    <=======
+   1    0 .... 0   1  98   0   0   0
+
+оно переводится согласно man vmstat как 
+  gu: Time spent running KVM guest code (guest time, including guest nice).
+я вначале не мог понять о чем это .  а потом понял.
+оно показывает сколько % мощности цпу за семплинг интервал было 
+потрачено на обслуживание кода виртуальых машин через kvm модуль
+которые крутятся на хосте.
+например. у нас на хосте 8 ядер. и у нас есть виртуалка qemu+kvm.
+и у нее на 100% загружено 1 ядро. тоесть на хосте у нас на 100% загружено
+одно ядро. тогда получается что 1\8 всей мощности цпу была употреблена
+на обслуживание виртуалки через kvm модуль. и тогда столбик gu покажет 
+	1/8 = 0.125 * 100% = 12.5%
+если все 8 ядер будут заняты обслуживанием виртуалок то этот столбик
+будет равен 100%
+
+~# vmstat 1 -w
+--procs-- ... ----------cpu----------
+ r    b   ... us  sy  id  wa  st  gu
+ 2    0   ...  8  11  66   0   0  15
+ 1    0   ...  9   8  67   0   0  16
+  
+gu это сколко % времени цпу находился в пространстве модуля kvm
+теперь у нас формула выглядит так
+ 100% = us + sy + id + wa + st + gu
+
+что еще прикольно. у меня на хосте стоит старый убунту 18
+так вот я на нем запутил в контейнере новый убунту 24.
+в нем получается пакет procps более новый. и vmstat в контейнере
+даже на старом убунту18 ядре все равно успешно показыает этот gu столбик.
+я задался вопросом как так получается что у нас вроде как 
+/proc примаунчен в своем pid и mount namespace
+а при этом мы получаем статистику по состоянию ядра на хосте?
+ я сделал strace для vmstat
+
+# strace vmstat -w 2>&1 | grep "/proc"
+openat(AT_FDCWD, "/proc/vmstat", O_RDONLY) = 3
+openat(AT_FDCWD, "/proc/cpuinfo", O_RDONLY) = 4
+openat(AT_FDCWD, "/proc/stat", O_RDONLY) = 4
+openat(AT_FDCWD, "/proc/meminfo", O_RDONLY) = 5
+openat(AT_FDCWD, "/proc/uptime", O_RDONLY) = 6
+и понял.
+оказывается что вмстат читает такие файлв на /proc которые одинаковые
+хоть внутри конейтнера хоть на хосте. потому что эти файлы они говорят
+об состоянии ядра а не процессов !
+кокнтно gu берется из /proc/stat
+
+$ cat /proc/stat
+cpu  50487845 24654 15855629 72363671 43869 0 5839592 0 16175541 0
+cpu0 6343398 2582 1928794 42542055 24315 0 2661302 0 2022067 0
+
+согланос man proc 
+написано что столбики 9 и 10 сообщают нам вот что
+
+  guest (since Linux 2.6.24)
+  (9) Time spent running a virtual CPU for guest operating systems 
+  under the control of the Linux kernel.
+
+  guest_nice (since Linux 2.6.33)
+  (10) Time spent running a niced guest (virtual CPU for guest 
+  operating systems under the control of the Linux kernel).
+
+получаетс что vmstat суммирует эти два столбика и выдает их как gu
+но полчается какая то хуйня. потому что как видно эти столбтики 
+есть уже начиная с 2.6.* хуй знает как давно в ядре лиункса.
+но дело втом что если у нас уходят проценты в gu стобик то от остальных
+оно отнимается. а какже тогда старые vmstat утилиты правильно показыали
+все остальыне столбики?
 
 
+вот скажем это покзыает утилита vmstat в контенерйенере
+... ----------cpu----------
+... us  sy  id  wa  st  gu
+...  8   7  68   0   0  16
+
+
+а вот что покзвает vmstat на хосте
+... ----------cpu----------
+... us  sy  id  wa  st 
+... 27   7  66   0   0
+
+но это же пиздец.
+ведь обе эти утилиты читают один и тот же файл /proc/stat
+мне что блядь самому руками сука почитать и выяснить 
+как они суки считают на практике?
+
+это бялль реально прикол

@@ -1,0 +1,67 @@
+| qemu
+| kvm
+
+я не знаю как его ставить. у меня он уже стоял в раммках
+установленного lxd
+
+как з
+==
+как опрееделить изнутри виртуалки что она раобтает внутри kvm 
+хрени
+
+$ systemd-detect-virt
+kvm
+
+===
+ошибка 
+qemu Failed to get "write" lock
+рещение
+file.locking=off
+==
+
+как создатьдиск qcow2
+qemu-img create -f qcow2 Win2k.img 20G
+==
+указал 
+-cpu host
+выезала ошика
+qemu CPU model 'host' requires KVM
+реешение дбобаыит
+-enable-kvm
+=
+linux mint
+сука он меньше чем с 1GB ram не усаналвиыватеся добобоеб.
+пишет что init не может найти
+дебыьидыы
+
+==
+ 
+$ [vasya@lenovo 04]$ qemu-system-x86_64 -name deb1 -m 320M  -boot d -hda ./debian-wheezy-i386.img  -drive file=debian-wheezy-i386.img,media=disk,if=virtio,format=qcow2,file.locking=off  -cpu host -enable-kvm -sdl  -serial /dev/tty -smp 2 -M pc-q35-2.11 -net none  -vga virtio
+
+
+
+
+
+==
+как поть что работаешь внутри вм которая на оснвое kvm
+# systemd-detect-virt 
+kvm
+==
+-hda ./debian-wheezy-i386.img  -drive 
+почему то диск видит только если в текуей папке. 
+в друмх пошел нах	уц
+
+==
+как сеть подрудить непонятно
+
+==
+опции
+
+qemu ..  -vga help
+qemu ..  -M help
+
+удбонго!
+
+==
+
+

@@ -1,0 +1,49 @@
+| procinfo
+
+прикольгая команда
+единсвтенное пиздец. если эта програ долго раотает на компе
+то она выжирает 10-15ГБ RAM ! это охуеть!
+
+
+$ procinfo
+Memory:        Total        Used        Free     Buffers                       
+RAM:        16144928    15572536      572392     1211972                       
+Swap:      104857596     1839516   103018080                                   
+
+Bootup: Thu May  2 21:55:57 2024   Load average: 0.60 0.62 0.84 1/1852 12658   
+
+user  :      4d 14:06:27.90  35.8%  page in :         45369724                 
+nice  :         00:02:26.80   0.0%  page out:        108150148                 
+system:      1d 11:22:05.96  11.5%  page act:         27271881                 
+IOwait:         00:03:42.11   0.0%  page dea:          4208947                 
+hw irq:         00:00:00.00   0.0%  page flt:       2738664761                 
+sw irq:         12:36:33.45   4.1%  swap in :            14653                 
+idle  :      4d 18:10:01.78  37.1%  swap out:           523637                 
+uptime:   1w 2d 19:11:55.69         context :       3284612361                 
+
+irq   0:          8  2-edge timer        irq 127:          0  376832-edge ahci[
+irq   1:     847269  1-edge i8042        irq 128:         32  360448-edge mei_m
+irq   8:          1  8-edge rtc0         irq 129:          0  1572864-edge enp3
+irq   9:        255  9-fasteoi acpi      irq 130:   61973254  32768-edge i915  
+irq  14:          0  14-fasteoi INT34B   irq 131:         21  2097152-edge nvme
+irq  16:    6453507  16-fasteoi idma64   irq 132:      12199  2097153-edge nvme
+irq  20:          0  20-fasteoi idma64   irq 133:      12297  2097154-edge nvme
+irq 110:     225547  110-fasteoi ELAN0   irq 134:      11513  2097155-edge nvme
+irq 120:          0  0-edge dmar0        irq 135:      12662  2097156-edge nvme
+irq 121:          0  1-edge dmar1        irq 136:      12753  2097157-edge nvme
+irq 122:          0  458752-edge PCIe    irq 137:      11972  2097158-edge nvme
+irq 123:          0  475136-edge PCIe    irq 138:      11698  2097159-edge nvme
+irq 124:          0  477184-edge PCIe    irq 139:      13216  2097160-edge nvme
+irq 125:          0  483328-edge PCIe    irq 140:    9991157  1048576-edge ath1
+irq 126:    2408651  327680-edge xhci_   irq 141:       1114  514048-edge snd_h
+
+
+docker0      TX 0.00B         RX 0.00B         veth45622d9  TX 0.00B         RX 0.00B        
+enp3s0       TX 0.00B         RX 0.00B         veth6334299  TX 0.00B         RX 0.00B        
+lo           TX 1.18MiB       RX 1.18MiB       virbr0       TX 0.00B         RX 0.00B        
+lxdbr0       TX 0.00B         RX 0.00B         virbr0-nic   TX 0.00B         RX 0.00B        
+lxdbr1       TX 166.38MiB     RX 3.45MiB       wg0          TX 1.03GiB       RX 31.69GiB     
+tap0acf1587  TX 82.64MiB      RX 2.47MiB       wlp2s0       TX 1.40GiB       RX 32.73GiB     
+tapd849074c  TX 83.76MiB      RX 1.68MiB                                       
+
+

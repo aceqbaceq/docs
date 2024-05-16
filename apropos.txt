@@ -1,0 +1,22 @@
+| apropos
+| man
+
+охуенная команда apropos
+если я хочу найти какие то man страницы по какому то слову 
+то она помогает это сдеалать ! напримиер!
+
+$ apropos ^printf
+printf (1)           - format and print data
+printf (1posix)      - write formatted output
+printf (3)           - formatted output conversion
+printf (3posix)      - print formatted output
+
+теперь понятно что в man нужно искать вот так
+
+$ man 3posix printf
+$ man 3 printf
+
+причем апропос понимает паттерны поиска как и у грепа. тоесть
+	^printf
+означает что ^ это начало строки
+
