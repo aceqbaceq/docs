@@ -1,0 +1,74 @@
+| pci
+
+можно ли выключить железку с компа.
+ответ нет.
+
+можно только удалить модуль ядра который его драйвер
+содержит чтобы нетратит ресусры ядра на обработку событиый 
+с этой железки . в том числе иинтерапты с этой железки
+
+например 
+
+# lspci -v
+03:00.0 Ethernet controller: Realtek Semiconductor Co., Ltd. RTL8111/8168/8411 PCI Express Gigabit Ethernet Controller (rev 10)
+	Subsystem: Lenovo RTL8111/8168/8411 PCI Express Gigabit Ethernet Controller
+	Flags: bus master, fast devsel, latency 0, IRQ 17
+	I/O ports at 3000 [size=256]
+	Memory at a1404000 (64-bit, non-prefetchable) [size=4K]
+	Memory at a1400000 (64-bit, non-prefetchable) [size=16K]
+	Capabilities: [40] Power Management version 3
+	Capabilities: [50] MSI: Enable- Count=1/1 Maskable- 64bit+
+	Capabilities: [70] Express Endpoint, MSI 01
+	Capabilities: [b0] MSI-X: Enable+ Count=4 Masked-
+	Capabilities: [d0] Vital Product Data
+	Capabilities: [100] Advanced Error Reporting
+	Capabilities: [140] Virtual Channel
+	Capabilities: [160] Device Serial Number 01-00-00-00-68-4c-e0-00
+	Capabilities: [170] Latency Tolerance Reporting
+	Capabilities: [178] L1 PM Substates
+	Kernel driver in use: r8169             <===== *****
+	Kernel modules: r8169
+
+
+
+*** насколко я понял это едиснтвыенный признак 
+что железка подключена к ядру
+строчка покзыват что модуль реально загружен  в память
+и железка реально обслуживается ядром
+
+
+видим что у него дрйвер лежит в модуле r8169
+тогда удаляяем модуль
+
+	# rmmod r8169
+
+
+после этого lspci покажет все тоже самое кроме 
+строчки ****
+
+это реальный прикол. как бы навскиудку хрено поймешь
+поключен дрйавер к железке или нет!!!
+
+отклчют железку прогамано не получится. 
+максимум можно железку "изьять" из списка железа в ядре. но
+железка будет включена как ни в чем ни бывало.
+"изяьять" железку можно вот так 
+
+  # echo "1" > /sys/bus/pci/devices/DDDD\:BB\:DD.F/remove
+
+
+после этого она должна исчезнуть из папки /sys
+если это pci железка то заново ее "найти" можно пеересканироввав
+pci шину
+
+
+   # echo "1" > /sys/bus/pci/rescan
+
+сссылки
+https://unix.stackexchange.com/questions/73908/how-to-reset-cycle-power-to-a-pcie-device/245184#245184
+
+https://askubuntu.com/questions/4546/how-do-i-turn-off-pci-devices
+
+https://www.kernel.org/doc/Documentation/filesystems/sysfs-pci.rst
+
+
