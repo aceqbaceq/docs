@@ -1,0 +1,10 @@
+| hardware
+| hw
+| железо
+
+как узнать состав железа на компе
+
+$ dmidecode
+$ inxy -v2 
+$ hwinfo --cpu --disk
+
