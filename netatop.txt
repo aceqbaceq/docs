@@ -1,0 +1,111 @@
+| netatop
+
+это модуль для atop 
+он дает то что если в atop нажать "n" то через этот модуль
+мы получаем инфо о том сколько каждый прцоесс индивиудуально жрет 
+сетевого траифка
+
+ставить  его так.
+
+1) идем на сайт и качаем исходники
+https://www.atoptool.nl/downloadnetatop.php
+там указаны нескоько версий исходников этой программы. в кажой 
+версии написано какое МИНИУМ ядро надо для нее.
+наприме у меня ядро 6.2
+значит мне подхлодит версия проги 3.1
+в ее описани напписно что нужно ядро >=5.6
+качаем исходники.
+
+раскрываем тар архив.
+также нужно поставить пакет 
+
+   $ sudo apt-get  install zlib1g-dev:amd64
+
+теперь заходим в папку с исходниками
+	$ make
+	$ sudo make install
+оно создаст и засунет модуль куда надо
+и создать systemd юнит
+
+$ sudo make install
+install -d /lib/modules/`uname -r`/extra
+install -m 0644 module/netatop.ko -t /lib/modules/`uname -r`/extra
+depmod
+install daemon/netatopd -t /usr/sbin
+# install -T -m 0755 netatop.init /etc/init.d/netatop
+install -m 0644 netatop.service -t /lib/systemd/system
+install man/netatop.4 -t /usr/share/man/man4
+install man/netatopd.8 -t /usr/share/man/man8
+
+
+смотрим что там в юните
+
+$ cat /lib/systemd/system/netatop.service 
+[Unit]
+Description=Netatop kernel module 
+Documentation=man:netatop(4)
+After=syslog.target
+Before=atop.service atopacct.service
+
+[Service]
+Type=oneshot
+ExecStartPre=/sbin/modprobe netatop
+ExecStart=/usr/sbin/netatopd
+ExecStopPost=/sbin/rmmod netatop
+PIDFile=/var/run/netatop.pid
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+
+он грузит модуль и запускает демона netatopd
+
+а чо демон то делает ?
+
+	$ man 8 netatopd
+говорит о том что просто напросто он логи запмсывает. а нахер они мне нужны.
+дизейблим этот юнит
+
+	# systemctl stop netatop
+	# systemctl disable neteatop
+	# systemctl mask netatop
+
+насолко я понимаю из man systemctl 
+что mask это более сильный отклчатель чем disablee
+если мы сделали mask то systemctl enable несработает пока мы не сделаемм 
+	systeemctl unmask
+
+осталось сделать так чтобы модуль автоматом грузился при перзагрузке.
+как это сделать смотри в "| module"
+
+посмотрим инфо о модуле
+
+$ modinfo netatop
+filename:       /lib/modules/6.2.0-32-generic/extra/netatop.ko
+version:        3.1
+description:    Per-task network statistics
+author:         Gerlof Langeveld <gerlof.langeveld@atoptool.nl>
+license:        GPL
+srcversion:     5708DB468E853916D76980B
+depends:        
+retpoline:      Y
+name:           netatop
+vermagic:       6.2.0-32-generic SMP preempt mod_unload modversions 
+
+
+загрузим щас пока его руками
+# modprobe -v netatop
+insmod /lib/modules/6.2.0-32-generic/extra/netatop.ko 
+
+$  lsmod | grep netatop
+netatop                77824  0
+
+все тпеперь идем в atop
+	$ sudo atop
+ксатти он к этому модулю неможет покдлччиться если запущен под простым 
+юзером.
+
+тперь тыкаем кнопку "n"
+и если все срослось то он покажет статистику сети попроцссам.
+а если несропсрлоль то он ругрнется на эккране
+

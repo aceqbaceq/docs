@@ -1,0 +1,14 @@
+| module
+| modprobe
+
+
+как сделать так чтобы модуль загружалася автоматом
+при перезагрузке
+
+надо еего имя вписать в файл
+	/etc/modules-load.d/modules.conf
+ксати этот файл это симлинк
+	$ readlink  /etc/modules-load.d/modules.conf 
+../modules
+
+вроде и все
