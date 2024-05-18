@@ -1,0 +1,96 @@
+| lock
+| locks
+| flock
+
+я начинаю эпопею по локам  в линуксе
+
+пока что первый набросок.
+
+если утилита floсk 	из пакета util-linux
+		$ man 1 flock
+
+там кстати дохрена всяких козырных утилит
+
+$ dpkg -L  util-linux | grep bin/
+/bin/dmesg
+/bin/findmnt
+/bin/lsblk
+/bin/more
+/bin/mountpoint
+/bin/su
+/bin/wdctl
+/sbin/agetty
+/sbin/blkdiscard
+/sbin/blkid
+/sbin/blkzone
+/sbin/blockdev
+/sbin/chcpu
+/sbin/ctrlaltdel
+/sbin/findfs
+/sbin/fsck
+/sbin/fsck.cramfs
+/sbin/fsck.minix
+/sbin/fsfreeze
+/sbin/fstrim
+/sbin/hwclock
+/sbin/isosize
+/sbin/mkfs
+/sbin/mkfs.bfs
+/sbin/mkfs.cramfs
+/sbin/mkfs.minix
+/sbin/mkswap
+/sbin/pivot_root
+/sbin/runuser
+/sbin/sulogin
+/sbin/swaplabel
+/sbin/switch_root
+/sbin/wipefs
+/sbin/zramctl
+/usr/bin/addpart
+/usr/bin/choom
+/usr/bin/chrt
+/usr/bin/delpart
+/usr/bin/fallocate
+/usr/bin/fincore
+/usr/bin/flock
+/usr/bin/getopt
+/usr/bin/hardlink
+/usr/bin/ionice
+/usr/bin/ipcmk
+/usr/bin/ipcrm
+/usr/bin/ipcs
+/usr/bin/last
+/usr/bin/lscpu
+/usr/bin/lsipc
+/usr/bin/lslocks
+/usr/bin/lslogins
+/usr/bin/lsmem
+/usr/bin/lsns
+/usr/bin/mcookie
+/usr/bin/mesg
+/usr/bin/namei
+/usr/bin/nsenter
+/usr/bin/partx
+/usr/bin/prlimit
+/usr/bin/resizepart
+/usr/bin/rev
+/usr/bin/setarch
+/usr/bin/setpriv
+/usr/bin/setsid
+/usr/bin/setterm
+/usr/bin/taskset
+/usr/bin/uclampset
+/usr/bin/unshare
+/usr/bin/utmpdump
+/usr/bin/whereis
+/usr/sbin/chmem
+/usr/sbin/ldattach
+/usr/sbin/readprofile
+/usr/sbin/rtcwake
+/sbin/getty
+/usr/bin/i386
+/usr/bin/lastb
+/usr/bin/linux32
+/usr/bin/linux64
+/usr/bin/x86_64
+
