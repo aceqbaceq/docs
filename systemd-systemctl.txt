@@ -1,0 +1,36 @@
+| systemctl
+| systemd
+| isolate
+| multi-user.target
+| graphical.target
+
+вопрос вот мы сидим в граф режиме на линуксе.
+а как нам без перезагрузки перейти в init3 (говоря по старому) режиме.
+
+интенет гвориит что надо сделать
+
+	$ sudo  systemctl isolate multu-user.target
+
+вот что пишает man systemctl
+
+ isolate UNIT
+           Start the unit specified on the command line and its dependencies and stop all others, unless they have IgnoreOnIsolate=yes (see
+           systemd.unit(5))
+
+ по факту я что получил просто черный экран.
+так что как то нихрена неработает эта команда как надо.
+
+
+ясен банан что эта команда она неменяет как линукс стартует после перезагрузки.
+если он гурзится вгарифике то он и будет грузиться в графике.
+
+а что бы поменять у него "режим" раз и навсегда то надо сделать воттак
+
+проверяем какой щас по дефолту стоит режим после перезагрузки
+	 # systemctl get-default
+ 	graphical.target
+
+меняем его
+	# systemctl set-default multu-user.target
+	# reboot
+

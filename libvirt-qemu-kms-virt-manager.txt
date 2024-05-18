@@ -1,0 +1,143 @@
+| libvirt
+| virt-manager
+| qemu
+| kms
+
+
+тут будет большая тема про всю эту кухню
+
+==
+| qemu archlinux manjaro Ctrl+C 
+
+
+пролема
+есял я заохожу на qemu виртулку через режим 
+
+	-monitor none
+	- nographic
+
+
+и тыккаю Crtl+C 
+то моя хостовое ядро оно посылвает этот сигнал невнутрт вируалки!
+а на форегруаунд процесс который щас крутится на моем черном окне моего хоста
+тоеть он посылает этотсигнал qemu-system-x86_64  и он как номраьный процесс
+поймав этот сигнал заканчивает рабооту тоесть по факту моя виртуалка ПОДЫХАЕТ!
+
+надо как то заставить qemu при получении сигнал sigterm на работу заканчивать
+а пересылть сигнал виртулке !!!
+
+если зсставить qemu создавать pts/10 устройствао и я будут к нему подкюаться
+через самописную C программу то это тоже невыход. так как нажатие Ctrl+C 
+будет приавоид к тому что ядро хоста будет посылать этот  сигнал моей 
+сампоисной программе. !
+
+КОРОЧЕ решение найдено! 
+окзывается во всем виновата настройка 
+
+	-monitore none
+
+нужно ее вообще нахуй убрать полностьью.
+и тоогда qemu-system-x86_64 если получает сигнал SIGTERM он его 
+не сам исполняет (типа грохает себя) а напрвляет его внутрь виртулки!
+нашел ответ здесь
+(https://unix.stackexchange.com/questions/167165/how-to-pass-ctrl-c-to-the-guest-when-running-qemu-with-nographic)
+сука!!
+
+
+
+
+
+
+==
+
+| archlinux manjaro network static ip
+сеть в archlinux\manjaro
+как ее быстро поднять
+
+в целом есть несколько вариантов как на виртулаке на оснвое qemu 
+настроить сеть. я буду описывать метод который в интенете называется "qemu network via tap"
+
+во первых я рекомендую поднять на хостовой машине linux bridge,
+можно посмотреть как это сделать а можно например воспользоваться 
+уже тем бриджом что уже есть на хосте например очень часто на хостовой
+машнине есть docker0 бридж который создал докер. ну вот и отлично.
+или можно восползоваться бриджом lxdbr0 это бридж  который создает lxd
+фишка в том что для этих бридждей уже все настроено в том числе нужные
+правила на iptables
+
+далее надо  создать tap0 интерфейс и воткнуть его в этот бридж.
+( взял отсюда https://gist.github.com/extremecoders-re/e8fd8a67a515fee0c873dcafc81d811c )
+    $ sudo apt install uml-utilities
+    $ sudo   tunctl -t tap0 -u `whoami`
+    $ sudo brctl addif docker0 tap0
+    $ sudo ip -c l set tap0 up   <==== ОБЯЗАТЕЛЬЕО на хосте надо поднять tap0 карту!
+
+
+
+далее запускать виртуалку в qemu надо вот так
+$ qemu-system-x86_64 ....
+    -netdev tap,id=mynet0,ifname=tap0,script=no,downscript=no 
+    -device virtio-net-pci,netdev=mynet0,mac=52:55:00:d1:55:02   
+
+
+далее когда зайдешь на виртуалку то поднять временно  сеть 
+руками можно так 
+
+	# ip address 172.17.0.113/24 dev enp0s2   < ==== 172.17.. это сеть br интерфейса
+											  < === enp0s2 это назв карты на виртуалке
+    # ip route add default via 172.17.0.1
+    # echo "nameserver 8.8.8.8" > /etc/resolv.conf
+
+а чтобы сеть по нормальному настроить чтобы после перезагрузки
+ннужно было руками ничего крутить то используй
+
+		systemd-networkd
+
+чтобы его настроить ищи "|systemd-networkd"
+
+все теперь доступ в интернет должен работать
+
+==
+в какой папке по дефолту virt-manager запиывает файлы виртуальных дисков
+
+	~/.local/share/libvirt/images/manjaro.qcow2	
+==
+
+
+archlinux
+manjaro
+
+при загрузке ос через qemu который вот так запускается
+
+$ qemu-system-x86_64 -name manj11 -m 2G   -boot d -hda ./manjaro.qcow2  -drive file=manjaro.qcow2,media=disk,if=virtio,format=qcow2,file.locking=off  -cpu host -enable-kvm   -smp 1  -M pc-q35-2.11        -netdev tap,id=mynet0,ifname=tap1,script=no,downscript=no -device virtio-net-pci,netdev=mynet0,mac=52:55:00:d1:55:02   -device qxl-vga,id=video0,vgamem_mb=16,xres=1800,yres=950   -monitor none -nographic
+
+я отмечу опции
+	-monitor none -nographic
+это дает то что qemu берет COM порт (ttyS0) который он сует в виртуалку
+и qemu вот что делает он все что виртуалка высирает на ttyS0 направляет на текущее "черное
+окно" а то что с клавы "черного окна" нажмается то qemu это все пихает на ttyS0 виртуалки.
+при этом у меня через GRUB на виртуалке настроен вот такой параметр
+	console=ttyS0
+это дает то что линукс при загрузке будет на ttyS0 высирать лог загрузки
+а после ттого как линукс загрузится то ядро запустиит agetty процесс которому он 
+"пришьет" к fd/0 и fd/1 ttyS0
+
+               /proc/pid/fd/0 ----> /dev/tty/S0
+               /proc/pid/fd/1 ----> /dev/tty/S0
+
+где pid это пид процесса agetty
+поэтому в итоге у нас на экранее нашего черного окна на хосте будет выведено 
+приглашение логина и пароля. и вуаля мы внутри виртуалки.
+
+так вот при загрузке manjaro который базируется на archlinux
+я вижу ошибку
+
+
+:: running early hook [udev]
+:: running hook [udev]
+:: Triggering uevents...
+:: running hook [keymap]
+:: Loading keymap...kbd_mode: KDSKBMODE: Inappropriate ioctl for device   <====== !!!!
+
+
+вот с этой ошибкой  я щас будут работать

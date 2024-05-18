@@ -1,0 +1,30 @@
+| systemd
+| systemd-networkd
+
+
+как быстро поднять сеть через systemd-networkd
+
+
+
+	# > /etc/systemd/network/20-wired.network
+
+[Match]
+Name=enp1s0
+
+[Network]
+Address=172.17.0.115/24
+Gateway=172.17.0.1
+DNS=8.8.8.8   <=== эта херня ничего недает
+
+
+
+	# systemctl daemon-reload &&  systemctl enable systemd-networkd --now
+
+строка DNS=8.8.8.8
+ничего недает и нужно еще сдеалать
+
+# echo 'nameserver 8.8.8.8' > /etc/resolv.conf
+
+теперь интернет должен начать работать
+
+
