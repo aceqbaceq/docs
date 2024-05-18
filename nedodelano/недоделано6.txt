@@ -86,6 +86,17 @@ $ dpkg -L  util-linux | grep bin/
 
 
 ====
+проработать локи к файлам
+надо прорабовтаь:
+  - статью 
+    https://www.baeldung.com/linux/file-locking#:~:text=The%20lslocks%20Command,file%20locks%20in%20our%20system.&text=In%20the%20above%20list%2C%20we,locked%20files%20in%20the%20system.
+  - маны по трем функциям
+    $ man 2 flock
+    $ man 3 lockf
+    $ man 2 fcntl   <======
+
+
+====
   If pshared is nonzero, then the semaphore is shared between processes, and should be located in a region of shared memory (see shm_open(3), mmap(2), and  shmget(2)).   (Since  a
        child created by fork(2) inherits its parent's memory mappings, it can also access the semaphore.)  Any process that can access the shared memory region can operate on the sema‐
        phore using sem_post(3), sem_wait(3), and so on
