@@ -2168,6 +2168,10 @@ openssl мегауебическая утилита. в том плане что
     # openssl enc -d  -camellia-192-ecb -in file1.enc  -out  file2.unenc
     -d = расшифровать
     
+замечу что если мы шифруем расшифровываемся не из файла а из STDIN STDOOUT
+то  там есть приколы. про это смотри в linux-general.txt по слову "| openssl"
+
+
 идиотизм субкоманды "enc" состоит в том что эти суки в мане пишут что якобы эта опция
 только для зашифрования. цитирую man openssl
     enc Encoding with Ciphers.
