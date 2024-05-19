@@ -11,7 +11,7 @@ normal
 
 либо
 cryptomount (hd0,msdos2)
-grub rescue> insmod linux
+insmod linux
 ls (crypto0)/boot
 linux /boot/vmlinuz-3.13.0-29-generic root=/dev/sda1
 initrd /boot/initrd.img-3.13.0-29-generic
@@ -47,3 +47,10 @@ Alt+6 = copy
 Ctrl+U = insert
 
 
+если на загрузить модуль linux у граба в rescue shell
+insmod linux
+то без этого незаработает загрузка ядра через команды
+	linux ....
+	initrd ....
+при попытке так писать граб будет посылать нахер. говорить
+моя твоя непонимать
