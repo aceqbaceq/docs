@@ -98,21 +98,25 @@ $ qemu-system-x86_64 ....
 все теперь доступ в интернет должен работать
 
 ==
+| libvirt
+| qemu 
+| virt-manager
 в какой папке по дефолту virt-manager запиывает файлы виртуальных дисков
 
 	~/.local/share/libvirt/images/manjaro.qcow2	
 ==
 
-
-archlinux
-manjaro
+| qemu 
+| archlinux
+| manjaro
+| kbd_mode: KDSKBMODE
 
 при загрузке ос через qemu который вот так запускается
 
-$ qemu-system-x86_64 -name manj11 -m 2G   -boot d -hda ./manjaro.qcow2  -drive file=manjaro.qcow2,media=disk,if=virtio,format=qcow2,file.locking=off  -cpu host -enable-kvm   -smp 1  -M pc-q35-2.11        -netdev tap,id=mynet0,ifname=tap1,script=no,downscript=no -device virtio-net-pci,netdev=mynet0,mac=52:55:00:d1:55:02   -device qxl-vga,id=video0,vgamem_mb=16,xres=1800,yres=950   -monitor none -nographic
+$ qemu-system-x86_64 -name manj11 -m 2G   -boot d -hda ./manjaro.qcow2  -drive file=manjaro.qcow2,media=disk,if=virtio,format=qcow2,file.locking=off  -cpu host -enable-kvm   -smp 1  -M pc-q35-2.11        -netdev tap,id=mynet0,ifname=tap1,script=no,downscript=no -device virtio-net-pci,netdev=mynet0,mac=52:55:00:d1:55:02   -device qxl-vga,id=video0,vgamem_mb=16,xres=1800,yres=950    -nographic
 
 я отмечу опции
-	-monitor none -nographic
+	-nographic
 это дает то что qemu берет COM порт (ttyS0) который он сует в виртуалку
 и qemu вот что делает он все что виртуалка высирает на ttyS0 направляет на текущее "черное
 окно" а то что с клавы "черного окна" нажмается то qemu это все пихает на ttyS0 виртуалки.
@@ -141,3 +145,11 @@ $ qemu-system-x86_64 -name manj11 -m 2G   -boot d -hda ./manjaro.qcow2  -drive f
 
 
 вот с этой ошибкой  я щас будут работать
+
+//\\\
+|||||
+|||||
+|||||
+\\\\\
+ \\\\\======>>> закончил на этом вопросе
+ 

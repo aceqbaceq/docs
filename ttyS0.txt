@@ -1,0 +1,13 @@
+| terminal
+| ttyS0 
+| line discipline
+
+как на лету поменять скорость tty дисциплины
+правда выше чем 115200 для ttyS0 порта не приинимает
+
+# stty -F /dev/ttyS0  230400
+stty: /dev/ttyS0: unable to perform all requested operations
+
+# stty -F /dev/ttyS0  115200
+
+

@@ -127,12 +127,6 @@ $ qemu-img create -f qcow2 manj.img 15G
 qemu entwork tap
 
 
-https://gist.github.com/extremecoders-re/e8fd8a67a515fee0c873dcafc81d811c
- 1997  sudo apt install uml-utilities
- 1998  sudo   tunctl -t tap0 -u `whoami`
-sudo brctl addif docker0 tap0
-ОБЯЗАТЕЛЬЕО на хсте надо поднвть tap0 крату!
-sudo ip -c l set tap0 up
 
 запуск устанвоки
  qemu-system-x86_64 -name manj11 -m 2G -cdrom ~/Downloads/manjaro-cinnamon-23.0.1-230921-linux65.iso   -boot d -hda ./manj.img  -drive file=manj.img,media=disk,if=virtio,format=qcow2,file.locking=off  -cpu host -enable-kvm -display sdl   -smp 2 -M pc-q35-2.11   -vga virtio    -netdev tap,id=mynet0,ifname=tap0,script=no,downscript=no -device virtio-net-pci,netdev=mynet0,mac=52:55:00:d1:55:01
@@ -141,35 +135,11 @@ $  qemu-system-x86_64 -name manj11 -m 2G -cdrom ~/Downloads/manjaro-xfce-24.0-24
 
 
 
-на виртуалке
-ip address 172.17.0.113/24 dev enp0s2
-172.17.. это сеть br интерфейса
-enp0s2 это назва крарты на вируаалке
-ip route add default via 172.17.0.1
-echo "nameserver 8.8.8.8" > /etc/resolv.conf
 
 manjao 1GB это вообще неподходит. нужно миимум 2ГБ при устанвке. 
 пишет при згрзуе устанвощика что qemu agent dependency failed как лечить незнаю
 
 ==
-нв вртулке
-
-/etc/systemd/network/20-wired.network
-[Match]
-Name=enp1s0
-
-[Network]
-Address=172.17.0.115/24
-Gateway=172.17.0.1
-DNS=8.8.8.8   <=== эта херня ничего недает
-
-# systemctl daemon-reload &&  systemctl enable systemd-networkd --now
-
-
-сторка DNS=8.8.8.8
-ничго недает и нужно еще сдеалать
-
-# echo 'nameserver 8.8.8.8' > /etc/resolv.conf
 ==
 чо вотэто за хуня
 qemu ....   -device virtio-serial-pci
@@ -659,35 +629,6 @@ qemu agetnt ненеужен
 3d openl ускорения нет.
 прброс второй видеораты с бука в вм это я пока неумею
 ==
-пролема
-есял я заохожу на qemu виртулку через режиме 
--monitor none
-- nographic
-
-и тыккают Crtl+C 
-то моя хостовое ядро оно посылвает этот сигнал невнутрт вируалки!
-а на форегруаунд процесс который щас крутится на моем черном окне моего хоста
-тоеть он посылает этотсигнал qemu-system-x86_64  и он как номраьный процесс
-поймав этот сигнал заканчивает рабооту тоесть по факту моя виртуалка ПОДЫХАЕТ!
-
-надо как то заставить qemu при получении сигнал sigterm на работу заканчивать
-а пересылть сигнал виртулке !!!
-
-если зсставить qemu создавать pts/10 устройствао и я будут к нему подкюаться
-через самописную C программу то это тоже невыход. так как нажатие Ctrl+C 
-будет приавоид к тому что ядро хоста будет посылать этот  сигнал моей 
-сампоисной программе. !
-
-КОРОЧЕ решение найдено! 
-окзывается во всем виновата настройка 
--monitore none
-нужно ее вообще нахуй убрать полностьью.
-и тоогда qemu-system-x86_64 если получает сигнал SIGTERM он его 
-не сам исполняет (типа грохает себя) а напрвляет его внутрь виртулки!
-нашел ответ здесь
-(https://unix.stackexchange.com/questions/167165/how-to-pass-ctrl-c-to-the-guest-when-running-qemu-with-nographic)
-сука!!
-
 
 ===
 lxd
@@ -714,3 +655,47 @@ systemctl restart lxd
 тут читай 
 https://wiki.archlinux.org/title/Linux_Containers  <===================== !!!
 
+====
+
+
+как войти в нстйроки lxqt панели
+одна хуйня про опен бокс про desktopall = no
+вторая про поднырривание панели под окна
+третье что окна со всех столов покзаывалист - как исправить
+
+
+$ sudo apt install sysfsutils
+~$ systool -m i915 -av
+Module = "i915"
+
+  Attributes:
+    coresize            = "3883008"
+    initsize            = "0"
+    initstate           = "live"
+    refcnt              = "39"
+    srcversion          = "88E5C59BD440FED46FD060D"
+    taint               = ""
+    uevent              = <store method only>
+
+  Parameters:
+
+  Sections:
+
+$ modinfo i915
+
+чо это за хцйння?
+$ 
+vasya@thinkpad:/var/log$ cat Xorg.0.log | grep LoadModule
+[  1419.434] (II) LoadModule: "glx"
+[  1419.453] (II) LoadModule: "modesetting"
+[  1419.455] (II) LoadModule: "fbdev"
+[  1419.456] (II) LoadModule: "vesa"
+[  1419.463] (II) LoadModule: "fbdevhw"
+[  1419.465] (II) LoadModule: "glamoregl"
+[  1420.253] (II) LoadModule: "fb"
+[  1420.589] (II) LoadModule: "libinput"
+vasya@thinkpad:/var/log$ 
+
+
+===
+разобраться с ебаной аварией

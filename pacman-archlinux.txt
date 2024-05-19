@@ -1,0 +1,20 @@
+| pacman
+| archlinux
+| manjaro
+
+как найм зная имя файла найти из какого он пакета
+
+нужно скачать базу 
+# pacman -Fy
+:: Synchronizing package databases...
+ core                                                              2,2 MiB  1711 KiB/s 00:01 [######################################################] 100%
+ extra                                                            41,5 MiB  5,29 MiB/s 00:08 [######################################################] 100%
+ multilib                                                        218,8 KiB  1430 KiB/s 00:00 [######################################################] 100%
+
+и ввести имя файла вместе с путем
+# pacman -F  $(pwd)/bashkir.map.gz
+usr/share/kbd/keymaps/i386/qwerty/bashkir.map.gz is owned by core/kbd 2.6.4-1
+
+гоча!
+(отсюда https://unix.stackexchange.com/questions/14858/in-arch-linux-how-can-i-find-out-which-package-to-install-that-will-contain-file)
+
