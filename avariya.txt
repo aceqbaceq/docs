@@ -1,0 +1,49 @@
+| avariya
+| grub
+| luks
+| grub rescue shell
+| linux
+
+
+cryptomount (hd0,msdos2)
+insmod normal
+normal
+
+либо
+cryptomount (hd0,msdos2)
+grub rescue> insmod linux
+ls (crypto0)/boot
+linux /boot/vmlinuz-3.13.0-29-generic root=/dev/sda1
+initrd /boot/initrd.img-3.13.0-29-generic
+boot
+
+mkdir /03
+mount -t xfs /dev/disk/by-uuid/98... /03
+mount -o bind /proc /03/proc
+mount -o bind /sys /03/sys
+mount -o bind /dev /rescue/dev
+chroot /03
+rm /etc/systemd/system/default.target
+ln -s /lib/systemd/system/graphical.target /etc/systemd/system/default.target.
+exit
+umount /03/proc
+umount /03/dev
+umount /03/sys
+umount /03
+reboot  <=== неработает
+exit
+(panic)
+power off
+
+
+
+
+
+
+
+nano
+Ctrl+6 = выделить
+Alt+6 = copy
+Ctrl+U = insert
+
+
