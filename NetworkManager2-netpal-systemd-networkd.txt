@@ -1,0 +1,709 @@
+netowrk manager
+охйеть. мы доабялем интерфейы через cli
+а где он эти натройки схр=аозняет = хуй знает!!!!!!!
+но после перзагурзки они схранрстются !
+
+====
+nmcli 
+
+созжаьбт бридж
+
+sudo nmcli connection add ifname br0 type bridge con-name br0
+
+и он сука выживает перезагрузку!
+
+
+tap0
+nmcli connection  add  ifname tap0 type tun    con-name tap0  mode tap owner `id -u` 
+
+дбавить его к br0
+
+(!!!!) ====> хуйня !!nmcli con add type bridge-slave ifname tap0 con-name tap0 master br0
+
+(!!ПРАВИЛНЙ ВАРИАНТ!!!)
+nmcli connection add con-name "tap0-->br0"    type tun   mode tap   ifname "tap0"   master br0
+
+
+
+
+ 1$ ip -c link sh master docker0
+7: tap0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel master docker0 state UP mode DEFAULT group default qlen 1000
+    link/ether 56:01:65:7d:89:65 brd ff:ff:ff:ff:ff:ff
+vasya@thinkpad:~/VM/manj1$ 
+
+===
+qemu он не пробрвает tap инетрфейс хоста внутрт виртуалки. а он 
+с прцоссеса qemu открывает сокет в тот tap интерфейс. я та пониаю. внутри
+вируталки сет карта имеет друой мак адрес
+===
+
+
+добавить сет карты за котоыре nmcli неовтатчает!
+
+-wifi-powersave-on.conf  
+root@thinkpad:/etc/NetworkManager/conf.d# cat /etc/NetworkManager/conf.d/10-ubuntu-fan.conf 
+[keyfile]
+unmanaged-devices+=interface-name:fan-*;interface-name:wg0
+
+
+==
+nmtui!
+
+==
+
+nmcli connection add con-name "BridgeSlave:tap0-->docker0"  type tun   mode tap   ifname "tap0"   master docker0
+
+# nmcli connection add con-name "BridgeSlave:tap1-->docker0"    type tun   mode tap   ifname "tap1"   master docker0
+
+
+сетевые краты
+# nmcli dev
+DEVICE          TYPE       STATE                   CONNECTION                 
+wlp3s0          wifi       connected               iphone3                    
+docker0         bridge     connected (externally)  docker0                    
+virbr0          bridge     connected (externally)  virbr0                     
+tap0            tun        connected               BridgeSlave:tap0-->docker0 
+tap1            tun        connected               BridgeSlave:tap1-->docker0 
+p2p-dev-wlp3s0  wifi-p2p   disconnected            --                         
+enp0s25         ethernet   unavailable             --                         
+lo              loopback   unmanaged               --                         
+wg0             wireguard  unmanaged               --             
+
+/\                                                  /\
+||                                                  ||
+||                                                  ||
+ === это названия сеткартвы инртерейсов              === это название сет настроек
+
+
+
+a# nmcli conn
+NAME                        UUID                                  TYPE      DEVICE  
+iphone3                     c685858b-d5d4-447b-ad6a-c9fb8896e67c  wifi      wlp3s0  
+docker0                     5ff0492f-1921-4d8e-90ec-ccf2cc312c00  bridge    docker0 
+virbr0                      9eb25af0-8ed8-4daa-bbe8-1a911fc9e47e  bridge    virbr0  
+BridgeSlave:tap0-->docker0  63073cb8-c710-4130-9818-ff2692a7e696  tun       tap0    
+BridgeSlave:tap1-->docker0  8b57f931-6763-4d63-a67f-d328d862f6b2  tun       tap1    
+Wired connection 1          eb0c5a25-cb53-3074-b3ac-83d35a1c608a  ethernet  --      
+docker0                     c12d7c38-04b3-4fb9-b8ef-e6062ec4f9d0  bridge    --      
+iphone4-24G                 c685858b-d5d4-447b-ad6a-c9fb8896e66c  wifi      --     
+
+
+/\                                                  /\
+||                                                  ||
+||                                                  ||
+ === это названия сетевых настроеко                   === это название сет карточек
+
+
+
+сетевые конеткты это кокнетеные IP адреса рпрсовенные сет интерфсмам!
+и хрантся они вотут
+
+# 
+root@thinkpad:/home/vasya# cat /etc/NetworkManager/system-connections/docker0.nmconnection 
+[connection]
+id=docker0
+uuid=c12d7c38-04b3-4fb9-b8ef-e6062ec4f9d0
+type=bridge
+autoconnect=false
+interface-name=docker0
+timestamp=1716234643
+
+[bridge]
+multicast-startup-query-interval=3124
+stp=false
+
+[ipv4]
+address1=172.17.0.1/16
+method=manual
+
+[ipv6]
+addr-gen-mode=stable-privacy
+method=link-local
+
+[proxy]
+root@thinkpad:/home/vasya# 
+
+
+
+
+# cat "/etc/NetworkManager/system-connections/BridgeSlave:tap0-->docker0.nmconnection" 
+[connection]
+id=BridgeSlave:tap0-->docker0
+uuid=63073cb8-c710-4130-9818-ff2692a7e696
+type=tun
+interface-name=tap0
+master=docker0
+slave-type=bridge
+
+[tun]
+mode=2
+
+[bridge-port]
+
+
+
+вот смысла NEteworkMAMAger  конннекшенов !
+
+
+workManager/system-connections# nmcli device set docker0  autoconnect yes
+root@thinkpad:/etc/NetworkManager/system-connections# nmcli device set tap0  autoconnect yes
+root@thinkpad:/etc/NetworkManager/system-connections# nmcli device set tap1  autoconnect yes
+root@thinkpad:/etc/NetworkManager
+
+
+s# 
+root@thinkpad:/etc/NetworkManager/system-connections# nmcli connection modify "BridgeSlave:tap0-->docker0" connection.autoconnect yes
+root@thinkpad:/etc/NetworkManager/system-connections# nmcli connection modify "BridgeSlave:tap1-->docker0" connection.autoconnect yes
+root@thinkpad:/etc/NetworkManager/system-connections# 
+
+
+
+резултата
+
+# ip -c a sh type bridge
+4: virbr0: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc noqueue state DOWN group 5: docker0: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc noqueue state DOWN group default 
+    link/ether 02:42:93:11:c7:8b brd ff:ff:ff:ff:ff:ff
+    inet 172.17.0.1/16 brd 172.17.255.255 scope global docker0
+       valid_lft forever preferred_lft forever
+
+
+
+
+ipv4.method disabled ipv6.method disabled autoconnect yes 
+
+
+
+
+
+
+nmcli connection add  con-name br0    ifname br0 type bridge  ip4 172.20.0.1/24 autoconnect yes
+
+
+
+nmcli connection add con-name "BrSl-tap0"    type tun   mode tap   ifname "tap0"   master br0
+ipv4.method disabled ipv6.method disabled autoconnect yes
+
+
+# ip tuntap add  mode tap user vasya name name-tap4
+# ip -c -d link  sh name-tap4
+24: name-tap4: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN mode DEFAULT group default qlen 1000
+    link/ether 52:e5:a1:ca:e9:f7 brd ff:ff:ff:ff:ff:ff promiscuity 0 minmtu 68 maxmtu 65521 
+    tun type tap pi off vnet_hdr off persist on user vasya addrgenmode eui64 numtxqueues 1 numrxqueues 1 gso_max_size 65536 gso_max_segs 65535 
+
+
+
+как узнать иих sysfs что картимеет сттус UP ????
+	 cat /sys/class/net/name-tap4/carrier
+		1
+
+
+
+
+итог:
+netplan  = это чисто убунтовская придумка. это набор скоиптов. никкаких демонов.
+это оболочка. для чего? ты можешь написть сетевой конфиг. а скприыт нетплана 
+уже обращаетсяаться к сетевым менеджерам 
+	NetworkManager 
+	systemd-networkd
+создаем конфиги для них и пихает им. 
+тоеть фигка нетлпнаана только в том что можно чрез единый кнфиг нетплана
+можно запрограмирвать NetworkManager или systdm-netorkd 
+тоесть нетплан для них из нашего кнфига создаст ихние конфиги. вот и все
+прблема неплана в том что у онн сука не умеет "созадва" tun\tap
+интерфейсы. поэтому его найхцй
+
+systemd-netorkd вроде как простая клсная система. но чтот у меня не срослось 
+на связке бридж + tap . пока просто остасттавил. нужно тооже с ним 
+все прорватьа. также у него вроед как ет граф значка в трее
+есть еще systemd-resolved который нужно бы через ln натраваить на 
+/etc/resolv.conf
+
+
+Networkmanger. более грмозздкий в кфниурпрнваии. но есть граф знаочок.
+есть импорт в граф значке openbvpnn конфига.
+еслии у него есть иморт openvpn конфига через комнадунсо. строку то хорошо.
+надо это протестирвать.
+
+
+
+эта команда покжает сет иртерфейсы.
+причем и те котоыр физ и вирт.  
+и которые она ссозалал и все жругие
+# nmcli dev
+DEVICE          TYPE       STATE         CONNECTION  
+wlp3s0          wifi       connected     iphone4-24G 
+docker0         bridge     connected     docker0     
+virbr0          bridge     connected     virbr0      
+p2p-dev-wlp3s0  wifi-p2p   disconnected  --          
+enp0s25         ethernet   unavailable   --          
+lo              loopback   unmanaged     --          
+wg0             wireguard  unmanaged     --          
+
+
+а вот конекшенеы будт покзны толко те котоыйр быыли
+созаны именночерез Newtowrk Manager
+потмоу конекше по факту это конфиг котоырй лежит в папке /etc/Netowrkmanaher/system/....
+так что "коненкшены" нетворк мнееджера это конфиги нетворменеджера!
+
+# nmcli conn
+NAME                UUID                                  TYPE      DEVICE  
+iphone4-24G         c685858b-d5d4-447b-ad6a-c9fb8896e66c  wifi      wlp3s0  
+docker0             5ff0492f-1921-4d8e-90ec-ccf2cc312c00  bridge    docker0 
+virbr0              9eb25af0-8ed8-4daa-bbe8-1a911fc9e47e  bridge    virbr0  
+Wired connection 1  eb0c5a25-cb53-3074-b3ac-83d35a1c608a  ethernet  --      
+iphone3             c685858b-d5d4-447b-ad6a-c9fb8896e67c  wifi      --      
+
+вот  смотри
+# ls -1 /etc/NetworkManager/system-connections/
+docker0-5ff0492f-1921-4d8e-90ec-ccf2cc312c00.nmconnection
+iphone3
+iphone4-24G.nmconnection
+virbr0.nmconnection
+
+праввда  Wired connection 1 почему то в конфигах нет!
+
+NetworkManager это просто "задавалка IP адресов "  для сетевых карт. тоесть
+эта нстаривалка. ну иногда он может ряд вирт  интерфрейсов создать сама.
+нов целом это просто настаривлвака. задавалка IP адресов. а  сама связт от 
+нее независит. связь дает ядро. и содзданные интфрейсы на котхых вбиты
+конфиги через нетворк медежер или скжем комнадую строку утилиты 
+	$ ip ....
+тоессть сам нетворкменежер он сетеовй трафик не обрабтывает и не тащит его на себе.
+поэтому кога мы выключим нетворе мернежде то поидее сеть доожна продолждать 
+рабоать. но это не будет так тоолько потому что нетворк менеджер карты за 
+которые он отвечает тоесть котоыре есть в его когфигах он их гасит!
+а если их рукам потом поднять то сеть по режнему рабоатет. интфрейсы как были т
+так и есть. Это про роль нетворкмегежера во всей этой сетевой хрени
+
+
+а что там была за натсройка DNS чреез впн кода я работал в блокчейне?
+
+создаю
+прото tap инетрейс
+
+# nmcli connection add con-name "tap6"    type tun   mode tap   ifname "tap6" ipv4.method disabled ipv6.method disabled  owner 1000   autoconnect yes
+
+
+==
+если удалить иртфрейс но не удалить конекшн то в гарф инфтрейейсе аплает 
+будет потоянно рукгать что нет соедиенения при условии что у картыочки 
+ыбсол настофркно чтобы она потояно была включена.
+поэтмоу наду удуалять и конекшн и сет ифнтерейс. (конекш это получатеся крнфи файл)
+
+==
+странг что  в nmcli никгда нелья создатьименно интерфейс! яколы он всегода работате
+тольк уже с гоотви инетрейсами! что можно созать только конект! а итенейс он тогда
+созает уже "задгним" числом  !!
+
+
+формально у нас есть настрйока по работе с device но там можно только 
+модцифицирвать итд. там нельзя созадавать с нуля!
+
+1$ nmcli device help
+Usage: nmcli device { COMMAND | help }
+
+COMMAND := { status | show | set | connect | reapply | modify | disconnect | delete | monitor | wifi | lldp }
+
+
+==
+при создании tap юзера обязательно нужно указать юзера котртму он булет принаддежить.
+а это юзер под котоырм виртуалка будет запускать.ся. иеаче она не сможет к нкку
+подкдчиься!
+
+tap интерфейс можно созать лио через 
+  tunctl
+
+  зял отсюда https://gist.github.com/extremecoders-re/e8fd8a67a515fee0c873dcafc81d811c )
+    $ sudo apt install uml-utilities
+    $ sudo   tunctl -t tap0 -u `whoami`
+    $ sudo brctl addif docker0 tap0
+    $ sudo ip -c l set tap0 up   <==== ОБЯЗАТЕЛЬЕО на хосте надо поднять tap0 карту!
+
+
+либо через ip tuntap
+
+$ ip tap help
+Usage: ip tuntap { add | del | show | list | lst | help } [ dev PHYS_DEV ]
+       [ mode { tun | tap } ] [ user USER ] [ group GROUP ]
+       [ one_queue ] [ pi ] [ vnet_hdr ] [ multi_queue ] [ name NAME ]
+
+
+ а что за хрень pi ? :
+ Additionally, another flag IFF_NO_PI can be ORed with the base value. IFF_NO_PI tells the kernel to not provide packet information. The purpose of IFF_NO_PI is to tell the kernel that packets will be "pure" IP packets, with no added bytes. Otherwise (if IFF_NO_PI is unset), 4 extra bytes are added to the beginning of the packet (2 flag bytes and 2 protocol bytes). IFF_NO_PI need not match between interface creation and reconnection time. Also note that when capturing traffic on the interface with Wireshark, those 4 bytes are never shown.
+
+ я так и непонял
+
+ при создании через nmcli этот инетрфес или у докер0 мы видим что 
+
+ $ ip -c -d link sh tap6
+60: tap6: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc fq_codel state DOWN mode DEFAULT group default qlen 1000
+    link/ether 1e:b4:05:99:48:cd brd ff:ff:ff:ff:ff:ff promiscuity 0 minmtu 68 maxmtu 65521 
+    tun type tap pi off vnet_hdr off persist on user vasya addrgenmode none numtxqueues 1 numrxqueues 1 gso_max_size 65536 gso_max_segs 65535 
+
+ pi = off 
+ vnet_hdr = off
+
+итак
+
+sudo ip tuntap add mode tap user vasya tap8
+
+при это там как мы сшзали инетрфейс не силами nmcli то 
+он будет unamanged
+
+j1$ nmcli dev
+DEVICE          TYPE       STATE         CONNECTION  
+wlp3s0          wifi       connected     iphone4-24G 
+docker0         bridge     connected     docker0     
+virbr0          bridge     connected     virbr0      
+tap6            tun        connected     tap6        
+tap7            tun        connected     tap7        
+p2p-dev-wlp3s0  wifi-p2p   disconnected  --          
+enp0s25         ethernet   unavailable   --          
+lo              loopback   unmanaged     --          
+tap8            tun        unmanaged     --   <========= ***
+wg0             wireguard  unmanaged     --          
+
+
+смортрим в справку
+$ nmcli dev help
+....
+set [ifname] <ifname> [autoconnect yes|no] [managed yes|no]
+
+делает
+
+$   nmcli dev set  tap8 managed yes
+$ nmcli dev 
+DEVICE          TYPE       STATE         CONNECTION  
+wlp3s0          wifi       connected     iphone4-24G 
+docker0         bridge     connected     docker0     
+virbr0          bridge     connected     virbr0      
+tap6            tun        connected     tap6        
+tap7            tun        connected     tap7        
+tap8            tun        disconnected  --         <====== ***
+
+
+1$ nmcli dev sh tap8 
+GENERAL.DEVICE:                         tap8
+GENERAL.TYPE:                           tun
+GENERAL.HWADDR:                         02:CE:B5:CF:8F:73
+GENERAL.MTU:                            1500
+GENERAL.STATE:                          30 (disconnected)  <====== ***
+GENERAL.CONNECTION:                     --
+GENERAL.CON-PATH:                       --
+IP4.GATEWAY:                            --
+IP6.GATEWAY:                            --
+
+
+
+в конешконамх пока пусто
+j1$ nmcli conn
+NAME         UUID                                  TYPE    DEVICE  
+iphone4-24G  c685858b-d5d4-447b-ad6a-c9fb8896e66c  wifi    wlp3s0  
+docker0      5ff0492f-1921-4d8e-90ec-ccf2cc312c00  bridge  docker0 
+virbr0       9eb25af0-8ed8-4daa-bbe8-1a911fc9e47e  bridge  virbr0  
+tap6         05889888-d030-4032-8946-25fd5af25945  tun     tap6    
+tap7         df4705f4-1f51-4b76-9d07-45ed462267f5  tun     tap7    
+iphone3      c685858b-d5d4-447b-ad6a-c9fb8896e67c  wifi    --      
+
+
+создаем конект на базе этого иетреейсеса
+
+$ nmcli connection add con-name "tap8"    type tun   mode tap   ifname "tap8" ipv4.method disabled ipv6.method disabled  owner 1000   autoconnect yes
+
+
+$ nmcli conn
+NAME         UUID                                  TYPE    DEVICE  
+iphone4-24G  c685858b-d5d4-447b-ad6a-c9fb8896e66c  wifi    wlp3s0  
+docker0      5ff0492f-1921-4d8e-90ec-ccf2cc312c00  bridge  docker0 
+virbr0       9eb25af0-8ed8-4daa-bbe8-1a911fc9e47e  bridge  virbr0  
+tap6         05889888-d030-4032-8946-25fd5af25945  tun     tap6    
+tap7         df4705f4-1f51-4b76-9d07-45ed462267f5  tun     tap7    
+tap8         5a0c541b-80a9-4ba3-9361-d65b826e95b9  tun     tap8     <===== *****
+
+
+а можно не созватваь руками интерфейс а его создать nmcli за нас
+автоматом кода мы его попросим созат конект на базе интерйфейса которого нет 
+в системме. она его созатс сама!
+тоесть вот он третий способ
+
+$ nmcli connection add con-name "tap9"    type tun   mode tap   ifname "tap9" ipv4.method disabled ipv6.method disabled  owner 1000   autoconnect yes
+
+$ nmcli dev 
+DEVICE          TYPE       STATE        CONNECTION  
+wlp3s0          wifi       connected    iphone4-24G 
+docker0         bridge     connected    docker0     
+virbr0          bridge     connected    virbr0      
+tap6            tun        connected    tap6        
+tap7            tun        connected    tap7        
+tap8            tun        connected    tap8        
+tap9            tun        connected    tap9         <===== ****
+enp0s25         ethernet   unavailable  --          
+lo              loopback   unmanaged    --          
+p2p-dev-wlp3s0  wifi-p2p   unmanaged    --          
+wg0             wireguard  unmanaged    --          
+
+
+
+$ nmcli conn
+NAME         UUID                                  TYPE    DEVICE  
+iphone4-24G  c685858b-d5d4-447b-ad6a-c9fb8896e66c  wifi    wlp3s0  
+docker0      5ff0492f-1921-4d8e-90ec-ccf2cc312c00  bridge  docker0 
+virbr0       9eb25af0-8ed8-4daa-bbe8-1a911fc9e47e  bridge  virbr0  
+tap6         05889888-d030-4032-8946-25fd5af25945  tun     tap6    
+tap7         df4705f4-1f51-4b76-9d07-45ed462267f5  tun     tap7    
+tap8         5a0c541b-80a9-4ba3-9361-d65b826e95b9  tun     tap8    
+tap9         311d4da8-6a51-4cc1-b485-40f27f15a1b2  tun     tap9  <===== ***    
+iphone3      c685858b-d5d4-447b-ad6a-c9fb8896e67c  wifi    --      
+
+
+мы попрсии создать конект а nmcli еще создал и инетрефейс !!!
+
+вот эти вот хрени
+ipv4.method disabled ipv6.method disabled  owner 1000   autoconnect yes
+они остноятся к свойства м конеекта а не к инетфрейсу! и их 
+можно посмртеть и отредактиврровать после созадния конектат!
+
+
+$ nmcli conn show tap8  | grep -E "autoconnect:|ipv4.method|ipv6.method"
+connection.autoconnect:                 yes
+ipv4.method:                            disabled
+ipv6.method:                            disabled
+
+и там еще много свойста котоыре можно посмреть
+
+$ nmcli conn show tap8 
+connection.id:                          tap8
+connection.uuid:                        5a0c541b-80a9-4ba3-9361-d65b826e95b9
+connection.stable-id:                   --
+connection.type:                        tun
+connection.interface-name:              tap8
+connection.autoconnect:                 yes
+connection.autoconnect-priority:        0
+...
+
+и их можно очень даже удобно редактирвать 
+щас покажу как это классно.
+даже есть встроееная справка что значит каждый флаг
+$ nmcli conn edit tap8   <==== ****
+...
+...
+nmcli> help   <===== ******
+------------------------------------------------------------------------------
+---[ Main menu ]---
+goto     [<setting> | <prop>]        :: go to a setting or property
+remove   <setting>[.<prop>] | <prop> :: remove setting or reset property value
+set      [<setting>.<prop> <value>]  :: set property value
+describe [<setting>.<prop>]          :: describe property
+print    [all | <setting>[.<prop>]]  :: print the connection
+verify   [all | fix]                 :: verify the connection
+save     [persistent|temporary]      :: save the connection
+activate [<ifname>] [/<ap>|<nsp>]    :: activate the connection
+back                                 :: go one level up (back)
+help/?   [<command>]                 :: print this help
+nmcli    <conf-option> <value>       :: nmcli configuration
+quit                                 :: exit nmcli
+------------------------------------------------------------------------------
+nmcli> goto ipv4   <===== ******
+You may edit the following properties: method, dns, dns-search, dns-options, dns-priority, addresses, gateway, routes, route-metric, route-table, routing-rules, ignore-auto-routes, ignore-auto-dns, dhcp-client-id, dhcp-iaid, dhcp-timeout, dhcp-send-hostname, dhcp-hostname, dhcp-fqdn, dhcp-hostname-flags, never-default, may-fail, required-timeout, dad-timeout, dhcp-vendor-class-identifier, dhcp-reject-servers
+
+nmcli ipv4> describe method  <===== ******
+
+=== [method] ===
+[NM property description]
+IP configuration method. NMSettingIP4Config and NMSettingIP6Config both support "disabled", "auto", "manual", and "link-local". See the subclass-specific documentation for other values. In general, for the "auto" method, properties such as "dns" and "routes" specify information that is added on to the information returned from automatic configuration.  The "ignore-auto-routes" and "ignore-auto-dns" properties modify this behavior. For methods that imply no upstream network, such as "shared" or "link-local", these properties must be empty. For IPv4 method "shared", the IP subnet can be configured by adding one manual IPv4 address or otherwise 10.42.x.0/24 is chosen. Note that the shared method must be configured on the interface which shares the internet to a subnet, not on the uplink which is shared.
+
+тоесть аким мааркаром я узнал описание что значит
+	ipv4.method
+
+ктати почем я выставляю
+ipv4.method = disabled
+ipv6.method = disabled
+
+
+потмоу что есл это не задать то 
+по дфктьу nmcli создатст конект вот с такими свойствами
+
+$ nmcli connection add con-name "tap10"    type tun   mode tap   ifname "tap10"   owner 1000 
+
+$ nmcli conn show tap10 | grep method 
+ipv4.method:                            auto
+ipv6.method:                            auto
+
+мы видим что автом. это значит что когда ядро "включит" инетрфейс то он будет
+ожидать DHCP для себя. 
+
+кстати как там автоконект?
+
+$ nmcli conn show tap10 | grep autoconn
+connection.autoconnect:                 yes
+
+и вот как эттои интерфйе буедет висеть в nmcli
+
+$ nmcli dev
+DEVICE          TYPE       STATE                                  CONNECTION  
+wlp3s0          wifi       connected                              iphone4-24G 
+docker0         bridge     connected                              docker0     
+virbr0          bridge     connected                              virbr0      
+tap6            tun        connected                              tap6        
+tap7            tun        connected                              tap7        
+tap8            tun        connected                              tap8        
+tap9            tun        connected                              tap9        
+tap10           tun        connecting (getting IP configuration)  tap10   <==== ***
+
+он будет постянно ожидать где же его IP
+и в граф режиме алплет будет постянно срать на экран что карточка не имеет IP.
+
+можно вот так оменять потом
+$ nmcli conn modify  tap10 autoconnect  no
+
+
+$ nmcli conn show 
+NAME         UUID                                  TYPE    DEVICE  
+tap10        62d99e3b-a67c-4f89-af06-805f6742b776  tun     tap10   
+iphone4-24G  c685858b-d5d4-447b-ad6a-c9fb8896e66c  wifi    wlp3s0  
+docker0      5ff0492f-1921-4d8e-90ec-ccf2cc312c00  bridge  docker0 
+virbr0       9eb25af0-8ed8-4daa-bbe8-1a911fc9e47e  bridge  virbr0  
+tap6         05889888-d030-4032-8946-25fd5af25945  tun     tap6    
+tap7         df4705f4-1f51-4b76-9d07-45ed462267f5  tun     tap7    
+tap8         5a0c541b-80a9-4ba3-9361-d65b826e95b9  tun     tap8    
+tap9         311d4da8-6a51-4cc1-b485-40f27f15a1b2  tun     tap9    
+iphone3      c685858b-d5d4-447b-ad6a-c9fb8896e67c  wifi    --      
+vasya@thinkpad:~/VM/manj1$ 
+vasya@thinkpad:~/VM/manj1$ nmcli dev show   tap10
+GENERAL.DEVICE:                         tap10
+GENERAL.TYPE:                           tun
+GENERAL.HWADDR:                         B6:7F:0E:5D:C5:00
+GENERAL.MTU:                            1500
+GENERAL.STATE:                          70 (connecting (getting IP configuration))
+GENERAL.CONNECTION:                     tap10
+GENERAL.CON-PATH:                       /org/freedesktop/NetworkManager/ActiveConnection/44
+IP4.GATEWAY:                            --
+IP6.ADDRESS[1]:                         fe80::751a:26bd:325b:4c88/64
+IP6.GATEWAY:                            --
+IP6.ROUTE[1]:                           dst = fe80::/64, nh = ::, mt = 1024
+vasya@thinkpad:~/VM/manj1$ 
+vasya@thinkpad:~/VM/manj1$ nmcli conn modify  tap10  ipv4.method disable
+vasya@thinkpad:~/VM/manj1$ nmcli conn modify  tap10  ipv6.method disable
+vasya@thinkpad:~/VM/manj1$ 
+vasya@thinkpad:~/VM/manj1$ nmcli conn show 
+NAME         UUID                                  TYPE    DEVICE  
+iphone4-24G  c685858b-d5d4-447b-ad6a-c9fb8896e66c  wifi    wlp3s0  
+docker0      5ff0492f-1921-4d8e-90ec-ccf2cc312c00  bridge  docker0 
+virbr0       9eb25af0-8ed8-4daa-bbe8-1a911fc9e47e  bridge  virbr0  
+tap6         05889888-d030-4032-8946-25fd5af25945  tun     tap6    
+tap7         df4705f4-1f51-4b76-9d07-45ed462267f5  tun     tap7    
+tap8         5a0c541b-80a9-4ba3-9361-d65b826e95b9  tun     tap8    
+tap9         311d4da8-6a51-4cc1-b485-40f27f15a1b2  tun     tap9    
+iphone3      c685858b-d5d4-447b-ad6a-c9fb8896e67c  wifi    --      
+tap10        62d99e3b-a67c-4f89-af06-805f6742b776  tun     --      
+vasya@thinkpad:~/VM/manj1$ nmcli dev show   tap10
+Error: Device 'tap10' not found.
+vasya@thinkpad:~/VM/manj1$ nmcli dev show   tap10
+Error: Device 'tap10' not found.
+vasya@thinkpad:~/VM/manj1$ nmcli dev 
+DEVICE          TYPE       STATE        CONNECTION  
+wlp3s0          wifi       connected    iphone4-24G 
+docker0         bridge     connected    docker0     
+virbr0          bridge     connected    virbr0      
+tap6            tun        connected    tap6        
+tap7            tun        connected    tap7        
+tap8            tun        connected    tap8        
+tap9            tun        connected    tap9        
+enp0s25         ethernet   unavailable  --          
+lo              loopback   unmanaged    --          
+p2p-dev-wlp3s0  wifi-p2p   unmanaged    --          
+wg0             wireguard  unmanaged    --          
+
+
+прикол. оно вобще исчезло из интерфейсов!
+а вконектах он есть!
+
+1$ nmcli conn
+NAME         UUID                                  TYPE    DEVICE  
+iphone4-24G  c685858b-d5d4-447b-ad6a-c9fb8896e66c  wifi    wlp3s0  
+docker0      5ff0492f-1921-4d8e-90ec-ccf2cc312c00  bridge  docker0 
+virbr0       9eb25af0-8ed8-4daa-bbe8-1a911fc9e47e  bridge  virbr0  
+tap6         05889888-d030-4032-8946-25fd5af25945  tun     tap6    
+tap7         df4705f4-1f51-4b76-9d07-45ed462267f5  tun     tap7    
+tap8         5a0c541b-80a9-4ba3-9361-d65b826e95b9  tun     tap8    
+tap9         311d4da8-6a51-4cc1-b485-40f27f15a1b2  tun     tap9    
+iphone3      c685858b-d5d4-447b-ad6a-c9fb8896e67c  wifi    --      
+tap10        62d99e3b-a67c-4f89-af06-805f6742b776  tun     -- 
+
+тоеть на хосет ip -c a там инетрфейса не будет!
+
+и только если конект поднять 
+$ nmcli connection up tap10 
+Connection successfully activated (D-Bus active path: /org/freedesktop/NetworkManager/ActiveConnection/45)
+
+то идейвйайс будет создан !
+1$ nmcli dev 
+DEVICE          TYPE       STATE        CONNECTION  
+wlp3s0          wifi       connected    iphone4-24G 
+docker0         bridge     connected    docker0     
+virbr0          bridge     connected    virbr0      
+tap10           tun        connected    tap10  <==== ****       
+tap6            tun        connected    tap6        
+tap7            tun        connected    tap7        
+tap8            tun        connected    tap8        
+tap9            tun        connected    tap9        
+
+$ ip -c l sh tap10
+68: tap10: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc fq_codel state DOWN mode DEFAULT group default qlen 1000
+    link/ether b6:7f:0e:5d:c5:00 brd ff:ff:ff:ff:ff:ff
+
+а когда мы коенкт останвитим то интфрейс будет унчтожен!
+
+$ nmcli connection down tap10 
+Connection 'tap10' successfully deactivated (D-Bus active path: /org/freedesktop/NetworkManager/ActiveConnection/45)
+
+$ ip -c l sh tap10
+Device "tap10" does not exist.
+
+$ ls -1 /sys/class/net
+docker0
+enp0s25
+lo
+tap6
+tap7
+tap8
+tap9
+virbr0
+wg0
+wlp3s0
+
+тоесть инфтрейса нет в системе физчиек. он только есть в конфиге нетформаанждер!
+
+это когда у нас автоненнект  = офф и ipv4,method=none и ipv6.method= none
+дебильная система у nmcli
+
+теерт наконец стало поняттно как созать tap интейреффейс.
+как его пркрипрепить к бриджу.
+стало понятно что  состсянеие tap инетрфс меняется на UP когда процесс 
+пдкчлючается к нему через сискол. иначе он будет висетькак DOWN.
+стало понятно что у бриджа тоже самое. когда хоотя бы один его порт который слейв
+получит статус UP тодга и статус брилж интерейса станет UP !!!!
+
+стало понятно что brdge-slave эта хрент совсеешеннно про другое !!!
+
+==
+netplan может соззатьва бридж. и втыкать в него карты.
+но он не умеет содавать TAP интерфейсы!
+
+==
+
+cat  /lib/systemd/network/20-wired.network 
+
+
+
+[Match]
+Name=enp0s2
+
+[Network]
+Address=172.17.0.113/24
+Gateway=172.17.0.1
+DNS=8.8.8.8
+
+===
+nmcli connection add type tun ifname tap0 con-name tap0 mode tap ipv4.method auto
+==
