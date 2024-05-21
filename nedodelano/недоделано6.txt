@@ -737,3 +737,107 @@ jiffy/tickless ядра
 
 NetworkManager описание
 
+==
+
+как посмотреть все железки котоыре есть в компе.
+почти все железки в компе сидят на pci шине 
+поэтому можно запустиь 
+    $ lspci
+
+фишка в том что если ты pci желека то можно сделать спец запрос по шине и ты обязан откликнуться.
+поэтому если в линуксе нет дрвайверов от железки то она все равно будет покзаана 
+в отклике lspci!
+
+нов компе есть нетлоко pci шина но isa шина или ее некий аналог. 
+там тоже могу сидть isa pnp железки. дальгше непонятно. отклиаются ли  они на lspci 
+или нет.
+
+в итоге есть странынй ммонет 
+вот железкт которые поукывывает lspci
+
+d$ lspci
+00:00.0 Host bridge: Intel Corporation Xeon E3-1200 v3/4th Gen Core Processor DRAM Controller (rev 06)
+00:02.0 VGA compatible controller: Intel Corporation 4th Gen Core Processor Integrated Graphics Controller (rev 06)
+00:03.0 Audio device: Intel Corporation Xeon E3-1200 v3/4th Gen Core Processor HD Audio Controller (rev 06)
+00:14.0 USB controller: Intel Corporation 8 Series/C220 Series Chipset Family USB xHCI (rev 04)
+00:16.0 Communication controller: Intel Corporation 8 Series/C220 Series Chipset Family MEI Controller #1 (rev 04)
+00:19.0 Ethernet controller: Intel Corporation Ethernet Connection I217-LM (rev 04)
+00:1a.0 USB controller: Intel Corporation 8 Series/C220 Series Chipset Family USB EHCI #2 (rev 04)
+00:1b.0 Audio device: Intel Corporation 8 Series/C220 Series Chipset High Definition Audio Controller (rev 04)
+00:1c.0 PCI bridge: Intel Corporation 8 Series/C220 Series Chipset Family PCI Express Root Port #1 (rev d4)
+00:1c.1 PCI bridge: Intel Corporation 8 Series/C220 Series Chipset Family PCI Express Root Port #2 (rev d4)
+00:1d.0 USB controller: Intel Corporation 8 Series/C220 Series Chipset Family USB EHCI #1 (rev 04)
+00:1f.0 ISA bridge: Intel Corporation QM87 Express LPC Controller (rev 04)
+00:1f.2 SATA controller: Intel Corporation 8 Series/C220 Series Chipset Family 6-port SATA Controller 1 [AHCI mode] (rev 04)
+00:1f.3 SMBus: Intel Corporation 8 Series/C220 Series Chipset Family SMBus Controller (rev 04)
+03:00.0 Network controller: Intel Corporation Wireless 7260 (rev 6b)
+vasya@thinkpad:/etc/NetworkManager/conf.d$ 
+
+а вот желзк котыоер мокзывает interrrupts
+$ cat /proc/interrupts 
+           CPU0       CPU1       CPU2       CPU3       
+  0:         22          0          0          0   IO-APIC   2-edge      timer
+  1:          0        837          0          0   IO-APIC   1-edge      i8042
+  8:          0          0          0          0   IO-APIC   8-edge      rtc0
+  9:          0     145335          0          0   IO-APIC   9-fasteoi   acpi
+ 12:        175          0          0          0   IO-APIC  12-edge      i8042
+ 16:         31          0          0          0   IO-APIC  16-fasteoi   ehci_hcd:usb2
+ 18:          6          0          0          0   IO-APIC  18-fasteoi   i801_smbus
+ 23:          0          0          0         35   IO-APIC  23-fasteoi   ehci_hcd:usb1
+ 26:     353800       9199          0          0  PCI-MSI-0000:00:1f.2   0-edge      ahci[0000:00:1f.2]
+ 27:          0          0          7      59149  PCI-MSI-0000:00:19.0   0-edge      enp0s25
+ 28:          0          0          0     326998  PCI-MSI-0000:00:14.0   0-edge      xhci_hcd
+ 29:          0        285     742049          0  PCI-MSI-0000:00:02.0   0-edge      i915
+ 30:          0          0         71          0  PCI-MSI-0000:00:16.0   0-edge      mei_me
+ 31:          0    1033652          0        160  PCI-MSI-0000:03:00.0   0-edge      iwlwifi
+ 32:        246          0          0          0  PCI-MSI-0000:00:03.0   0-edge      snd_hda_intel:card0
+ 33:          0       2150          0          0  PCI-MSI-0000:00:1b.0   0-edge      snd_hda_intel:card1
+
+
+например на компе есть таймер который сидит внутри IO-APIC микрсоххемы. 
+но мы его  в lspci не увидим. а ведь это тоже лежезка.
+поэтому тут непонятно. как же нам посмотеть ВСЕ железки внутои комп сидящие.
+
+IO-APIC это контолллер внутри котрго в частности есть таймер.который юзает комп при загузке.
+вообще ядру очен унужен источник часов. 
+аесть LOCAL APIC он уже внутри ядра цпу. в /pric/interpprups он показан в строке LOC
+
+LOC:   19143350   15579364   16815023   15044160   Local timer interrupts
+
+причем  в ней зашифровнаы все таймеры кроме того что сидит в IO-APIC
+
+поэтому с спсоком железок на компе непняо. как его получить полный.
+но точно изветно что lspci покжет ВСЕ желеки сдящие на PCI шине даже если у ядра нет 
+доайеров от этой железки
+
+еще прикол в том что номер интрата котоырй покзывает /pric/interpapts 
+и lspci 
+это не всгде дно и тоже
+
+/proc/interrupts and lspci may show two different values because they are displaying different things.  SOMETIMES they are the same, but not always.
+
+This is because the numbers obtained from the system irq vector should be considered a "cookie" value.  In the case of legacy ISA interrupts, the cookie is the same as the vector.  In the case of MSI/MSI-X, the assignment is a bit more arbitrary.
+
+As such, the irq vector slot is not the same thing as the value being programmed into a PCI device's register.
+
+Furthermore, the PCI device register may not reflect updates from quirks and fixups, so pdev->irq may differ from the PCI device register value in uncommon cases.
+
+So:
+1) /proc/interrupts displays a platform-specific, CPU-specific enumeration of the system's irq vectors.
+2) lspci displays PCI device register values.
+
+While sometimes the values will be the same, there is no guarantee
+
+
+
+в завсиимости от флага в lspci он может покзываеть "реальный " номер IRQ 
+а может покызвать "вируталный " номер irq. как я пнял рельрный это релаьный а виртуальный этот
+который думает железка сама у нее есть. тоже хуй понятно.
+
+
+
+==
+
+на теелфоне у меня открыта ккуча чайтов посвязенщеных keymap клавиутуры.
+их надо все перенести на комп
+===

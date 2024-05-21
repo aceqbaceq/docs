@@ -104,6 +104,18 @@ $ qemu-system-x86_64 ....
 в какой папке по дефолту virt-manager запиывает файлы виртуальных дисков
 
 	~/.local/share/libvirt/images/manjaro.qcow2	
+
+==
+иногда он рукгаается что не может залочтить файл на запис тггда я запукаю виртуалку
+авот 
+ттак
+
+ qemu-system-x86_64 -name manj2 -m 300M   -boot d -hda ./manj2.img    -cpu host -enable-kvm   -smp 2 -M pc-q35-2.11   -vga virtio    -netdev tap,id=mynet0,ifname=tap1,script=no,downscript=no -device virtio-net-pci,netdev=mynet0,mac=52:55:00:d1:55:03  -device virtio-balloon   -nographic  -drive file=./manj2.img,format=qcow2,file.locking=off,id=hd0,if=none
+
+главная опция  это вот этаа
+
+ -drive file=./manj2.img,format=qcow2,file.locking=off,id=hd0,if=none
+
 ==
 
 | qemu 
