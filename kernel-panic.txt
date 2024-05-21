@@ -1,0 +1,7 @@
+| kernel
+| crush
+
+заставить линукс мгнвеонно останвоивться типа kernel panic
+
+echo c > /proc/sysrq-trigger
+
