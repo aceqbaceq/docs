@@ -705,5 +705,196 @@ Gateway=172.17.0.1
 DNS=8.8.8.8
 
 ===
-nmcli connection add type tun ifname tap0 con-name tap0 mode tap ipv4.method auto
-==
+
+wg0 - wireguard 
+надо чтделать ткак чобы он тоже запукался networkmanager !
+
+
+===
+обавлеие конекш для обычной эзернер картчоки прводной
+
+$ sudo nmcli con add con-name "ether-enp0s25" ifname enp0s25 type ethernet ip4 172.20.0.1/24
+$ sudo nmcli conn modify  ether-enp0s25 ipv6.method disable
+$ nmcli conn show ether-enp0s25 | grep -E "autoconn|method"
+connection.autoconnect:                 yes
+ipv4.method:                            manual
+ipv6.method:                            disabled
+
+
+$ nmcli dev
+DEVICE          TYPE       STATE        CONNECTION  
+enp0s25         ethernet   unavailable  --          
+
+$ nmcli dev show enp0s25
+GENERAL.DEVICE:                         enp0s25
+GENERAL.TYPE:                           ethernet
+GENERAL.HWADDR:                         28:D2:44:C0:4A:6E
+GENERAL.MTU:                            1500
+GENERAL.STATE:                          20 (unavailable)   <=== ***
+GENERAL.CONNECTION:                     --
+GENERAL.CON-PATH:                       --
+WIRED-PROPERTIES.CARRIER:               off
+IP4.GATEWAY:                            --
+IP6.GATEWAY:                            --
+vasya@thinkpad:~$ 
+
+я думаю что (unavailable) из за того что провод не воткнут
+====
+начиная с убунту 18 
+вот жта ппапка для интерфейсос сетевых
+ /etc/network/interfaces
+ она вообще больше не рботает 
+====
+
+щас покажу как ядоабвлю  в qemu tap0,tap1,tap2
+инетфрейсы +бридж от начала и до конца
+
+оцениваю на счет тго что ystemd-netwprkd у меня
+щас не отачачает ни за какие устройства
+
+~$ networkctl
+IDX LINK    TYPE      OPERATIONAL SETUP    
+  1 lo      loopback  carrier     unmanaged
+  2 enp0s25 ether     no-carrier  unmanaged
+  3 wlp3s0  wlan      routable    unmanaged
+  4 virbr0  bridge    no-carrier  unmanaged
+  5 docker0 bridge    no-carrier  unmanaged
+ 16 wg0     wireguard routable    unmanaged
+ 60 tap6    ether     no-carrier  unmanaged
+ 61 tap7    ether     no-carrier  unmanaged
+ 62 tap8    ether     no-carrier  unmanaged
+ 63 tap9    ether     no-carrier  unmanaged
+
+
+
+создаю бриж
+
+$ sudo nmcli connection add con-name qemubr0  type bridge ifname qemubr0  ipv4.method manual ipv4.addresses "172.18.0.1/24" autoconnect yes
+
+создаюь tap0 воткнтый  в бридж
+(!!) $ sudo nmcli connection add con-name "tap0"    type tun   mode tap   ifname "tap0" ipv4.method disabled ipv6.method disabled  owner 1000   autoconnect yes  master qemubr0
+
+$ nmcli dev
+DEVICE          TYPE       STATE        CONNECTION  
+qemubr0         bridge     connected    qemubr0     
+tap0            tun        connected    tap0        
+
+$ nmcli conn
+NAME           UUID                                  TYPE      DEVICE  
+qemubr0        169ea2f4-ce35-45e1-acee-1191b05d97ea  bridge    qemubr0 
+tap0           b5c73cc4-9ec6-43b7-969e-92260f111955  tun       tap0    
+
+$ ip -c  l sh type bridge  qemubr0
+72: qemubr0: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc noqueue state DOWN mode DEFAULT group default qlen 1000
+    link/ether 92:06:09:a9:d7:08 brd ff:ff:ff:ff:ff:ff
+
+$ ip -c  l sh tap0
+73: tap0: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc fq_codel master qemubr0 state DOWN mode DEFAULT group default qlen 1000
+    link/ether 56:01:65:7d:89:65 brd ff:ff:ff:ff:ff:ff
+
+создают tap1  tap2
+
+$ sudo nmcli connection add con-name "tap1"    type tun   mode tap   ifname "tap1" ipv4.method disabled ipv6.method disabled  owner 1000   autoconnect yes  master qemubr0
+$ sudo nmcli connection add con-name "tap2"    type tun   mode tap   ifname "tap2" ipv4.method disabled ipv6.method disabled  owner 1000   autoconnect yes  master qemubr0
+
+
+провеяю что tap0 tap1 tap2 реально воткнуты в qemubr0
+
+$ brctl show qemubr0
+bridge name     bridge id               STP enabled     interfaces
+qemubr0         8000.920609a9d708       yes             tap0
+                                                        tap1
+                                                        tap2
+
+ну а если brctl нет нак омпе как проверить?
+из nmcli невидно 
+$ nmcli dev
+DEVICE          TYPE       STATE        CONNECTION  
+qemubr0         bridge     connected    qemubr0     
+tap0            tun        connected    tap0        
+tap1            tun        connected    tap1        
+tap2            tun        connected    tap2        
+
+$ nmcli conn
+NAME           UUID                                  TYPE      DEVICE  
+qemubr0        169ea2f4-ce35-45e1-acee-1191b05d97ea  bridge    qemubr0 
+tap0           b5c73cc4-9ec6-43b7-969e-92260f111955  tun       tap0    
+tap1           34c6dbc0-b552-4811-aa93-d0ba5f2b8d0a  tun       tap1    
+tap2           ed333394-0a38-445c-b24c-2adc4ddf5186  tun       tap2    
+
+только если вот так
+$ nmcli conn show tap0 | grep master
+connection.master:                      qemubr0
+$ nmcli conn show tap1 | grep master
+connection.master:                      qemubr0
+$ nmcli conn show tap2 | grep master
+connection.master:                      qemubr0
+
+
+замечу что tap0 tap1 tap2 добавлялис в бридж не через bridge-slave это какая то соверешенно
+другая хрень!
+
+еще вот так можно проверить
+$ ip -c l sh master qemubr0
+73: tap0: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc fq_codel master qemubr0 state DOWN mode DEFAULT group 
+74: tap1: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc fq_codel master qemubr0 state DOWN mode DEFAULT group
+75: tap2: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc fq_codel master qemubr0 state DOWN mode DEFAULT group   
+
+                                                                      |_____________|
+                                                                             |
+                                                                       показано кто мастер 
+
+
+
+
+$ sudo nmcli connection add con-name "tap0"    type tun   mode tap   ifname "tap0" ipv4.method disabled ipv6.method disabled  owner 1000   autoconnect yes 
+$ sudo nmcli connection add con-name "tap1"    type tun   mode tap   ifname "tap1" ipv4.method disabled ipv6.method disabled  owner 1000   autoconnect yes 
+$ sudo nmcli connection add con-name "tap2"    type tun   mode tap   ifname "tap2" ipv4.method disabled ipv6.method disabled  owner 1000   autoconnect yes 
+
+1$ nmcli dev
+DEVICE          TYPE       STATE        CONNECTION  
+wlp3s0          wifi       connected    iphone4-24G 
+docker0         bridge     connected    docker0     
+tap0            tun        connected    tap0    <======    
+tap1            tun        connected    tap1    <======    
+tap2            tun        connected    tap2    <======    
+enp0s25         ethernet   unavailable  --          
+lo              loopback   unmanaged    --          
+p2p-dev-wlp3s0  wifi-p2p   unmanaged    --          
+wg0             wireguard  unmanaged    --          
+vasya@thinkpad:~/VM/manj1$ 
+vasya@thinkpad:~/VM/manj1$ nmcli conn
+NAME           UUID                                  TYPE      DEVICE  
+iphone4-24G    c685858b-d5d4-447b-ad6a-c9fb8896e66c  wifi      wlp3s0  
+docker0        5ff0492f-1921-4d8e-90ec-ccf2cc312c00  bridge    docker0 
+tap0           a0da6159-047b-4604-ac6f-16a1eaa9feb7  tun       tap0   <======    
+tap1           a08eb49c-5818-4558-bd77-1bfb9ae05eb8  tun       tap1   <======
+tap2           3d9a232c-8baa-45bc-bf15-40007f3fed46  tun       tap2   <====== 
+ether-enp0s25  b6478d9d-b41e-4bc1-8cb1-106cd9c5db44  ethernet  --      
+iphone3        c685858b-d5d4-447b-ad6a-c9fb8896e67c  wifi      --      
+vasya@thinkpad:~/VM/manj1$ 
+
+
+заупскаю виртуалку на этом tap0
+
+$ qemu-system-x86_64 -name manj11 -m 300M   -boot d -hda ./manjaro.qcow2  -drive file=manjaro.qcow2,media=disk,if=virtio,format=qcow2,file.locking=off  -cpu host -enable-kvm    -smp 2 -M pc-q35-2.11   -vga virtio    -netdev tap,id=mynet0,ifname=tap0,script=no,downscript=no -device virtio-net-pci,netdev=mynet0,mac=52:55:00:d1:55:01  -device virtio-balloon     -nographic
+
+
+проврка что на хосте интерфейсы tap0 qemubr 0  UP
+
+$ ip -c l sh qemubr0
+72: qemubr0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP 
+$ ip -c l sh tap0
+73: tap0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel master qemubr0 state UP 
+
+при том что совершено не важно в кком состоиянии нахдится сет итерфейс внутри виртуалка! 
+гавное что сам прцесс qemu открыл сокет на tap0 на хосте
+
+===
+nmtui прикорая вещь
+
+===
+
+надо будет пррваотьт через провод подключить к финкпаду
+
+
