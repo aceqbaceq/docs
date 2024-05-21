@@ -841,3 +841,9 @@ While sometimes the values will be the same, there is no guarantee
 на теелфоне у меня открыта ккуча чайтов посвязенщеных keymap клавиутуры.
 их надо все перенести на комп
 ===
+хрени которые я изучаю щас :  
+  kbd keymaps, \
+  jiffy + interrutps+ разные вид IDLE режимов ядра,
+  NM(_susyemd+netwotkd),
+
+  
