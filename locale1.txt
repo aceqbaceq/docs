@@ -1,0 +1,301 @@
+]$ LC_NUMERIC=de_DE.UTF-8  printf '%f\n' 1233.14
+bash: warning: setlocale: LC_NUMERIC: cannot change locale (de_DE.UTF-8)
+1233.140000
+[vasya@ thinkpad ]$ env LC_NUMERIC=de_DE.UTF-8  printf '%f\n' 1233.14
+1233,140000
+[vasya@ thinkpad ]$ env LC_NUMERIC=C.UTF-8  printf '%f\n' 1233.14
+1233.140000
+[vasya@ thinkpad ]$ env LC_NUMERIC=de_DE.UTF-8  printf '%f\n' 1233.14
+1233,140000
+[vasya@ thinkpad ]$ env LC_NUMERIC=en_US.UTF-8  printf '%f\n' 1233.14
+1233.140000
+[vasya@ thinkpad ]$ env LC_NUMERIC=ru_RU.UTF-8  printf '%f\n' 1233.14
+1233,140000
+
+
+только чрез env можно смнеить локале! охеренеть!
+
+как ралотает поиск по path?
+а нкиак . ядро начнатен туппо поэттим путям запускать open()
+и пербиарем пока код врвзарата не стнеент 0 !!
+
+[pid 87935] execve("/usr/local/sbin/sleep", ["sleep", "120"], 0x7ffdb855fd60 /* 49 vars */) = -1 ENOENT (No such file or directory)
+[pid 87935] execve("/usr/local/bin/sleep", ["sleep", "120"], 0x7ffdb855fd60 /* 49 vars */) = -1 ENOENT (No such file or directory)
+[pid 87935] execve("/usr/sbin/sleep", ["sleep", "120"], 0x7ffdb855fd60 /* 49 vars */) = -1 ENOENT (No such file or directory)
+[pid 87935] execve("/usr/bin/sleep", ["sleep", "120"], 0x7ffdb855fd60 /* 49 vars */) = 0
+[
+
+==
+програма при запумке тербует внешние библротеки.
+и это защито в бинарнике ( в эльфе)
+
+возмьмем пдля примера баш
+$ readelf -d $(which bash) | grep lib
+ 0x0000000000000001 (NEEDED)             Shared library: [libtinfo.so.6]
+ 0x0000000000000001 (NEEDED)             Shared library: [libc.so.6]
+
+
+а  вот как пофакту!
+$ cat /proc/$$/maps | awk '{print $6}' | grep "/usr/lib" | sort | uniq
+/usr/lib/locale/C.utf8/LC_ADDRESS
+/usr/lib/locale/C.utf8/LC_COLLATE
+/usr/lib/locale/C.utf8/LC_CTYPE
+/usr/lib/locale/C.utf8/LC_IDENTIFICATION
+/usr/lib/locale/C.utf8/LC_MEASUREMENT
+/usr/lib/locale/C.utf8/LC_MESSAGES/SYS_LC_MESSAGES
+/usr/lib/locale/C.utf8/LC_MONETARY
+/usr/lib/locale/C.utf8/LC_NAME
+/usr/lib/locale/C.utf8/LC_NUMERIC
+/usr/lib/locale/C.utf8/LC_PAPER
+/usr/lib/locale/C.utf8/LC_TELEPHONE
+/usr/lib/locale/C.utf8/LC_TIME
+/usr/lib/locale/locale-archive
+/usr/lib/x86_64-linux-gnu/gconv/gconv-modules.cache
+/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2
+/usr/lib/x86_64-linux-gnu/libc.so.6
+/usr/lib/x86_64-linux-gnu/libtinfo.so.6.3
+
+тут немного непонятно. почему в элтфе одно а по факту другое
+но ясно одно - без этих балилблиотект программа стартанутт не сможет!
+
+==
+
+locale vs localectl status ???? отличаются их покзаания?
+
+$ locale
+LANG=C.UTF-8
+LANGUAGE=
+LC_CTYPE="C.UTF-8"
+LC_NUMERIC=C.UTF-8
+LC_TIME=C.UTF-8
+LC_COLLATE="C.UTF-8"
+LC_MONETARY=C.UTF-8
+LC_MESSAGES="C.UTF-8"
+LC_PAPER=C.UTF-8
+LC_NAME=C.UTF-8
+LC_ADDRESS=C.UTF-8
+LC_TELEPHONE=C.UTF-8
+LC_MEASUREMENT=C.UTF-8
+LC_IDENTIFICATION=C.UTF-8
+LC_ALL=
+[vasya@ thinkpad ]$ 
+[vasya@ thinkpad ]$ 
+[vasya@ thinkpad ]$ localectl status
+   System Locale: LANG=en_US.UTF-8
+                  LC_NUMERIC=ky_KG
+                  LC_TIME=ky_KG
+                  LC_MONETARY=ky_KG
+                  LC_PAPER=ky_KG
+                  LC_NAME=ky_KG
+                  LC_ADDRESS=ky_KG
+                  LC_TELEPHONE=ky_KG
+                  LC_MEASUREMENT=ky_KG
+                  LC_IDENTIFICATION=ky_KG
+       VC Keymap: us
+      X11 Layout: us
+       X11 Model: pc105+inet
+     X11 Options: terminate:ctrl_alt_bksp
+[vasya@ thinkpad ]$ 
+
+
+==
+оузенная вещь что содержиимое locale по факту 
+можно посмтреть нетолько всмотрря в /usrs/sharee/i18
+
+а еще из через команду
+
+причем можно посмтрет ьввобще полный пакет
+
+$ locale -k LC_TIME
+abday="Sun;Mon;Tue;Wed;Thu;Fri;Sat"
+day="Sunday;Monday;Tuesday;Wednesday;Thursday;Friday;Saturday"
+abmon="Jan;Feb;Mar;Apr;May;Jun;Jul;Aug;Sep;Oct;Nov;Dec"
+mon="January;February;March;April;May;June;July;August;September;October;November;December"
+am_pm="AM;PM"
+d_t_fmt="%a %b %e %H:%M:%S %Y"
+d_fmt="%m/%d/%y"
+t_fmt="%H:%M:%S"
+t_fmt_ampm="%I:%M:%S %p"
+era=
+era_year=""
+era_d_fmt=""
+alt_digits=
+era_d_t_fmt=""
+era_t_fmt=""
+time-era-num-entries=0
+time-era-entries="S"
+week-ndays=7
+week-1stday=19971130
+week-1stweek=4
+first_weekday=1
+first_workday=2
+cal_direction=1
+timezone=""
+date_fmt="%a %b %e %H:%M:%S %Z %Y"
+time-codeset="UTF-8"
+alt_mon="January;February;March;April;May;June;July;August;September;October;November;December"
+ab_alt_mon="Jan;Feb;Mar;Apr;May;Jun;Jul;Aug;Sep;Oct;Nov;Dec"
+
+
+а можноотдебную хрень
+$ locale -k d_t_fmt
+d_t_fmt="%a %b %e %H:%M:%S %Y"
+[vasya@ thinkpad ]$ 
+
+
+ОХРЕНЕНЕНЕНЕРТТТЬТ!Т!Т!
+
+       $ locale -k date_fmt
+       date_fmt="%a %b %e %H:%M:%S %Z %Y"
+
+       $ locale -ck date_fmt
+       LC_TIME
+       date_fmt="%a %b %e %H:%M:%S %Z %Y"
+
+       $ locale LC_TELEPHONE
+       +%c (%a) %l
+       (%a) %l
+       11
+       1
+       UTF-8
+
+
+===
+loaale vs localectl status покывают разное!
+а как же уанть 100% наежно как же для тещкушего процесса 
+узнать эту насфтрокуц?!?!!?
+а вот как!!
+
+
+$ cat /proc/self/environ | strings | grep LC_
+LC_ADDRESS=C.UTF-8
+LC_NAME=C.UTF-8
+LC_MONETARY=C.UTF-8
+LC_PAPER=C.UTF-8
+LC_IDENTIFICATION=C.UTF-8
+LC_TELEPHONE=C.UTF-8
+LC_MEASUREMENT=C.UTF-8
+LC_TIME=C.UTF-8
+LC_NUMERIC=C.UTF-8
+
+===
+оказывается locale это всего навсего набор рееконмдаци для программы!
+это рекомандация! она пе редается программе через перменные кокружжения 
+вида 
+	LC_*
+предаетмч оно через третий памретре 
+	execve(...., ....., env)
+и поорграмма может использовать эти перменные а аможет неет.
+и они эти перменные покаывают программе ЧТО от неее ожидают на выходе 
+программы когда она печаатает на экран!
+и оно покзывает в каком виде программе будут скармоиваться данные!
+напрмер 
+
+возьмем числа с плвавающей точкой
+
+$ cat /proc/self/environ |strings| grep LC_NUMERIC
+LC_NUMERIC=C.UTF-8
+
+смотррим какие насйтроки есть в этйо локаи про числа с плавающей
+точкой
+
+
+
+$ locale -k LC_NUMERIC
+decimal_point="."
+thousands_sep=""
+grouping=-1
+numeric-decimal-point-wc=46
+numeric-thousands-sep-wc=0
+numeric-codeset="UTF-8"
+
+==
+непонимаю
+man locale
+>> To display the current character  set  for  the  locale,  use  locale  -c
+              charmap.
+
+нихрена нерабоатет
+===
+непонимаю.
+естьь локали
+
+/usr/share/i18n/locales
+
+напрмиер там есть en_ZW
+
+
+в нем условно написано что для числе с точки нужно юзать 
+
+есть файл в нем нахожу
+
+$ cat /usr/share/i18n/SUPPORTED | grep en | grep ZW
+en_ZW.UTF-8 UTF-8
+en_ZW ISO-8859-1
+
+
+есть непонятная папка charset тамже
+$ ls -1 /usr/share/i18n/charmaps/ | grep -Ei "ISO-8859-1|UTF-8"
+ISO-8859-1.gz
+UTF-8.gz
+
+
+$ cat /etc/locale.gen | grep en | grep ZW
+# en_ZW ISO-8859-1
+# en_ZW.UTF-8 UTF-8
+
+
+
+в locale нужно вот тчо вводить как аругмент
+$ locale  
+LANG=C.UTF-8
+LANGUAGE=
+LC_CTYPE="C.UTF-8"
+LC_NUMERIC=C.UTF-8
+LC_TIME=C.UTF-8
+LC_COLLATE="C.UTF-8"
+LC_MONETARY=C.UTF-8
+LC_MESSAGES="C.UTF-8"
+LC_PAPER=C.UTF-8
+LC_NAME=C.UTF-8
+LC_ADDRESS=C.UTF-8
+LC_TELEPHONE=C.UTF-8
+LC_MEASUREMENT=C.UTF-8
+LC_IDENTIFICATION=C.UTF-8
+LC_ALL=
+
+$ locale  LC_NUMERIC  <=== вот какйо аргмумент принимает канмала locale
+.
+
+-1
+46
+0
+UTF-8
+
+что это за хуйня? 
+а вот что
+
+$ locale  LC_NUMERIC -c
+LC_NUMERIC
+.
+
+-1
+46
+0
+UTF-8
+
+$ locale  LC_NUMERIC -c -k
+LC_NUMERIC
+decimal_point="."
+thousands_sep=""
+grouping=-1
+numeric-decimal-point-wc=46
+numeric-thousands-sep-wc=0
+numeric-codeset="UTF-8"
+
+помне команда locale апокзывает содержимое файла локали
+из папки
+cat /usr/share/i18n/locales/en_ZW
+вот ив се что она делате. нахуя она при этом заикквается
+про charмапы я нихуя не понимаю. реаьно!
+
