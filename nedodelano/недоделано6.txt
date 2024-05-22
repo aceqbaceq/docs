@@ -861,6 +861,10 @@ ssh.txt:$ ls -1 | grep  $'\u2234\u2192\u263f\u2605'
 [ LENOVO ]$(&) strace -e execve touch  $'\u2234\u2192\u263f\u2605'.txt 
 execve("/usr/bin/touch", ["touch", "\342\210\264\342\206\222\342\230\277\342\230\205.txt"], 0x7ffcde5c6038 /* 73 vars 
 
+===
+systemctl --user ....
+чо за хрень.
+https://wiki.archlinux.org/title/Systemd/User
 
 ===
 bash PS1 дописать 
@@ -869,3 +873,4 @@ bash PS1 дописать
 
 PS1=' $(printf "\U0000$(   echo "obase=16;$(($RANDOM % 250))" | bc  )$(   echo "obase=16;$((50+($RANDOM % 200)))" | bc  )") '
 ss
+
