@@ -868,3 +868,4 @@ bash PS1 дописать
 
 
 PS1=' $(printf "\U0000$(   echo "obase=16;$(($RANDOM % 250))" | bc  )$(   echo "obase=16;$((50+($RANDOM % 200)))" | bc  )") '
+ss
