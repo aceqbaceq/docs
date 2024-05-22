@@ -1,0 +1,33 @@
+| motd
+| Welcome to Ubuntu
+| ssh
+
+забелало тупизама убунту
+заходишь по ssh и вылазет портянка
+
+
+Welcome to Ubuntu 22.04.3 LTS (GNU/Linux 6.2.0-32-generic x86_64)
+
+ * Documentation:  https://help.ubuntu.com
+ * Management:     https://landscape.canonical.com
+ * Support:        https://ubuntu.com/advantage
+
+1 device has a firmware upgrade available.
+Run `fwupdmgr get-upgrades` for more information.
+
+блаблабла
+
+как сука ее задищейблть. в инете полно шлака.
+на саомом деле прочитал тут 
+	https://www.techrepublic.com/article/how-to-disable-the-linux-login-banner/
+
+идем в  /etc/pam.d/sshd 
+и коментруем там две строки
+
+# cat /etc/pam.d/sshd | grep motd
+	# session    optional     pam_motd.so  motd=/run/motd.dynamic
+	# session    optional     pam_motd.so noupdate
+
+ВСЕ!!!
+наконце то ты свободен от этой хеуйтеы!
+
