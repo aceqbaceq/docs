@@ -193,7 +193,7 @@ while true; do
     progress_bar
 
 
-    printf  " r=%-20s |\n %.1f%% %s\n r_summa=%s ema1min=%-5.2f la1min=%-5.2f |  ema1min/r_summa=%s%% la1min/r_summa=%s%%  | r_sr_5min_pr=%-5.2f r_sr_5min_pr/r_summa=%s%%   \n\n"                               \
+    printf  " r=%-20s |\n %.1f%% %s\n r_summa=%s ema1min=%-5.2f \033[32mla1min=%-5.2f\033[0m |  ema1min/r_summa=%s%% la1min/r_summa=%s%%  | \033[32mr_sr_5min_pr=%-5.2f\033[0m r_sr_5min_pr/r_summa=%s%%   \n\n"                               \
                                      "${r[*]}"    \
                                       $( [[ "$(locale LC_NUMERIC | head -n1)" == "," ]] && tr "." "," <<< "$b_t_5min" || printf "$b_t_5min"  )   \
                                      "$b_t_5min_graph" \
