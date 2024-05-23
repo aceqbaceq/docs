@@ -299,3 +299,94 @@ cat /usr/share/i18n/locales/en_ZW
 вот ив се что она делате. нахуя она при этом заикквается
 про charмапы я нихуя не понимаю. реаьно!
 
+запустил locale-gen через стерей
+там есть  куски
+["localedef", "-i", "en_US", "-c", "-f", "UTF-8", "-A", "/usr/share/locale/locale.alias", "en_US.UTF-8"], 0x565286f90a20 /* 31 vars */) = 0
+
+-i", "en_US" = >
+$ ls -1al /usr/share/i18n/locales/en_US
+-rw-r--r-- 1 root root 3629 Jul  7  2022 /usr/share/i18n/locales/en_US
+
+ "-f", "UTF-8" = >
+$  ls -1al /usr/share/i18n/charmaps/UTF-8.gz 
+-rw-r--r-- 1 root root 443053 Jul  7  2022 /usr/share/i18n/charmaps/UTF-8.gz
+
+"-A", "/usr/share/locale/locale.alias"  = >
+"/usr/share/locale/locale.alias
+
+en_US.UTF-8 ==> видимо навание "локали " коорое будет присовено.
+фишка в том что коагды мы "генерируем"  локаль то мы не толко локаль
+генериурем мы еше чттото делаем с ЧАРМПАПОМ!
+
+вот содержрмое файла чармапа
+
+$ zcat  /usr/share/i18n/charmaps/UTF-8.gz  | head -n 20
+...
+...
+CHARMAP
+<U0000>     /x00         NULL
+<U0001>     /x01         START OF HEADING
+<U0002>     /x02         START OF TEXT
+<U0003>     /x03         END OF TEXT
+<U0004>     /x04         END OF TRANSMISSION
+<U0005>     /x05         ENQUIRY
+<U0006>     /x06         ACKNOWLEDGE
+<U0007>     /x07         BELL
+<U0008>     /x08         BACKSPACE
+<U0009>     /x09         CHARACTER TABULATION
+<U000A>     /x0a         LINE FEED (LF)
+
+очеивдно слева стоит unicode code point. в центар стоит его 
+байтовое представление. а справа обьясннее что это за символ. я вот 
+нихуя не понимаю как комп испоьзует эту правую конлонку. или в шрифтах
+как раз стоит эта правая колонка и соотвствубщий ему глиф ?!?!!?
+
+и еще - при чем тут локаль и чармап? это же разные хуевины!!
+
+также непонятно как идет печать на экран. я шлю в xterm байты в его
+stdin и он что ? он лезет в файл с чармапом чтобы найти строку и найти 
+правую конлонку и чтобы потом найти в файле шрфитов букву?!?!?!?
+или это ядро делает или как и что!?!? или xterm через сокет перслыает
+байт в xorg сервер а он уже это делает ?!?! 
+
+походу locale-gen запимывает  эту самую новую локаль в файл
+  /usr/lib/locale/locale-archive и больше никуда
+и записываает не через write() а через mmap()
+
+вот что в итоге можно нацти в этом файле 
+$ strings /usr/lib/locale/locale-archive  | grep ru_RU -B10 -A10
+de_DE.utf8
+en_GB
+en_GB.iso88591
+en_US.utf8
+ru_RU.utf8
+
+я посмотрел что там внутри
+я пришел к выводу что там точно есть содержимое файла локали
+/usr/share/i18n/locales/en_ZW
+
+оно туда записано. 
+на счет засунут ли туда чаармап файл... вороде бы нет. 
+
+
+]$ locale -a
+C
+C.utf8
+POSIX
+de_DE.utf8
+en_GB
+en_GB.iso88591
+en_US.utf8
+ru_RU.utf8
+
+я не понимаю нахуя при "генерации " локали а по факту копировния тексоговго
+файла в бинарный файл так вот нахуя при этом нужен charmap файл.
+цепочку невижу
+
+==\
+чтобы больше понять про "локаль" нунжно проватт создать свою 
+локаль.  тогде еще боле будет понятно.
+
+"localedef", "-i", "en_US", "-c", "-f", "UTF-8", "-A", "/usr/share/locale/locale.alias", "en_US.UTF-8"], 0x565286f90a20 /* 31 vars */) = 0
+
+localedef -f CP1252 -i de_DE /usr/lib/locale/de_DE.cp1252
