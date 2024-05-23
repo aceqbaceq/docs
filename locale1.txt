@@ -384,6 +384,196 @@ ru_RU.utf8
 цепочку невижу
 
 ==\
+
+текущая локаль у процесса
+$ cat /proc/self/environ | strings | grep LC
+LC_ADDRESS=C.UTF-8
+LC_NAME=C.UTF-8
+LC_MONETARY=C.UTF-8
+LC_PAPER=C.UTF-8
+LC_IDENTIFICATION=C.UTF-8
+LC_TELEPHONE=C.UTF-8
+LC_MEASUREMENT=C.UTF-8
+LC_TIME=C.UTF-8
+LC_NUMERIC=C.UTF-8
+
+
+$ env LC_NUMERIC=C.UTF-8  locale -c -k LC_NUMERIC
+LC_NUMERIC
+decimal_point="."  <=====
+thousands_sep=""
+grouping=-1
+numeric-decimal-point-wc=46
+numeric-thousands-sep-wc=0
+numeric-codeset="UTF-8" <=====
+
+видм что в этой локали числа дробные отделлются точкой
+
+$ env env LC_NUMERIC=C.UTF-8  printf "%f\n" "1.234"
+1.234000
+$ env env LC_NUMERIC=C.UTF-8  printf "%f\n" "1,234"
+printf: ‘1,234’: value not completely converted
+1.000000
+
+и вот видно что принтф это использует и шлет нас нахер
+когда мы ему подсвавем число с запятой
+
+
+$ env LC_NUMERIC=ru_RU.UTF-8  locale -c -k LC_NUMERIC
+LC_NUMERIC
+decimal_point=","
+thousands_sep=" "
+grouping=3;3
+numeric-decimal-point-wc=44
+numeric-thousands-sep-wc=8239
+numeric-codeset="UTF-8"
+
+$ env LC_NUMERIC=ru_RU.UTF-8  printf "%f\n" "1,234"
+1,234000
+$ env LC_NUMERIC=ru_RU.UTF-8  printf "%f\n" "1.234"
+1,234000
+
+а почему то тут нихрена не сралотало. странно!
+
+$ env LC_NUMERIC=en_GB.iso88591   locale -c -k LC_NUMERIC
+LC_NUMERIC
+decimal_point="."
+thousands_sep=","
+grouping=3;3
+numeric-decimal-point-wc=46
+numeric-thousands-sep-wc=44
+numeric-codeset="ISO-8859-1"
+
+$ env LC_NUMERIC=en_GB.iso88591  printf "%f\n" '1.234'
+1.234000
+[vasya@ thinkpad ]$ env LC_NUMERIC=en_GB.iso88591  printf "%f\n" '1,234'
+printf: ‘1,234’: value not completely converted
+1.000000
+
+а тут опять сработало!
+
+
+зная этухрень я смог запустьи свою прогу
+	$ env LC_NUMERIC=ru_RU.utf8 ./r_sr_za_1min.bash
+
+
+я теперь как работает "задание"\измненеие локали для процесса!
+оноработает так что при запуске execve оно меняет третий параметр
+и в нем убирает старый LC_NUMERIC а вствляет нужный !!!
+
+$ strace -f -s 80 -a 50 -e execve env LC_NUMERIC=ru_RU.utf8 sleep 120
+execve("/usr/bin/env", ["env", "LC_NUMERIC=ru_RU.utf8", "sleep", "120"], 0x7ffd18b33920 /* 45 vars */) = 0
+execve("/usr/bin/sleep", ["sleep", "120"], 0x7ffd50dd4c40 /* 45 vars */) = 0
+
+ксаити подчреркну что чтобы стрйс он показал третий аргумент в exedve его надо 
+запускт с ключами -s N -v
+
+вот у нас запускется вначале /usr/bin/env но это нам ниентсено
+а потом он уже запускает /usr/bin/sleep
+и щая я покажу что в этом execve указано в массиве перменных 
+в  тертеьм ругменте
+
+
+
+execve("/usr/bin/sleep", ["sleep", "120"], ["SHELL=/bin/bash", "QT_ACCESSIBILITY=1", ...
+..."LC_NUMERIC=ru_RU.utf8", "_])
+
+        /|||||||||||||\
+        |||||||||||||||
+          вот оно !
+
+вот такое работает изменеие локале на лоу левел уровне!
+кстати env это билтин баща это внешний бианарник
+	/usr/bin/env
+
+так окзваетс я кстати что можно и без env!!!!!
+без внешенго ьбинарника можно это решить . вот как
+чисто средствами баша!
+	$ LC_NUMERIC=ru_RU.utf8 sleep 150
+
+$ cat /proc/209635/environ  | strings | grep LC_
+LC_NUMERIC=ru_RU.utf8   <===== ****
+LC_ADDRESS=C.UTF-8
+LC_NAME=C.UTF-8
+LC_MONETARY=C.UTF-8
+LC_PAPER=C.UTF-8
+LC_IDENTIFICATION=C.UTF-8
+LC_TELEPHONE=C.UTF-8
+LC_MEASUREMENT=C.UTF-8
+LC_TIME=C.UTF-8
+
+
+ксати strings это бинаркник (тоесть небаш) котоырй позвояет 
+чиатть файлы баинаные и он выводит на stdout тлоко печатные символы!
+так что очень удоблно смотреть что там есть в этом плане.
+
+я нконкц ууидел практ пользу от локале. 
+идем в папку с мануалами 
+
+$ ls /usr/share/man/
+ca  da  el  et  fr            fr.UTF-8  hr  id  ja  man1  man3  man5  man7  nb  pl  pt_BR  ru  sl  sv  uk  zh_CN
+cs  de  es  fi  fr.ISO8859-1  gl        hu  it  ko  man2  man4  man6  man8  nl  pt  ro     sk  sr  tr  zh  zh_TW
+
+
+здесь видно что мнула именются на разных языах так  а как их 
+посмтеь ? а вот так! мы прогорамме man передаем через локакле 
+какой "язык" в нашей системе
+
+$ LC_MESSAGES="ru_RU.UTF-8" man man | head -10
+...
+...
+  man  —  это пейджер справочных страниц системы. Каждый параметр страница, переданный man, обычно является названием программы, утилиты или функции.
+
+вау! маны на русском !
+
+а как на немецком?
+
+	$  LC_MESSAGES="de_DE.UTF-8" man 1 acpi
+    ...
+    acpi  Liest  Informationen aus dem /proc-Dateisystem oder aus dem /sys-Dateisystem wie z.B. den Batteriestatus und die Temperatur aus und zeigt sie
+
+
+а на испаснском?
+]$ locale -a
+C
+C.utf8
+POSIX
+de_DE.utf8
+en_GB
+en_GB.iso88591
+en_US.utf8
+es_AR
+es_AR.iso88591
+ru_RU.utf8
+
+		$ LC_MESSAGES=es_AR  man apropos
+       Una  palabraclave  normalmente  es  una  expresión regular, como si (-r) fuera empleada, o quizá contenga comodines (-w), o coincida con la palabra
+       clave exacta (-e).  Utilizando estas opciones, quizá sea necesario 
+
+замечу что яказал более короткое имя локали. 
+также я поробовал и вот что обнаружил. если в мане есть мана на какотом
+языке то вот это метод он несраотае если у нас эта локаль не сгененррована!
+поэтому приложение может говриь на ругом языке но надо чтобы локаль была
+у нас сгеннирована. 
+
+
+
+
+
+как работает tmux? он запршвает у ядра терминалы ptmx\pts/N
+а потом зпусакает прцоесы и увызывает их stdout\stdin на себя 
+на свой ptmx  и прокирует вс что они срут на себя а потом уже пернарпвлет 
+от себя на экран. я так считаю.
+
+
+
+
+
+
+
+
+
+===
 чтобы больше понять про "локаль" нунжно проватт создать свою 
 локаль.  тогде еще боле будет понятно.
 
