@@ -1,5 +1,39 @@
 | screensaver
+| xcreensaver
 | xset
+
+я так и непогял как автозаупускается xscrernsaver
+у него есть юнит в папке
+
+
+# cat  /usr/lib/systemd/user/xscreensaver.service 
+[Unit]
+Description=XScreenSaver
+
+[Service]
+ExecStart=xscreensaver
+
+[Install]
+WantedBy=default.target
+
+
+тоесть это юзерский юнит . но он незапущен
+
+$ systemctl --user list-units --type=service
+
+однако в мороде
+$ xscreensaver-demo
+он говорит что демон запущен.
+
+а потом я понял откуда он старутет 
+
+$ cat ~/.config/lxsession/LXDE/autostart 
+@xscreensaver -no-splash
+
+
+
+
+также 
 
 нашел статью
 

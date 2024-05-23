@@ -1,5 +1,33 @@
 авто suspend на ноутбуке сдеатлать
 
+==
+
+что за хрень dnsmasq
+
+/usr/bin/dbus-daemon --config-file=/usr/share/defaults/at-spi2/accessibility.conf --nofork --print-address 3
+
+
+$ sudo cat /var/lib/libvirt/dnsmasq/default.conf
+##WARNING:  THIS IS AN AUTO-GENERATED FILE. CHANGES TO IT ARE LIKELY TO BE
+##OVERWRITTEN AND LOST.  Changes to this configuration should be made using:
+##    virsh net-edit default
+## or other application using the libvirt API.
+##
+## dnsmasq conf file created by libvirt
+strict-order
+user=libvirt-dnsmasq
+pid-file=/var/run/libvirt/network/default.pid
+except-interface=lo
+bind-dynamic
+interface=virbr0
+dhcp-range=192.168.122.2,192.168.122.254
+dhcp-no-override
+dhcp-authoritative
+dhcp-lease-max=253
+dhcp-hostsfile=/var/lib/libvirt/dnsmasq/default.hostsfile
+addn-hosts=/var/lib/libvirt/dnsmasq/default.addnhosts
+ 
+
 
 ===
 новые линуксы юзают nftables
