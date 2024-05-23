@@ -880,6 +880,11 @@ ss
 ==
 
 !!!!!
-дописать про jiffy.txt про USER_HZ и CONFIG_HZ 
+дописать 
+         jiffy.txt jiffy про USER_HZ и CONFIG_HZ 
+         locale1.txt про locale
+         udev.txt про udev
+         lxd.txt про LXD unix socket "/var/snap/lxd/common/lxd/unix.socket
+
 
 
