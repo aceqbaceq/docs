@@ -880,9 +880,6 @@ ss
 ==
 
 !!!!!
-дописать про jiffy.txt
-         про %iowait
-         про r_sr_za_5min.bash про значение la1min, ema1mn итд
-         и про  r+=( $((  $(grep "procs_running" < /proc/stat | awk '{print $2}') + $(grep "procs_blocked" < /proc/stat | awk '{print $2}')  ))             )   ;
+дописать про jiffy.txt про USER_HZ и CONFIG_HZ 
 
 
