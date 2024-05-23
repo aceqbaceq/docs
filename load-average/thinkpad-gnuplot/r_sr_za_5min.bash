@@ -34,6 +34,7 @@
 # r_summa=42.80 ema1min=14.08 la1min=1.13  |  ema1min/r_summa=32.90% la1min/r_summa=2.63%  | r_sr_5min_pr=0.70  r_sr_5min_pr/r_summa=1.62%   
 #
 #
+#
 # [|||| ... ] - полоска прогресса это как бы busytime у cpu высчитывается очень 
 # просто мы суммируем число точек где r != 0 и делим на общее 
 # число точек
@@ -50,6 +51,14 @@
 #  r_sr_5min_pr/r_summa=1.62% -  отношение среднего значения r за 5 минут к сумме воды залитой
 #                                в бак за 5минут
 #                                (в процентах)
+#
+#
+#
+# (i)при анализе того что выводится на экран нас прежде
+# всего интересует сравнение 
+#                la1min vs  r_sr_5min_pr             
+# насколько близки значения из  
+#
 #
 
 
@@ -184,7 +193,7 @@ while true; do
     progress_bar
 
 
-    printf  " r=%-20s |\n %.1f%% %s\n r_summa=%s ema1min=%-5.2f la1min=%-5.2f |  ema1min/r_summa=%s%% la1min/r_summa=%s%%  | r_sr_5min_pr=%-5.2f r_sr_5min_pr/r_summa=%s%%   \n\n"                               \
+    printf  " r=%-20s |\n %.1f%% %s\n r_summa=%s ema1min=%-5.2f \033[32mla1min=%-5.2f\033[0m |  ema1min/r_summa=%s%% la1min/r_summa=%s%%  | \033[32mr_sr_5min_pr=%-5.2f\033[0m r_sr_5min_pr/r_summa=%s%%   \n\n"                               \
                                      "${r[*]}"    \
                                       $( [[ "$(locale LC_NUMERIC | head -n1)" == "," ]] && tr "." "," <<< "$b_t_5min" || printf "$b_t_5min"  )   \
                                      "$b_t_5min_graph" \
