@@ -881,6 +881,7 @@ ss
 
 !!!!!
 дописать 
+         ssh+bash.txt  про разобрться вконце
          jiffy.txt jiffy про USER_HZ и CONFIG_HZ 
          locale1.txt про locale
          udev.txt про udev
