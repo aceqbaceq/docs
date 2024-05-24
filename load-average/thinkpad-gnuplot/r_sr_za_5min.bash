@@ -184,8 +184,8 @@ while true; do
 
     # два способа найти число R+D тредов
     # выбирай любой
-#   r+=( $( ps -A -L -o cmd,stat  | grep -E "R|D" | grep -v -E "STAT|bash|grep|ps|wc" | sed 's/\(.*\)\( .*$\)/\2/' | grep -E "R|D" | wc -l   )  )   ;  
-    r+=( $((  $(grep "procs_running" < /proc/stat | awk '{print $2}') + $(grep "procs_blocked" < /proc/stat | awk '{print $2}')  ))             )   ;
+   r+=( $( ps -A -L -o cmd,stat  | grep -E "R|D" | grep -v -E "STAT|bash|grep|ps|wc" | sed 's/\(.*\)\( .*$\)/\2/' | grep -E "R|D" | wc -l   )  )   ;  
+#  r+=( $((  $(grep "procs_running" < /proc/stat | awk '{print $2}') + $(grep "procs_blocked" < /proc/stat | awk '{print $2}')  ))   -1        )   ;
 
     r_summa="0"; for i2 in ${r[@]}; do  r_summa=$(    bc <<< "scale=2; $r_summa+$i2    ")   ; done;
     la_now=$( bc <<< "scale=2;     ($alpha)*$la_p+(1-$alpha)*${r[-1]}     ");
