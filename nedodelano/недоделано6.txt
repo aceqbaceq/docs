@@ -977,6 +977,10 @@ ss
          locale1.txt про locale
          udev.txt про udev
          lxd.txt про LXD unix socket "/var/snap/lxd/common/lxd/unix.socket
+срочно:
+          переписать со старого теелефона воросы из записной книжки
+          и ссылки с браузера про kbd
 
+  
 
 
