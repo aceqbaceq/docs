@@ -1238,6 +1238,8 @@ EOF
 | battery
 | limit
 | 60%
+| powersave
+
 
 далее. 
 

@@ -1,0 +1,21 @@
+| bash
+| redirect
+| bash redirect
+
+
+что вот это значит
+	$ echo "vasya" >/dev/null
+это аналогично
+	$ echo "vasya"  1>/dev/null
+
+что вот это значит
+	$ echo "vasya" &>/dev/null
+это аналогично
+	$ echo "vasya"  1>/dev/null  2>/dev/null
+
+
+а как все три засунуть за один присет в нулл ? ответ никак
+
+
+ 	
+
