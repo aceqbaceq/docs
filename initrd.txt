@@ -1,0 +1,70 @@
+| initrd
+
+как распаковать
+
+$ unmkinitramfs -v initrd.img-5.4.0-26-generic .
+
+все остальное хрен работает. он какойто щас очень хитро запакован
+
+значит у нас в завсимостя ядра будет либо две папки либо три
+
+early
+early2
+main
+
+
+на самом деле внутри initrd нет никаких трех папок.
+внутри лежит три архива которые просто сконкантернированы.
+
+там идут либо cpio архивы либо gzip либо lzma
+узнат это можно если запусить 
+
+$ binwalk  ./intrd
+
+ у cpio щас есть два формат аохиварования 
+
+  newc   The new (SVR4) portable format, which supports file systems having more than 65536 i-nodes. 
+  crc    The new (SVR4) portable format with a checksum added.
+
+newc это который без CRC 
+а crc это который с CRC 
+
+что напшет нам binwalk тогда такой и юзаем
+
+у меня для примера вот так
+
+# binwalk ./initrd.img-5.10.0-051000-generic 
+
+DECIMAL       HEXADECIMAL     DESCRIPTION
+--------------------------------------------------------------------------------
+0             0x0             ASCII cpio archive (SVR4 with no CRC), file name: "kernel", file name length: "0x00000007", file size: "0x00000000"
+120           0x78            ASCII cpio archive (SVR4 with no CRC), file name: "kernel/x86", file name length: "0x0000000B", file size: "0x00000000"
+244           0xF4            ASCII cpio archive (SVR4 with no CRC), file name: "kernel/x86/microcode", file name length: "0x00000015", file size: "0x00000000"
+376           0x178           ASCII cpio archive (SVR4 with no CRC), file name: "kernel/x86/microcode/.enuineIntel.align.0123456789abc", file name length: "0x00000036", file size: "0x00000000"
+540           0x21C           ASCII cpio archive (SVR4 with no CRC), file name: "kernel/x86/microcode/GenuineIntel.bin", file name length: "0x00000026", file size: "0x00465400"
+4609712       0x4656B0        ASCII cpio archive (SVR4 with no CRC), file name: "TRAILER!!!", file name length: "0x0000000B", file size: "0x00000000"
+4610048       0x465800        gzip compressed data, from Unix, last modified: 2023-09-29 05:52:31
+
+
+(SVR4 with no CRC) = это означает что newc
+gzip = это озгачает что gzip
+
+значит обратно сжимает вот так
+
+заходим в early
+
+$ cd early
+ # find . -print0 | cpio --null --create --format=newc > ../newinitrd
+потом заходим в main
+$ cd main
+ find . | cpio --create --format=newc | gzip -9   >> ../newinitrd
+перминуовавыем
+$ mv newinitrd initrd.img
+
+готвоов
+
+можжно распкаовать ахива и руками
+$ cat /boot/initrd.img-$(uname -r) | (cpio -iv; zcat | cpio -iv; zcat | cpio -iv; file -)
+
+но тогда не будет папок early , main все будет в одной куче
+

@@ -1,4 +1,4 @@
-grub
+| grub
 
 при загрузке виртуалки как остановить загрузку чтобы остановилось на меню GRUB.
 надо кликать "Shift" постоянно.
@@ -169,7 +169,7 @@ Number  Start   End     Size    File system  Name  Flags
 
 #passwd root   !!! ВАЖНО
 #passwd -l всем
-   пройись по всей машине и отклчить всем пароли  кроме root и krivosjeev
+   пройись по всей машине и отклчить всем пароли  кроме root и vasya
 (!!)# grub-mkconfig -o /boot/grub/grub.cfg
    это оосмсообщение на экране = WARNING: Failed to connect to lvmetad. Falling back to device scanning = оно неважное
 (!!)# update-initramfs -u -k all
