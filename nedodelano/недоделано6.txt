@@ -971,7 +971,7 @@ ss
 ==
 
         файл sysfs2.txt
-
+e
 !!!!!
 дописать 
          ssh+bash.txt  про разобрться вконце
@@ -979,10 +979,12 @@ ss
          locale1.txt про locale
          udev.txt про udev
          lxd.txt про LXD unix socket "/var/snap/lxd/common/lxd/unix.socket
+         sysfs2.txt   про fan_mode и про LPC и про то как узнать установен ли 
+          драйвер для железки
 срочно:
           переписать со старого теелефона воросы из записной книжки
           и ссылки с браузера про kbd
 
-  
+
 
 
