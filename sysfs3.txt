@@ -1,0 +1,13 @@
+| sysfs
+| dmidecode
+
+
+# cat /sys/devices/virtual/dmi/id/product_*
+
+IdeaPad L340-15IWL
+81LG
+PF204CY0
+LENOVO_MT_81LG_BU_idea_FM_IdeaPad L340-15IWL
+4abf35d1-2026-11eb-80e8-5405dbe09f0f
+Lenovo IdeaPad L340-15IWL
+

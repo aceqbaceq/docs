@@ -1,0 +1,89 @@
+| sys
+| sysfs
+| LPC
+| ISA
+
+
+      все началось  с того что я захотел убрать обратно ограничение по батарейке на буке
+      чтобы он заряжался обратно до 100%. я залез в cpu.txt 
+      там строчка 
+      # echo 1 > /sys/bus/platform/drivers/ideapad_acpi/VPC2004:00/conservation_mode
+      я зашел по ней и выяснил вот какие пиздецы. есть драйверы. есть моудули ядра. 
+      есть железки. и это все собрано в разыне кучи в /sys
+      вот эта вот натсрокйка conservation_mode она является настройкой ЖЕЛЕЗКИ!
+      ни дрйавера. ни модуля. ничего аткого. это найтройка внутри желекзи.
+      надо посмотеь а какие файлы-настройки имеют другие железки?
+      далее. получаетс что это железка VPC2004:00 она входит в состав драйрвера ideapad_acpi
+      котоый имеет свою папку! 
+      описание драйвер якобы тут https://docs.kernel.org/admin-guide/laptops/thinkpad-acpi.html
+      вот эта железка VPC2004:00 она по факту ведет в 
+        /sys/devices/pci0000:00/0000:00:1f.0
+      lspci эту железку деширфует как
+        # lspci | grep 00:1f.0
+        00:1f.0 ISA bridge: Intel Corporation Device 9d84 (rev 30)
+       я чото нихуя непонял. драйвер ideapad_acpi он якобы драйвер от acpi контолллера бука
+       а железка называется ISA bridge что за нахуй?
+       на друго буке я начал смотреть а как там с устройством 00:1f:00
+       а вот как
+       00:1f.0 ISA bridge: Intel Corporation QM87 Express LPC Controller (rev 04)
+       насколко я понял isa bridge это PCI-ISA bridge. и это на самом деле значит
+       что под этой херней они имеют ввиду не абстаррактный бридж котоырй ведет 
+       хуй знает куда а в то устройство котоое сидит за этим бриджем. поттому нахуй 
+       это ниакой не бридж а acpi контроллер. 
+       хотя все таки нет. дело оказалось вот как. на буке  с 5* ядром
+       окаалсь что у меня нет модуля с дарйвером от этой жеезки
+       а на буке с 6* ядром драйвер есть
+       бук ядро 5*
+          $ lspci -k -s 00:1f.0
+          00:1f.0 ISA bridge: Intel Corporation Device 9d84 (rev 30)
+          Subsystem: Lenovo Device 380c
+      бук ядро 6*
+        $ lspci  -s 00:1f.0 -k
+        00:1f.0 ISA bridge: Intel Corporation QM87 Express LPC Controller (rev 04)
+        Subsystem: Lenovo ThinkPad T440p
+        Kernel driver in use: lpc_ich
+        Kernel modules: lpc_ich
+
+        нашел на генту
+        00:1f.0 ISA bridge [0601]: Intel Corporation Cannon Point-LP LPC Controller [8086:9d84]
+
+        надо на ядре 5* скопилирвать драйвер LPC_ICH 
+        якобы этот дравер нужен всего навсего для двух утсройства watchdog и gpio
+        и то и другое полня хуйея
+        еще я понял вот что. что если зайти в 
+          /sys/devices/pci0000:00/0000:00:1f.0
+        это как раз на LPC контолллер.
+        то внутри можно найти те железки котоорые за ним сидят вне зависимости
+        устарвоен от них дарйвер или нет
+            $ find /sys/devices/pci0000\:00/0000\:00\:1f.0/   -maxdepth 1 -type d
+             ./PNP0C09:00
+             ./PNP0103:00
+            то есть за этим контоллером сидят две железки
+          
+       вообще как я понял /proc она дает окно в ядро
+       в ту часть которая больше по состоянию 
+       процессов и общей статистике системы. а /sys она дает окно в ядро в ту часть
+       которая по железкам и драйверам и модулям . вот в чем разница /sys и /proc
+
+       еще более часто верно то что если мы защли в папку с железкой а там нет
+       ссылки на папаку ~driver значит драйвер для этой железки неустанволкен
+       кроме случая когда у нас PNP* железка. тогда у нее вроде как универсльный 
+       драйвер от ./sys/driver/acpi/.... и там есть субдрайверы
+
+       что такео PNP0C09 - это 
+       PNP0C09 Embedded Controller Device. A host embedded controller controlled through an ACPI-aware
+        driver.
+
+        если в него зайти там еще две железки за ним
+        PNP0C0A:00
+		VPC2004:00
+
+		PNP0C0A это Control Method Battery. A device that solely implements the ACPI Control MethodB attery functions. A device that has some other primary function would use its normal device ID. This ID
+is used when the devices primary function is that of a battery
+
+а вторая это 
+...
+fan_mode ==??????
+>>>> насйтрока железки идет в нескльких местах - модуль при запуске имеет парамтеры.
+>>>>> и в папке железки есть строчки настроек
+
