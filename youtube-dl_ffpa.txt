@@ -32,6 +32,7 @@
 
 	$ wget https://github.com/ytdl-org/ytdl-nightly/releases/download/2024.05.16.1/youtube-dl
 	$ sudo cp ./youtube-dl /usr/local/bin
+  $ sudo chmod +x /usr/local/bin/youtube-dl
 проверяем что у нее нормальные пермишны
 	$ stat  $(which youtube-dl)
   	File: /usr/local/bin/youtube-dl
@@ -40,6 +41,11 @@
 по факту внутри питон executable. тоесть это скрипт поитона высрранный в бинарник
 	$ file $(which youtube-dl)
 	/usr/local/bin/youtube-dl: a /usr/bin/env python script executable (binary data)
+
+  теперь надо питон3 поставить
+  # apt-get install python3
+  # sudo ln -s /usr/bin/python3 /usr/bin/python
+  
 
 далее следущий шаг нам нужно для ссылки ютубовской понять какие форматы доступны
 
