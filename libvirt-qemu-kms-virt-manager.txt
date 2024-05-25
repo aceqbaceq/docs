@@ -7,6 +7,28 @@
 тут будет большая тема про всю эту кухню
 
 ==
+не могу запусти экран gtk
+
+qemu-system-x86_64: -display gtk: GTK support is disabled
+приична 
+
+нет пактеа
+qemu-systemgui
+
+описание пактеа
+apt-cache show qemu-system-gui
+Description-en: QEMU full system emulation binaries (user interface and audio support)
+ This package provides local graphical user interface (currently GTK)
+ and audio backends for full system emulation (qemu-system-*) packages.
+ .
+ The default GTK based qemu-system-gui is generally better and recommended,
+ but a few corner cases still need SDL which is therefore provided as well.
+
+прико в том что на моем старом линуксе нет  такого пактеа
+только в новом
+
+
+==
 | qemu archlinux manjaro Ctrl+C 
 
 
@@ -122,7 +144,7 @@ $ qemu-system-x86_64 ....
 ==
 пример команды
 
- qemu-system-x86_64 -name manj2 -m 350M   -boot d -hda ./manj2.img  -drive file=manj2.img,media=disk,if=virtio,format=qcow2,file.locking=off  -cpu host -enable-kvm -display sdl   -smp 2 -M pc-q35-2.11   -vga virtio    -netdev tap,id=mynet0,ifname=tap7,script=no,downscript=no -device virtio-net-pci,netdev=mynet0,mac=52:55:00:d1:55:03  -display sdl    -device virtio-balloon
+ qemu-system-x86_64 -name manj2 -m 350M   -boot d -hda ./manj2.img  -drive file=manj2.img,media=disk,if=virtio,format=qcow2,file.locking=off  -cpu host -enable-kvm -display sdl   -smp 2 -M pc-q35-2.11   -vga virtio    -netdev tap,id=mynet0,ifname=tap7,script=no,downscript=no -device virtio-net-pci,netdev=mynet0,mac=52:55:00:d1:55:03      -device virtio-balloon
 
 ==
 как примонтировать на хост qemu qcow2 диск
