@@ -217,6 +217,15 @@ wlp2s0    IEEE 802.11  ESSID:"iphone4-24G"
           Rx invalid nwid:0  Rx invalid crypt:0  Rx invalid frag:0
           Tx excessive retries:0  Invalid misc:0   Missed beacon:0
 
+
+здесь  я хочу обратить внимание на строчку
+         Link Quality=70/70  Signal level=-40 dBm  
+левый параметр показывает качество приема сигнала в манере "чтобы было понятно даже лоху"
+тоесть 70/70. просто и понятно. а правый параметр показыает качество приема сигнала уже
+в форме абсолютной физической величины тоеть для тех кто понимает в теме сигналов.
+
+
+
 # iw dev
 phy#0
 	Unnamed/non-netdev interface
