@@ -121,3 +121,98 @@ tty, и pid инит прцоесса? (как он создет термиан�
 только в grub.cfg но они не меняеют boot1.5 или boot0
 
 
+
+==
+| grub menu
+| menu
+
+вот такого 
+	grub.cfg
+абсолютно достатчно чтобы загруздится с некрптованного и не lbm раздела
+
+                                                                                                                                                              
+$ cat grub.cfg 
+insmod minicmd
+insmod normal
+insmod ufio
+insmod boot
+insmod gzio
+iinsmod gcry_crc
+insmod verifiers
+insmod terminal
+insmod net
+insmod priority_queue
+insmod gettext
+insmod extcmd
+insmod datetime
+insmod crypto
+ismod biodisk
+insmod part_gpt
+insmod ext2
+insmod fshelp
+
+
+set timeout=30
+
+
+menuentry "Install on sd*2" {
+    set root=(hd3,gpt1)
+    linux /boot/vmlinuz-6.2.0-32-generic rw root=LABEL=initka console=tty1 console=ttyS0  
+    initrd /boot/initrd.img-6.2.0-32-generic
+}
+
+
+
+==
+
+prefix=
+
+15.1.39 prefix
+The location of the ‘/boot/grub’ directory as an absolute file name (see File name syntax). This is normally set by GRUB at startup based on information provided by grub-install. GRUB modules are dynamically loaded from this directory, so it must be set correctly in order for many parts of GRUB to work.
+
+==
+
+так я тперь понял зачем нужен 
+	search
+и что такое root
+когда мы пишем грабу
+	linux /boot/vmlinuz ....
+	initrf /boot/initrd  ...
+то на самом деле грабу нужне полный путь. а именно он дожен знать с какого
+диск и какой партриции нужно брать эти файлы.
+поэому нужно писать вот так
+
+	linux (hd0,gpt1)/boot/vmlinuz ....
+	initrf (hd0,gpt1)/boot/initrd  ...
+
+у граба есть переменная "root="
+если ее задать
+	set root="hd0,gpt1" <==== хаха она задтс без скобочек
+то тогда граб будет автомато подставять ее туда 
+но какой смысл пернесоьит буквы с одной строчки в друнгую. и тут у граба
+еще есть поленашяка. он может за наас найти диск+партицю и подсавить сам вв
+root="..." для этого надо заюзать searh и указать UUID фс раздела! вот как оно рботает!
+свою папку с меню и grub.cfg и модуями он ищет на освное переенной
+	prefix
+она имет обычно вид
+prefix="(hd0,gpt2"/boot/grub  (тут уже со скобочками)
+ ятак поимаю эта пеменная задачется на стадии установк граа и заппывается в его 
+ boot1.5 файл
+
+ ==
+ наброски
+ cd ./main
+find . | cpio --create --format=newc | gzip -1   >> ../newinitrd
+cd ..
+mv ./newinitrd ./initrd7.img
+
+
+
+# run-init --help
+Usage: exec run-init [-c consoledev] /real-root /sbin/init [args]
+# 
+
+
+exec  run-init /root /sbin/init -i  </root/dev/console >/root/dev/console 2&1
+
+ 

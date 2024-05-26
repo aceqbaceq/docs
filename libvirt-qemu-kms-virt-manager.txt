@@ -500,6 +500,22 @@ Try `qemu-nbd --help' for more information.
 
 $ sudo rmmod nbd
 
+==
+я непонянимал одну вешь
+
+я довыбавлял диск добавлял вот так
+
+ qemu-system-x86_64  ...
+  -hda ./manj2.img  
+  -drive file=manj2.img,media=disk,if=virtio,format=qcow2,file.locking=off 
+  ...
+на самом деле это добоебзм потому что это дублируюая запись.
+тость один ии тотже "диск" добавллялся два раза в систему.
+тоже смое качается гарф карты
+
+ -device qxl-vga,id=video0,vgamem_mb=16,xres=1800,yres=950    -vga qxl
+это тоже две граф карты будут доавллены!
+так делать ненадо
 
 
 ==
@@ -510,7 +526,7 @@ $ sudo rmmod nbd
 
 при загрузке ос через qemu который вот так запускается
 
-$ qemu-system-x86_64 -name manj11 -m 2G   -boot d -hda ./manjaro.qcow2  -drive file=manjaro.qcow2,media=disk,if=virtio,format=qcow2,file.locking=off  -cpu host -enable-kvm   -smp 1  -M pc-q35-2.11        -netdev tap,id=mynet0,ifname=tap1,script=no,downscript=no -device virtio-net-pci,netdev=mynet0,mac=52:55:00:d1:55:02   -device qxl-vga,id=video0,vgamem_mb=16,xres=1800,yres=950    -nographic
+$ qemu-system-x86_64 -name manj11 -m 2G   -boot d -drive file=manjaro.qcow2,media=disk,if=virtio,format=qcow2,file.locking=off  -cpu host -enable-kvm   -smp 1  -M pc-q35-2.11        -netdev tap,id=mynet0,ifname=tap1,script=no,downscript=no -device virtio-net-pci,netdev=mynet0,mac=52:55:00:d1:55:02   -device qxl-vga,id=video0,vgamem_mb=16,xres=1800,yres=950    -nographic
 
 я отмечу опции
 	-nographic

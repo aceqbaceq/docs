@@ -1,0 +1,16 @@
+| X11
+| xhost 
+
+если граф приложение не может пишет инициалищирватся то 
+пишет 
+gtk initialization failed
+или 
+SDL initialization failed
+это когда в qemu хотим виртуалку записуть то эт 
+значит что надо сдлать вот так
+
+
+
+$ xhost +
+$ export DISPLAY=:0
+

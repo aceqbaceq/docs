@@ -301,8 +301,27 @@ wlp2s0    IEEE 802.11  ESSID:"iphone4-50G"
           Tx excessive retries:0  Invalid misc:0   Missed beacon:0
 
         
+вот ксати сигнал типа хроший но пиздец в плане ретраев и мисков
+$ iwconfig wlp3s0
+wlp3s0    IEEE 802.11  ESSID:"iphone4-24G"  
+          Mode:Managed  Frequency:2.447 GHz  Access Point: 9C:53:22:14:D8:23   
+          Bit Rate=26 Mb/s   Tx-Power=22 dBm   
+          Retry short limit:7   RTS thr:off   Fragment thr:off
+          Power Management:off
+          Link Quality=70/70  Signal level=-39 dBm  
+          Rx invalid nwid:0  Rx invalid crypt:0  Rx invalid frag:0
+          Tx excessive retries:1102  Invalid misc:104898   Missed beacon:0
 
-          
+тоесть вот она пизда
+          Tx excessive retries:1102  Invalid misc:104898   Missed beacon:0
+
+                      /\                          /\  
+                      ||                          ||
+                      ||                          ||
+                      \\====  это пиздец =========//
+типа чо делать. перегрузил точк доступа. сменил у нее канал. 
+        
+
 # iw dev
 phy#0
 	Unnamed/non-netdev interface
