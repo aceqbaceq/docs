@@ -5,6 +5,272 @@
 
 
 тут будет большая тема про всю эту кухню
+==
+ксатт елсли мы указали console=tty1 console=ttyS0
+то можно в одной коноли заустить баш и во втоорой
+(в первой консоли) $ /bin/sh </dev/tty1 >/dev/tty1
+и у нас уже две консоли
+
+==
+что инеерсно как выгядит список процесссов 
+когда сатрутанул intrd и выолняется скрипт init
+
+
+PID USER       VSZ STAT COMMAND
+    1 root      4812 S    {init} /bin/sh /init 
+    2 root         0 SW   [kthreadd]
+    3 root         0 IW<  [rcu_gp]
+    4 root         0 IW<  [rcu_par_gp]
+    5 root         0 IW   [kworker/0:0-eve]
+    6 root         0 IW<  [kworker/0:0H]
+    7 root         0 IW   [kworker/0:1-eve]
+    8 root         0 IW   [kworker/u2:0-ev]
+    9 root         0 IW<  [mm_percpu_wq]
+   10 root         0 SW   [ksoftirqd/0]
+   11 root         0 IW   [rcu_sched]
+   12 root         0 SW   [migration/0]
+   13 root         0 SW   [idle_inject/0]
+   14 root         0 SW   [cpuhp/0]
+   15 root         0 SW   [kdevtmpfs]
+   16 root         0 IW<  [netns]
+   17 root         0 SW   [rcu_tasks_rude_]
+   18 root         0 SW   [rcu_tasks_trace]
+   19 root         0 SW   [kauditd]
+   20 root         0 SW   [khungtaskd]
+   21 root         0 SW   [oom_reaper]
+   22 root         0 IW<  [writeback]
+   23 root         0 SW   [kcompactd0]
+   24 root         0 SWN  [ksmd]
+   70 root         0 IW<  [kintegrityd]
+   71 root         0 IW<  [kblockd]
+   72 root         0 IW<  [blkcg_punt_bio]
+   73 root         0 IW<  [tpm_dev_wq]
+   74 root         0 IW<  [ata_sff]
+   75 root         0 IW<  [md]
+   76 root         0 IW<  [edac-poller]
+   77 root         0 IW<  [devfreq_wq]
+   78 root         0 SW   [watchdogd]
+   80 root         0 IW   [kworker/u2:1-ev]
+   82 root         0 SW   [kswapd0]
+   83 root         0 SW   [ecryptfs-kthrea]
+   85 root         0 IW<  [kthrotld]
+   86 root         0 IW<  [acpi_thermal_pm]
+   87 root         0 IW<  [vfio-irqfd-clea]
+   88 root         0 IW<  [ipv6_addrconf]
+   97 root         0 IW<  [kstrp]
+  100 root         0 IW<  [zswap-shrink]
+  101 root         0 IW<  [kworker/u3:0]
+  106 root         0 IW<  [charger_manager]
+  107 root      4812 S    /bin/sh
+  109 root         0 IW   [kworker/u2:2-ev]
+  128 root     12052 S    /bin/bash
+  129 root      4812 R    ps
+
+
+вот этастрочка интерсная
+
+    1 root      4812 S    {init} /bin/sh /init 
+получется ядро ищет на initrd файл /init  и его запускает.
+а в нем написано
+	#/bin/sh
+
+и он тггда запускает execve (/bin/sh, ["/bin/sh", "init"],......)
+
+
+
+спмсок папок это в памяти не на дисеке
+
+4# ls -1  /
+dev
+root
+kernel
+lib64
+sbin
+scripts
+lib
+usr
+run
+var
+init
+conf
+bin
+etc
+proc
+sys
+
+папки /sys  /proc  я создал сам и примнтиррва их fs
+
+далее
+# cat /proc/cmdline
+BOOT_IMAGE=(hd3,gpt1)/boot/vmlinuz-5.10.0-051000-generic rw console=tty1 console=ttyS0 root=LABEL=initka
+
+
+маунт точки
+# mount
+none on / type rootfs (rw)
+proc on /proc type proc (rw,relatime)
+sysfs on /sys type sysfs (rw,relatime)
+
+# tty
+/dev/console
+# cat /sys/class/tty/console/active 
+tty1 ttyS0
+
+
+вывовд и ввод идет в ttyS0
+
+
+
+потмо пониже проша устанволк по сркитпу имеем вот так
+
+# lsmod
+Module                  Size  Used by
+btrfs                1351680  0
+blake2b_generic        20480  0
+raid10                 61440  0
+raid456               159744  0
+async_raid6_recov      24576  1 raid456
+async_memcpy           20480  2 raid456,async_raid6_recov
+async_pq               24576  2 raid456,async_raid6_recov
+async_xor              20480  3 async_pq,raid456,async_raid6_recov
+async_tx               20480  5 async_pq,async_memcpy,async_xor,raid456,async_raid6_recov
+xor                    24576  2 async_xor,btrfs
+raid6_pq              114688  4 async_pq,btrfs,raid456,async_raid6_recov
+libcrc32c              16384  2 btrfs,raid456
+raid1                  49152  0
+raid0                  24576  0
+multipath              20480  0
+linear                 20480  0
+qxl                    61440  0
+drm_ttm_helper         16384  1 qxl
+ttm                   102400  2 qxl,drm_ttm_helper
+drm_kms_helper        233472  3 qxl
+syscopyarea            16384  1 drm_kms_helper
+sysfillrect            16384  1 drm_kms_helper
+sysimgblt              16384  1 drm_kms_helper
+fb_sys_fops            16384  1 drm_kms_helper
+cec                    53248  1 drm_kms_helper
+rc_core                53248  1 cec
+drm                   548864  5 drm_kms_helper,qxl,drm_ttm_helper,ttm
+ahci                   40960  1
+e1000                 147456  0
+psmouse               159744  0
+libahci                36864  1 ahci
+virtio_blk             20480  0
+
+
+# 
+# mount
+none on / type rootfs (rw)
+proc on /proc type proc (rw,relatime)
+sysfs on /sys type sysfs (rw,relatime)
+proc on /proc type proc (rw,nosuid,nodev,noexec,relatime)
+udev on /root/dev type devtmpfs (rw,nosuid,relatime,size=214144k,nr_inodes=53536,mode=755,inode64)
+devpts on /root/dev/pts type devpts (rw,nosuid,noexec,relatime,gid=5,mode=620,ptmxmode=000)
+tmpfs on /root/run type tmpfs (rw,nosuid,noexec,relatime,size=51740k,mode=755,inode64)
+/dev/sdb1 on /root type ext3 (rw,relatime)
+# 
+
+
+# 
+# cat /proc/consoles 
+ttyS0                -W- (EC p a)    4:64
+tty1                 -WU (E  p  )    4:1
+
+
+# 
+# cat /proc/$$/mountinfo 
+1 1 0:2 / / rw - rootfs none rw
+25 1 0:23 / /proc rw,relatime - proc proc rw
+26 1 0:24 / /sys rw,relatime - sysfs sysfs rw
+27 25 0:25 / /proc rw,nosuid,nodev,noexec,relatime - proc proc rw
+28 32 0:5 / /root/dev rw,nosuid,relatime - devtmpfs udev rw,size=214144k,nr_inodes=53536,mode=755,inode64
+29 28 0:26 / /root/dev/pts rw,nosuid,noexec,relatime - devpts devpts rw,gid=5,mode=620,ptmxmode=000
+30 32 0:27 / /root/run rw,nosuid,noexec,relatime - tmpfs tmpfs rw,size=51740k,mode=755,inode64
+32 1 8:17 / /root rw,relatime - ext3 /dev/sdb1 rw
+# 
+
+хочу увидеть собсвтеие major:minor с драйверами 
+у нас мы видим  
+	8:17
+	0:*
+
+
+# cat /proc/devices 
+Character devices:
+  1 mem
+  4 /dev/vc/0
+  4 tty
+  4 ttyS
+  5 /dev/tty
+  5 /dev/console
+  5 /dev/ptmx
+  5 ttyprintk
+  7 vcs
+ 10 misc
+ 13 input
+ 21 sg
+ 29 fb
+ 89 i2c
+108 ppp
+128 ptm
+136 pts
+180 usb
+189 usb_device
+204 ttyMAX
+226 drm
+239 aux
+240 cec
+241 lirc
+242 vfio
+243 bsg
+244 watchdog
+245 remoteproc
+246 ptp
+247 pps
+248 rtc
+249 dma_heap
+250 dax
+251 dimmctl
+252 ndctl
+253 tpm
+254 gpiochip
+
+Block devices:
+  7 loop
+  8 sd
+  9 md
+ 11 sr
+ 65 sd
+ 66 sd
+ 67 sd
+ 68 sd
+ 69 sd
+ 70 sd
+ 71 sd
+128 sd
+129 sd
+130 sd
+131 sd
+132 sd
+133 sd
+134 sd
+135 sd
+252 virtblk
+253 device-mapper
+254 mdp
+259 blkext
+# 
+
+
+видим что major=8 это 
+	8 sd
+
+что значит major=0 нппотяно. какой дрквер ее обслуживает. 
+==
+$ qemu-system-x86_64 -name grub1 -m 550M  -boot d -hda ./grub1.img  -drive file=grub1.img,media=disk,if=virtio,format=qcow2,file.locking=off  -cpu host -enable-kvm    -smp 1 -M pc-q35-2.11     -device virtio-balloon  -hdb ./hda.img  -drive file=hda.img,media=disk,if=virtio,format=qcow2,file.locking=off             -device qxl-vga,id=video0,vgamem_mb=16,xres=1800,yres=950    -display gtk
+
+
 
 ==
 не могу запусти экран gtk
@@ -27,6 +293,30 @@ Description-en: QEMU full system emulation binaries (user interface and audio su
 прико в том что на моем старом линуксе нет  такого пактеа
 только в новом
 
+
+==
+еще ошибка про gtk
+
+заускаю
+
+$ qemu-system-x86_64 -name grub1 -m 550M  -boot d -hda ./grub1.img  -drive file=grub1.img,media=disk,if=virtio,format=qcow2,file.locking=off  -cpu host -enable-kvm    -smp 1 -M pc-q35-2.11     -device virtio-balloon  -hdb ./hda.img  -drive file=hda.img,media=disk,if=virtio,format=qcow2,file.locking=off             -device qxl-vga,id=video0,vgamem_mb=16,xres=1800,yres=950    -display gtk
+
+получаю
+
+error: gtk initualization failed
+
+прчииана
+
+0
+
+It's trying to connect to your local X11 server but doesn't have access; you can change this with the xhost command:
+❯ xhost +
+access control disabled, clients can connect from any host
+❯ export DISPLAY=:0
+
+это пиздец
+(https://unix.stackexchange.com/questions/765565/starting-qemu-as-another-user)
+===
 
 ==
 | qemu archlinux manjaro Ctrl+C 

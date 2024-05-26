@@ -1,0 +1,24 @@
+| qemu-nbd
+| qemu
+
+когда мы модуль втсавляем 
+ # modprobe nbd
+
+ то  у него есть пратермы
+
+ # modinfo nbd -p
+nbds_max:number of network block devices to initialize (default: 16) (int)
+max_part:number of partitions per device (default: 16) (int)
+
+
+они даны непросто так.
+если модуль втсавлять по дефолту то когда мы будем прикреплять диск через
+то ядро а точнее наверное udev создаст у нас просто дохуй файлов
+
+# ls  /dev/nbd*
+/dev/nbd0  /dev/nbd10  /dev/nbd12  /dev/nbd14  /dev/nbd2  /dev/nbd4  /dev/nbd6  /dev/nbd8
+/dev/nbd1  /dev/nbd11  /dev/nbd13  /dev/nbd15  /dev/nbd3  /dev/nbd5  /dev/nbd7  /dev/nbd9
+
+а нахер нам так много? нам и парочки хватиь. поэтому лчуше всатвлять модуь
+с параметрами
+

@@ -1087,3 +1087,16 @@ Failed to fetch Could not handshake: Error in the pull function
 # apt-get update
 
 ===
+| --no-install-recommends
+это пиздец
+по деолту если ставим пакет то ставится и вся горя которая рядом плавает
+наприер 
+если 
+
+# apt-get install binwalk
+то он хочет постсавить 590MB сука!
+а если 
+# apt-get  --no-install-recommends install binwalk
+то поставить 1MB!!!
+
+==

@@ -53,18 +53,82 @@ gzip = это озгачает что gzip
 
 заходим в early
 
-$ cd early
- # find . -print0 | cpio --null --create --format=newc > ../newinitrd
-потом заходим в main
-$ cd main
- find . | cpio --create --format=newc | gzip -9   >> ../newinitrd
-перминуовавыем
-$ mv newinitrd initrd.img
+cd early
+find . -print0 | cpio --null --create --format=newc > ../newinitrd
+cd ../main
+find . | cpio --create --format=newc | gzip -1   >> ../newinitrd
+cd ..
+mv ./newinitrd ./initrd7.img
 
 готвоов
+
+run-init -n -c /dev/ttyS0  /root  /bin/bash
+
+
+вот как его дбавить на qemu диск
+$ sudo mv ./newinitrd ./initrd2.img
+$ sudo modprobe nbd
+$ sudo qemu-nbd  --connect=/dev/nbd0 ~/VM/grub/hda.img && sudo mount /dev/nbd0p1 /mnt/01
+$ sudo cp ./initrd2.img /mnt/01/boot
+$ sudo umount /dev/nbd0p1 && sudo  qemu-nbd  --disconnect /dev/nbd0 
+
 
 можжно распкаовать ахива и руками
 $ cat /boot/initrd.img-$(uname -r) | (cpio -iv; zcat | cpio -iv; zcat | cpio -iv; file -)
 
 но тогда не будет папок early , main все будет в одной куче
+
+далее я взял ядро 6*
+там уже 3 степени вложенности
+
+$ nmkinitramfs ./initrd.img-6.2.0-32-generic   .
+
+# ls -1
+early
+early2
+main
+
+так плевать как он был сжат мы его сожмум также как initrd  ядра 5*
+
+
+cd early
+find . -print0 | cpio --null --create --format=newc > ../newinitrd
+cd ../early2
+find . -print0 | cpio --null --create --format=newc > ../newinitrd
+cd ../main
+find . | cpio --create --format=newc | gzip -1   >> ../newinitrd
+cd ..
+mv ./newinitrd ./initrd7.img
+
+
+
+
+
+# sudo qemu-nbd  --connect=/dev/nbd0  /home/vasya/VM/grub/hda.img  && sudo mount /dev/nbd0p1 /mnt/01
+# umount /mnt/01 && sudo qemu-nbd  --disconnect /dev/nbd0 
+
+
+
+
+==
+в initrd есть паки /scripts*
+о них можно почать в 
+    $ man 7 initramfs-tools 
+===
+как можно узнать каие билиотеки бзает бинакрник
+
+# ldd $(which chroot)
+    linux-vdso.so.1 (0x00007ffd01d89000)
+    libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f8d3ec00000)
+    /lib64/ld-linux-x86-64.so.2 (0x00007f8d3ef4e000)
+
+прикокл в том что вот этого файла нет фиичеки. это ядро наебывает 
+процесс и встляет вирт хрент ! чтобы делать vdso сисколлы
+сука
+
+: http://man7.org/linux/man-pages/man7/vdso.7.html
+
+поэтому искать этот фал бесоплзено
+
+==
 

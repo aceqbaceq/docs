@@ -982,7 +982,10 @@ e
          sysfs2.txt   про fan_mode и про LPC и про то как узнать установен ли 
           драйвер для железки
          попробовать загрузку новго ядра через kexec !
-         файл grub2+initrd.txt про то как работает загрузка линукса   
+         файл grub2+initrd.txt про то как работает загрузка линукса 
+         разобраться ((https://unix.stackexchange.com/questions/765565/starting-qemu-as-another-user))  
+         что такое mount move ? например mount -n -o move /run ${rootmnt}/run
+         
 срочно:
          (!) переписать со старого теелефона воросы из записной книжки
           и ссылки с браузера про kbd
