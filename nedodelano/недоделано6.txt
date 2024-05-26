@@ -768,6 +768,8 @@ systemctl restart lxd
 тут читай 
 https://wiki.archlinux.org/title/Linux_Containers  <===================== !!!
 
+===
+dnsmasq vs systemd-resolvd ?
 ====
 arch+полная шифровка попробвать
 ===
