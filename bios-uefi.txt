@@ -1,0 +1,57 @@
+| BIOS
+| UEFI
+
+все началос с этой залупы на экране
+
+$ acpidump 
+Could not open table file: /sys/firmware/acpi/tables/SSDT4
+Could not get ACPI tables, AE_ACCESS
+
+люди скаали что это биос гавно
+
+
+как провеить что бук загущружен в режиме "Legacy mode" или UEFI
+если есть папка /sys/firmware/efi значит в режиме UEFI
+
+
+
+прикльная утитилита по обновлению биоса и других firmware у
+периферийных железок
+
+
+как проверить в какие железки у нее есть апдейты firmware
+	$ fwupdmgr get-devices
+WARNING: UEFI firmware can not be updated in legacy BIOS mode
+  See https://github.com/fwupd/fwupd/wiki/PluginFlag:legacy-bios for more information.
+20AN00BCRT
+│
+├─SSD U110 16GB:
+│     Device ID:          0a8c36d4c09c803cd6b5861e443fb7a41a20cbe6
+│     Summary:            ATA drive
+│     Current version:    U21B001
+│     Vendor:             SanDisk (ATA:0x15B7, OUI:001b44)
+│     GUIDs:              b9358492-a2d9-56ea-906f-cc0c96a5c837
+│                         e9ecfa3d-ae52-5336-a691-c657d53f420d
+│                         16170bdf-8196-53ad-b44d-def21d12f38a
+│     Device Flags:       • Internal device
+│                         • Updatable
+│                         • System requires external power source
+│                         • Needs a reboot after installation
+│                         • Device is usable for the duration of the update
+│   
+
+...
+правда она умеет работать только если у нас комп и ОС загружены в режиме UEFI.
+иначе пошел нахуй
+
+в итоге история такая 
+ у меня неработает родная клава на финкпад. точнее работает только часть кнопок.
+ в частнсости не работает кнопка Enter а без нее в биос не войти. решение такое - 
+ нужно при загрузке тыкать на правый Ctrl несколко раз тогда разблокируется кнопка Enter
+ также по дефолут неработает usb радио клава. решение такое свисток от клавы нужно 
+ воткнуть слева в дырку более близкую к передней части бука то есть вторую от нас.
+ только в этой дырке клава при загруке работает.
+ итак считаем что в биос теперь можем войти.
+
+ следущий этап. я скачал с сайта леново "Boot CD" на котором есть обновитель биоса.
+ однако если его попытаться записать напрямую на usb flash через dd то ничего незагрузится.
