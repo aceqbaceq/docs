@@ -1386,7 +1386,9 @@ qemu к периферии
 
 вопрос - в чем разница между systemd slice vs scope vs service vs target
          начни с чтения man systemd
+         
 >>> systemd-pid.txt начал писать
+
 >>> manjaro-install.txt пишу
 
 
@@ -1402,7 +1404,7 @@ qemu к периферии
 
 
 >>> все необработынные сайты в форме сешшн бади лежат тут:
-     docs/nedodelano/30-may-2024.json
+     docs/nedodelano/30-may-2024.aes
 
 
 
