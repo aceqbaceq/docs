@@ -275,7 +275,6 @@ lrwx------ 1 root root 64 May 13 11:46 1 -> /dev/ttyS0
 lrwx------ 1 root root 64 May 13 11:46 2 -> /dev/ttyS0
 
 
-
 значит 
 $ lxc console cont0
 To detach from the console, press: <ctrl>+a q

@@ -1,0 +1,38 @@
+| nginx
+| architecture
+
+
+ВОПРОС: как работает nginx? ( в связи с вопросом а в чем разница между
+апачем и жинксом)
+
+все ссылки качесвтенные. все надо проработаь.
+и чем ниже ссылка тем она обычно козырнее
+
+unix network programming pdf  - книга !
+
+
+https://natnat1.medium.com/nginx-architecture-c9c93058e8a0#:~:text=Nginx%20has%20modular%20and,and%20handling%20the%20control%20signals.
+
+
+https://www.nacnez.com/nginx-working-deepdive.html
+
+
+
+https://medium.com/@daniel.doody/web-servers-a-high-level-overview-of-nginx-vs-apache-ba87f923c024
+
+
+https://stackoverflow.com/questions/2625493/asynchronous-and-non-blocking-calls-also-between-blocking-and-synchronous
+
+
+https://en.wikipedia.org/wiki/Select_(Unix)
+
+man 2 open (O_NONBLOCK)
+
+https://stackoverflow.com/questions/5616092/non-blocking-call-for-reading-descriptor
+
+
+https://copyconstruct.medium.com/nonblocking-i-o-99948ad7c957
+
+
+https://www.makelinux.net/ldd3/chp-6-sect-2.shtml
+

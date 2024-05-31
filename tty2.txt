@@ -1,0 +1,22 @@
+user [1] - to identify processes using files or sockets.
+
+inputattach [2] (based on termios API) - to attach a serial line to an input-layer device.
+Inputattach attaches a serial line to an input-layer device via a line discipline. Exactly one of the available modes must be specified on the command line.
+
+kermit [3] - transport and platform independent interactive and scriptable communications software.
+C-Kermit is a modem program, a Telnet client, an Rlogin client, an FTP client, an HTTP client, and on selected platforms, also an X.25 client. It can make its own secure internet connections using IETF-approved security methods including Kerberos IV, Kerberos V, SSL/TLS, and SRP and it can also make SSH connections through an external SSH client application. It can be the far-end file-transfer or client/server partner of a desktop Kermit client. It can also accept incoming dialed and network connections. It can even be installed as an internet service on its own standard TCP socket, 1649 [RFC2839, RFC2840].
+
+ldattach [4] (based on termios API) - to attach a line discipline to a serial line.
+The ldattach daemon opens the specified device file (which should refer to a serial device) and attaches the line discipline ldisc to it for processing of the sent and/or received data. It then goes into the background keeping the device open so that the line discipline stays loaded. The line discipline ldisc may be specified either by name or by number. In order to detach the line discipline, kill the ldattach process. With no arguments, ldattach prints usage information.
+
+minicom [5] - friendly serial communication program.
+Minicom is a communication program which somewhat resembles the shareware program TELIX but is free with source code and runs under most Unices. Features include dialing directory with auto-redial, support for UUCP-style lock files on serial devices, a separate script language interpreter, capture to file, multiple users with individual configurations, and more.
+
+setserial [6] - To get/set Linux serial port information.
+Setserial is a program designed to set and/or report the configuration information associated with a serial port. This information includes the I/O port and the IRQ used by a particular serial port, and whether or not the break key should be interpreted as the Secure Attention Key, and so on.
+
+
+stty [7] (based on termios API) - to change and print terminal line settings.
+
+tty [8] - to print the file name of the terminal connected to standard input
+

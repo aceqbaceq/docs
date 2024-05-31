@@ -34,3 +34,171 @@ hd graphics 4600
 cryptosetup монтирование раздела
 
  
+
+
+
+
+| plymouth
+
+это такая прога которая используется для того чтобы установить конечное разрешение экрана
+как можно раньше и чтобы в процессе загрузки чтобы не было переключений дерганий из одного
+граф разрешения понескольку раз пока не произойдет загрузка
+
+
+
+
+| PulseAudio  PipeWire
+
+В manjaro вместо PulseAudio работает PipeWire. В целом это программы которые делают  одно 
+и тоже. Это аудио сервера. Тоесть как я примерно понял что программа обращается к аудио
+серверу и туда сует свой аудиопоток. а этот аудиосервер миксует звук ото всех  источников
+и уже сует ядро а оно на железо. так пишут  в статье.  а манжаро также как и в убунте
+это процессы работают под systemd --user
+		
+	$ systemctl --user list-units  --type=service | grep pipe
+	pipewire-pulse.service                       loaded active running PipeWire PulseAudio
+  	pipewire.service                             loaded active running PipeWire Multimedia Service
+
+
+
+wiregurard 
+    установить  и засунуть его настройки в NetworkManager
+iptables 
+    закрыть все снаружи. правила дефолтовые на DROP 
+    и только чтоб на wireguard можно было ходить
+
+
+chrom 
+    убрать  smooth scroll
+
+включить  руские быквы
+    setxkbmap -model pc105 -layout us,ru -option grp:ctrl_shift_toggle
+
+
+
+.bashrc
+    вставить
+
+function gitpush() {
+
+  if [ -z "$1" ]; then
+    {
+      echo "error: usage \$ gitpush  comment ";
+      return 1
+    }
+  fi
+  cd ~/git/docs &&   git add . &&  git commit -m "$1" &&   git push
+
+
+}
+
+
+
+
+function ffc() {
+
+  if [ -z "$1" ]; then
+    {
+      echo "error: usage \$ ffc  url ";
+      return 1
+    }
+  fi
+
+  local  u=$( sed 's/\(&.*\)//' <<< "$1" )
+
+  ffplay -v verbose -nodisp  -autoexit  $(youtube-dl -g -f 249  "$u")
+
+}
+
+
+
+
+function vlc2() {
+
+  if [ -z "$1" ]; then
+    {
+      echo "error: usage \$ vlc2  \'url\' [249/22] ";
+      return 1
+    }
+  fi
+
+  local format;
+  case "$2" in
+    249  ) format="249";;
+    22   ) format="22";;
+    *             ) format="22" ;;
+  esac
+
+  local  u=$( sed 's/\(&.*\)//' <<< "$1" )
+  vlc  $(youtube-dl -g -f "$format"  "$u")   0>/dev/null 1>/dev/null 2>/dev/null &
+
+}
+
+
+
+
+
+
+
+alias gitpull='cd ~/git/docs && git pull'
+alias thinkpad_gitpull='ssh -t  thinkpad bash -i  -c gitpull'
+
+
+
+
+if [ "$LOGNAME" = root ] || [ "`id -u`" -eq 0 ] ; then
+        export PS1="\[\e[01;23;38;5;11;48;5;214m\] \[\e[01;31m\]$(/bin/hostname | tr "[:lower:]" "[:upper:]") \[\e[38;5;11;48;5;1m\]#\[\e[22;38;5;196;48;5;16m\] "
+
+    else
+
+#        export PS1=' \[\e[01;32m\]\[\e[01;38;5;$(( $RANDOM % 255 ));48;5;16m\]$(echo -e "\0$(echo -e "obase=8;ibase=10;$(( 33 + ($RANDOM % 92)   ))" | bc)") $(printf "\U0001F3$(   echo "obase=16;$(( $RANDOM % 252))" | bc  )")  \[\e[00m\]\$ '
+#        export PS1=' \[\e[01;32m\]\[\e[01;38;5;$(( $RANDOM % 255 ));48;5;16m\]$(echo -e "\0$(echo -e "obase=8;ibase=10;$(( 33 + ($RANDOM % 92)   ))" | bc)") $(printf "\U0000$(   echo "obase=16;$(($RANDOM % 252))" | bc  )$(   echo "obase=16;$(( $RANDOM % 252))" | bc  )")  \[\e[00m\]\$ '
+        export PS1=' \[\e[01;32m\]\[\e[01;38;5;$(( $RANDOM % 255 ));48;5;16m\]$(echo -e "\0$(echo -e "obase=8;ibase=10;$(( 33 + ($RANDOM % 92)   ))" | bc)") $(printf "\U00$(   echo "obase=16;$(($RANDOM % 1))" | bc  )$(   echo "obase=16;$(($RANDOM % 252))" | bc  )$(   echo "obase=16;$(( $RANDOM % 252))" | bc  )")  \[\e[00m\]\$ '
+#       export PS1=' \[\e[01;32m\]\[\e[01;38;5;$(( $RANDOM % 255 ));48;5;16m\]$(echo -e "\0$(echo -e "obase=8;ibase=10;$(( 33 + ($RANDOM % 92)   ))" | bc)") $(printf "\U0000$(   echo "obase=16;$(($RANDOM % 252))" | bc  )$(   echo "obase=16;$(( $RANDOM % 252))" | bc  )") \[\e[23;01;31m\]$(/bin/hostname | tr "[:lower:]" "[:upper:]") \[\e[00m\]\$ '
+#       export PS1=" \[\e[01;32m\]\[\e[01;38;5;$(( $RANDOM % 255 ));48;5;16m\]$(echo -e "\0$(echo -e "obase=8;ibase=10;$(( 33 + ($RANDOM % 92)   ))" | bc)") $(printf "\U0000$(   echo "obase=16;$(($RANDOM % 252))" | bc  )$(   echo "obase=16;$(( $RANDOM % 252))" | bc  )") \[\e[23;01;31m\]$(/bin/hostname | tr "[:lower:]" "[:upper:]") \[\e[00m\]\$ "
+#       export PS1='\[\e[01;32m\][ \[\e[23;01;31m\]$(/bin/hostname | tr "[:lower:]" "[:upper:]") \[\e[01;32m\]]\[\e[01;38;5;$(( $RANDOM % 255 ));48;5;16m\]\$$(echo -e "(\0$(echo -e "obase=8;ibase=10;$(( 33 + ($RANDOM % 92) ))" | bc))")\[\e[00m\]'
+#       export PS1='\[\e[01;32m\][ \[\e[23;01;31m\]$(/bin/hostname | tr "[:lower:]" "[:upper:]") \[\e[01;32m\]]\[\e[01;38;5;$(( $RANDOM % 255 ));48;5;16m\]\$ \[\e[00m\]'
+#       export PS1='\[\e[01;32m\][ \[\e[22;31m\]$(/bin/hostname) \[\e[01;32m\]]\[\e[01;38;5;$(( $RANDOM % 255 ));48;5;16m\]\$ \[\e[00m\]'
+
+
+fi
+
+
+thinkpad 440 его железо
+    cpu haswell
+    HD Graphics 4600
+
+
+
+
+необработнные ссылки с чем столкнулся 
+при настройке манжаро
+chrome://gpu/
+
+https://bbs.archlinux.org/viewtopic.php?id=244031&p=28
+
+https://stackoverflow.com/questions/9540990/using-chromes-element-inspector-in-print-preview-mode
+
+https://www.google.com/search?q=linux+creartewswap+file&oq=linux+creartewswap+file&gs_lcrp=EgZjaHJvbWUyBggAEEUYOTIJCAEQABgNGIAEMgkIAhAAGA0YgAQyCAgDEAAYDRgeMggIBBAAGA0YHjIICAUQABgNGB4yCAgGEAAYDRgeMggIBxAAGA0YHjIICAgQABgNGB4yCAgJEAAYDRge0gEINDU0N2owajeoAgCwAgA&sourceid=chrome&ie=UTF-8
+
+https://unix.stackexchange.com/questions/137320/how-to-delete-old-packages-installed-by-pacman-in-arch-linux
+
+https://forum.manjaro.org/t/paccache-missing/157762
+
+https://www.google.com/search?q=linux+du+for+the+same+file+system&oq=linux+du++for+the+same+file+system&gs_lcrp=EgZjaHJvbWUyBggAEEUYOTIHCAEQIRigAdIBCDU1NjNqMGo3qAIAsAIA&sourceid=chrome&ie=UTF-8
+
+https://man.archlinux.org/man/fwupdmgr.1.en
+
+https://wiki.archlinux.org/title/Xorg/Keyboard_configuration
+
+https://github.com/hughsie/passim
+
+https://bbs.archlinux.org/viewtopic.php?id=223698
+
+https://forum.manjaro.org/t/wake-up-immediately-after-suspend-and-shut-down/131686
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1558493
+
+https://www.tecmint.com/load-and-unload-kernel-modules-in-linux/
+
+==

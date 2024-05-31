@@ -35,6 +35,34 @@ irq context. непонтно что происходит с теми преры
 поэтому на данном этапе я пока решил почитать книжку "understanding linux".
  а там посмортрим. потому что говрю в инете много хуйни по этой теме.
 
+тоест я неопнимаю при каком событии цпу начинает оббрабатывать soft irq.
+что это такое. может ли оно быть прервано чем нибудь?
+
+# cat /proc/interrupts | grep LOC
+LOC:       4609       4836   Local timer interrupts
+
+
+# cat /proc/interrupts | grep LOC
+LOC:      22876      23201   Local timer interrupts
+=========================================================
+
+
+
+
+
+
+# cat /proc/interrupts | grep LOC
+LOC:       8171       2763   Local timer interrupts
+
+
+
+# cat /proc/interrupts | grep LOC
+LOC:      34835       3043   Local timer interrupts
+
+
+
+
+
 <=========== закчил здесь
 
 

@@ -1,0 +1,188 @@
+| fputc
+
+путсы работают не  с файл дескрипторами ( смотри "| file descriptor"  )
+а со стримами  (  смотри "| stream"  )
+
+   #include <stdio.h>
+
+       int fputc(int c, FILE *stream);
+
+       int fputs(const char *s, FILE *stream);
+
+       int putc(int c, FILE *stream);
+
+       int putchar(int c);
+
+       int puts(const char *s);
+
+
+начнем с
+       int fputc(int c, FILE *stream);
+оно преобразует свой    int аргумент    в    unsigned char   
+а уже потом пихает в стрим.
+тоесть берется аргумент 2 байта и преобразуется в 1 байт.
+спрашиватся а нахуя брать аргумент 2 байта. нелучше ли было
+бы взять сразу аргумент в 1 байт? 
+
+тогда у меня вопрос. а как си преобразует 2 байта в 1 байт?
+делаю эксперимент
+
+
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <unistd.h>
+
+
+int main(void) {
+
+  int a1 = 0x3435;
+  unsigned char ch1 = (unsigned char) a1;
+  printf ("%c\n", a1);
+  fputc(a1, stdout);
+  fputc(0x0a, stdout);
+  fputc(ch1, stdout);
+  fputc(0x0a, stdout);
+
+
+  int c2 = 0x3132;
+  fputc(c2, stdout);
+  fputc(0x0a, stdout);
+
+exit(0);
+}
+
+
+$ ./176.exe | od -t x1
+35 0a 35 0a 35 0a 32 0a
+
+из первого куска видно то что 
+си  преобразует 2 байта в 1 байт путем того что он берет младший
+байт и сует его в 1 байт.
+и еще видно что хотя в спецификации putc указано что аргумнтом должен 
+быть int но можно сразу подставлять char аргумент. и нет проблем.
+
+итак у putc аргумент int тоесть 2 байта. он putc он преобразует
+int в char тоесть он из кажого 2 байта берет младший байт.
+поэтому если подснуть int a1 = 0x3435; в путс. то он пошлет в стрим 0x35
+спрашивается а в чем смысл такой команды. она же нам поток 
+искажает. 
+
+если ее и использовать то только вот так
+	fputc(char c, FILE *stream);
+тоесть аргументом должен быть только char
+аналог чрез printf это 
+	printf ("%c", c);
+
+
+
+
+
+
+теперт разбираю вторую команду
+	       int fputs(const char *s, FILE *stream);
+ВАЖНО!  я замечу важную вещь. сравни
+   int fputc(int c, FILE *stream);
+   int fputs(const char *s, FILE *stream);
+тоесть первая команда имеет вид fputC а вторая fputS
+первая работает с единичным символом! а вторая уже со стрингом!
+итак вторая команда  работает так
+    writes the string s to stream, without its terminating null byte ('\0').
+тоесть аргумент это поинтер и ожидается что внутри поинтера
+лежит стринг(массив чаров и 0x00 на конце) и он поток этих байтов
+пихает в стрим. только 0x00 непихает.
+я думаю аналогичная команда через  принтф
+	printf( "%s", ptr_a);
+
+пример
+программа открывает файл /tmp/1.txt
+и пишет туда 0x31
+потом на экран (стрим stdout )  пищется vvvvv\n
+
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <unistd.h>
+
+
+int main(void) {
+
+
+  printf ("pid = %i\n", getpid() );
+
+  char const * ptr_path = "/tmp/1.txt";
+  char const * ptr_mode = "w";
+  FILE * ptr_i_stream = NULL;
+  ptr_i_stream = fopen(ptr_path,  ptr_mode);
+
+  int ret_c = 0;
+  int c1 = 0x31;
+  ret_c = fputc(c1, ptr_i_stream);
+  fclose(ptr_i_stream);
+
+  char const s1[] = {  'v', 'v', 'v', 'v', 'v', 0x0a, 0x00     };
+  char const * ptr_s1 = s1;
+  ret_c = fputs(ptr_s1, stdout);
+
+
+ exit(0);
+
+}
+
+
+итак  fputs подходит либо для печати одиночного char байта
+либо для печати стринга. 
+
+спрашивается а нахуй он нужен если есть принтф.
+не знаю. во первых printf он тоже пишет в стримы. точнее в стрим stdout
+а fprintf это точно как printf только можно подсунуть уже поинтер
+на любой стрим а нетолоько стрим  stdout
+
+итак и принтф и fputs оба пишут в стримы. тут они одинаковые.
+но как я понимаю fputs он более простецкий чем принтф. потому что 
+принтф имеет дохрена шаблонов для модификации входного потока в выходной
+поток а fputs он подходит только для печати готово char потока либо 
+единичного символа либо стринга.
+
+тоест принтф он может и в hex виде напечатать. и в виде целых чисел 
+со знаком и в виде числе с запятой. а   fputs этого ничего не умеет.
+в темринах принтф  fputs может печатать только %s либо %c  формат и все.
+
+ 
+еще пример
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <string.h>
+
+int main(void) {
+
+
+  printf ("pid = %i\n", getpid() );
+
+  int i1 = 0x31;
+  fputc(i1,stdout);
+  fputc(0x0a, stdout);
+
+
+
+  char ch1[] = "vasya";
+  char * const ptr_ch1 = ch1;
+  fputs(ptr_ch1,stdout);
+  fputc(0x0a, stdout);
+
+
+ exit(0);
+
+}
+
+
+
+

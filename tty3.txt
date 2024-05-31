@@ -1,0 +1,468 @@
+psi = ?
+
+====
+если у процеса есть /dev/pts/X
+то гоорят это процес открыл терминал!!! как буто этот процесс как челоек
+сидит перед терминалом. ХУЙНЯ!!!!
+как ра таки сидит перед терминалом удаленный процесс владеле ц терминала.
+он эмулирует члеовеа сеибящего пеиед ерминалмло.м
+а этот процесс этот тот процес К КОТОРОМУ ПОДКЛЮЧЕН тот самый удаленнй терминал
+
+
+процесс1 < -/dev/pts/X -> --------ядро-------/dev/ptmx---(удаленный терминал) --владаеллец
+уделенного терминала(ака вирт человека) процесс2
+
+у процесса2 открыт терминал
+а процесс1 это тот к кому пдкодчен удаленнй терминал.
+
+сигнал SIGHUP прилетает именно процессу1 сигнализируя что удаленный терминал
+больше не доступен чтобы процесс1 принял рещение стоит ли дальше работать
+или нет. плсыдает его либо процесс2 либо ядро.
+на практике щсс обычно это обозначает что либо процесс2 сдох. либо процесс2 
+закрывает "терминальную линию связи" /dev/pts/X от него к процессу1
+
+что значит в практиеческом плане если мы видим что вот есть процесс у котрого tty2
+
+$ w
+ 22:03:15 up 7 min,  1 user,  load average: 3,05, 1,82, 0,83
+USER     TTY      FROM             LOGIN@   IDLE   JCPU   PCPU WHAT
+vasya    tty2     -                22:03    3.00s  0.13s  0.10s -bash
+
+это значит что  К ЭТОМУ ПРОЦЕССУ подключен где то там хрен 
+знает где расположенный  терминал! тоеть наличиу у процесса tty здесь значит 
+что терминал есть где то там ! есть где то там располженный темринал который стучит
+на этот процесс. посыдает в этот процесс данные. получает с этого процесса данные.
+процесс с tty выступает как фтп сервер а где то там расопложенный терминал выступает 
+как фтп клиент. и что ? а то что если указано что у процесса здесь есть tty* 
+то это значит что клиент(теримнал) расположен в одном из окон Ctrl-Alt-[123456789]
+тоеть это значит что если мы пееркчлючимся в одно из этих оконо мы обнаружим 
+что в одном из окон ввели пароль. и там висит баш. и в нем можно вводить команды.
+про tty вобще интерсно. у нас процес получает файлы /dev/tty1 это как ыб клентсака
+я часть . а серверной нет. тоеть нет процесса который бы является держателем терминала.
+тоесть держателем ялвляется само ядро. поэтому если какойто процесс получил себе
+открытые файлы /dev/tty1 то тогда все что он посывлает туда летит в ядро и сразу на 
+экран который пояяелсят при Ctrl-Alt-1. и наоброт. все что нажимается с кнопок в
+режиме экрана Ctrl-Alt-1 оно автомато летит в ядро а оотуа к процессу у котрого 
+открты /dev/tty1. 
+если кайото пцроесс имеет /dev/pts/N откртый это значит что это где то к  этому поцессу
+подкючен терминал. и трминалом явялется ДРУГОЙ ПРОЦЕСС! тот процесс явялется держеталем
+терминала. саму фнукцию терминаал обеспечиват ядро. так вот тот удаленй процесс он 
+может иметь окно (для челоека) так ег и неиметь. 
+поэтому 
+если мы видим что прцоесс иемм откртый /dev/tty1 это значит надо беатжать в 
+окно CTrl-Alt-1 и там смотреть чтотам туда этот процесс срет. и копки в том окне 
+будут лететь прям в ттот прцоесс. это значит то в окне ctrl-alt-1 вели пароль. и открыйли
+там баш. вот что это занчит
+если мы видим /dev/pts/N то это значит надо на компе скрочно искать второй процесс 
+с которрых эттот прцесс через "термнанлые" файлы /dev/pts/N общается. повторю при этом 
+вторая прогрммма аовсоюнтго необязана иметь окно гарфическое чтобы сообщать члеокек
+о чем они там говяоврият.
+
+надо эту тему еще подумать додумать.
+как бы впрос тко - если мы вилим что роцес имееть tty ил pts а что эо на апрктиуке 
+значит?
+
+
+
+
+
+
+==
+
+а до этого я занимался вопросом как вставить процесс в cgroup.
+окащалост что docker top покзывает не процессы которые имеют оди еймсейс! нет!
+а процессы которые сидят в одной цгруппе. 
+докер топ считает что преыесы сидят в одном онтейнерере если они сидят в одной цгруппе!
+а на неймспейсы ему похуй!!!
+
+ !! итакже тоогда я непонял а что же тогда означает неймсаеймкйс
+cgroup. в чем разгица между proc/cgroup где написано в кааокй цгруп входит процесс
+и неймспейсом cgroup ? у менч такое ощущение что неймспейс cgroup это как маунт нейсмекпейс.
+тоесть новй неймспейс цгрупп это копия /sys/fs/cgroup но в ней можно деоа измнееия
+котоыре потом в родтелет не отметться?????
+тоесть почему цгруппа и цгрупп неймспейс это разное ??!?!?!?!?!!?!?!
+
+
+чтоо еще меня пораило в shim процессе. мы делаем docker exec bash
+это по факту это выгдяит так. shim себя клонирует. и потом делает execve bash
+и получается очень интерено. новый баш заворачивает свои fd/* в shim
+а докер клиент сутчится в shim
+
+
+вопросы:
+shim
+  1) у него родииель systemd а не conatinered 
+  но это незначит что его породил systemd
+  надо проверить по неймсмейсам кто его порродил. просто тот кто его породил 
+  вышел и новыым парентмо был назненен systdm
+  а sytemd нго родитьео чтобы еси шим сдохнет то чтобы sytsmed занималя
+  его wait()
+  2) у него сокет с containerd. чтобы контейнерд мог делать заросы общаться 
+  с shim о состоянии злоровтя контйенеров за которым смориит shim
+  3) я думаю что containerd созщает шим. и дает более ошую команду 
+  сосзать контейнер. а shum уже умеет облатся с runc/crun и дает более кокнерую 
+  команду runc\crun . shim это руки от conerrdd. агент соаватель. connerd прораб
+  а шим это рабочий
+
+что дает дочке что он дочка такого парента
+ дает то что  у нее обычно общие с парентом нейспейсы и файлы
+что дает родиеою что процесс его дочка. тоже что и предудщий пункт
+иеще родител нужно будет делать wait()
+в чем фишка если процесс1 доелает дочку процесс2  а процссесс2 делет дочеу процесс3
+а потом прое2 выходит и процесс3 теряет родииеоя и его рдителя systemd ?
+
+
+докер и pod что осттется поле перзапуска в плане остаюбтся ли 
+темжи самыми неймсйссы. цгруппы. ip?
+тоесть если коненеры сидели в гурппе что они теряют. настолько ли эфемерны поды 
+как об этом пздит дока к8 ?
+
+==
+
+
+на счет создания руками в докере аналога пода.
+но чтобы понять что нам надо создавать в докере 
+нам надо понять а что общего в контейнеров в поде
+начнем разбираться!
+
+беру под из двух контейнеров ( и третий инфрастркутурный или пауз контйнер)
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-st1
+spec:
+  containers:
+    - name: app
+      image: nginx:alpine
+      ports:
+        - containerPort: 80
+      resources:
+        limits:
+          memory: "256Mi"
+    - name: sidecar
+      image: curlimages/curl:8.3.0
+      command: ["/bin/sleep", "3650d"]
+      resources:
+        limits:
+          memory: "128Mi"
+
+
+определяею id пауз контйнера. 
+# crictl pods
+POD ID              NAME                                
+1292eb7698c82       pod-st1                             
+нахожу его pid
+# crictl inspectp 1292eb7698c82 | grep -i pid
+    "pid": 2509,
+
+
+опредееляю id остальных контйееоров
+# kubectl describe pods pod-st1  | grep Container\ ID
+    Container ID:   containerd://d60ecbcde508ab7373989f530ea6442ca73d182dcec610e09b2bb8a116b52f46
+    Container ID:  containerd://0c17aa64111ecd0b06a5687b6ff59d6dc65cd3780e1077e23a48a3f4d199b7e0
+нахожу их pid-ы
+
+# crictl inspect d60ecbcde508ab7373989f530ea6442ca73d182dcec610e09b2bb8a116b52f46 | grep -i pid
+    "pid": 2538,
+# crictl inspect   0c17aa64111ecd0b06a5687b6ff59d6dc65cd3780e1077e23a48a3f4d199b7e0   | grep -i pid
+    "pid": 2590,
+
+теперь найду их пиды по другому. я знаю пид пауз контейнера.
+его родителем должен быть shim процесс. а остальные контенеры должын быть чайлдами
+шима.
+
+# pstree -AspT 2509
+systemd(1)---containerd-shim(2489)---pause(2509)
+
+# pstree -AspT 2489
+systemd(1)---containerd-shim(2489)-+-nginx(2538)-+-nginx(2597)
+                                   |             `-nginx(2598)
+                                   |-pause(2509)
+                                   `-sleep(2590)
+
+все так и есть все совпало!
+итак имеем три pid = 2509, 2538, 2590
+
+теперь смотрю в каких неймспейсах сидят эти три процесса
+
+
+# lsns  -p 2509
+        NS TYPE   NPROCS   PID USER  COMMAND
+4026531834 time      109     1 root  /sbin/init
+4026531835 cgroup    109     1 root  /sbin/init
+4026531837 user      109     1 root  /sbin/init
+4026532371 net         5  2509 65535 /pause
+4026532425 mnt *       1  2509 65535 /pause  
+4026532426 uts         5  2509 65535 /pause
+4026532427 ipc         5  2509 65535 /pause
+4026532428 pid *       1  2509 65535 /pause
+
+# lsns  -p 2538
+        NS TYPE   NPROCS   PID USER  COMMAND
+4026531834 time      109     1 root  /sbin/init
+4026531835 cgroup    109     1 root  /sbin/init
+4026531837 user      109     1 root  /sbin/init
+4026532371 net         5  2509 65535 /pause
+4026532429 mnt  *      3  2538 root  nginx: master process nginx -g daemon off; 
+4026532426 uts         5  2509 65535 /pause
+4026532427 ipc         5  2509 65535 /pause
+4026532430 pid  *      3  2538 root  nginx: master process nginx -g daemon off;
+
+# lsns  -p 2590
+        NS TYPE   NPROCS   PID USER            COMMAND
+4026531834 time      110     1 root            /sbin/init
+4026531835 cgroup    110     1 root            /sbin/init
+4026531837 user      110     1 root            /sbin/init
+4026532371 net         5  2509 65535           /pause
+4026532431 mnt  *      1  2590 systemd-network /bin/sleep 3650d
+4026532426 uts         5  2509 65535           /pause
+4026532427 ipc         5  2509 65535           /pause
+4026532432 pid  *      1  2590 systemd-network /bin/sleep 3650d
+
+звездочкой "*" я показал какие неймспесы у этих процессов разные.
+это pid mnt неймспейсы. остальные у них общие.
+
+осталось  с цгруппами прояснить. тут немножко засада. есть две версии цгрупп.
+у меня на компе работате вторая
+$ mount | grep cgroup
+cgroup on /sys/fs/cgroup type cgroup2 (rw,nosuid,nodev,noexec,relatime)
+
+а миникуб умеет запускать к8 только на первой версии
+ксатти видно что вроде как может две версии цгрупп однрверменно
+рабооать на компе .. кхмм..
+(minikube)# mount | grep cgroup
+tmpfs on /sys/fs/cgroup type tmpfs (ro,nosuid,nodev,noexec,size=4096k,nr_inodes=1024,mode=755,inode64)
+cgroup2 on /sys/fs/cgroup/unified type cgroup2 (rw,nosuid,nodev,noexec,relatime,nsdelegate)
+cgroup on /sys/fs/cgroup/systemd type cgroup (rw,nosuid,nodev,noexec,relatime,xattr,name=systemd)
+cgroup on /sys/fs/cgroup/net_cls,net_prio type cgroup (rw,nosuid,nodev,noexec,relatime,net_cls,net_prio)
+cgroup on /sys/fs/cgroup/cpu,cpuacct type cgroup (rw,nosuid,nodev,noexec,relatime,cpu,cpuacct)
+cgroup on /sys/fs/cgroup/memory type cgroup (rw,nosuid,nodev,noexec,relatime,memory)
+cgroup on /sys/fs/cgroup/cpuset type cgroup (rw,nosuid,nodev,noexec,relatime,cpuset)
+cgroup on /sys/fs/cgroup/blkio type cgroup (rw,nosuid,nodev,noexec,relatime,blkio)
+cgroup on /sys/fs/cgroup/devices type cgroup (rw,nosuid,nodev,noexec,relatime,devices)
+cgroup on /sys/fs/cgroup/pids type cgroup (rw,nosuid,nodev,noexec,relatime,pids)
+cgroup on /sys/fs/cgroup/freezer type cgroup (rw,nosuid,nodev,noexec,relatime,freezer)
+cgroup on /sys/fs/cgroup/hugetlb type cgroup (rw,nosuid,nodev,noexec,relatime,hugetlb)
+cgroup on /sys/fs/cgroup/perf_event type cgroup (rw,nosuid,nodev,noexec,relatime,perf_event)
+cgroup on /sys/fs/cgroup/rdma type cgroup (rw,nosuid,nodev,noexec,relatime,rdma)
+cgroup on /sys/fs/cgroup/misc type cgroup (rw,nosuid,nodev,noexec,relatime,misc)
+
+
+
+вот что покзывает ctr про цгруппу нашего  пауз контйенера 
+# ctr -n k8s.io c info  1292eb | grep -i cgroup 
+            "cgroupsPath": "/kubepods/burstable/pod7c7a6b56-6d3c-4b55-9a3c-7d2d4d8555c7/1292eb",
+
+я нашел эту папку как подпапку в  /sys/fs/cgroup/unified/ вот тут
+/sys/fs/cgroup/unified/kubepods/burstable/pod7c7a6b56-6d3c-4b55-9a3c-7d2d4d8555c7/1292eb
+
+насколько  я понимаю раз оно лежит в папке unified это значит что containerd
+использует cgroup v2 при создании контйнеров (<====найти еще доказательства)
+
+псмоотрим инфо про цгруппу для оставшихся двух контеоров
+
+# ctr -n k8s.io c info  d60ecbcde508ab7373989f530ea6442ca73d182dcec610e09b2bb8a116b52f46 | grep -i cgroup 
+                "destination": "/sys/fs/cgroup",
+                "type": "cgroup",
+                "source": "cgroup",
+            "cgroupsPath": "/kubepods/burstable/pod7c7a6b56-6d3c-4b55-9a3c-7d2d4d8555c7/d60ecbcde508ab7373989f530ea6442ca73d182dcec610e09b2bb8a116b52f46",
+
+
+# ctr -n k8s.io c info  0c17aa64111ecd0b06a5687b6ff59d6dc65cd3780e1077e23a48a3f4d199b7e0 | grep -i cgroup 
+                "destination": "/sys/fs/cgroup",
+                "type": "cgroup",
+                "source": "cgroup",
+            "cgroupsPath": "/kubepods/burstable/pod7c7a6b56-6d3c-4b55-9a3c-7d2d4d8555c7/0c17aa64111ecd0b06a5687b6ff59d6dc65cd3780e1077e23a48a3f4d199b7e0",
+
+тоесть онивсе лежат в одной папке /kubepods/burstable/pod7c7a6b56-6d3c-4b55-9a3c-7d2d4d8555c7/ 
+но в разных ее подпапках
+
+вот что показывает эта команда
+/# systemd-cgls --no-pager
+Control group /:
+-.slice
+├─kubepods 
+│ ├─burstable 
+│ │ ├─pod7c7a6b56-6d3c-4b55-9a3c-7d2d4d8555c7 
+│ │ │ ├─0c17aa64111ecd0b06a5687b6ff59d6dc65cd3780e1077e23a48a3f4d199b7e0 
+│ │ │ │ └─2590 /bin/sleep 3650d
+│ │ │ ├─1292eb7698c823176d46bd0fc4f805471312a29a92dd4ec447a11555886953e3 
+│ │ │ │ └─2509 /pause
+│ │ │ └─d60ecbcde508ab7373989f530ea6442ca73d182dcec610e09b2bb8a116b52f46 
+│ │ │   ├─2538 nginx: master process nginx -g daemon off;
+│ │ │   ├─2597 nginx: worker process
+│ │ │   └─2598 nginx: worker process
+
+тоесть тоже самое
+
+самое странное то что на моем компе если я захожу в свойства процесса
+то цгруппу можно увидеть вот так просто
+
+$ cat /proc/self/cgroup 
+0::/user.slice/user-1000.slice/user@1000.service/gnome-terminal-server.service
+
+$ echo $$BASHPID
+19983
+
+# systemd-cgls --no-pager
+..
+..
+├─user.slice
+│ └─user-1000.slice
+│   ├─user@1000.service
+│   │ ├
+│   │ │
+│   │ ├
+│   │ │
+│   │ ├
+│   │ │
+│   │ ├─gnome-terminal-server.service
+│   │ │ ├─
+│   │ │ ├─19983 bash -rcfile .bashrc    <=============
+ 
+тоесть через /proc/pid/cgroup четко видно где в какой "папке" цгруп сидит процесс
+
+если же я этоже смотрю для процесса пауз контйенера на миникубе
+я вижу нечто совсем другое напоминаю что наш пауз контйенер это pid=2509
+
+# cat /proc/2509/cgroup 
+13:misc:/
+12:rdma:/kubepods/burstable/pod7c7a6b56-6d3c-4b55-9a3c-7d2d4d8555c7/1292eb76...
+11:perf_event:/kubepods/burstable/pod7c7a6b56-6d3c-4b55-9a3c-7d2d4d8555c7/1292eb76...
+10:hugetlb:/kubepods/burstable/pod7c7a6b56-6d3c-4b55-9a3c-7d2d4d8555c7/1292eb76...
+9:freezer:/kubepods/burstable/pod7c7a6b56-6d3c-4b55-9a3c-7d2d4d8555c7/1292eb76...
+8:pids:/kubepods/burstable/pod7c7a6b56-6d3c-4b55-9a3c-7d2d4d8555c7/1292eb76...
+7:devices:/kubepods/burstable/pod7c7a6b56-6d3c-4b55-9a3c-7d2d4d8555c7/1292eb76...
+6:blkio:/kubepods/burstable/pod7c7a6b56-6d3c-4b55-9a3c-7d2d4d8555c7/1292eb76..
+5:cpuset:/kubepods/burstable/pod7c7a6b56-6d3c-4b55-9a3c-7d2d4d8555c7/1292eb76..
+4:memory:/kubepods/burstable/pod7c7a6b56-6d3c-4b55-9a3c-7d2d4d8555c7/1292eb76..
+3:cpu,cpuacct:/kubepods/burstable/pod7c7a6b56-6d3c-4b55-9a3c-7d2d4d8555c7/1292eb76...
+2:net_cls,net_prio:/kubepods/burstable/pod7c7a6b56-6d3c-4b55-9a3c-7d2d4d8555c7/1292eb76...
+1:name=systemd:/kubepods/burstable/pod7c7a6b56-6d3c-4b55-9a3c-7d2d4d8555c7/1292eb76...
+0::/kubepods/burstable/pod7c7a6b56-6d3c-4b55-9a3c-7d2d4d8555c7/1292eb76...
+
+если проссуммировать что я здесь вижу то здес указано что все лежит в папке
+/kubepods/burstable/pod7c7a6b56-6d3c-4b55-9a3c-7d2d4d8555c7/1292eb76...
+это ровно тоже самое что я получил выше из вывода ctr про этот контейнер
+
+"cgroupsPath": "/kubepods/burstable/pod7c7a6b56-6d3c-4b55-9a3c-7d2d4d8555c7/d60ecbcde508ab7373989f530ea6442ca73d182dcec610e09b2bb8a116b52f46",
+
+ксатти а что же там лежит?
+$ ls -1 ..55c7/1292eb7698c823176d46bd0fc4f805471312a29a92dd4ec447a1155588695
+cgroup.controllers
+cgroup.events
+cgroup.freeze
+cgroup.kill
+cgroup.max.depth
+cgroup.max.descendants
+cgroup.procs
+cgroup.stat
+cgroup.subtree_control
+cgroup.threads
+cgroup.type
+cpu.pressure
+cpu.stat
+io.pressure
+memory.pressure
+
+кстати 
+# cat cgroup.procs 
+2509
+ага совпало
+
+значит тут надо останоится и почитать про эту цгрупп. как там все устроено!
+читаю "cgroups.txt"
+
+тоеть я вижу что все конейры пода входят каждая в свою папку а они входят
+в более общую папку а та в свою папку. надо понять что это все значит.
+значит ли это что они входят в одну цгруппу или нет. <===
+также надо понять как это так что на компе две версии цгрупп <====
+тажке надо понять такую вещь как менежде цгрупп ,типа можно менеджером
+деламть systemd а можно и когоото еще паралельно <=====
+как я понял цгруппы это такое же своства процесса в недрах ядра как и неймспейсы.
+а чтобы рукаодить этими свойствами нужно делать соотвствующие сисколлы.
+
+
+
+
+
+//
+
+//
+важный вопос - так как создание конерера труебт не тлько неймсейсов но и цгруппы а их
+два вида то получается что runc -? contaienrd -? kubelt-? должны иметь строку
+которая задает какую версию cgroup мы собиарея использвать. (хотя ведь на компе вроде
+как тлько одна версия цгрупп может в данный момент раобтать ? тогда зачем это 
+прописывать?),
+практика покзал что на компе (например на миникубе) может радтать сразу две версии цгрупп.
+а как это настрваиется чтобы так работатло?
+
+(minikube)# mount | grep cgroup
+
+cgroup2 on /sys/fs/cgroup/unified type cgroup2 (rw,nosuid,nodev,noexec,relatime,nsdelegate)
+
+cgroup on /sys/fs/cgroup/systemd type cgroup (rw,nosuid,nodev,noexec,relatime,xattr,name=systemd)
+cgroup on /sys/fs/cgroup/net_cls,net_prio type cgroup (rw,nosuid,nodev,noexec,relatime,net_cls,net_prio)
+cgroup on /sys/fs/cgroup/cpu,cpuacct type cgroup (rw,nosuid,nodev,noexec,relatime,cpu,cpuacct)
+cgroup on /sys/fs/cgroup/memory type cgroup (rw,nosuid,nodev,noexec,relatime,memory)
+cgroup on /sys/fs/cgroup/cpuset type cgroup (rw,nosuid,nodev,noexec,relatime,cpuset)
+cgroup on /sys/fs/cgroup/blkio type cgroup (rw,nosuid,nodev,noexec,relatime,blkio)
+cgroup on /sys/fs/cgroup/devices type cgroup (rw,nosuid,nodev,noexec,relatime,devices)
+cgroup on /sys/fs/cgroup/pids type cgroup (rw,nosuid,nodev,noexec,relatime,pids)
+cgroup on /sys/fs/cgroup/freezer type cgroup (rw,nosuid,nodev,noexec,relatime,freezer)
+cgroup on /sys/fs/cgroup/hugetlb type cgroup (rw,nosuid,nodev,noexec,relatime,hugetlb)
+cgroup on /sys/fs/cgroup/perf_event type cgroup (rw,nosuid,nodev,noexec,relatime,perf_event)
+cgroup on /sys/fs/cgroup/rdma type cgroup (rw,nosuid,nodev,noexec,relatime,rdma)
+cgroup on /sys/fs/cgroup/misc type cgroup (rw,nosuid,nodev,noexec,relatime,misc)
+
+
+
+//
+
+//
+важный вопопрос
+расммотрет shim , его деревом процессов , его цгруп его нейсмсейс.
+кто его родиеь. с какими паргумтнами он запущен. как онобзатеся  с 
+containerd - черз сокет или пайпы или то и другое. 
+
+//
+
+
+
+у его контйенеров общие все неймспейсы .
+на счет общие ли у них цгруппы это вопрос!
+
+но разные pid , mnt нейспейсы 
+поэтому в бытовом плане у пода конейтеов общая только сеть! это дает только то что
+онм мргу друн сдругом на lo интефрсе через бинды обшаться
+
+докер повяие обтедениь кониейнеры как раз наоброт. чтобы у них были максиму 
+это ьбшая сеть, pid, mnt нейспейсы! тоесть докер конетрнкы их група
+может стать пхожда на под макмсмумс толко изза того что у них сеть обащая.
+
+напомню виды неймспсов
+$ ls -1 /proc/self/ns
+cgroup
+ipc  <===
+mnt  <===
+net  <===
+pid  <===
+user 
+uts
+
+кстаи! кога я хочу помтреть нейсейсы проецсса то 
+$ ls -1 /proc/self/ns
+покжает ns для процесса ls!
+а 
+$ ls -1 /proc/$$/ns
+покжает нейспсейсы для посденего интераткивного баша!
+$ ls -1 /proc/$$BASHPID/ns
+покажт для посдеднего ближашего баша неважно инерактивнй он или нет
+
+как посдить два докре коентейнер а одну пид неймсейс 
+docker run --name c1 --ipc=container:c2 -d ubuntu sh -c 'sleep 1d'
+docker run --name c1 --mnt=container:c2 -d ubuntu sh -c 'sleep 1d'
+docker run --name c1 --net=container:c2 -d ubuntu sh -c 'sleep 1d'
+docker run --name c1 --pid=container:c2 -d ubuntu sh -c 'sleep 1d'
+

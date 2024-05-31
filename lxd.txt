@@ -1292,3 +1292,19 @@ LD_PRELOAD = ...libgtk3-nocsd.so.0
  
 
 ==
+
+как выглядит дерево процессов когда мы запускаем контейнер из lxd
+
+
+$ pstree -AspT 11366
+systemd(1)---lxd(11356)---systemd(11366)-+-dbus-daemon(11975)
+                                         |-networkd-dispat(11991)
+                                         |-packagekitd(13012)
+                                         |-polkitd(12153)
+                                         |-rsyslogd(12000)
+                                         |-systemd-journal(11461)
+                                         |-systemd-logind(12006)
+                                         |-systemd-network(11893)
+                                         |-systemd-resolve(11917)
+                                         `-systemd-udevd(11639)
+

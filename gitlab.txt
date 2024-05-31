@@ -892,7 +892,7 @@ aceqbaceq однако когда мы комиты по ssh гитовые пу
 можем идентифицировать этот ключ и вывести на экран aceqbaceq.
 
 пример authoized_access
-command="/bin/bash -c 'echo Welcome $REMOTEUSER!' ",no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty,environment="REMOTEUSER=jrhacker" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINa9Cne2PSkLOruVDWdHyj6eKFLswfLFtyeIJf/jppen aceqbaceq@gmail.com
+command="/bin/bash -c 'echo Welcome $REMOTEUSER!' ",no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty,environment="REMOTEUSER=jrhacker" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINa9Cne2PSkLOruVDWdHyj6eKFLswfLFtyeIJf/jppen aceqbaceq@github.com
 
 здесь конкретный ключ приводит к тому что при входе будет обьявлена переменная REMOTEUSER
 которую мы и ввыведем при входе.
@@ -906,7 +906,7 @@ command="/bin/bash -c 'echo Welcome $REMOTEUSER!' ",no-port-forwarding,no-X11-fo
       добавляем наш публичный ключ либо руками через copy/paste либо через команду ssh-copy-id имя_юзера@remote_host. в итоге файл authorized_keys будет иметь
       вид
 	$ cat authorized_keys 
-	ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINa9Cne2PSkLOruVDWdHyj6eKFLswfLFtyeIJf/jppen aceqbaceq@gmail.com
+	ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINa9Cne2PSkLOruVDWdHyj6eKFLswfLFtyeIJf/jppen aceqbaceq@github.com
 
       после этого мы можем стучаться на удаленый сервер через ssh имя_юзера@remote_host
       отсюда вытекает то что если мы на удаленном сервере можем добавить наш публичный ключ к любому линукс юзеру на удаленном хосте, может дбавить сразу к куче 
@@ -959,7 +959,7 @@ command="/bin/bash -c 'echo Welcome $REMOTEUSER!' ",no-port-forwarding,no-X11-fo
 вставляем строку c опцией environment="REMOTEUSER=jrhacker"
 
 тоесть ~/.ssh/authorized_keys:
-    command="/bin/bash -c 'echo Welcome $REMOTEUSER!' ",no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty,environment="REMOTEUSER=jrhacker" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINa9Cne2PSkLOruVDWdHyj6eKFLswfLFtyeIJf/jppen aceqbaceq@gmail.com
+    command="/bin/bash -c 'echo Welcome $REMOTEUSER!' ",no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty,environment="REMOTEUSER=jrhacker" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINa9Cne2PSkLOruVDWdHyj6eKFLswfLFtyeIJf/jppen aceqbaceq@github.com
 
 
 теперь когда юзер зайдет по ssh git@IP то у нас в окружении переменных будет переменная

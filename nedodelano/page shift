@@ -1,0 +1,11 @@
+| page shift
+
+как узнать какой размер страницы памяти ?
+$ getconf -a  | grep -i page
+page_shift = 12 
+
+значит 2^12 = 4096 байт = 4 KB
+
+еще можно псмотреть вот тут 
+
+/usr/src/kernels/5.14.0-22.el9.x86_64/include/asm-generic/page.h

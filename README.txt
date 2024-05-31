@@ -8,7 +8,7 @@ $ docs
 По дефолту git pull и git push сейчас качает через https, надо переделать чтобы связь была по ssh.
 Для этого:
     - генерируем ключ
-      $ ssh-keygen -t ed25519 -C "aceqbaceq@gmail.com"
+      $ ssh-keygen -t ed25519 -C "aceqbaceq@github.com"
     - запускаем ssh-agent
       eval `ssh-agent -s`
     - добавляем ключ в агент

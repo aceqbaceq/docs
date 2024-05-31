@@ -22386,6 +22386,8 @@ $ nmap -sn 192.168.0.0/24
 как зашифровать симметрично пароль
 
   $ printf 'пароль' | openssl enc  -aes-256-cbc    -e -v -a -pbkdf2 -salt  -md md5 -base64
+на счет того как зашифровать файл
+  $ cat 1.txt | openssl enc  -aes-256-cbc    -e  -v -a -pbkdf2 -salt  -md md5 -base64 > 1.aes
  
 (на счет использования echo вместо printf то тоже конечно можно, причем
 я проверил что echo можно использовать но надо помнить что echo добавляем на конце
@@ -22425,6 +22427,8 @@ printf дает более предасказуемое поведение. ес
  $ var1='U2FsdGVkX18bnRrj/JWlOAIVtovuEZ/thRmNVh/ta28='
  $ printf "%s\n" "$var1" | openssl enc  -aes-256-cbc    -d  -a -pbkdf2 -salt  -md md5 -base64
 
+расшифровать файл
+ $ cat 1.aes | openssl enc  -aes-256-cbc    -d  -v -a -pbkdf2 -salt  -md md5 -base64 > 1.txt
 
 еще раз обязательно обращаю внимание чтобы успешно расшифровать то
 нужно /usr/bin/printf обязательно использовать с "\n" иначе openssl пошлет нахер

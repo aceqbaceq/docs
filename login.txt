@@ -1,0 +1,16 @@
+| login
+
+эта штука показывает список кто входил на комп
+
+$ last -n 10
+vasya    pts/114      :pts/110:S.1     Sun May  5 19:13 - 19:13  (00:00)
+vasya    pts/112      :pts/110:S.0     Sun May  5 19:13 - 19:13  (00:00)
+vasya    pts/114      :pts/110:S.1     Sun May  5 19:13 - 19:13  (00:00)
+vasya    pts/112      :pts/110:S.0     Sun May  5 19:13 - 19:13  (00:00)
+vasya    pts/114      :pts/110:S.1     Sun May  5 19:13 - 19:13  (00:00)
+vasya    pts/112      :pts/110:S.0     Sun May  5 19:13 - 19:13  (00:00)
+vasya    pts/114      :pts/110:S.1     Sun May  5 19:13 - 19:13  (00:00)
+vasya    pts/112      :pts/110:S.0     Sun May  5 19:13 - 19:13  (00:00)
+vasya    pts/114      :pts/110:S.1     Sun May  5 19:13 - 19:13  (00:00)
+vasya    pts/112      :pts/110:S.0     Sun May  5 19:13 - 19:13  (00:00)
+
