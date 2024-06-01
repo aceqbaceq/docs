@@ -1,0 +1,56 @@
+| sudo
+| sudoers
+
+
+для того чтобы юзер мог пользоваться командой 
+	$ sudo ....
+
+он во первых должен быть в группе sudo
+
+	$ id
+    uid=1000(vasya) gid=1000(vasya) groups=1000(vasya),27(sudo) ...
+
+
+но это не все. в файле
+	/etc/sudoers
+должна быть запись
+
+	%sudo   ALL=(ALL:ALL) ALL
+
+без нее нихрена работаь не будет.
+
+а еще есть такая фича. если мы запускаем
+
+	$ sudo ...
+
+у нас вылезает вопрос введи пароль.
+так вот если мы один раз введем пароль. потом выйдем.  а потом опять
+запустим sudo то при повторном судо у нас уже пароль спрашиваться не будет.
+на чем это осоновано хуй знает но где регулируется сколько минут ненужно?
+ответ читаем тут
+
+	$ man 5 sudoers
+
+ timestamp_timeout
+                       Number of minutes that can elapse before sudo will ask for a passwd again.  The timeout may include a fractional component if
+                       minute granularity is insufficient, for example 2.5.  The default is 15.  Set this to 0 to always prompt for a password.  If set to
+                       a value less than 0 the user's time stamp will not expire until the system is rebooted.  This can be used to allow users to create
+                       or delete their own time stamps via “sudo -v” and “sudo -k” respectively.
+
+
+итак по дефолту это 15 минут.
+а если хочется помеять то вставляем в 
+
+	/etc/sudoers
+
+строчку
+
+Defaults        timestamp_timeout=1
+
+
+(я непонял поему еще слово defaults нужно однако это так. и хер с ним).
+
+
+хочу еще раз сказать что пароль повторно непридется вводить толко в том же самом 
+окне терминала а в новом терминале вводить пароль первый раз придется 100% 
+
