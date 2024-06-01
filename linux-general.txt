@@ -22477,6 +22477,19 @@ $ read  -e -s var1 && export var1 && find  . -maxdepth 1 -type f | xargs -n1 -I{
 а вот если мы вначале зашифрованного файла вставим несколько пустых строк то это никак не
 повлияет на успешную расшифровку такого файла
 
+как сделать так чтобы файл 10 раз зашифровать подряд
+переменная init_f указывает какой текстовый файл шифруем
+переменная end_f указывает в какой файл в итоге все запишется
+
+$ init_f="1.txt" && end_f="1.encr" && read  -e -s var1 && export var1 &&   for i in $(seq 1 10); do   cat ./"$init_f"   | openssl enc  -aes-256-cbc    -e  -v -a -pbkdf2 -salt  -md md5 -base64  -pass pass:$(printf "%s" "$var1") 1>tmp.encr && cp ./tmp.encr ./"$end_f" && init_f="$end_f"; done ; rm tmp.encr
+
+чтобы расшифровать такой файл нужно
+
+$ init_f="2.encr" && end_f="2.txt" && read  -e -s var1 && export var1 &&   for i in $(seq 1 10); do   cat ./"$init_f"   | openssl enc  -aes-256-cbc  -d  -v -a -pbkdf2 -salt  -md md5 -base64  -pass pass:$(printf "%s" "$var1") 1>tmp.encr && cp ./tmp.encr ./"$end_f" && init_f="$end_f"; done ; rm tmp.encr
+
+
+
+
 
 
 | screen
