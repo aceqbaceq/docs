@@ -1,0 +1,291 @@
+усатнока к8 на lxd.
+
+
+# lxc init ubuntu:22.04 nl-k8-01
+Creating nl-k8-01
+root@nl-test-kb-01:/home/krivosheev/kub# lxc init ubuntu:22.04 nl-k8-02
+Creating nl-k8-02
+root@nl-test-kb-01:/home/krivosheev/kub# lxc init ubuntu:22.04 nl-k8-03
+Creating nl-k8-03
+
+
+# lxc config device add nl-k8-01  port22 proxy listen=tcp:0.0.0.0:10500  connect=tcp:127.0.0.1:22
+Device port22 added to nl-k8-01
+root@nl-test-kb-01:/home/krivosheev/kub# lxc config device add nl-k8-02  port22 proxy listen=tcp:0.0.0.0:10501  connect=tcp:127.0.0.1:22
+Device port22 added to nl-k8-02
+root@nl-test-kb-01:/home/krivosheev/kub# lxc config device add nl-k8-03  port22 proxy listen=tcp:0.0.0.0:10502  connect=tcp:127.0.0.1:22
+Device port22 added to nl-k8-03
+
+
+
+
+
+- надо руками на хосте подгрзуить модули
+# modprobe dummy && modprobe br_netfilter  &&  modprobe ip_vs && modprobe ip_vs_rr  && modprobe ip_vs_wrr && modprobe ip_vs_sh \
+&& modprobe nf_conntrack
+
+#  echo "1">  /proc/sys/vm/overcommit_memory 
+#  sysctl -w kernel.panic=10
+#  sysctl -w kernel.panic_on_oops=1
+
+
+
+
+в пле1буке надо зацти в 
+
+/roles/kubernetes/node/tasks/main.yml
+найти 
+- name: Modprobe nf_conntrack_ipv4
+  modprobe:
+    name: nf_conntrack_ipv4
+    state: present
+  register: modprobe_nf_conntrack_ipv4
+  ignore_errors: true  # noqa ignore-errors
+  when:
+    - kube_proxy_mode == 'ipvs'
+  tags:
+    - kube-proxy
+
+
+и заменить на:
+
+- name: Modprobe nf_conntrack_ipv4
+  modprobe:
+    name: nf_conntrack
+    state: present
+  register: modprobe_nf_conntrack_ipv4
+  ignore_errors: true  # noqa ignore-errors
+  when:
+    - kube_proxy_mode == 'ipvs'
+  tags:
+    - kube-proxy
+
+
+
+
+- надо поменять настрйоки для кажого контейнера для к8
+# lxc config set имя_конте \
+                         security.nesting=true \
+                         security.syscalls.intercept.mknod=true \
+                         security.syscalls.intercept.setxattr=true \
+                         security.privileged=true \
+                         linux.kernel_modules=ip_tables,ip6_tables,netlink_diag,nf_nat,overlay \
+                
+
+# lxc restart имя_конт
+
+# lxc config device add имя_конт mem1 unix-char path=/dev/mem
+
+# lxc config device add имя_конт mem2 unix-char path=/dev/kmsg
+
+
+
+
+# lxc start --all
+
+
+# lxc file push /home/krivosheev/.ssh/authorized_keys nl-k8-01/root/.ssh/authorized_keys
+# lxc file push /home/krivosheev/.ssh/authorized_keys nl-k8-02/root/.ssh/authorized_keys
+# lxc file push /home/krivosheev/.ssh/authorized_keys nl-k8-03/root/.ssh/authorized_keys
+
+
+
+
+
+=========
+когда я поставил к8 на локлаьнй норутбук. то он у меня не взделетл
+он написал что стаус у нод NotReady
+
+~# kubectl get nodes
+NAME           STATUS   ROLES           AGE   VERSION
+local-kub-01   NotReady    control-plane   37h   v1.26.3
+local-kub-02   NotReady    control-plane   37h   v1.26.3
+local-kub-03   NotReady    control-plane   37h   v1.26.3
+
+значит я заглянул внутрь. 
+
+
+причина была в том что часть подов системынх немогла запуститься. я зашел  в логи kubeproxy
+и там было написано чтоо типа того что ллинуксе неможет записат в /sys/...
+
+тогда янашел вот здесь костыль как это исправтьи
+
+lxc config edit ubuntu-lxd-3
+
+  raw.lxc: |-
+    lxc.cgroup.devices.allow = a
+    lxc.mount.auto=proc:rw sys:rw
+    lxc.cap.drop=
+    lxc.apparmor.profile=unconfined
+
+я это вкорячил. и поле этого поды системные все успешно стартаунули
+и статус нод изменился на ready.
+====================================================
+теперт осталось все это по человечески расписать
+
+про raw.lxc.
+я так и ненаше что это за хцйня. 
+но получается часть натсроек прописывается именно в этой секции.
+
+как этот raw.lxc записать в конфиг контейнера.
+можно через 
+
+lxc config edit имя_контейнера 
+и прям в текстовом редакторе можно вставить.
+тока надо всталять акуратно потому что формат конфига это yaml
+шаг влево шаг вправо и погел нахуй.
+выглядит в конфиге это так:
+
+
+
+# lxc config  show  local-kub-01
+architecture: x86_64
+config:
+  image.architecture: amd64
+...
+  raw.lxc: |-
+    lxc.cgroup.devices.allow = a
+    lxc.mount.auto=proc:rw sys:rw
+    lxc.cap.drop=
+    lxc.apparmor.profile=unconfined
+  security.nesting: "true"
+...
+
+соответсвенно видно куда надо пихать этот raw.lxc
+
+а вот еше другой споособ как это сделать через командну строку
+нашел тут  = https://blog.simos.info/how-to-add-multi-line-raw-lxc-configuration-to-lxd/
+
+# printf 'lxc.cgroup.devices.allow = c 10 237\nlxc.cgroup.devices.allow = b 7 *' | lxc config set mycontainer raw.lxc -
+
+либо 
+
+# echo -e  'lxc.cgroup.devices.allow = c 10 237\nlxc.cgroup.devices.allow = b 7 *' | lxc config set mycontainer raw.lxc -
+
+вверху я написал что чтобы куб нормлаьно поставит чтобы не вылезала ошибка
+
+"lxd failed to write /sys/fs/cgroup/""
+
+
+то надо вставить в конфиг строки 
+
+lxc config edit ubuntu-lxd-3
+
+  raw.lxc: |-
+    lxc.cgroup.devices.allow = a
+    lxc.mount.auto=proc:rw sys:rw
+    lxc.cap.drop=
+    lxc.apparmor.profile=unconfined
+
+(нашел тут https://community.home-assistant.io/t/hassio-installation-on-lxd-lxc-container-ubuntu-18-04/151543/2)
+
+
+значит чтобы это сделать надо :
+
+# printf 'lxc.cgroup.devices.allow = a\nlxc.mount.auto=proc:rw sys:rw\nlxc.cap.drop=\nlxc.apparmor.profile=unconfined' | lxc config set mycontainer raw.lxc -
+
+
+
+
+#
+
+вход в контейнер
+
+# kubectl exec --stdin --tty nginx-deployment-85996f8dbd-kxwg2    -- /bin/bash
+
+===
+
+|| вопрос про KubeletHasDiskPressure       kubelet has disk pressure ||
+
+
+когда я поставил куб
+
+то был варнинг
+
+он пишет disk pressure
+
+~# kubectl describe nodes local-kub-01 | grep DiskPressure
+  DiskPressure         True    Tue, 16 May 2023 13:37:41 +0000   Tue, 16 May 2023 13:32:03 +0000   KubeletHasDiskPressure       kubelet has disk pressure
+
+
+как с этой сукой исправиться
+
+
+пока что напишу черновой вариант как я это решил.
+но это лишь черновой вариант решения.нужно искать более верное решение.
+
+решение:
+
+ я взял файл kubelet-config.yaml и добавил в его хвост кусок
+
+
+imageGCHighThresholdPercent: 99
+imageGCLowThresholdPercent: 97
+evictionHard: {
+            "imagefs.available": "1%",
+            "memory.available": "50Mi",
+            "nodefs.available": "1%",
+            "nodefs.inodesFree": "1%"
+        }
+
+
+
+
+
+вот так
+
+
+# cat /etc/kubernetes/kubelet-config.yaml 
+apiVersion: kubelet.config.k8s.io/v1beta1
+kind: KubeletConfiguration
+...
+...
+imageGCHighThresholdPercent: 99
+imageGCLowThresholdPercent: 97
+evictionHard: {
+            "imagefs.available": "1%",
+            "memory.available": "50Mi",
+            "nodefs.available": "1%",
+            "nodefs.inodesFree": "1%"
+        }
+
+
+
+далее
+
+# systemctl deamon-reload
+# systemctl restart kubelet
+
+и все прошло.
+
+
+теперь ще еполезная инфо как проверить что эти настройки всттупили в силу
+
+запускаем
+# kubectl proxy &
+
+# curl -sSL "http://localhost:8001/api/v1/nodes/local-kub-01/proxy/configz" | python3 -m json.tool
+
+{
+    "kubeletconfig": {
+        "enableServer": true,
+        "staticPodPath": "/etc/kubernetes/manifests",
+...
+...
+ "imageGCHighThresholdPercent": 99,
+ "imageGCLowThresholdPercent": 97,
+...
+...
+       "evictionHard": {
+            "imagefs.available": "1%",
+            "memory.available": "50Mi",
+            "nodefs.available": "1%",
+            "nodefs.inodesFree": "1%"
+...
+...
+ 
+а вот еще полезная комнда
+# kubectl get events
+
+ закончил на этом вопросе и на этой статье https://pshizhsysu.gitbook.io/kubernetes/zi-yuan-guan-kong/imagefsyu-nodefs
+
