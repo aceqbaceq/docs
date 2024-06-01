@@ -1,0 +1,34 @@
+| android
+| xiomi
+| photo
+| gvfs
+
+как воткнуть телефон через usb прововод в комп и скопировать фотографии
+с в комп
+
+во первых возможно нужны эти службы но это неточно я не проверял работает ли
+если их вырубить
+
+$ systemctl --user list-units --type=service | grep gvfs
+  gvfs-afc-volume-monitor.service     loaded active running Virtual filesystem service - Apple File Conduit monitor     
+  gvfs-daemon.service                 loaded active running Virtual filesystem service                                  
+  gvfs-gphoto2-volume-monitor.service loaded active running Virtual filesystem service - digital camera monitor         
+  gvfs-metadata.service               loaded active running Virtual filesystem metadata service                         
+  gvfs-mtp-volume-monitor.service     loaded active running Virtual filesystem service - Media Transfer Protocol monitor
+
+
+далее втыкаем телефон через провод в комп и в меню телефона(там само выскочит меню) выбираем PTP (photography
+transfer protocol)
+
+
+теперь на компе вводим
+
+$ gphotofs  ~/Pictures/02
+
+все можно идти в папку и проеряеть что фотки видны
+
+чтобы отмонтвать телеофон с компа вводим
+
+$ fusermount -u   ~/Pictures/02
+
+
