@@ -1,0 +1,9 @@
+| iphone
+
+как на ифоне сменить пароль от lock screen 
+
+Setings - "Touch ID & Passcode" - "Change Passcode"
+
+
+в терминах ифона это называется Passcode
+

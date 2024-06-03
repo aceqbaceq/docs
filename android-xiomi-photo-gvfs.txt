@@ -1,4 +1,17 @@
 | android
+| Android
+
+как выйти из fastboot режима как вывести телефон из этого режима?
+на компе запускаем
+
+  $ fastboot reboot
+
+
+
+
+| android
+| Android
+| xiaomi
 | xiomi
 | photo
 | gvfs
@@ -6,15 +19,21 @@
 как воткнуть телефон через usb прововод в комп и скопировать фотографии
 с в комп
 
+обмен фотками идет через проотокол PTP (Photo Tranfer Protocol)
+
 во первых возможно нужны эти службы но это неточно я не проверял работает ли
 если их вырубить
 
-$ systemctl --user list-units --type=service | grep gvfs
+$ systemctl --user --type=service list-units | grep gvfs
   gvfs-afc-volume-monitor.service     loaded active running Virtual filesystem service - Apple File Conduit monitor     
   gvfs-daemon.service                 loaded active running Virtual filesystem service                                  
+  gvfs-goa-volume-monitor.service     loaded active running Virtual filesystem service - GNOME Online Accounts monitor  
   gvfs-gphoto2-volume-monitor.service loaded active running Virtual filesystem service - digital camera monitor         
   gvfs-metadata.service               loaded active running Virtual filesystem metadata service                         
   gvfs-mtp-volume-monitor.service     loaded active running Virtual filesystem service - Media Transfer Protocol monitor
+  gvfs-udisks2-volume-monitor.service loaded active running Virtual filesystem service - disk device monitor            
+
+
 
 
 далее втыкаем телефон через провод в комп и в меню телефона(там само выскочит меню) выбираем PTP (photography
@@ -31,4 +50,229 @@ $ gphotofs  ~/Pictures/02
 
 $ fusermount -u   ~/Pictures/02
 
+
+| File transfer
+
+
+следущий вопрос окей мы получили с компа доступ к фоткам а как получить доступ
+ко всем остальным файлам на телефоне.
+
+для этого втыкаем телефон в комп и выбираем "File Transfer/Android Auto"
+
+далее на компе 
+  (юзаю статью https://www.baeldung.com/linux/mounting-mtp-devices)
+
+маунтинг файлов идет через MTP протокол (Media Transfer Protocol)
+который является как это ни смешно некой частью протокола PTP ( о котором мы говорили
+выше ) протокола (https://en.wikipedia.org/wiki/Media_Transfer_Protocol)
+
+итак на компе тыкаем
+
+  $ gio mount -li
+  Volume(0): Redmi 9
+  Type: GProxyVolume (GProxyVolumeMonitorMTP)
+  ids:
+   unix-device: '/dev/bus/usb/001/055'
+  activation_root=mtp://%5Busb%3A001,055%5D/
+  themed icons:  [phone]
+  symbolic themed icons:  [phone-symbolic]  [phone]
+  can_mount=1
+  can_eject=0
+  should_automount=1
+
+выясняем "маунт точку" телефона это 
+  mtp://%5Busb%3A001,055%5D/
+
+
+ксати если при запуске этой команды мы видим ругательства вида
+  
+  failed for remote volume monitor with dbus name org.gtk.vfs.UDisks2VolumeMonitor
+
+это значит нужно через systemctl  --user запустить недостающую службу (хотя по мне это не влияет 
+на конечный результат)
+
+  $ systemctl --user start   gvfs-udisks2-volume-monitor.service
+
+
+если gio нам показывает следущую ошибку
+  
+  invoking IsSupported() failed for remote volume monitor with dbus name org.gtk.vfs.GoaVolumeMonitor
+
+значит нам нужно запусить еще одну службу под текущим юзером
+
+  $ systemctl --user start   gvfs-goa-volume-monitor.service
+
+  
+хотя повторюсь не уверен что это влияет на конечный результат
+в итоге у нас вот такие службы "gvfs*" должны раобтать под текущим юзером
+
+  $ systemctl --user --type=service list-units | awk '{print$1}'
+  gvfs-afc-volume-monitor.service
+  gvfs-daemon.service
+  gvfs-goa-volume-monitor.service
+  gvfs-gphoto2-volume-monitor.service
+  gvfs-metadata.service
+  gvfs-mtp-volume-monitor.service
+  gvfs-udisks2-volume-monitor.service
+
+
+вообще что такое gio. это согласно этому сайту (https://wiki.ubuntuusers.de/gio/)
+это "Gnome Input Output" хрень которая как я понял позволяет подмонтировать какой
+нибудь ресурс в некоторую папку а потом какое нибудь gnome графическое приложение
+читая с этой папки может "прилепить" содержимое этой папки в граф окне. нарпимер 
+мы воткнули телефон. gio его смонтировала в папку а файл менеджер Nautilus нам
+"прозрачно" показыает содержимое телефона.  
+забегая вперед хочу сказать что у меня LXDE и у него файл менеджер PCmanFM
+и вот в нем нихрена не пояявляется содержимое телефона даже после того как я через gio
+подмонтировал теелеофон в некоторую папку. я еще коснусь Nautilus чуть пониже.
+
+я еще  в сторону отойду. вот мы воткнули usb устройство. какой у нас /dev создается?
+ответ никакой. созданием\несозданием занимается сервис udev ксатии он крутится
+в этом процессе
+  /lib/systemd/systemd-udevd
+так вот при воктнутии usb устройства в частности теелефона у нас в /dev нихрена ничего
+несодается. почему не знаю.
+
+итак я втыкаю теелефон в комп
+и udevadm monitor покаызает
+
+
+ $ udevadm monitor
+KERNEL[1380596.520234] add      /devices/pci0000:00/0000:00:14.0/usb1/1-3 (usb)
+KERNEL[1380596.522955] add      /devices/pci0000:00/0000:00:14.0/usb1/1-3/1-3:1.0 (usb)
+KERNEL[1380596.523400] add      /devices/pci0000:00/0000:00:14.0/usb1/1-3/1-3:1.1 (usb)
+KERNEL[1380596.523644] bind     /devices/pci0000:00/0000:00:14.0/usb1/1-3 (usb)
+UDEV  [1380597.097052] add      /devices/pci0000:00/0000:00:14.0/usb1/1-3 (usb)
+UDEV  [1380597.104524] add      /devices/pci0000:00/0000:00:14.0/usb1/1-3/1-3:1.0 (usb)
+UDEV  [1380597.107264] add      /devices/pci0000:00/0000:00:14.0/usb1/1-3/1-3:1.1 (usb)
+UDEV  [1380597.112027] bind     /devices/pci0000:00/0000:00:14.0/usb1/1-3 (usb)
+
+
+правла пиздец в том что этот вывод он не покзваывает создаются ли какието 
+устройтва в /dev папке
+
+но можно выяснить это правда через жопу
+вот так
+
+$ for i in `find . -maxdepth 1 -type c `; do echo -n "i=$i" ; udevadm info /dev/input/"$i" | grep DEVPATH | grep 'pci0000:00/0000:00:14.0/usb1/1-3' ; done
+
+и нам выдастся ноль. 
+итак с этой частью вопроса разобрались
+
+двигаю дальше
+итак после такой вводной возвращаемся к нашей ситауции. я воткнул телефон через USB
+провод в комп, выбрал в телефоне в меню  
+    
+    "File Transfer/Android Auto"
+
+потом я ищу телефон на компе
+
+  $ gio mount -li | grep mtp
+  activation_root=mtp://%5Busb%3A001,081%5D/    <=======
+
+
+теперь когда я нашел "точку монтирования" ее можно примонтировать
+делается это так
+
+  $ gio mount "mtp://%5Busb%3A001,081%5D/" 
+
+можно примонтировать и по другому
+  $ lsusb
+  Bus 001 Device 081: ID 2717:ff48  
+
+тогда можно примонтирвать вот так
+  $ gio mount "mtp://[usb:001,081]/" 
+
+в скобках мы указываем   Bus 001 Device 081
+
+
+по сути символы %5B  %3A  %5D  в строчке   mtp://%5Busb%3A001,081%5D/ 
+котрую выдает gio mount -li 
+это по сути hex коды ascii таблицы а именно
+  %5B = [
+  %3A = :
+  %5D = ]
+
+поэтому по сути эти две строки это одно и тоже
+  mtp://%5Busb%3A001,081%5D/
+  mtp://[usb:001,081]/
+
+
+если я выберу в меню теелефона      "File Transfer/Android Auto"
+то в строке маунтинга gio выдаст 
+    activation_root="mtp://"
+а если выберу в меню "Transfre photos PTP "
+то gio выдаст 
+    activation_root=gphoto2://...
+
+
+итак я делаю маунтинг 
+    $ gio mount "mtp://[usb:001,081]/" 
+
+теперь папку с файлами можно найти тут
+      /run/user/1000/gvfs
+
+победа! это именно та конечная точка которую мы хотели получить!
+
+отмонтировать можно вот так
+  $ gio mount -u "mtp://[usb:001,081]/"
+
+ксатии вот так мы будем иметь
+  $ mount | grep gvf
+  gvfsd-fuse on /run/user/1000/gvfs type fuse.gvfsd-fuse (rw,nosuid,nodev,relatime,user_id=1000,group_id=1000)
+
+ксати эта строчка существует внезавивисмости мы щас смонтировали теелефон или нет
+
+еще замечу что если мы на телефоне нажали "PTP"
+то мы можем смонтировть папку двумя путями
+
+  примонтировать: $ gphotofs  "~/Pictures/02"
+  отмонтировать:  $ fusermount -u "~/Pictures/02"
+либо
+  примонтировать: $ gio mount "gphoto2://%5Busb%3A001,081%5D/"
+  отмонтировать:  $ gio mount -u "gphoto2://%5Busb%3A001,081%5D/"
+
+
+
+
+далее вот что про наутилус. если я его запускаю
+  $ nautilus
+и втыкаю теелефон то  происходит вот что - мы выбираем на телефоне в меню либо
+  "PTP ..."
+либо
+  "Android ..."
+тогда на /sys у нас появялется новое устройтво
+и gi mount -li   фиксирует новое устройство  но устройство еще не маунтится
+ни в какую папку. но если у нас запущен nautilus то уже покажет устройство "Redmi 9"
+а если мы в найтилус тыкнем на значок "Redmi 9" то тогда уже gio монтирует устройство
+автоматом в /run/user/1000/gvfs/....
+вот так работает эта шарманка
+
+чтобы не ебаться  с этим вопросом руками то проще всего запустить наутилус
+и в нем тыкать сразу на графические символы
+
+| Android
+| smooth
+
+как отключить анимацию 
+  Settings - Additional settings - Accessibility - Vision - Remove animation
+
+
+
+
+| Android
+| notes
+| MIUI notes
+
+как перекопировать файлы созданные через notes на комп.
+как я понял едисныенный вариант это поставить на теелефон "google keep"
+и на теефлне copy\past с одной проги в другую. а потом мы на компе открываем гугл почту.
+справав выбираем значок 
+   ...
+   ...
+   ...
+
+и там ищем "keep"
+
+таким макамро мы получем текстовый файл с телеофона на компе. ура.
 
