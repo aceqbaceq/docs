@@ -1,0 +1,158 @@
+программа 
+она ловит SIGTERM и поймав его она завершает работу
+
+[vasya@lenovo C]$ 
+[vasya@lenovo C]$ cat 129.c
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
+
+static void sigdown(int signo) {
+  psignal(signo, "Shutting down, got signal");
+  exit(0);
+}
+
+
+static void sigterm(int signo) {
+  printf("SIGTERM is caught....shutting down\n");
+  exit(0);
+}
+
+
+
+static void sigreap(int signo) {
+  while (waitpid(-1, NULL, WNOHANG) > 0);
+}
+
+int main() {
+
+  if (sigaction(SIGINT, &(struct sigaction){.sa_handler = sigdown}, NULL) < 0)
+    return 1;
+  if (sigaction(SIGTERM, &(struct sigaction){.sa_handler = sigterm}, NULL) < 0)
+    return 2;
+  if (sigaction(SIGCHLD, &(struct sigaction){.sa_handler = sigreap,
+                                             .sa_flags = SA_NOCLDSTOP},
+                NULL) < 0)
+    return 3;
+
+  for (;;)
+    pause();
+  fprintf(stderr, "Error: infinite loop terminated\n");
+  return 42;
+}
+
+[vasya@lenovo C]$ 
+
+
+комплиуием
+
+gcc -o 129.exe 129.c
+
+
+# cat Dockerfile 
+FROM busybox:latest
+
+COPY 129.exe  /opt/129.exe
+# Запускаем контейнер
+CMD ["/opt/129.exe"]
+
+
+
+docker build . --tag 129:lates
+docker run --name 129 -itd 129:latest
+
+129
+root@docker1:~# docker top 129
+UID                 PID                 PPID                C                   STIME               TTY                 TIME                CMD
+root                1439                1408                2                   15:05               pts/0               00:00:00            /opt/129.exe
+root@docker1:~# 
+
+
+
+root@docker1:~# cat /root/bash/01.bash 
+pid=$1
+cat /proc/$pid/status|egrep '(Sig|Shd)(Pnd|Blk|Ign|Cgt)'|while read name mask;do
+    bin=$(echo "ibase=16; obase=2; ${mask^^*}"|bc)
+    echo -n "$name $mask $bin "
+    i=1
+    while [[ $bin -ne 0 ]];do
+        if [[ ${bin:(-1)} -eq 1 ]];then
+            kill -l $i | tr '\n' ' '
+        fi
+        bin=${bin::-1}
+        set $((i++))
+    done
+    echo
+done
+
+
+
+~# ~/bash/01.bash 1439
+SigPnd: 0000000000000000 0 
+ShdPnd: 0000000000000000 0 
+SigBlk: 0000000000000000 0 
+SigIgn: 0000000000000000 0 
+SigCgt: 0000000000014002 10100000000000010 INT TERM CHLD 
+
+видно что действительно есть TERM хендлер кастомный.
+
+
+root@docker1:~# 
+root@docker1:~# pid1=1439; nsenter  --pid=/proc/$pid1/ns/pid   --mount=/proc/$pid1/ns/mnt   /bin/sh
+/ # ps aux
+PID   USER     TIME  COMMAND
+    1 root      0:00 /opt/129.exe
+    7 root      0:00 /bin/sh
+    8 root      0:00 ps aux
+/ # 
+
+
+# kill -SIGTERM 1439
+root@docker1:~# 
+
+
+~# docker logs -f 129
+SIGTERM is caught....shutting down
+
+
+теперь проверим что сам докер тоже действительно этот согнал и шлеь
+docker start 129
+docker stop 129
+
+
+
+~# docker logs -f 129
+SIGTERM is caught....shutting down
+да все доказано.!
+
+и то что если в прцоессе есть катоный хендлео то pid=1 его поддерживает
+
+полуачается докер шлет через хост неймспейс в процесс указаный в entryont сигал SIGTERM
+потому ждет 10с. если процесс неостаналиватеся то докер шлет этотму процессу 
+сигнал SIGKILL. в том пид неймпейсе где крутится контейнер это pid=1 когда он 
+погибает то все остальные процессы если они были в контйенере то из ядро убивает
+самостоятельно через SIGKILL.
+когда ядро убивает эти одчерние процессы то они становтся орфан потому что pid-1 он 
+уже вычищен. и тогда их в немспейсе хоста принмает на себя парент systemd
+или какойто рядом.  возможно shim 
+
+/# pstree -Asp 1958
+systemd(1)---containerd-shim(1928)---nginx(1958)---nginx(1993)
+
+и делает waitpid.
+
+ксатти как это линукс убивает Z дочернй процессы когда он убивает парента котоырй
+не wait() дочерей?
+я думаю система рабоатает так. у нас парент процесс и дочерний. дочерий сдох стал Z
+чядро шлет сигнал праенту. парент скажем не раегаиирует. потом скажем мы убили парент.
+у парента его парентом явятлется susyemd1 поэтому оно успешно waitpuid и праень 
+полнтсью исчеазает. при этом в дочках меняется парент. деает это конечно ядро.
+и я думаю что при смене парента ядро еше раз шлет SIGCHLD новому паренту!
+поэому дочерний Z умирают автоматом! а не висят в системе!
+потому что мало убить проесс. нужно чтобы ктото вычитал для него wait() иначе
+Z так и удет висеть в сиетме бесконечно!!!
+
+

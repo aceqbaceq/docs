@@ -1,0 +1,78 @@
+crictl
+
+пытаюсь созбдать под
+поулчаю ошибку
+
+root@cont1:~/cri# crictl runp pod-config.json
+DEBU[0000] get runtime connection                       
+DEBU[0000] RunPodSandboxRequest: &RunPodSandboxRequest{Config:&PodSandboxConfig{Metadata:&PodSandboxMetadata{Name:nginx-sandbox,Uid:hdishd83djaidwnduwk28bcsb,Namespace:default,Attempt:1,},Hostname:,LogDirectory:/tmp,DnsConfig:nil,PortMappings:[]*PortMapping{},Labels:map[string]string{},Annotations:map[string]string{},Linux:&LinuxPodSandboxConfig{CgroupParent:,SecurityContext:nil,Sysctls:map[string]string{},Overhead:nil,Resources:nil,},Windows:nil,},RuntimeHandler:,} 
+E0424 09:03:22.102521   17998 remote_runtime.go:222] "RunPodSandbox from runtime service failed" err="rpc error: code = Unknown desc = failed to create containerd task: failed to create shim task: OCI runtime create failed: runc create failed: expected cgroupsPath to be of format \"slice:prefix:name\" for systemd cgroups, got \"/k8s.io/45fd32484f3f32bdd68c5ec59b48b7b44b749ddfdc555569cbb48f87278fa4e5\" instead: unknown"
+DEBU[0000] RunPodSandboxResponse:                       
+FATA[0000] run pod sandbox: rpc error: code = Unknown desc = failed to create containerd task: failed to create shim task: OCI runtime create failed: runc create failed: expected cgroupsPath to be of format "slice:prefix:name" for systemd cgroups, got "/k8s.io/45fd32484f3f32bdd68c5ec59b48b7b44b749ddfdc555569cbb48f87278fa4e5" instead: unknown 
+root@cont1:~/cri# 
+
+
+
+ответ почему
+
+https://github.com/containerd/containerd/issues/4857
+
+This error is happening because kubelet is configured to use cgroupfs cgroup driver while containerd is configured to use sytemd cgroup driver.
+
+To let containerd use cgroupfs driver, you need to remove SystemdCgroup = true line from /etc/containerd/config.toml.
+
+To let kubelet use systemd driver, you need to set cgroupDriver in KubeletConfiguration to "systemd".
+
+полсе эттого под создатется !!!
+==
+по моему xterm
+
+экран-xterm-bash
+это всего навсего программа котора принимает поток байтов от баша.
+и преобразует их в команды X11 чтобы они рисовались символами на экране. вот ивсе.
+скорей всего нажатик крестика котролируется X11 драйвером. и xterm при старте регстриует
+окно.  иполучает сокет от x11 себе. и x11 через сокет инфомраирует xterm что его 
+окно было убито. а xterm уже тогда посылает HUP в bash
+==
+забавно то что даже простой cat /dev/ptmx приводит к тому что создтаеся новый /dev/pts/X
+это прикол!
+кстати как толко файл pts/X закрывается то он исчезает!
+==
+можно так сделать 
+exec 4</dev/ptmx
+
+но созданный /dev/pts/X в енго нельзя ни читать ни писать. выдает ошибку
+потому что в номральнрй программе после запроса к ptmx надо еще 
+два сисколла выполнить прежде чем мы может пользоваться pts/X
+
+==
+про докер. как я понимаю докер демон или shim хер знает откртывает новй ptmx
+и получает новый pts/X
+далее он себя клонирует. туда сюда. нейсспейсы. и вот у нас уже контенерный процесс
+запущен с новыми неймспейсами. а /fd/N ведет кудато на хост.
+наколько я поимаю  конейнер срет кудато либо в демона либо в shim.
+а мы когда плинтом поключаемся к серверу то происхдоит прокисрование
+
+
+клиент ----> демон <------ контейнер
+
+по идее что дает ключ -t . он дает то что при запуске процесса в контейнере 
+его stdin/stfput,stderrr направляется на бекенде на файлы терминала.
+
+fd/0 -> /dev/pts/2
+fd/1 -> /dev/pts/2
+fd/2 -> /dev/pts/2
+
+зачем? какието процессы при своем старте ожидают что к ним будут подключены не просто 
+файлы а файлы ведущие к железкам. точнее сказать что этой железкой окажется терминал.
+тогда процесс начнет при старте начнет выполнять специфические сисколлы по работе
+с этой железкой. нприме есть запрос ioctl кооторый позволяет получтиь размер экрана
+в строках и столбцах. через файл етрминала pts/X можно читать не только символы с 
+клавы но парметры теминала и даже их менять. поэтому елси мы заустли баш
+он начинает делать запросы на stdout через ioctl а код вовзаратра неноль. и баш понимает
+что он запущен без терминала. поэтому -t исолпользуется для того чтобы процесв вкйонерней
+тупо стартанул. скажем так. комрьютер ожиает что у него будет оперативка когда его включать
+и диск. а баш как прцоесс ожидает что коода его запустяят то ему подкючат откроют доступ
+к железке теминал. без нее он как комп без диска. 
+какито прогаммы могут работат без терминала какието нет.
+ключ -i прорбрасывет stdout нашего  баша в stdin контенера я так понимаю.

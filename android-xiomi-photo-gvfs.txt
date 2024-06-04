@@ -276,3 +276,9 @@ $ for i in `find . -maxdepth 1 -type c `; do echo -n "i=$i" ; udevadm info /dev/
 
 таким макамро мы получем текстовый файл с телеофона на компе. ура.
 
+| Android
+| adb
+
+вот эта команда 
+  $ adb backup -apk -obb -shared -all -system -f fullbackup.ab
+она практиечески нихрена не ничего не бэкапит мне кажется. 

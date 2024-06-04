@@ -1,0 +1,32 @@
+| docker 
+| pid
+
+очень полезная вещь про докер контейнер. 
+как удобно узнать какой номер процесса отвечает за процесс
+внутри контйнера
+
+можно делать через inspect
+
+# docker container inspect alp1 | grep -i pid
+            "Pid": 62542,
+
+а можно сделать более приятно
+
+# docker container top alp1
+UID   PID       PPID      C     STIME     TTY      TIME       CMD
+root  62542     62517     0     05:56     pts/0    00:00:00   sh
+
+
+
+ксати а что у него за родительский процесс?
+root       62517  /usr/bin/containerd-shim-runc-v2 -namespace moby -id 468f2a8127a80e62789560fa9ec90cd9b05b01a44a9a024827409060f8fdb758 -address /run/containerd/containerd.sock
+
+а какой парент у него? ответ systemd!
+
+#  ps  -o pid,ppid,pgrp,stat,cmd  -p 62517
+    PID    PPID    PGRP STAT CMD
+  62517       1   62517 Sl   /usr/bin/containerd-shim-runc-v2 ...
+
+получается дерево процессов такое
+ 	процесс внутри контейнера -->--- containerd-shim --->--- pid1
+

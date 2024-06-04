@@ -1,0 +1,35 @@
+| promisc
+
+каждая сетевая карта имеет свойство promisc которое обозначает
+находится ли сет карта в promiscious режиме,
+посмотреть этот параметр можно через ключ -d
+
+# ip -c -d link sh type bridge | grep promisc -B1
+3: docker0:  
+    link/ether 02:42:dd:d0:1a:24 brd ff:ff:ff:ff:ff:ff promiscuity 0 
+
+
+как поменять этот параметр?
+71: vasya0: 
+    link/ether 7a:79:bf:38:9d:e5 brd ff:ff:ff:ff:ff:ff promiscuity 0 
+
+# ip link set vasya0 promisc on
+# ip -c -d link sh type dummy | grep promisc -B1
+71: vasya0: 
+    link/ether 7a:79:bf:38:9d:e5 brd ff:ff:ff:ff:ff:ff promiscuity 1 
+# ip link set vasya0 promisc off
+# ip -c -d link sh type dummy | grep promisc -B1
+71: vasya0: 
+    link/ether 7a:79:bf:38:9d:e5 brd ff:ff:ff:ff:ff:ff promiscuity 0
+
+
+далее у меня попалась карта у которой я вроде бы меняю этот параметр,
+но он не меняется! а потом я понял. я для этой карты запустил 
+tcpdump и как я понимаю что пока tcpdump эту карту не отпустит 
+, пока мы tcpdump не остановим то сменить для это карты 
+promiscuity с 1 на 0 не получится. и совершенно понятно что tcpdump
+когда стартует он меняет у карты promiscuity на 1
+
+
+
+я не мог отключить а потом понял у меня же tcpdump же включен!

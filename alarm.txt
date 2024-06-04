@@ -1,0 +1,145 @@
+ALARM
+
+
+[vasya@lenovo C]$ cat 132.c
+#include <stdio.h>
+#include <signal.h>
+#include <stdlib.h>
+#include<sys/wait.h>
+#include<unistd.h>
+#include<time.h>
+#include <sys/types.h>
+
+
+
+static void sigalarm() {
+  pid_t pid_p = getpid();
+  printf("WARNING: SIGALRM is caught, PID=%d ...the process is shutting down\n", pid_p);
+  exit(0);
+}
+
+
+
+
+static void sigdown(int signo) {
+  pid_t pid_p = getpid();
+  printf("WARNING PID=%d got SIGNAL=%d...the process is shutting down\n", pid_p, signo);
+  exit(0);
+}
+
+
+
+
+
+int main(void)
+    {
+
+       alarm (10);
+       pid_t pid;
+       int finished=0;
+       pid = getpid();
+       printf("process PID=%d \n", pid);
+       
+
+      // set custom SIGINT, SIGTERM handlers
+      if (sigaction(SIGINT, &(struct sigaction){.sa_handler = sigdown}, NULL) < 0)
+        return 1;
+      if (sigaction(SIGTERM, &(struct sigaction){.sa_handler = sigdown}, NULL) < 0)
+        return 2;
+
+      if (sigaction(SIGALRM, &(struct sigaction){.sa_handler = sigalarm}, NULL) < 0)
+        return 3;
+
+
+
+
+
+    while(!finished)
+        {
+        printf("i am running...\n");
+        sleep(1);
+        }
+    }
+
+
+
+
+$ ./132.exe
+process PID=336359 
+i am running...
+i am running...
+i am running...
+i am running...
+i am running...
+i am running...
+i am running...
+i am running...
+i am running...
+i am running...
+WARNING: SIGALRM is caught, PID=336359 ...the process is shutting down
+[vasya@lenovo C]$ 
+[vasya@lenovo C]$ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#define _POSIX_SOURCE
+#include <fcntl.h>
+#include <unistd.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <signal.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+
+pid_t kill_pid = -1;
+int done_flag = 0;
+
+void handle_alarm(pid_t sig)
+{
+    if (sig == SIGALRM && kill_pid >= 0)
+    {
+        kill(kill_pid, SIGTERM);
+        int status;
+        wait(&status);
+        done_flag = 1;
+    }
+}
+
+int main()
+{
+    alarm(4);   //alarm in 4 seconds and terminates the program
+
+    pid_t pid = fork();    //forks a child
+    if (pid == 0)
+    {
+        while (1)
+        {
+            printf("I am the child \n");
+            sleep(1);
+        }
+    }
+    else
+    { //parent process
+        kill_pid = pid;
+        signal(SIGALRM, handle_alarm);
+
+        while (!done_flag)
+        {
+            printf("I am the parent, child pid=%d\n", pid);
+            sleep(1);
+        }
+
+        printf("Child has been terminated, parent is complete.\n");
+    }
+}
