@@ -1983,6 +1983,8 @@ qemu к периферии
     midnight-commander2.txt
     qemu-spice.txt (тут я хотел настрить связь с виртуалкой которая на другом коммпе)
     update-alternatives.txt
+    kexec.txt
+    
 
 
 
