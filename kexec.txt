@@ -13,3 +13,62 @@
 lspci видит железку. модудь загружен. но почемуто wlp3s0 отсуствует. 
 я так и неразобарлся. а так охуенная фича.
 
+но я нашел в статье в арче 
+	https://wiki.archlinux.org/title/kexec
+
+способ как все таки перезапустить линукс с другим ядром и чтобы при этом
+и сетевая вай фай карта в итоге была в системе. я не очень понял от чего завиисит 
+то чтобы у нас в списке сетевых карт была сеетвая карточка вай фай. у нас же система
+не создает /dev/ устройство под нее. но как я понимаю udev подргружает firmware вот 
+в чем роль udev
+как провремть что фирмвейр был подгружен
+
+$ sudo dmesg  | grep firmware
+[   10.609642] iwlwifi 0000:03:00.0: loaded firmware version 17.3216344376.0 7260-17.ucode op_mode iwlmvm
+
+вот по идее список модулей когда карточка в сситеме показывается
+
+$ lsmod | grep  iwl
+iwlmvm                720896  0
+mac80211             1597440  1 iwlmvm
+iwlwifi               589824  1 iwlmvm
+ptp                    45056  2 iwlmvm,e1000e
+cfg80211             1363968  3 iwlmvm,iwlwifi,mac80211
+rfkill                 40960  7 iwlmvm,thinkpad_acpi,cfg80211
+
+но это  я отвлекся. я незнаю от чего завсиисит что сетевая карта от вай фай будет 
+создана в системе. 
+но в статье от арча я нашел способ как загрузить новое ядро через kexec и чтобы сетвая карта
+была 
+
+	$ sudo  kexec -l /boot/vmlinuz-6.9-x86_64  --initrd=/boot/initramfs-6.9-x86_64.img  --reuse-cmdline
+	$ sudo systemctl kexec
+
+вот ксстати чему равен cmdline
+	$ cat /proc/cmdline 
+root=UUID=33584f90-54b8-4f09-b51b-d01c68e0d8cc rw cryptdevice=UUID=f47969fd-f4eb-47b1-9563-999a6330990c:luks-f47969fd-f4eb-47b1-9563-999a6330990c root=/dev/mapper/luks-f47969fd-f4eb-47b1-9563-999a6330990c apparmor=1 security=apparmor udev.log_priority=3
+
+тока надо понимать что при запуске 
+
+	# kexec -e
+
+либо 
+
+	$ sudo systemctl kexec
+
+то ядро как я понял на запаривается както то аккуратно погасить процессы и потом грузить 
+новое ядро. как я понял это присходит мгновенно. поэтмоу желаьно перел тем как грузить
+ноовое ядро то надо бы систему "подзагасить" до минимального состояния.
+например предлагаетя это сделать вот так
+
+	# systemctl isolate rescue.target 
+
+это аналог single user mode. 
+а уже после этого запускать
+
+	$ sudo  kexec -l /boot/vmlinuz-6.9-x86_64  --initrd=/boot/initramfs-6.9-x86_64.img --reuse-cmdline
+	$ sudo systemctl kexec
+
+
+
+
