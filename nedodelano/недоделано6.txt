@@ -1984,6 +1984,8 @@ qemu к периферии
     qemu-spice.txt (тут я хотел настрить связь с виртуалкой которая на другом коммпе)
     update-alternatives.txt
     kexec.txt
+    wireguard2.txt
+    
     
 
 
