@@ -1996,7 +1996,7 @@ qemu к периферии
       archlinux устанвокаи приколы
       archlinux encrypt entire system
       semaphores
-
+      timeshift (бэкап утилита)
 
 
 >>> файл  qemu-spice.txt  для отдыха начал ставить gentoo но вылезло что вначале
