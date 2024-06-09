@@ -1,0 +1,78 @@
+| luks
+| cryptsetup
+
+$ fallocate -l 3GiB redmi9.luks
+
+$ sudo cryptsetup -y -v --type luks2 luksFormat ./redmi9.luks
+
+команду нужно обязаетельно под судо запускать иначе выдаст ошибку
+
+	Not compatible PBKDF options.
+	Requested maximum PBKDF memory can not be zero.
+
+
+$ sudo cryptsetup luksOpen  ./redmi9.luks  redmi9
+	при этом создается устройство в /dev/mapper
+
+$ pv /dev/zero | sudo dd if=/dev/fd/0 of=/dev/mapper/redmi9 bs=128M
+
+$ sudo mkfs.ext4  /dev/mapper/redmi9
+
+$ export fol="/mnt/redmi9" ; [[ -d "$fol" ]] || sudo mkdir "$fol"
+
+$ sudo mount /dev/mapper/redmi9   /mnt/redmi9
+
+
+посмотрет статус
+
+$ sudo cryptsetup -v status redmi9
+/dev/mapper/redmi9 is active and is in use.
+  type:    LUKS2
+  cipher:  aes-xts-plain64
+  keysize: 256 bits
+  key location: keyring
+  device:  /dev/loop14
+  loop:    ...redmi9/redmi9.luks
+  sector size:  512
+  offset:  8192 sectors
+  size:    6283264 sectors
+  mode:    read/write
+
+
+$ sudo umount /mnt/redmi9 
+
+посмтреть инфо про header
+
+$ cryptsetup luksDump ./redmi9.luks
+
+
+закрываем устройтсво в mapper
+
+$ sudo cryptsetup luksClose redmi9
+
+и реально в mapper  будет пусто
+
+$ ls  -1 /dev/mapper/
+
+также прикол в том что lusk партишн может иметь неодин пароль а несклько.
+заупскаем команду
+$ cryptsetup luksDump ./redmi9.luks
+там есть параметр keyslot
+как я понял один слот это один пароль. максмум можно иметь 8 паролей. 
+и все они подходт чтобы разблокировать партишн.
+добавить +1 пароль можно через 
+
+	$ sudo cryptsetup luksAddKey  ./redmi9.luks
+
+можно удалить пароль через
+
+	$ sudo cryptsetup luksRemoveKey  ./redmi9.luks
+
+неочень понятно как он находит какой паоороль старый какой новый. 
+я проверять это не стал. может я чето непонял.
+
+использолва статью 
+	https://www.cyberciti.biz/security/howto-linux-hard-disk-encryption-with-luks-cryptsetup-command/
+ 
+
+
