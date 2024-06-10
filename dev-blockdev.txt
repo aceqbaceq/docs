@@ -1,0 +1,50 @@
+| dev
+| block
+| blockdev
+| stat
+| stats
+
+интересная тема. у нас есть блочное устройство. как нам узнать статистику
+сколько байтов было записано или счтатано с эттого блочного устройства
+с момоента влкюченя компа.
+
+читаю тут
+
+	https://www.kernel.org/doc/Documentation/block/stat.txt
+
+скажем есть у нас флэшка sda
+
+идем в 
+
+	$ cat /sys/class/block/sda/stat
+     200        0     7376      196    10900     1029 18394776  1580599        0   810128  1560572        0        0        0        0
+ 
+
+ семдьмое поле показывает  write sectors   показыает число в секторах.
+ возникает вопрос что за секторы. чему они равны
+ далее та статья пишет
+
+ 	These values count the number of sectors read from, written to, or
+	discarded from this block device.  The "sectors" in question are the
+	standard UNIX 512-byte sectors, not any device- or filesystem-specific
+	block size.  The counters are incremented when the I/O completes.
+
+тоесть это всего навсего консатанта 512 байт. которая никак не сввязана с физ размером
+сектора на устрйостве
+
+исходя из 7 стобика 18394776 мы имеем что на флэшку было записано
+
+	18394776  * 0.5 /1024 /1024 = 8 GiB
+
+
+кстати узнать физ размер блока и логический размер блока на болчном устойстве
+можно найти вот тут
+
+ 	$ cat /sys/class/block/sda/queue/physical_block_size 
+	512
+
+ 	$ cat /sys/class/block/sda/queue/logical_block_size 
+	512
+
+едиснвтенное я незнаю в чем их разница. в следущий раз узнаю.
+
