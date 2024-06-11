@@ -2040,6 +2040,11 @@ qemu к периферии
      docs/nedodelano/30-may-2024.aes
 
 
+непонянно как тключить вот этот протокол IP номер 58 это якобы IPv6-ICMP
+# netstat -nlpw
+Proto   Local Address     Foreign Address    State       PID/Program name    
+raw6    :::58             :::*               7           23098/systemd-networkd 
+raw6    0 :::58           :::*               7           23098/systemd-networkd 
 
 
 
