@@ -1,0 +1,51 @@
+| netstat
+
+как нам посмотреть какие порты слущаются на компе.
+причем хочу видеть не только tcp порты но и udp порты
+
+	$ netstat -n --udp
+
+
+а вообще nestat может показать нетлько сетвые tcp\udp сокеты
+а и еще и локальные unix domain сокеты
+
+
+кстати вот как man netstat опиысет что может делать эта утилита
+	
+	netstat - Print network connections, routing tables, interface statistics, masquerade connections, and multicast memberships
+
+
+приклолно что несттат например может позкать список сетевых карточек
+ $ netstat -i
+Kernel Interface table
+Iface      MTU    RX-OK RX-ERR RX-DRP RX-OVR    TX-OK TX-ERR TX-DRP TX-OVR Flg
+docker0   1500     6432      0      0 0         13628      0      0      0 BMU
+lo       65536    80025      0      0 0         80025      0      0      0 LRU
+lxdbr0    1500        0      0      0 0             0      0      0      0 BMU
+lxdbr1    1500   149561      0      0 0        296662      0      0      0 BMU
+tap0      1500    18757      0     43 0         45969      0      0      0 BMU
+virbr0    1500        0      0      0 0             0      0      0      0 BMU
+wg0       1420  7978021      0      0 0      17755077      0   3545      0 OPRU
+wlp2s0    1500 127529413      0      0 0      163513339      0      0      0 BMRU
+  
+
+также он может показать таблицу роутингов
+
+ $ netstat -r
+Kernel IP routing table
+Destination     Gateway         Genmask         Flags   MSS Window  irtt Iface
+default         _gateway        0.0.0.0         UG        0 0          0 wlp2s0
+10.78.50.0      0.0.0.0         255.255.255.0   U         0 0          0 lxdbr0
+10.113.151.0    0.0.0.0         255.255.255.0   U         0 0          0 lxdbr1
+172.17.0.0      0.0.0.0         255.255.0.0     U         0 0          0 docker0
+192.168.122.0   0.0.0.0         255.255.255.0   U         0 0          0 virbr0
+192.168.170.0   0.0.0.0         255.255.255.0   U         0 0          0 wlp2s0
+
+
+
+тоеть нестат это нетолько инфо по сетевым сокетам. это нечто большее
+также в мане написано что в целом это уже старая обсолет утилита и вместо нее
+наодо уже юзать утилтиту ss
+
+
+

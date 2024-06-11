@@ -580,3 +580,177 @@ ru_RU.utf8
 "localedef", "-i", "en_US", "-c", "-f", "UTF-8", "-A", "/usr/share/locale/locale.alias", "en_US.UTF-8"], 0x565286f90a20 /* 31 vars */) = 0
 
 localedef -f CP1252 -i de_DE /usr/lib/locale/de_DE.cp1252
+
+
+
+| debian
+| locale
+
+
+там по деолфту только C локале. 
+значит надо сделать по челов5чески
+
+    #  apt-get install locales
+
+идем в файл 
+        /etc/locale.gen
+и там разблокируем локаль
+        en_US.UTF-8 UTF-8
+
+длаее запускаем генервию новой локали
+
+    #  locale-gen 
+
+далее идем еще в один файл и там ставим
+
+    $ cat /etc/default/locale 
+    LANG="en_US.utf8"
+    LANGUAGE="en_US"
+
+перегпржуем машиу и проверяе что полуичслоь
+
+    $ locale
+    LANG=en_US.utf8
+    LANGUAGE=en_US
+    LC_CTYPE="en_US.utf8"
+    LC_NUMERIC=ru_RU.UTF-8
+    LC_TIME=ru_RU.UTF-8
+    LC_COLLATE="en_US.utf8"
+    LC_MONETARY=ru_RU.UTF-8
+    LC_MESSAGES="en_US.utf8"
+    LC_PAPER=ru_RU.UTF-8
+    LC_NAME=ru_RU.UTF-8
+    LC_ADDRESS=ru_RU.UTF-8
+    LC_TELEPHONE=ru_RU.UTF-8
+    LC_MEASUREMENT=ru_RU.UTF-8
+    LC_IDENTIFICATION=ru_RU.UTF-8
+    LC_ALL=
+
+нормал
+
+====
+
+
+| Can't set locale
+| locale
+
+вот мы в  дебиан зашли по ssh 
+или в убунту зашли по ssh
+ставим пакет у нас вот такая хуйня вылазает
+
+
+apt-listchanges: Can't set locale; make sure $LC_* and $LANG are correct!
+perl: warning: Setting locale failed.
+perl: warning: Please check that your locale settings:
+    LANGUAGE = "en_US",
+    LC_ALL = (unset),
+    LC_TIME = "ru_RU.UTF-8",
+    LC_MONETARY = "ru_RU.UTF-8",
+    LC_ADDRESS = "ru_RU.UTF-8",
+    LC_TELEPHONE = "ru_RU.UTF-8",
+    LC_NAME = "ru_RU.UTF-8",
+    LC_MEASUREMENT = "ru_RU.UTF-8",
+    LC_IDENTIFICATION = "ru_RU.UTF-8",
+    LC_NUMERIC = "ru_RU.UTF-8",
+    LC_PAPER = "ru_RU.UTF-8",
+    LANG = "en_US.utf8"
+    are supported and installed on your system.
+perl: warning: Falling back to a fallback locale ("en_US.utf8").
+
+
+наонец стало понятно что это и почему.
+на удаленном компе куда мы зашли есть некотоырй список установленных локалей 
+но так как мы зашли на комп не через консоль а через ssh то ssh клиент он передает
+на удаленны ссш сервер паарметры локали с локальнго компа с кторго мы стучимся и 
+ssh серевер при запуске баша пеедает ему эти параметры локали.
+и получается что на удаленном компе выставлено что локаль должн быть такая же как 
+на нашем локальном компе. но кто скзаал что на удаленном компе устанволенны теже самые 
+локакли что и на локалном ?!?!?!!?!?!?
+вот пример.
+
+мой локалрный комп
+
+
+(локалный комп)$ locale
+LANG=en_US.UTF-8
+LANGUAGE=en_US
+LC_CTYPE="en_US.UTF-8"
+LC_NUMERIC=ru_RU.UTF-8
+LC_TIME=ru_RU.UTF-8
+LC_COLLATE="en_US.UTF-8"
+LC_MONETARY=ru_RU.UTF-8
+LC_MESSAGES="en_US.UTF-8"
+LC_PAPER=ru_RU.UTF-8
+LC_NAME=ru_RU.UTF-8
+LC_ADDRESS=ru_RU.UTF-8
+LC_TELEPHONE=ru_RU.UTF-8
+LC_MEASUREMENT=ru_RU.UTF-8
+LC_IDENTIFICATION=ru_RU.UTF-8
+LC_ALL=
+
+
+видно что есть и 
+    en_US.UTF-8
+и 
+    ru_RU.UTF-8
+
+смотрим какие локали унас устанволены на локальнмо компе
+
+ (локальрный комп)$ locale -a
+C
+C.UTF-8
+en_US.utf8
+POSIX
+ru_RU.utf8
+
+
+тоесть все окей. те локали котоыре высталвены они по факту и есть на компе устнволвненые
+потому что да есть разница - вверху показано какие локали мы "заказали" а внизу
+показано какиелокали по факту есть в системе.
+
+теперь далее. мы зашли с этого лоального компа на удаленный по ssh
+смотрим какие параметры локали ссш клиент преедал удаленному ссш серевру а он 
+их передал бащу и что мы имеем ыствленное на удаенном компе
+
+(удаленны комп) $ locale
+ LANGUAGE = "en_US",
+    LC_ALL = (unset),
+    LC_TIME = "ru_RU.UTF-8",
+    LC_MONETARY = "ru_RU.UTF-8",
+    LC_ADDRESS = "ru_RU.UTF-8",
+    LC_TELEPHONE = "ru_RU.UTF-8",
+    LC_NAME = "ru_RU.UTF-8",
+    LC_MEASUREMENT = "ru_RU.UTF-8",
+    LC_IDENTIFICATION = "ru_RU.UTF-8",
+    LC_NUMERIC = "ru_RU.UTF-8",
+    LC_PAPER = "ru_RU.UTF-8",
+    LANG = "en_US.utf8"
+
+а теперт смотрим какие локали установлены на дуаленном компе
+
+(уадленный комп) $ locale -a
+C
+C.UTF-8
+POSIX
+
+
+ага! вот мы и видим пизднец. ссш сервер выставил в баше локали которые по факту на машине
+не уставлены! поэтмоу мы и ошибку!
+
+apt-listchanges: Can't set locale; make sure $LC_* and $LANG are correct!
+perl: warning: Setting locale failed.
+perl: warning: Please check that your locale settings:
+
+
+ТЕПЕРЬ СТАЛО ВСЕ ПОНЯТНО!
+
+значит решенин в в том что нужно на уденном компе уставоить две локали
+    
+    en_US.utf8
+    ru_RU.utf8
+
+а как это сделать я расписал в предыдущем "| пункте"  в этмо же файле. 
+КРУТО!
+
+все! ошибка уйдет!
+

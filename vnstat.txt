@@ -1,0 +1,34 @@
+| network 
+| statistic
+| stat
+| vnstat
+| nload
+
+тут про все уитилиты которые показыают статистику по сети
+узнал из этой статьи
+		https://www.tecmint.com/linux-network-bandwidth-monitoring-tools/
+
+
+
+vnstat
+это первая утилита
+если хочтся узнастолько по сети трафика было протекало через комп
+с момента аптайма уудобноп оставить 
+
+	# apt-get install vnstat
+
+
+и тогда 
+
+	$ vnstat
+
+и оно покажет статистику !
+
+
+следущая утилита
+nload
+
+# apt-get install nload
+
+
+
