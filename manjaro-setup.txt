@@ -1,0 +1,89 @@
+
+
+==
+thinkfan
+
+пакет лежит в AUR
+этот репозиторий нужно активировать руками не знаю как а можно через pamac менеджер
+в граф морде.
+
+потом надо поставить 
+
+    # pacman -S fake-root
+
+а потом уже
+
+    # pamac build thinkfan
+
+потом уже его настрваивать как это описано в cpu.txt
+только конфиг для манжаро вот такой (хотя я это в cpu.txt указал)
+
+
+$ cat /etc/thinkfan.conf 
+# hwmon /sys/devices/virtual/thermal/thermal_zone0/hwmon1/temp1_input
+
+
+ tp_fan /proc/acpi/ibm/fan 
+
+ tp_thermal /proc/acpi/ibm/thermal (0,0,0,0,0,0,0,0)
+ 
+ (0,    0,  22)
+ (1,    22, 24)
+ (7,    23, 32767)
+ 
+
+
+===
+
+lxqt
+cpu freq
+thinkfan
+
+wiregurard intall i zasumaut v netowrk manger + iptables 
+
+chrom ubrat smooth scroll
+
+вкчлиь руский языек
+setxkbmap -model pc105 -layout us,ru -option grp:ctrl_shift_toggle
+
+
+
+.bashrc
+
+
+cpu haswell
+HD Graphics 4600
+====
+
+онсонвая ебала при устан
+
+
+chrome://gpu/
+
+https://bbs.archlinux.org/viewtopic.php?id=244031&p=28
+
+https://stackoverflow.com/questions/9540990/using-chromes-element-inspector-in-print-preview-mode
+
+https://www.google.com/search?q=linux+creartewswap+file&oq=linux+creartewswap+file&gs_lcrp=EgZjaHJvbWUyBggAEEUYOTIJCAEQABgNGIAEMgkIAhAAGA0YgAQyCAgDEAAYDRgeMggIBBAAGA0YHjIICAUQABgNGB4yCAgGEAAYDRgeMggIBxAAGA0YHjIICAgQABgNGB4yCAgJEAAYDRge0gEINDU0N2owajeoAgCwAgA&sourceid=chrome&ie=UTF-8
+
+https://unix.stackexchange.com/questions/137320/how-to-delete-old-packages-installed-by-pacman-in-arch-linux
+
+https://forum.manjaro.org/t/paccache-missing/157762
+
+https://www.google.com/search?q=linux+du+for+the+same+file+system&oq=linux+du++for+the+same+file+system&gs_lcrp=EgZjaHJvbWUyBggAEEUYOTIHCAEQIRigAdIBCDU1NjNqMGo3qAIAsAIA&sourceid=chrome&ie=UTF-8
+
+https://man.archlinux.org/man/fwupdmgr.1.en
+
+https://wiki.archlinux.org/title/Xorg/Keyboard_configuration
+
+https://github.com/hughsie/passim
+
+https://bbs.archlinux.org/viewtopic.php?id=223698
+
+https://forum.manjaro.org/t/wake-up-immediately-after-suspend-and-shut-down/131686
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1558493
+
+https://www.tecmint.com/load-and-unload-kernel-modules-in-linux/
+
+==

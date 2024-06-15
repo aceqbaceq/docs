@@ -1,0 +1,142 @@
+вопрос я непонял.
+почеемуто в манжаро при заупкке
+ $ sudo command
+эта сука создает два процсса sudo и потом коммнад. что за хцйня?
+
+
+команда в одну строчку
+$ sudo dd if=/dev/zero   of=/dev/sdc   iflag=nocache oflag=direct  conv=fsync  bs=1M  count=$(( 15335422 /2 /1024  ))  status=progress
+
+
+более нваорочныныый варианта
+$  export disk1="sdd"; export  disk_size="$(( $(cat /sys/block/$disk1/size) /2 /1024  ))"; export   block_size="$( cat /sys/block/$disk1/queue/max_sectors_kb )"; export maximum_block_size="$( cat /sys/block/$disk1/queue/max_hw_sectors_kb )"; echo -e "\n \033[35m USB Flash spec: \033[0m disk1=$disk1  disk_size=$disk_size MByte current_block_size=$block_size KByte  maximum_block_size=$maximum_block_size KByte  \n " ;  echo -e "\033[35m Launching the command: \033[0m  sudo  dd  if=/dev/zero    of=/dev/$disk1   iflag=nocache  oflag=direct   conv=fsync  bs="$block_size"k     count="$disk_size"  status=progress \n"; sudo  dd  if="/dev/zero"    of="/dev/$disk1"   iflag=nocache  oflag=direct   conv=fsync  bs="$block_size"k     count="$disk_size"  status=progress
+
+вывод на экран
+  USB Flash spec:  disk1=sdd  disk_size=15064 MByte current_block_size=120 KByte  maximum_block_size=120 KByte  
+ 
+ Launching the command:   sudo  dd  if=/dev/zero    of=/dev/sdd   iflag=nocache  oflag=direct   conv=fsync  bs=120k     count=15064  status=progress 
+
+[sudo] password for vasya: 
+285450240 bytes (285 MB, 272 MiB) copied, 12 s, 23,8 MB/s
+
+
+
+
+просмотри статситки на эркране
+
+$ iostat -x -s  -k  20  /dev/sdd
+Linux 6.9.3-3-MANJARO (thinkpad) 	13.06.2024 	_x86_64_	(4 CPU)
+
+
+Device             tps      kB/s    rqm/s   await  areq-sz  aqu-sz  %util
+sdв              71,05   8526,00     0,00   13,93   120,00    0,99  99,12
+
+                                                     /\
+                                                     ||
+                                                     ||
+                                                   размер io реквеста тоесть 120 KByte
+
+что значит эта цифра. это значит что код dd внутри себя делает сисколл вот такого вида
+
+write(1, "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"..., 122880) = 122880
+
+синатсктиси этого сисколла
+  ssize_t write(int fd, const void buf[.count], size_t count);
+
+тоесть мы просим ядро запистьа в файл fd     из буфера в памяти buf  записать  за один сисколл count байтов.
+
+тоесть bs парамтер в dd это по факту то число кторое он вставить в write() сисколл.
+
+но это аобсолютно не факт что таким же размером IO ядро будет послыать данные на железку!
+и я щас это покажу докажу
+
+получается что /sys/bloc/N/stat 
+хрень содержит поля
+
+$ cat stat
+     219        9     8632      445   161908        0 38857822  2274567        1  2274744  2275013        0        0        0        0        0        0
+
+расшифровка этих полей
+здесь https://docs.kernel.org/block/stat.html
+или здесь  https://www.kernel.org/doc/Documentation/block/stat.txt
+
+седтмое полt это write sectors   sectors       number of sectors written
+это количество инфораации записаное на желзку на  с момента аптайма в секторах. в данном случае
+сектор это прсто хрень коснатнта равня вегда 512 байт и неавязанная с ааректеристватми железки
+
+если мы взяли в двух точка хв ремени это поле то разница пожкает стколко секторо*512 байт 
+было записно на ажелкезку за это время
+
+пятое полн поывзаеывает колько Io реквеатостов было обратано. занчит разница этого поля за интервал 
+времени покжает соклько Io реквесто было послано на эту железку ядром реально! в релаьности в нартуре.
+
+если мы поделим одно на дургое то мы полуичи средний размер ревексто который ядро послылаооло на этом интервале.
+это реалная статситкта. которую релано длеает ядро. 
+
+
+
+врт програ. она считает разнциа по 7 полю. по 5-му. и одно делаит на дургое
+
+$ elapse_time=1; a_full=$(/usr/bin/cat ./stat ); wr1=$( echo $a_full  | awk '{print $7}'); io1=$( echo $a_full | awk '{print $5}'  );   sleep $elapse_time; a_full=$(/usr/bin/cat ./stat );      wr2=$( echo $a_full |  awk '{print $7}'); io2=$( echo $a_full |  awk '{print $5}' ) ;      written=$( echo "( ($wr2- $wr1) *0.5 ) " | bc ) ; iops=$( echo " $io2 - $io1" | bc ); echo -e "\n written=$written KBytes  | iops=$iops |  io_size_average=$(  echo "$written / $iops" | bc     ) KBytes | elapse_time=$elapse_time \n "
+
+вывод на экран
+ written=8760.0 KBytes  | iops=73 |  io_size_average=120 KBytes | elapse_time=1 
+ 
+мы вдим что средний размер ио ревеста 120 Кбайт.
+
+это при том что я в dd указал bs=1M
+тоесть strace dd
+пожкает вот такую шткук
+
+write(2, "337641472 bytes (338 MB, 322 MiB"..., 57) = 57
+write(1, "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"..., 1048576) = 1048576
+w
+
+ноэто всоаверегно не занчит что ядро будет пихть даныне в железку болкаим по 1МБ. нихня. это наша просьюа
+а ядру видно лучше.
+
+так вот iostat 
+
+
+$ iostat -x -s  -k  20  /dev/sdd
+Linux 6.9.3-3-MANJARO (thinkpad) 	13.06.2024 	_x86_64_	(4 CPU)
+
+
+Device             tps      kB/s    rqm/s   await  areq-sz  aqu-sz  %util
+sdв              71,05   8526,00     0,00   13,93   120,00    0,99  99,12
+
+                                                     /\
+                                                     ||
+                                                     ||
+                                                   он вот это поле считает именно чере sys
+                                                   выполняя мат опреции , читает из stat и потом считвает
+                                                   мтатематику
+
+
+===
+size=11k
+bs=2k
+count= $(( 11 / 2 )) = 5
+
+
+seek=5*2k=10k
+bs=1k
+count=11-5*2=1
+==
+
+echo 1; \
+echo 2; \
+echo 3; \
+
+==
+
+
+====
+
+[vasya@ thinkpad ]$ 
+[vasya@ thinkpad ]$  disk1="sdc";  disk_size="$(( $(cat /sys/block/$disk1/size) /2   ))";     block_size="$( cat /sys/block/$disk1/queue/max_sectors_kb )";    maximum_block_size="$( cat /sys/block/$disk1/queue/max_hw_sectors_kb )";    count=$(( "$disk_size" / "$block_size"  ));  echo -e "\n \033[35m USB Flash spec: \033[0m disk1=$disk1  disk_size=$disk_size KByte current_block_size=$block_size KByte  maximum_block_size=$maximum_block_size KByte  \n ";  echo -e "\033[35m Launching the command: \033[0m  sudo  dd  if=/dev/zero    of=/dev/$disk1   iflag=nocache  oflag=direct   conv=fsync  bs="$block_size"k     count="$count"  status=progress \n";   sudo  dd  if="/dev/zero"    of="/dev/$disk1"   iflag=nocache  oflag=direct   conv=fsync  bs="$block_size"k     count="$count"  status=progress;   seek=$((  $count * $block_size     ));   count=$(( $disk_size - $seek   ));     echo -e "\033[35m Launching additional command: \033[0m  sudo  dd  if=/dev/zero    of=/dev/$disk1   iflag=nocache  oflag=direct   conv=fsync seek=$seek  bs=1k     count=$count  status=progress \n";  sudo  dd  if="/dev/zero"    of="/dev/$disk1"   iflag=nocache  oflag=direct   conv=fsync seek=$seek      bs=1k     count="$count"  status=progress  &&  echo -e "\033[35m Totally written KBytes: \033[0m  $((  $seek + $count    ))   "
+
+  USB Flash spec:  disk1=sdc  disk_size=7815168 KByte current_block_size=120 KByte  maximum_block_size=120 KByte  
+ 
+ Launching the command:   sudo  dd  if=/dev/zero    of=/dev/sdc   iflag=nocache  oflag=direct   conv=fsync  bs=120k     count=65126  status=progress 
+
