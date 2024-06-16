@@ -2047,6 +2047,21 @@ raw6    :::58             :::*               7           23098/systemd-networkd
 raw6    0 :::58           :::*               7           23098/systemd-networkd 
 
 
+>> vfat.txt
+>> manjaro-setup.txt
+>> usb-flash-zero.txt
+
+
+>> session buddy "16-jun-2024"
+
+
+>> я сохранил список session buddy сессий в тру крипт контенейнер с документами.
+      там где пароли в ./Sasha/passwords/session-buddy
+
+
+>> на леново есть psi epxress nvme диск у котоого в его натройкаих указано
+что он имеет блок(сектор) 512 байт.  а можно его сделать как 4 килобайт. надо
+так сделать. и померить скокрость на обоих режимах.
 
 
 
