@@ -968,3 +968,41 @@ systemd-networkd я еще ни изучлил. это отдлеьны вопр
  я так и непонял как wiregurad роутинг работает из алтерантивнй таблицы
  марушуртизации. что за хрень?!?!?!?!!?
  
+==
+
+| NetworkManager
+
+значит есть такая хуйня с нетворк менеджером.
+вот у нас есть готовый конфиг конекшена. мы берем его копруем в
+
+        /etc/NetworkManager/system-connections/
+
+потом зпускаем
+
+    # systemctl reload NetworkManager
+либо
+    # systemctl restart NetworkManager
+
+потмо смотрим
+    $ nmcli conn
+
+
+и ВИДИМ НИХУЯ! новый конекшен сука не повияся падла. как же его блядь импортирвать?!?!?
+формально можно импортовать только впн файл. но что же делть нам. рукми заново
+все вбивать? выход такой. надо создать новый конекшен. а потом подемнеить файл тоесть
+например мы хотим добавить новый wifi конекшн . вбиваем команду
+
+    $ nmcli c add type wifi con-name iphone4  ifname wlan0 ssid <ssid>
+
+потом копируем уже гтовый файл
+
+    $ cp ./file1   /etc/etc/NetworkManager/system-connections/iphone4
+
+перегружаем 
+    # systemctl restart NetworkManager
+
+    готово сука бляь
+
+    $ nmcli conn 
+    $ nmcli conn up iphone4
+

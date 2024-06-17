@@ -1,5 +1,23 @@
 wifi
 
+===========
+| create
+| manually
+| wifi 
+| hidden
+
+как создать руками конект к вай фай сети которая hidden
+
+nmcli c add type wifi con-name <connect name> ifname wlan0 ssid <ssid>
+nmcli con modify <connect name> wifi-sec.key-mgmt wpa-psk
+nmcli con modify <connect name> wifi-sec.psk <password>
+nmcli con up <connect name>
+
+( отсюда https://stackoverflow.com/questions/35476428/how-to-connect-to-hidden-wifi-network-using-nmcli)
+
+
+============
+
 все началось что после очердной перезагрузки перестал работать вай фай.
 и также в граф режиме на экране было написано что cinnamon неможет найти дрова поэтмоу 
 работает щас без граф ускорения.
