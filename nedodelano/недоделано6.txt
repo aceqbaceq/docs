@@ -2055,8 +2055,10 @@ raw6    0 :::58           :::*               7           23098/systemd-networkd
 >> session buddy "16-jun-2024"
 
 
->> я сохранил список session buddy сессий в тру крипт контенейнер с документами.
-      там где пароли в ./Sasha/passwords/session-buddy
+>> список файлов session buddy сохранил куда? смотрит об этом в todo.txt
+
+>> disk-block-dd-max_sectors_kb.txt 
+    пытался разобраться с /sys/block/sda/...
 
 
 >> на леново есть psi epxress nvme диск у котоого в его натройкаих указано
