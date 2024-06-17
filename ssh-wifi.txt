@@ -1,0 +1,50 @@
+| ssh 
+| wifi 
+| latency
+
+у меня два ноутбука и я ходжу по ssh с одного на другой.
+сеть wifi. 
+
+
+и налюдается полный пиздец в плане латецнии. тыкаешь кнопку и она 
+залипает и отклик как через пластлин.
+
+что мне помогло если не полмностью решить проблемму то улучшить в 100 раз.
+
+НАДО отключить блядь powermanageemtn на обох нубуках на их ваф фай картчоках.
+и будет щасчтье
+
+ситуация до
+
+$ iwconfig
+
+wlp3s0    IEEE 802.11  ESSID:"iphone4-24G"  
+          Mode:Managed  Frequency:2.442 GHz  Access Point: 9C:53:22:14:D8:23   
+          Bit Rate=78 Mb/s   Tx-Power=22 dBm   
+          Retry short limit:7   RTS thr:off   Fragment thr:off
+    >>>>  Power Management:on  <<<<  
+          Link Quality=59/70  Signal level=-51 dBm  
+          Rx invalid nwid:0  Rx invalid crypt:0  Rx invalid frag:0
+          Tx excessive retries:1  Invalid misc:83   Missed beacon:0
+
+
+
+запускаем комнду
+
+$ sudo iwconfig wlp3s0 power off
+
+
+ситацияи после 
+
+$ iwconfig
+
+wlp3s0    IEEE 802.11  ESSID:"iphone4-24G"  
+          Mode:Managed  Frequency:2.442 GHz  Access Point: 9C:53:22:14:D8:23   
+          Bit Rate=58.5 Mb/s   Tx-Power=22 dBm   
+          Retry short limit:7   RTS thr:off   Fragment thr:off
+    >>>>  Power Management:off  <<<<  
+          Link Quality=59/70  Signal level=-51 dBm  
+          Rx invalid nwid:0  Rx invalid crypt:0  Rx invalid frag:0
+          Tx excessive retries:1  Invalid misc:84   Missed beacon:0
+
+

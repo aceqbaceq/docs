@@ -398,3 +398,26 @@ $ echo "20000" | sed 's/\(.\)..$/.\1°C/'
     123 -> A123
 
 
+| sed
+| ssh
+
+есть такая залупа.
+я гружу ноутбук с лайв usb.
+каждый раз он получает разные ssh host key
+в итоге когда я поключаюсь то мой комп начинает ругаться вот так
+
+$ ssh manjaro@thinkpad 
+Warning: the ECDSA host key for 'thinkpad' differs from the key for the IP address '192.168.0.104'
+Offending key for IP in /home/vasya/.ssh/known_hosts:808
+Matching host key in /home/vasya/.ssh/known_hosts:813
+Are you sure you want to continue connecting (yes/no)? ^C 
+
+
+соотвсвтенно задача вырезать нахуй 808 строку из файла known_hosts
+
+как это сдделать ?
+
+     $ sed -i -e '808d' ~/.ssh/known_hosts 
+
+ура!
+

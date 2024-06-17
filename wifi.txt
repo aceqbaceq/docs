@@ -1,5 +1,47 @@
 wifi
 
+| IMPORTNANT
+| powermanagentm
+
+как тока закгрузился комп то надо зайти и проверить что 
+у нас на вай фай карточке с powermanagement
+
+ $ iwconfig  wlp2s0 | grep "Power M"
+          Power Management:off
+
+если стоит on то нужно нахуй перевести в off
+потому что из за этого например ssh может выдывать крупные лаги!
+
+как это сделать 
+можно руками до перезагрузки через 
+
+		$ sudo iwconfig wlp3s0 power off
+
+а можно бавить в конфиг нетворманагера
+
+
+# cat  /etc/NetworkManager/conf.d/default-wifi-powersave-on.conf 
+[connection]
+wifi.powersave = 2
+
+(взял тут https://unix.stackexchange.com/questions/269661/how-to-turn-off-wireless-power-management-permanently)
+
+ОДНАКО! вылезает одна очент вважная залупа! если мы помещаем комп в suspend
+а я это делаю потоянно то сука  когда лиункс выходит из суспенда то он падла
+эту натройку обратно пеерводит в 
+
+
+	         Power Management:on
+
+как это вылечить и для суспенда я пока незнаю!
+
+есть один топроны вариант это засунуть 
+		sudo iwconfig wlp3s0 power off
+в крон
+
+
+
+
 ===========
 | create
 | manually

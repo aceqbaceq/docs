@@ -1,0 +1,8 @@
+| arch
+| iwconfig
+
+как его пставить
+
+ $ sudo pacman -S wireless_tools
+
+ 
