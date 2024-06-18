@@ -164,5 +164,8 @@ return 0;
 Device   r/s     w/s     rkB/s     wkB/s   r_await w_await aqu-sz rareq-sz wareq-sz  svctm  %util
 sda    46,00    1,00   1064,00     32,00     10,78    1,00   0,43    23,13    32,00  10,55  49,60
 
-непонятно
+непонятно. а потом я нашел ответ. я расписал его в файле "disk-block-dd-max_sectors_kb.txt"
+если коротко то это служба systemd-udevd
+
+
 

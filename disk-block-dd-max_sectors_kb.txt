@@ -670,6 +670,52 @@ sda    46,00    1,00   1064,00     32,00     10,78    1,00   0,43    23,13    32
 опубликова воспрос на стекэксчендж про это дело 
   https://unix.stackexchange.com/questions/778539/linux-phatom-reads
   
+АПДЕЙТ! я думаю я нашел кто зачем и почему делал эти reads. это делал systemd-udev процесс
+а логика у него такая. он как то видит (а может ему ядро сообщает) что ктото полез 
+писать напрямую на диск через /dev/sda (дело в том что обычно на диск юзер программма пишет
+соврешенно по другому.  юзер программа не открывает /dev/sda она открывает файл на файловой сис
+теме. а уже ядерный драйвер ФС в пространстве ядра лазиит на диск. а тут у нас юзер программа
+как бы напрямую лезет на диск , конечно н ненапрямую через /dev/sda новсе же. ) и как
+только диск перестает обрабатывать запрос на запись то udev делает запрос на чтение
+я толко не знаю какойто точно обласьи но я думаю он читает головную часть диска на предмет
+того а не появился ли там новый партишн! чтобы если да то udev для него создал бы 
+новвый /dev/sdaN на /dev !!! я расписал на стеекофверлоу как я это все проверял. цитрую
+
+
+I have found "the article"(https://questdb.io/blog/investigating-linux-phantom-disk-reads/) that mentions phantom reads. The article mentions the tools blktrace , blkparse .
+
+I have launched dd and the tools.
+
+sudo dd if=/dev/zero  of=/dev/sda  bs=4M  count=30   oflag=direct   status=progress  
+
+sudo blktrace -d /dev/sda  -a read -o - | blkparse -i -  
+It showed lots of rows with
+
+  8,0    3        1 1266874889.708944253 25480  D   N 0 [systemd-udevd]
+  8,0    1     1511     0.055573485 25510  I  RA 468861824 + 8 [(udev-worker)]  
+So my assumption was - the reads were initiated by udev. After my write request to raw disk was finished udev checked if a new partition (or whatever) appeared to create new "/dev/N" file.
+
+I temporarily disabled systemd-udevd , relaunched dd write request and at that time "phantom" reads gone.
+
+I started systemd-udevd back. I launched long write with dd. "Phantom" reads appeared again but only at the very end.
+
+Device            r/s     rkB/s   rrqm/s  %rrqm r_await rareq-sz     w/s     wkB/s   wrqm/s  %wrqm w_await wareq-sz     d/s     dkB/s   drqm/s  %drqm d_await dareq-sz     f/s f_await  aqu-sz  %util
+sda              0.00      0.00     0.00   0.00    0.00     0.00    2.00   8192.00     0.00   0.00   10.50  4096.00    0.00      0.00     0.00   0.00    0.00     0.00    0.00    0.00    0.02   3.00
+
+Device            r/s     rkB/s   rrqm/s  %rrqm r_await rareq-sz     w/s     wkB/s   wrqm/s  %wrqm w_await wareq-sz     d/s     dkB/s   drqm/s  %drqm d_await dareq-sz     f/s f_await  aqu-sz  %util
+sda              0.00      0.00     0.00   0.00    0.00     0.00  109.00 446464.00     0.00   0.00    8.07  4096.00    0.00      0.00     0.00   0.00    0.00     0.00    0.00    0.00    0.88 100.00
+
+Device            r/s     rkB/s   rrqm/s  %rrqm r_await rareq-sz     w/s     wkB/s   wrqm/s  %wrqm w_await wareq-sz     d/s     dkB/s   drqm/s  %drqm d_await dareq-sz     f/s f_await  aqu-sz  %util
+sda              0.00      0.00     0.00   0.00    0.00     0.00  109.00 446464.00     0.00   0.00    8.04  4096.00    0.00      0.00     0.00   0.00    0.00     0.00    0.00    0.00    0.88 100.40
+
+Device            r/s     rkB/s   rrqm/s  %rrqm r_await rareq-sz     w/s     wkB/s   wrqm/s  %wrqm w_await wareq-sz     d/s     dkB/s   drqm/s  %drqm d_await dareq-sz     f/s f_await  aqu-sz  %util
+sda            267.00   1068.00     0.00   0.00    0.07     4.00   80.00 327680.00     0.00   0.00    8.03  4096.00    0.00      0.00     0.00   0.00    0.00     0.00    0.00    0.00    0.66  76.00
+ 
+ 
+I think it makes sense. udev checks if a new partition\fs appears on the disk when disk stop processing writes from user process.
+
+
+итак это было udev!
 
 
 
