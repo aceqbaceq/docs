@@ -1,0 +1,168 @@
+| linux 
+| c
+| read
+| open
+| O_DIRECT
+
+прога читает с диска 32768 байт. причем в режиме O_DIRECT
+сособенность в том что если  мы читаем с диска  в режиме O_DIRECT 
+то память куда ядро будет копироат данные должны быть ввыровнена что это
+зачем как и прочее нахуй у меня не было времени разбиарться. об этом 
+напписано в man 2 open
+
+таеже обраащаю внимание что в программе мы пищем не O_DIRECT а __O_DIRECT
+
+ $ cat 200.c
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <stdio.h>
+#define _GNU_SOURCE
+#define BLOCKSIZE 512
+#define COUNT  32768
+
+
+int main(void)
+{
+
+
+
+
+
+
+int fd;
+mode_t mode = O_RDONLY|__O_DIRECT;
+char *filename = "/dev/sda";
+fd = openat(AT_FDCWD, filename, mode);
+if (fd < 0) {
+      perror("Creation error");
+      exit (1);
+}
+
+
+
+void *pbuf;
+posix_memalign(&pbuf, BLOCKSIZE, COUNT);
+
+//char bufer[512];
+//pbuf = &bufer;
+
+size_t a;
+a = COUNT;
+
+
+
+ssize_t ret;
+ret = read(fd, pbuf, a);
+if (ret < 0) {
+      perror("read  error");
+      exit (1);
+}
+
+
+close (fd);
+exit (0);
+
+
+
+}
+
+
+
+а если подставит /dev/zero место /dev/sda то уже линукс пошлет нахй
+
+
+
+далее программа котоарая читает из /dev/zero и пишет в /dev/sda
+причем используеся posix_fadvise который подксзывает ядру о том 
+как я буду раотат с диском
+
+# cat 201.c
+
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <stdio.h>
+
+
+
+#define _GNU_SOURCE
+#define BLOCKSIZE 512
+#define COUNT  32768
+
+int main(void)
+{
+
+
+// read COUNT bytes from /dev/zero
+
+int fd;
+mode_t mode = O_RDONLY;
+char *filename = "/dev/zero";
+fd = openat(AT_FDCWD, filename, mode);
+if (fd < 0) {
+      perror("Creation error");
+      exit (1);
+}
+
+
+
+void *pbuf;
+posix_memalign(&pbuf, BLOCKSIZE, COUNT);
+
+
+size_t a;
+a = COUNT;
+
+
+
+ssize_t ret;
+ret = read(fd, pbuf, a);
+if (ret < 0) {
+      perror("read  error");
+      exit (1);
+}
+
+
+close (fd);
+
+
+// write COUNT bytes to /dev/sda
+
+int f = open("/dev/sda", O_WRONLY|__O_DIRECT);
+
+
+ret = posix_fadvise (f, 0, COUNT, POSIX_FADV_NOREUSE);
+if (ret < 0)
+        perror ("posix_fadvise");
+
+
+ret = write(f, pbuf, COUNT);
+if (ret < 0) {
+      perror("write  error");
+      exit (1);
+}
+
+close(f);
+free(pbuf);
+return 0;
+
+
+
+}
+
+
+несмотряи на то что программа делает только запись. но поему то приэто ядро делает
+и фантомные чтения
+
+ $ iostat -xc 1 /dev/sda | grep -E "Device|sda"
+
+Device   r/s     w/s     rkB/s     wkB/s   r_await w_await aqu-sz rareq-sz wareq-sz  svctm  %util
+sda    46,00    1,00   1064,00     32,00     10,78    1,00   0,43    23,13    32,00  10,55  49,60
+
+непонятно
+
