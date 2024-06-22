@@ -2024,8 +2024,12 @@ qemu к периферии
 
 >>> manjaro-install.txt пишу
 
+
+>>> вопрос про lxd + qemu
+    файл lxd-qemu.djvu
 >>> тема tty терминала. в том числе tty дисциплина
     файл tty.djvu
+
 
 >>> книги pdf которые не обработаны(лежат на леново в папке Downloads)
     iwDocumentation.pdf
