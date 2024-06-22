@@ -25,13 +25,18 @@
 если их вырубить
 
 $ systemctl --user --type=service list-units | grep gvfs
-  gvfs-afc-volume-monitor.service     loaded active running Virtual filesystem service - Apple File Conduit monitor     
-  gvfs-daemon.service                 loaded active running Virtual filesystem service                                  
-  gvfs-goa-volume-monitor.service     loaded active running Virtual filesystem service - GNOME Online Accounts monitor  
-  gvfs-gphoto2-volume-monitor.service loaded active running Virtual filesystem service - digital camera monitor         
-  gvfs-metadata.service               loaded active running Virtual filesystem metadata service                         
-  gvfs-mtp-volume-monitor.service     loaded active running Virtual filesystem service - Media Transfer Protocol monitor
-  gvfs-udisks2-volume-monitor.service loaded active running Virtual filesystem service - disk device monitor            
+  gvfs-afc-volume-monitor.service          
+  gvfs-daemon.service                                                   
+  gvfs-goa-volume-monitor.service       
+  gvfs-gphoto2-volume-monitor.service          
+  gvfs-metadata.service                                        
+  gvfs-mtp-volume-monitor.service     
+  gvfs-udisks2-volume-monitor.service  
+
+
+
+systemctl --user start gvfs-afc-volume-monitor.service gvfs-daemon.service  gvfs-goa-volume-monitor.service gvfs-gphoto2-volume-monitor.service gvfs-metadata.service gvfs-mtp-volume-monitor.service gvfs-udisks2-volume-monitor.service
+
 
 
 
