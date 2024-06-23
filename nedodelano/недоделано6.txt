@@ -1922,6 +1922,9 @@ qemu -serial tty раобтает только если граф окно ост
 The System V IPC facilities include semaphores, shared memory, and message queues==
 
 ==
+atop
+надо его man прочитать
+==
 виртулка это доступ к цпу памяти и периферии.
 kvm дает доступ к цпу\памяти
 qemu к периферии
@@ -1938,7 +1941,10 @@ qemu к периферии
       а в нем есть кусок /proc/sys/net
       про который подробно написано в man 7 tcp 
       прочитать эту хрень  бегло
-
+==
+parent fork() --> чайлд
+  картина memory mmap одинаковая ? а если memory map shared ?
+  а если execve выполнитть? какие регионы памяти сохраняются?
 ==
 
 
