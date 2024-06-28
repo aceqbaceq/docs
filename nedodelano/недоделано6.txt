@@ -2109,6 +2109,7 @@ raw6    0 :::58           :::*               7           23098/systemd-networkd
 
 
 >> system.map.txt
+>> перечитать законченную но важную статью top-free-memory-used-explanation.txt
 
 
 >> на леново есть psi epxress nvme диск у котоого в его натройкаих указано
