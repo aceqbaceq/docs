@@ -1,0 +1,8 @@
+| android
+
+как убрать долбаную анимацию
+
+settings - additional settings - accessibility - таб vision - remove animations
+
+это пиздец
+
