@@ -1,3 +1,219 @@
+>>>>>>>>>>>>>>>>>>>>
+>>>>>>>>>>>>>>>>>>>>
+===
+  ls -1  | awk -F "." '{print $1}'| tee  >( xargs -L1  -I%  modprobe -v %  )
+ 
+===
+# lsmod | grep " 0" | sort | awk '{print $1}' | head -n 5 | tee |  grep -v hid | grep -v coretemp | xargs -L1 modprobe -rv ;modprobe -rv coretemp && modprobe -v coretemp
+
+
+
+https://docs.kernel.org/hwmon/sysfs-interface.html
+
+===
+
+разобрать модули. и лишние выключить на обоих ноутбуках
+
+(thinkpad)# lspci -v | grep Kernel
+  Kernel modules: ie31200_edac
+  Kernel driver in use: i915
+  Kernel modules: i915
+  Kernel driver in use: snd_hda_intel
+  Kernel modules: snd_hda_intel
+  Kernel driver in use: xhci_hcd
+  Kernel modules: xhci_pci
+  Kernel driver in use: mei_me
+  Kernel modules: mei_me
+  Kernel modules: e1000e
+  Kernel driver in use: ehci-pci
+  Kernel driver in use: snd_hda_intel
+  Kernel modules: snd_hda_intel
+  Kernel driver in use: pcieport
+  Kernel driver in use: pcieport
+  Kernel driver in use: ehci-pci
+  Kernel driver in use: lpc_ich
+  Kernel modules: lpc_ich
+  Kernel driver in use: ahci
+  Kernel modules: ahci
+  Kernel driver in use: i801_smbus
+  Kernel modules: i2c_i801
+  Kernel driver in use: iwlwifi
+  Kernel modules: iwlwifi
+
+(lenovo)# lspci -v | grep Kernel
+  Kernel driver in use: skl_uncore
+  Kernel driver in use: i915
+  Kernel modules: i915
+  Kernel driver in use: proc_thermal
+  Kernel modules: processor_thermal_device
+  Kernel driver in use: intel_pch_thermal
+  Kernel modules: intel_pch_thermal
+  Kernel driver in use: xhci_hcd
+  Kernel driver in use: intel-lpss
+  Kernel modules: intel_lpss_pci
+  Kernel driver in use: mei_me
+  Kernel modules: mei_me
+  Kernel driver in use: ahci
+  Kernel modules: ahci
+  Kernel driver in use: pcieport
+  Kernel driver in use: pcieport
+  Kernel driver in use: pcieport
+  Kernel driver in use: pcieport
+  Kernel driver in use: intel-lpss
+  Kernel modules: intel_lpss_pci
+  Kernel driver in use: snd_hda_intel
+  Kernel modules: snd_hda_intel, snd_sof_pci
+  Kernel modules: i2c_i801
+  Kernel driver in use: ath10k_pci
+  Kernel modules: ath10k_pci
+  Kernel modules: r8169
+  Kernel driver in use: nvme
+  Kernel modules: nvme
+
+кстати видно что есть модули а есть драйвера. и это релаьно разные штуки
+
+===
+
+
+есть такая ошибка в логах 
+: msr: Write to unrecognized MSR 0x38f by i7z (pid: 3751)
+пока что решение такое  = echo on | sudo tee /sys/module/msr/parameters/allow_writes
+====
+
+ноутбук lenovo как у него настроить принудительно вентилятор ?
+
+====
+что такое powetop ?
+
+
+дальнейшее обсуждение:
+https://unix.stackexchange.com/questions/87522/why-do-cpuinfo-cur-freq-and-proc-cpuinfo-report-different-numbers
+https://kernel.ubuntu.com/~kernel-ppa/mainline/v5.10/
+
+tlp ?
+===
+
+https://wiki.archlinux.org/title/Hardware_video_acceleration
+===
+>> wifi
+наод проработать соседний текстовый файл который про nmcli который я анписал когда 
+с роутером вощился. кстати надо роутер зарестить и пароль вай фай более сильный записать
+====
+
+>> mc медленный старт
+вылезал такая пролблема - очень мделнно 3с стартует mc. 
+раньше так было когда в /etc/jhosst остутссутвует 127ю.0.0.1 lnovo 
+щас оно там ест. можно стартунть быстро mc через mc -u но тогда нет локального шелл
+при этом 
+# nslookup lenovo 
+раотаеает
+я поумал что может все таки это из за прблем с dns резвомингом 
+потому что 
+$ host lenovo 
+выдает ошибку
+Host lenovo not found: 3(NXDOMAIN)
+хуф знеает что эт значит
+
+я подумал что может это из за dnsmasq
+я удалил файл из /etc/NetworkManager/dnsmasq.d
+и удалил файл из 
+/etc/NetworkManager/conf.d
+скорировал их в ~/Backup2
+перезаустил # systemctl restart NetowrkManager
+при этом сломался /etc/resol.conf  был 127.0.1.1 стал 127.0.0.53
+я руками заменил на 8.8.8.8
+после этого даже nslookup lenovo перстал работать 
+я заменил
+# cat /etc/nsswitch.conf 
+
+hosts:          files mdns4_minimal [NOTFOUND=return] dns myhostname  
+на
+hosts:          myhostname files mdns4_minimal [NOTFOUND=return] dns 
+
+новсе равно mс стартует 3 секунды. надо раозобораться в этой всей хукйне
+
+я все конфиги вернуло братно . и выясил вот здеь (https://fedoramagazine.org/using-the-networkmanagers-dnsmasq-plugin/)
+что оказыатся по деолту dnsmqsq сука не исползует /etc/hosts 
+тогда я добавтл файл 
+
+
+# cat /etc/NetworkManager/dnsmasq.d/02-add-hosts.conf 
+# /etc/NetworkManager/dnsmasq.d/02-add-hosts.conf
+# By default, the plugin does not read from /etc/hosts.  
+# This forces the plugin to slurp in the file.
+#
+# If you didn't want to write to the /etc/hosts file.  This could
+# be pointed to another file.
+#
+addn-hosts=/etc/hosts
+
+ретартанул NetwrorkMahager и теперь у меня "lenovo" резврися уппешно
+
+ # # host lenovo
+lenovo has address 127.0.0.1
+
+онако mc по пржунму стартутет озуенно долго 
+
+далее я нахуй удлил опоять весь этот dnsmsq
+и еще в /etc/sytemd/resolved.conf
+удалил
+DNSStubListener=no
+
+рестарт netowekrmamager он меняет
+/etc/reolsolv.conf на 
+127.0.0.53
+
+такжа выынсилоась что на дургх сокета все равно раобатет dnsmsqk потмоу что его 
+запустил lxd!
+но все равно запуск mc работает попржнму сука долдго!
+
+дело окащалос совсем в другом не в dns. а в .bashrc
+
+вот эти строки охуенно задерживали загрузку mc
+
+# The next line updates PATH for Yandex Cloud CLI.
+if [ -f '/home/vasya/yandex-cloud/path.bash.inc' ]; then source '/home/vasya/yandex-cloud/path.bash.inc'; fi
+
+# The next line enables shell command completion for yc.
+if [ -f '/home/vasya/yandex-cloud/completion.bash.inc' ]; then source '/home/vasya/yandex-cloud/completion.bash.inc'; fi
+
+суки яндексовские
+
+и вот эти строки
+
+#export NVM_DIR="$HOME/.nvm"
+#[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
+#[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+
+===========
+на комее по деолфту /etc/resolv.conf смотрит в /run/systemd/resolvs/stub-resolv.conf
+что в нем значит 
+    options edns0 trust-ad 
+??
+
+dnsmasq vs systemd-resloved ?
+dnsmasq как плагин к netowkr mamager
+dnsmasq по дефолту не читает /etc/hosts
+что вот это за хуйня в nsswitch "mdns4_minimal [NOTFOUND=return]" ?
+nlookup vs host ? ( а также ошибка linux Host not found: 3(NXDOMAIN))
+==========
+
+что за хрень pm-suspend
+==========
+
+по какой то причине хуево работала usb  мышь. 
+я захотел перезагрузить USB подсистему. в  итоге помогла эта статья https://gist.github.com/planetceres/917840478e1e4d45f8373667630e51a0
+которая привела на эту стать https://davidjb.com/blog/2012/06/restartreset-usb-in-ubuntu-12-04-without-rebooting/
+также я захватил эту статью https://www.baeldung.com/linux/control-usb-power-supply
+и еще вот это https://superuser.com/questions/1707773/how-to-turn-usb-connected-device-on-and-off-in-linux
+в целом непонятно - как находить usb устройства и как их гасить
+
+====
+
+>>>>>>>>>>>>>>>>>>>>
+>>>>>>>>>>>>>>>>>>>>
+
+==
 авто suspend на ноутбуке сдеатлать
 ===
 poll
@@ -2077,6 +2293,8 @@ raw6    0 :::58           :::*               7           23098/systemd-networkd
 >> disk-block-dd-max_sectors_kb.txt 
     пытался разобраться с /sys/block/sda/...
 
+>> что такое S3
+ Решение позволяет получить доступ к любому объекту хранилища по URL-ссылкам с уникальным идентификатором объекта по протоколу HTTP или HTTPS. С объектами можно взаимодействовать по веб или через API. 
 
 >> system.map.txt
 >> перечитать законченную но важную статью top-free-memory-used-explanation.txt
@@ -2253,8 +2471,182 @@ https://softwareengineering.stackexchange.com/questions/60030/why-isnt-ssl-tls-b
 
 
 ==
+интеенсный момент про dns на ноуибуке.
+у нас есть две службы которые могут этим заниматься
+
+  systemd-resolvd
+
+и 
+
+  dnsmasq
+
+что лучше что хуже я не знаю
+
+по дефолту стоит systemd-resolvd
+а если ставить lxd то он еще добалявляет dnsmasq но не на все сет карты
+а на "свои" поэтому они друг другу якобы не мешают?
+
+$  sudo netstat -tnlp | grep -E "Proto|53"
+Proto Local Address           Foreign Address  State       PID/Program name    
+tcp   127.0.0.53:53           0.0.0.0:*        LISTEN      7680/systemd-resolv 
+tcp   10.113.151.1:53         0.0.0.0:*        LISTEN      3214/dnsmasq        
+
+где 10.113.151.1 это IP от карточки lxdbr0 тоесть это сетевая карта от lxd
+
+как  я понимаю что systemd-resolvd что dnsmasq оба являются процессами
+которые являются кэширующими dns серверами или dns клиентами.
+если у нас в настройках нашей юзер проеграммы написано что запросы по 
+dns резволингу напралвять к 10.113.151.1:53 то они попадут на dnsmasq
+а если на 127.0.0.53:53 то на systemd-resolvd 
+
+вопрос как приложение юзерское выбирает какой dns сервер юзать? 
+а вот как ! я сделал 
+  # strace ping -4 -c1 google.com
+
+и там видно вот что 
+вначале прога лезет в /etc/nsswitch.conf
+
+    openat(AT_FDCWD, "/etc/nsswitch.conf", O_RDONLY|O_CLOEXEC) = 4
 
 
+в котором записано
+
+hosts:          files dns  myhostname mymachines
+
+насколько  я понимаю это значит что вначале наша прога должна лезить
+в /etc/hosts  а потом уже в /etc/resolv.conf
+
+но почему то в реале pping делает все наоброт
+
+вначале он
+
+openat(AT_FDCWD, "/etc/resolv.conf", O_RDONLY|O_CLOEXEC) = 4
+fstat(4, {st_mode=S_IFREG|0644, st_size=304, ...}) = 0
+read(4, "# Dynamic resolv.conf(5) file fo"..., 4096) = 304
+read(4, "", 4096)                       = 0
+close(4)          
+
+а уже потом
+
+openat(AT_FDCWD, "/etc/hosts", O_RDONLY|O_CLOEXEC) = 4
+fstat(4, {st_mode=S_IFREG|0644, st_size=246, ...}) = 0
+read(4, "127.0.0.1  localhost\n::1        "..., 4096) = 246
+read(4, "", 4096)                       = 0
+close(4)   
+
+но в любом случае в /etc/hosts там нет ip адреса гугла
+а в /etc/resolv.conf записано что
+
+nameserver 127.0.0.53
+
+так что в итоге ping длеает вот что
+
+socket(AF_INET, SOCK_DGRAM|SOCK_CLOEXEC|SOCK_NONBLOCK, IPPROTO_IP) = 4
+connect(4, {sa_family=AF_INET, sin_port=htons(53), 
+                   sin_addr=inet_addr("127.0.0.53")}, 16) = 0
+
+тоесть вопрос о том как юзер прога выбирает себе dns сервер очень 
+имеет протой ответ - она лезет в /etc/hosts в /etc/resolv.conf
+и какой там видит IP днс сервера к тому она открыает TCP сокет и делает запрос!!!!
+
+поэтому наш пинг обращается к 127.0.0.53 и попадает к systemd-resolvd !!!
+вот как!
+
+так как контейнеры в сети lxd работают по dhcp то lxd сервер им через dhcp 
+очевидно подсдывает что  dns сервер имеет адрес 10.113.151.1
+поэтому они попадают на dnsmasq !! во как !!
+
+далее по теме. я не знаю можно ли в /etc/hosts указывать не просто dns
+имя хоста а указать прям зону.  я думаю что нет. а вот в натройках dnsmasq
+такое можно укзаать. и это значит что если в его настройках указано
+
+  *.vasya.net 10.11.11.11
+
+и клиент орбращатся к dnsmasq с запросом  зарезолвить
+   host01.vasya.net 
+то dnsmasq будет делать запрос об этом хосте к серверу 10.11.11.11
+
+такая хрень уобна когда у нас есть несколько впн тонелей где сидят в кажой
+свои dns сервера котораые хостят свои зоны. мы в насторйках dnsmsq укаызываем
+эти зоны и их dns севрера и когда клиент обращается к dnsmasq тот обращается к
+нужным dns скерверам , получает ip и  возвращае клиенту. и он уже получается
+напрвляет свой сетевой пакет внутрь той впн зоны. прикольно
+я немного об этом расписал в nmcli-NetworkManager...*.txt 
+в частности там есть инфо о том что есть dnsmasq а можно вместо него
+запустить типа похожую хрень как плагин NetworkManager.. короче про этт мрак
+надо читать
+
+далее не знаю у меет ли так делать systemd-resovd. но он тоже якобы весь 
+такой продвинутый. читать про него надо тут
+ 
+    $ man systemd-resolved
+
+там указано где его конфиги лежат. а у него их куча разных.
+еще там указано что он умеет принрмать по линкам сет карт елси они по DHCP 
+инфо об dns серверах которые им тами прилетают. 
+в итоге наш /etc/resolv.conf он смотрит на файл 
+./run/resolvconf/resolv.conf который в свою очередь сгенерирован 
+прогой  /sbin/resolvconf про которую чиатть тут
+    man 8 resolvconf   
+
+пиздец какйто. как обычно. наворочали
+и в этом файле 
+    nameserver 127.0.0.53
+тоесть указание на systemd-resolvd
+и есть спец комана которая позволяет помотреть что за база dns серверов
+щас в глове у него
+
+
+$ systemd-resolve --status | grep -E "Link| DNS Ser"
+Link 8 (lxdbr1)
+Link 7 (lxdbr0)
+Link 6 (docker0)
+Link 5 (virbr0-nic)
+Link 4 (virbr0)
+Link 3 (wlp2s0)
+         DNS Servers: 1.1.1.1
+                      8.8.8.8
+Link 2 (enp3s0)
+
+
+пордробонее рассмотрим
+
+
+      Link 3 (wlp2s0)
+      Current Scopes: DNS
+      LLMNR setting: yes
+      MulticastDNS setting: no
+      DNSSEC setting: no
+      DNSSEC supported: no
+         DNS Servers: 1.1.1.1
+                      8.8.8.8
+          DNS Domain: ~.
+
+а эти днссы туда попали через DHCP клиент от вай файл роутера!
+на нем эти штуки у меня прописаны.
+тоесть эта штука как я понимаю говорит о том том что 
+за сетевой карточкой wlp2s0 сидят dns срвереры 1.1.1.1 и 8.8.8.8
+которые надо юзать если клиент обратися к systemd-resolvd для резолвинга
+доменов ~ тоесть любых! по идее как в то DNS Domain: можно происаит фикс
+домены и юзать systed-resolvd как dnsmasq
+
+таким образом вот эта команда
+
+  $ systemd-resolve --status
+
+позоляет нам узнать к каким реально dns серверам будет нправлять запрос
+syystemd-resolvd кодгда к нему обраитится юзер прога на адрес 127.0.0.53
+а то вот так вот видишь в /etc/resolv.conf строку
+  nameserver 127.0.0.53
+и думаешь а хер его знает куда комп лазииит в итоге  с dns реквестами
+
+
+
+
+
+
+
+==
 
 
 >> на леново есть psi epxress nvme диск у котоого в его натройкаих указано
