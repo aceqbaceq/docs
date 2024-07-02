@@ -2645,8 +2645,41 @@ syystemd-resolvd кодгда к нему обраитится юзер прог
 написал статью usb-flash-zero.txt
 а в конце непроработаные толком ссылки
 ==
+в ssh нашли дырку типа если ввести логин но за таймаут не вести 
+пароль и чето там еще то на какх то вреияз ssh можно получить root доступ
+на комп
+
+версии которые подвержены этой дырке
+
+- OpenSSH < 4.4p1 is vulnerable to this signal handler race condition,
+  if not backport-patched against CVE-2006-5051, or not patched against
+  CVE-2008-4109, which was an incorrect fix for CVE-2006-5051;
+
+- 4.4p1 <= OpenSSH < 8.5p1 is not vulnerable to this signal handler race
+  condition (because the "#ifdef DO_LOG_SAFE_IN_SIGHAND" that was added
+  to sigdie() by the patch for CVE-2006-5051 transformed this unsafe
+  function into a safe _exit(1) call);
+
+- 8.5p1 <= OpenSSH < 9.8p1 is vulnerable again to this signal handler
+  race condition (because the "#ifdef DO_LOG_SAFE_IN_SIGHAND" was
+  accidentally removed from sigdie()).
 
 
+вот полезная статья надо ее хоть както прорабоатть ибо там 
+про мою любимую тему linux signals
+  https://lcamtuf.coredump.cx/signals.txt
+
+а вот обшая глобальная статья  описание этого бага 
+  https://github.com/zgzhang/cve-2024-6387-poc/blob/main/regresshion.txt
+
+прлблему можно решить так что можно разрешить ssh доступ на сервера
+только с фиксированного IP, а можно пойти еще дальше. можно закрыть снаружи
+доступ по ssh целиком а на сервер входить только по VPN либо openvpn 
+либо wireguard. а уже открыв vpn тоннель через него входить на ssh через
+локальную сетевую карту.
+
+
+==
 
 >> на леново есть psi epxress nvme диск у котоого в его натройкаих указано
 что он имеет блок(сектор) 512 байт.  а можно его сделать как 4 килобайт. надо
