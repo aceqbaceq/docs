@@ -1,0 +1,5 @@
+| hdparm
+
+про hdparm я расписал в usb-flash-zero.txt
+смотри там
+

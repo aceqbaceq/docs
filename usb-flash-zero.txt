@@ -1,8 +1,23 @@
+|| hdparm
+|| dd
+|| blkdiscard
+
+здесь будет рассмотрен большой вопрос :  у нас есть флэшка или диск
+внутри компа или диск на usb переходнике. и нам надо его занулить. очистить.
+как это сделать? ниже я обозначу подвопросы этого большого вопроса 
+через "| dd"  "|blkdiscard"  "| hdparm"
+
+| dd 
+один из шагов это сделать это через dd
+
+небольшое отступление
 вопрос я непонял.
-почеемуто в манжаро при заупкке
+почеемуто в манжаро при запуске
  $ sudo command
 эта сука создает два процсса sudo и потом коммнад. что за хцйня?
 
+
+итак рассмотрим большой кусок про dd
 
 команда в одну строчку
 $ sudo dd if=/dev/zero   of=/dev/sdc   iflag=nocache oflag=direct  conv=fsync  bs=1M  count=$(( 15335422 /2 /1024  ))  status=progress
@@ -51,7 +66,9 @@ write(1, "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"..., 
 и я щас это покажу докажу
 
 получается что /sys/bloc/N/stat 
-хрень содержит поля
+эта штука из sys очень полезная именно ее юзает iostat и nmon 
+когда нам рисует графики загржуенности диска и она 
+ содержит поля
 
 $ cat stat
      219        9     8632      445   161908        0 38857822  2274567        1  2274744  2275013        0        0        0        0        0        0
@@ -70,12 +87,61 @@ $ cat stat
 пятое полн поывзаеывает колько Io реквеатостов было обратано. занчит разница этого поля за интервал 
 времени покжает соклько Io реквесто было послано на эту железку ядром реально! в релаьности в нартуре.
 
+
 если мы поделим одно на дургое то мы полуичи средний размер ревексто который ядро послылаооло на этом интервале.
 это реалная статситкта. которую релано длеает ядро. 
 
 
+десятое поле ксати это число выражает время в милллисекундах сколько времени
+данный диск был занят работой с момента аптайма. тоесть если мы возьмем две 
+отчески скажем на интервале 1с. и посчитаем разницу. то получим склько мс в 
+течение 1с диск был занят работой. это имнно то время в % которое паокзыаывает
+nmon и iostat, тут же хочу сказать интересную вещь. % занятости диска в nmon
+и iostat высчиытвается на основе именно /sys/block/sda/stat десятое поле.
+а параметр %wa в статистике работы цпу в top и vmstat высчитываетс совершенно
+на основе другой хрени. есть ядро цпу есть шедулер у него есть очередь из 
+процессов. и вот скажем в очереди нет процессов на исполнение. типа это idle 
+состояние. но в этой очереди есть процесс с состоянием D. тогда этот слайс времени
+прибавляется в ячейку %wa который показыается в top который берет это число 
+где то из /proc  , совершенно логично что если за 1с у нас на основе статистики
+от самого диска /sys/bloc/sda/stat 10-ый столбик мы имеем что 50% времени
+диск был занят обрботкой запросов то логично что эти же 50% времени за 1с
+у нас были процессы в очереди шедулера с состоянием D которые как раз ждали
+ответа от диска это время условно говоря. и если мы просуммируем по всем 
+процессам на компе за 1с то время сколко они были в состоянии D эти времена
+совпадут. но облом  в том что при этом стаститика по цпу %wa не обязана с этим
+совпадать. почему. потому что пусть у нас одно ядро на цпу. и там два процесса
+в очереди все время. один имеет статус R а второй D. и так как у нас все время
+есть поцесс со статусом R то статистика по цпу игнориует процесс со статусом D
+и нихуя не прибавляет время в %wa поэтому %wa за эту 1с можеть быть равен 
+50% busy time диска полученному из /sys/block/sda/stat 10-ый стобик которй будет
+показан в nmon по кнопке "d" а может быть %wa и показан как 0 в top. тоесть
+еще раз что я хочу ссказать   - я хочу сказать есть ли какая то связь прямая
+между гарфиком загрузки диска который покзывает nmon по кнопке "d" 
+напрмиер он показвает что диска sda занят на 100% и рисует это на диске как "W"
+точки и время %wa на цпу который рисует nmon на графике cpu. Так вот я отвечаю
+что эта статситика может совпдаать а может и нет. почему. потому что ебнутая
+статистка ядра по цпу она прибавляет счетчик %wa только в том случае если 
+в текущий момент в очереди на цпу есть процесс со статусом D но нет процессов
+со статусом R. в этом пиздец и ебанизм. поэтму если процессов R не будет
+то все то врем что прцоесс со статусом D висит вочереди это время уйдет в 
+счетчки %wa и тогда его показания совпддаут со счетчиком занятости диска 
+из /sys/block/sda/stat 10-ый стобик который поцызвается по кнопке "d" в nmon.
+но если в очереди есть поастоянно процесс со статусом R то тогдя ядру похеру
+что есть процесс со статауом D и он нихуя не прибавляет счеткик %wa
+и на графике %wa будет 0 сука! хотя диск загружен и есть процессы которые
+ждут ответа от диска. поэтом я продолжаю повтоярять что %wa счетчки он ебнутый
+он мислидинг. он инвалид. он только путает. он как бы врет. если мы хотим
+понять ждет ли наша система отклика от диска тормозит ли она из за диска 
+надо ссмотреть не на %wa ! надо смотреть на /sys/block/sda/stat 10-ый
+столбик. или на график в nmon по кнопке "d" или на график iostat столбик %util
 
-врт програ. она считает разнциа по 7 полю. по 5-му. и одно делаит на дургое
+ну это  я несколько отошел в сторону возвращаемся обратно к нашей 
+исходной теме 
+
+
+
+вот програ. она считает разнциа по 7 полю. по 5-му. и одно делаит на дургое
 
 $ elapse_time=1; a_full=$(/usr/bin/cat ./stat ); wr1=$( echo $a_full  | awk '{print $7}'); io1=$( echo $a_full | awk '{print $5}'  );   sleep $elapse_time; a_full=$(/usr/bin/cat ./stat );      wr2=$( echo $a_full |  awk '{print $7}'); io2=$( echo $a_full |  awk '{print $5}' ) ;      written=$( echo "( ($wr2- $wr1) *0.5 ) " | bc ) ; iops=$( echo " $io2 - $io1" | bc ); echo -e "\n written=$written KBytes  | iops=$iops |  io_size_average=$(  echo "$written / $iops" | bc     ) KBytes | elapse_time=$elapse_time \n "
 
@@ -191,8 +257,13 @@ $ cat model
 KINGSTON SV300S3
 
 
+
+итак я расмотрел dd
+теперь переходим к следушему методу очистки диска а именно
+
 | ssd
 | trim
+| blkdiscard
 
 если мы говорим про стирание ssd то есть полезные команды
 
@@ -211,9 +282,11 @@ KINGSTON SV300S3
 его нужно "заинцилиировать". для этгоо и служит blkdiscard. он соощает контролереу что все блоки
 на диске можно прравнять к пустым. 
 еще у нее есть опция 
-  $ blkdiscard -zero
+  $ blkdiscard -z
 
-  
+есть еще вариант
+  $ blkdiscard -s 
+о нем читай в man но его не все диски поддерживают
 
 
 слдущая конмада несколко другая. она работает на смонтрованной фс. мы уазыаем в ней
@@ -223,3 +296,492 @@ KINGSTON SV300S3
   
     $ fstrim ...
 
+
+возгикает вопрс а как работает эта команда на нижнем уровне. 
+пишу что она на диск посылает команду TRIM которая сообщает диску что как я понимаю
+такой то блок на диске не испольщуется уже нашей ос и что диск может этот блок
+вернуть в пул незадейтстввыных блоков. 
+значит когда мы запускаем эту команду 
+
+  #  blkdiscard -s -v   /dev/sda  
+
+то видно в nmon что на диске бешеная идет загрузка на запись что дисковый busy time 100% это значит что ядро делает реально на диск реквесты на запись. ну в любом
+случае оно делает на диск реквесты котоыре этот диск. причем ядро эти реквесты
+интпреретиурет как реквесты на запись. то есть вот этот вот TRIM это как бы
+реквесты на запись на диск. по крайней мере ядро это так нам сообщает.
+
+если запустить strace то я увижу что под капотом юзер спейс програма
+blkdiscard она делает всего навсего один сисколл вот такой
+
+ ioctl(3, BLKZEROOUT,....)
+
+и этот реквест он всего один. и ядро не возвратит ответ пока оно не обработает
+весь диск. таким образом из юзерспейса запуск команоды TRIM это вызов сисколла
+
+ ioctl(3, BLKZEROOUT,....)
+
+а ядро в ответ на этот внешний запро делает кучу запросов на запись видимо 
+особого рода на диск. и рапортует нам через /sys/block/sda/stat что оно ядро
+делает мссировнный обьем запросов на запись на диск. 
+вот так это работает под капотом.
+
+
+итак мы рассотрели два сопособа очистки диска dd и TRIM через blkdiscard -s
+
+переходим к следущему методу очситки диска это чрез hdparm
+
+| hdparm
+
+во первх чтобы стереть диск чрез hdparm приется вначале помудить
+потому что чтобы его стереть на нем нужно задать пароль а задать 
+на диске пароль можно только если диск нахриттся в состоянии "not frozen"
+
+при загрузке компа диск получается находится
+в frozen состоянии это значит то у него пароль изменить нельзя.
+его нужно unfroze. это можно сделать несколькими спрсобами
+
+1) можно на работающем компе вытащить провод питания а потом обратно вставить
+и мы его анфризим 
+
+2) можно положить комп в суспенд и вернуть обратно
+
+  # systemctl suspend
+или
+  # pm-suspend
+
+
+3) но два преддущих спооба сука неработают если мы загрузилисть с live usb
+поэтому рабтат только этот спсоб
+
+  # rtcwake -m mem -s 10
+
+( взял здесь https://serverfault.com/questions/434479/how-can-i-unfreeze-an-ssd-connected-to-a-remote-server)
+
+это просто гениальная программма для задачи unfroze диск
+
+
+далее проверяем что диск разморозился
+
+    # hdparm -I /dev/sda 
+...
+Security: 
+  Master password revision code = 65534
+    supported
+  not enabled
+  not locked
+  not frozen
+  not expired: security count
+    supported: enhanced erase
+  2min for SECURITY ERASE UNIT. 2min for ENHANCED SECURITY ERASE UNIT.
+
+нам нужна строчка "not frozen". значит диск разморожен (дурацкйия термин)
+
+прежде чем вдиунатся дальше поясню значение этих строк
+
+  Master password revision code = 65534
+
+эта строка говорит что на диске устанолвен мастер пароль. и что это 
+заводской мастер пароль. об этом говорит цифра 65534. это не пароль это признак.
+на диске может быть устанолвено два пароля. юзер пароль и мастер пароль.
+мастер пароль может быть использован для разблокрования диска если мы незнаем
+юзер пароль но только если диск был запаролен юзер паролем в режиме "hight security".
+тогда нам поможет мастер пароль. а если юзер пароль был устанолвен в режиме
+"maximum  security" то мастер пароль не поможет и еднстный способ разблокировать
+диск это его полностью реиницлизировать ( в этой статье я это не раскаывазываю как это сделать) при этом будут потреярны все данные.  
+
+далее следущая строчка
+
+    supported
+
+я не знаю что она значит
+
+далее эта строчка
+
+  not enabled
+
+она говорит о том что на диске НЕ устанолвен юзер пароль
+
+
+далее следущая строчка
+
+  not locked
+
+не очень понимаю что эта строчка значит
+
+следущая строка
+
+  not frozen
+
+она говорит что на диске можно менять пароли. вводим старый пароль и меняем
+его нановый. или на диске не было юзер пароля а мы его хотим поставить
+
+
+далее следущая строка
+
+  not expired: security count
+
+не знаю что это значит
+
+
+
+
+далее следущая строка
+
+    supported: enhanced erase
+  2min for SECURITY ERASE UNIT. 2min for ENHANCED SECURITY ERASE UNIT.
+
+
+оно говрит что диск поддерживает enhanced erase
+
+
+итак мы разобрались со значением  строк
+
+
+
+для справки когда диск выключен это на языке ATA означает состояние
+SEC0
+когда диск not frozen это SEC1 (читаю тут https://www.admin-magazine.com/Archive/2014/19/Using-the-ATA-security-features-of-modern-hard-disks-and-SSDs)
+
+
+теперь можно задать на диске пароль
+
+   hdparm --user-master u --security-set-pass 123 /dev/sda
+
+теперь можно очистть диск через secure erase
+он возможен только если у тебя на диске устанолвен user pass 
+иначе никак 
+
+   # hdparm --user-master u --security-erase 123  /dev/sda
+
+и очистка займет какото время. даже если диск ssd
+скажем минуту или минуты. 
+причем с точки зрения статисткики в nmon по диску будет пусто. тоесть
+ядро ничего на диск никакие реквесты не пуляет. диск как бы ничем не занят.
+но это наебаолово. внутри диска его firmware очищает в это время диск.
+
+вопрос в том как он это делает под капотом. оказыается не все так просто 
+и не все так гарантровано. ниже я привеу ссылки
+
+теперь я скажу о том что если у нас диск SATA но покдлючен к компу через 
+USB переходник то парооь на диск может опосавить и получится а вот 
+его очистить через secure erase не факт получится. я попроблвал 
+и получаю ошибку, тоестя я запускаю
+
+   # hdparm --user-master u --security-erase 123  /dev/sda
+
+и получаю ошибку вида
+...
+70 00 05 00 00 00 00 0a 00 00 00 00 24 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+эту ошибку можно переделать в текстовый вид. для этого в арч надо поставить
+пакет
+
+  # pacman -Sy sg3_utils
+
+и тогда
+
+  # sg_decode_sense 70 00 05 00 00 00 00 0a 00 00 00 00 24 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Fixed format, current; Sense key: Illegal Request
+Additional sense: Invalid field in cdb
+
+и вот насклоько я понял сымсла этой ошибки в том что причина в том что 
+hdparm пытается направить ATA команды через USB перходник а он их не пропускает
+
+поэтому желаьно диск не имть подключнный чрез USb переходник. а напрямую 
+через SATA
+
+но ряд USb преходников поддерживают тот режим работы при котором рпоблем нет.
+
+в заключении слов про hdparm я хочу сказать что кучу статиктики по диску
+можно пооулчить вот так
+
+  # smartctl -a  /dev/sdb
+  # smartctl -x  /dev/sdb
+
+щас покажу
+
+# smartctl -x /dev/sda
+smartctl 7.4 2023-08-01 r5530 [x86_64-linux-6.9.0-1-MANJARO] (local build)
+Copyright (C) 2002-23, Bruce Allen, Christian Franke, www.smartmontools.org
+
+=== START OF INFORMATION SECTION ===
+Model Family:     SandForce Driven SSDs
+Device Model:     KINGSTON SV300S37A240G
+Serial Number:    50026B725506D960
+LU WWN Device Id: 5 0026b7 25506d960
+Firmware Version: 603ABBF0
+User Capacity:    240,057,409,536 bytes [240 GB]
+Sector Size:      512 bytes logical/physical
+Rotation Rate:    Solid State Device
+TRIM Command:     Available
+Device is:        In smartctl database 7.3/5528
+ATA Version is:   ATA8-ACS, ACS-2 T13/2015-D revision 3
+SATA Version is:  SATA 3.0, 6.0 Gb/s (current: 6.0 Gb/s)
+Local Time is:    Tue Jul  2 09:56:33 2024 UTC
+SMART support is: Available - device has SMART capability.
+SMART support is: Enabled
+AAM feature is:   Unavailable
+APM level is:     254 (maximum performance)
+Rd look-ahead is: Disabled
+Write cache is:   Enabled
+DSN feature is:   Unavailable
+ATA Security is:  Disabled, NOT FROZEN [SEC1]
+Wt Cache Reorder: Unavailable
+
+=== START OF READ SMART DATA SECTION ===
+SMART overall-health self-assessment test result: PASSED
+
+General SMART Values:
+Offline data collection status:  (0x00) Offline data collection activity
+          was never started.
+          Auto Offline Data Collection: Disabled.
+Self-test execution status:      (   0) The previous self-test routine completed
+          without error or no self-test has ever 
+          been run.
+Total time to complete Offline 
+data collection:    (    0) seconds.
+Offline data collection
+capabilities:        (0x7d) SMART execute Offline immediate.
+          No Auto Offline data collection support.
+          Abort Offline collection upon new
+          command.
+          Offline surface scan supported.
+          Self-test supported.
+          Conveyance Self-test supported.
+          Selective Self-test supported.
+SMART capabilities:            (0x0003) Saves SMART data before entering
+          power-saving mode.
+          Supports SMART auto save timer.
+Error logging capability:        (0x01) Error logging supported.
+          General Purpose Logging supported.
+Short self-test routine 
+recommended polling time:    (   1) minutes.
+Extended self-test routine
+recommended polling time:    (  48) minutes.
+Conveyance self-test routine
+recommended polling time:    (   2) minutes.
+SCT capabilities:          (0x0025) SCT Status supported.
+          SCT Data Table supported.
+
+SMART Attributes Data Structure revision number: 10
+Vendor Specific SMART Attributes with Thresholds:
+ID# ATTRIBUTE_NAME          FLAGS    VALUE WORST THRESH FAIL RAW_VALUE
+  1 Raw_Read_Error_Rate     -O--CK   120   120   050    -    0/0
+  5 Retired_Block_Count     PO--CK   100   100   003    -    0
+  9 Power_On_Hours_and_Msec -O--CK   100   100   000    -    11h+59m+56.000s
+ 12 Power_Cycle_Count       -O--CK   100   100   000    -    2
+171 Program_Fail_Count      -O-R--   100   100   000    -    0
+172 Erase_Fail_Count        -O--CK   100   100   000    -    0
+174 Unexpect_Power_Loss_Ct  ----CK   000   000   000    -    0
+177 Wear_Range_Delta        ------   000   000   000    -    1
+181 Program_Fail_Count      -O-R--   100   100   000    -    0
+182 Erase_Fail_Count        -O--CK   100   100   000    -    0
+187 Reported_Uncorrect      -O--C-   100   100   000    -    0
+189 Airflow_Temperature_Cel ------   037   065   000    -    37 (Min/Max 10/65)
+194 Temperature_Celsius     -O---K   037   065   000    -    37 (Min/Max 10/65)
+195 ECC_Uncorr_Error_Count  --SRC-   120   120   000    -    0/0
+196 Reallocated_Event_Count PO--CK   100   100   003    -    0
+201 Unc_Soft_Read_Err_Rate  --SRC-   120   120   000    -    0/0
+204 Soft_ECC_Correct_Rate   --SRC-   120   120   000    -    0/0
+230 Life_Curve_Status       PO--C-   100   100   000    -    100
+231 SSD_Life_Left           ------   092   092   011    -    0
+233 SandForce_Internal      -O--CK   000   000   000    -    4294962256
+234 SandForce_Internal      -O--CK   000   000   000    -    1117
+241 Lifetime_Writes_GiB     -O--CK   000   000   000    -    1117
+242 Lifetime_Reads_GiB      -O--CK   000   000   000    -    0
+244 Unknown_Attribute       ------   089   089   010    -    21627210
+                            ||||||_ K auto-keep
+                            |||||__ C event count
+                            ||||___ R error rate
+                            |||____ S speed/performance
+                            ||_____ O updated online
+                            |______ P prefailure warning
+
+General Purpose Log Directory Version 1
+SMART           Log Directory Version 1 [multi-sector log support]
+Address    Access  R/W   Size  Description
+0x00       GPL,SL  R/O      1  Log Directory
+0x04       GPL,SL  R/O     16  Device Statistics log
+0x06           SL  R/O      1  SMART self-test log
+0x07       GPL     R/O      1  Extended self-test log
+0x09           SL  R/W      1  Selective self-test log
+0x10       GPL     R/O      1  NCQ Command Error log
+0x11       GPL     R/O      1  SATA Phy Event Counters log
+0x80-0x9f  GPL,SL  R/W     16  Host vendor specific log
+0xb7       GPL,SL  VS      16  Device vendor specific log
+0xe0       GPL,SL  R/W      1  SCT Command/Status
+0xe1       GPL,SL  R/W      1  SCT Data Transfer
+
+SMART Extended Comprehensive Error Log (GP Log 0x03) not supported
+
+SMART Error Log not supported
+
+SMART Extended Self-test Log Version: 1 (1 sectors)
+No self-tests have been logged.  [To run self-tests, use: smartctl -t]
+
+SMART Selective self-test log data structure revision number 1
+ SPAN  MIN_LBA  MAX_LBA  CURRENT_TEST_STATUS
+    1        0        0  Not_testing
+    2        0        0  Not_testing
+    3        0        0  Not_testing
+    4        0        0  Not_testing
+    5        0        0  Not_testing
+Selective self-test flags (0x0):
+  After scanning selected spans, do NOT read-scan remainder of disk.
+If Selective self-test is pending on power-up, resume after 0 minute delay.
+
+SCT Status Version:                  3
+SCT Version (vendor specific):       0 (0x0000)
+Device State:                        Active (0)
+Current Temperature:                    37 Celsius
+Power Cycle Min/Max Temperature:     10/65 Celsius
+Lifetime    Min/Max Temperature:     10/73 Celsius
+Under/Over Temperature Limit Count:   0/0
+
+SCT Temperature History Version:     2
+Temperature Sampling Period:         1 minute
+Temperature Logging Interval:        10 minutes
+Min/Max recommended Temperature:      0/70 Celsius
+Min/Max Temperature Limit:            0/85 Celsius
+Temperature History Size (Index):    478 (10)
+
+Index    Estimated Time   Temperature Celsius
+  11    2024-06-29 02:20     ?  -
+ ...    ..(466 skipped).    ..  -
+   0    2024-07-02 08:10     ?  -
+   1    2024-07-02 08:20    46  ***************************
+   2    2024-07-02 08:30    51  ********************************
+   3    2024-07-02 08:40    42  ***********************
+   4    2024-07-02 08:50    40  *********************
+   5    2024-07-02 09:00    39  ********************
+   6    2024-07-02 09:10    45  **************************
+   7    2024-07-02 09:20    39  ********************
+   8    2024-07-02 09:30    41  **********************
+   9    2024-07-02 09:40    47  ****************************
+  10    2024-07-02 09:50    38  *******************
+
+SCT Error Recovery Control command not supported
+
+Device Statistics (GP Log 0x04)
+Page  Offset Size        Value Flags Description
+0x01  =====  =               =  ===  == General Statistics (rev 2) ==
+0x01  0x008  4               2  ---  Lifetime Power-On Resets
+0x01  0x010  4              11  ---  Power-on Hours
+0x01  0x018  6      2344310640  ---  Logical Sectors Written
+0x01  0x028  6           77798  ---  Logical Sectors Read
+0x04  =====  =               =  ===  == General Errors Statistics (rev 1) ==
+0x04  0x008  4               0  ---  Number of Reported Uncorrectable Errors
+0x04  0x010  4               0  ---  Resets Between Cmd Acceptance and Completion
+0x05  =====  =               =  ===  == Temperature Statistics (rev 1) ==
+0x05  0x008  1              37  ---  Current Temperature
+0x05  0x010  1               -  ---  Average Short Term Temperature
+0x05  0x018  1               -  ---  Average Long Term Temperature
+0x05  0x020  1              51  ---  Highest Temperature
+0x05  0x028  1              38  ---  Lowest Temperature
+0x05  0x030  1               -  ---  Highest Average Short Term Temperature
+0x05  0x038  1               -  ---  Lowest Average Short Term Temperature
+0x05  0x040  1               -  ---  Highest Average Long Term Temperature
+0x05  0x048  1               -  ---  Lowest Average Long Term Temperature
+0x05  0x050  4               0  ---  Time in Over-Temperature
+0x05  0x058  1              70  ---  Specified Maximum Operating Temperature
+0x05  0x060  4               0  ---  Time in Under-Temperature
+0x05  0x068  1               0  ---  Specified Minimum Operating Temperature
+0x06  =====  =               =  ===  == Transport Statistics (rev 1) ==
+0x06  0x008  4               0  ---  Number of Hardware Resets
+0x06  0x010  4            5769  ---  Number of ASR Events
+0x06  0x018  4               0  ---  Number of Interface CRC Errors
+0x07  =====  =               =  ===  == Solid State Device Statistics (rev 1) ==
+0x07  0x008  1              10  ---  Percentage Used Endurance Indicator
+                                |||_ C monitored condition met
+                                ||__ D supports DSN
+                                |___ N normalized value
+
+Pending Defects log (GP Log 0x0c) not supported
+
+SATA Phy Event Counters (GP Log 0x11)
+ID      Size     Value  Description
+0x0001  2            0  Command failed due to ICRC error
+0x0003  2            0  R_ERR response for device-to-host data FIS
+0x0004  2            0  R_ERR response for host-to-device data FIS
+0x0006  2            0  R_ERR response for device-to-host non-data FIS
+0x0007  2            0  R_ERR response for host-to-device non-data FIS
+0x0008  2            0  Device-to-host non-data FIS retries
+0x0009  2            0  Transition from drive PhyRdy to drive PhyNRdy
+0x000a  2            0  Device-to-host register FISes sent due to a COMRESET
+0x000f  2            0  R_ERR response for host-to-device data FIS, CRC
+0x0010  2            0  R_ERR response for host-to-device data FIS, non-CRC
+0x0012  2            0  R_ERR response for host-to-device non-data FIS, CRC
+0x0013  2            0  R_ERR response for host-to-device non-data FIS, non-CRC
+0x0002  2            0  R_ERR response for data FIS
+0x0005  2            0  R_ERR response for non-data FIS
+0x000b  2            0  CRC errors within host-to-device FIS
+0x000d  2            0  Non-CRC errors within host-to-device FIS
+
+тоесть куча полезной иномрации по диску !!!
+едиснвенное что это работает сокреее всего только для SATA дисков 
+а для nvme нет. я так думаю
+
+таким образом  я предлагаю  стирать диск через вот такую комбинацию команд
+содеиняем все три способа secure erase + trim(blkdiscard) + dd
+
+поехали:
+
+проверяем что диск unfrozen
+
+      # hdparm -I /dev/sda | grep "froz"
+
+если он заморожен то  делаем unfrozen
+
+      # rtcwake -m mem -s 10
+
+проверяем что диск unfrozen
+
+      # hdparm -I /dev/sda | grep "froz"
+
+
+устанавливаем user пароль
+
+   # hdparm --user-master u --security-erase 123  /dev/sda
+
+
+запускаем secure erase
+
+   # hdparm --user-master u --security-erase 123  /dev/sda
+
+
+ксати если он завершится без ошибки то автоматом диск сбросить устанолвенный
+user пароль как бутто его и не было. что удобно
+
+
+теперь чистим диск через TRIM
+
+  #  blkdiscard -s -v   /dev/sda  
+
+а теперь чистим через dd
+
+  # dd if=/dev/zero  of=/dev/sda  oflag=direct bs=1M status=progress
+
+
+а теперь список ссылок по этим вопросам которые я тольком не проработал
+
+https://www.admin-magazine.com/Archive/2014/19/Using-the-ATA-security-features-of-modern-hard-disks-and-SSDs
+
+https://unix.stackexchange.com/questions/502664/why-is-secure-erase-not-working-sg-io-bad-missing-sense-data
+
+https://forums.gentoo.org/viewtopic-t-1065472-start-0.html
+
+https://lore.kernel.org/all/544EFAC7.80501@start.ca/T/
+
+https://security.stackexchange.com/questions/62253/what-is-the-difference-between-ata-secure-erase-and-security-erase-how-can-i-en
+
+https://wiki.archlinux.org/title/Solid_state_drive/Memory_cell_clearing
+
+https://superuser.com/questions/1060831/triming-as-alternative-to-securely-erasing-a-ssd
+
+https://security.stackexchange.com/questions/62253/what-is-the-difference-between-ata-secure-erase-and-security-erase-how-can-i-en
+
+https://superuser.com/questions/1213715/hdparm-error-sg-io-bad-missing-sense-data
+
+https://www.smartmontools.org/wiki/SAT-with-UAS-Linux
+
+https://askubuntu.com/questions/1068167/hdparm-secure-erase-error-erase-prepare-invalid-argument

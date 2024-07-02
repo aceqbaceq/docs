@@ -57,6 +57,13 @@ nmcli con up <connect name>
 
 ( отсюда https://stackoverflow.com/questions/35476428/how-to-connect-to-hidden-wifi-network-using-nmcli)
 
+если есть готоовый конфиг файл то есть более короткий способ.
+nmcli c add type wifi con-name <connect name> ifname wlan0 ssid <ssid>
+потом копируем в /etc/NetworkManager/system-connectons/file
+наш конфиг
+systemctl restart NetworkManager
+и все готово
+
 
 ============
 

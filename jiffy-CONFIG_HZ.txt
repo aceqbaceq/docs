@@ -1,0 +1,15 @@
+| CONFIG_HZ
+| jiffy
+
+
+как в убунту это посмотреть
+
+ $ cat /boot/config-5.4.0-91-generic | grep CONFIG_HZ | grep -v '#'
+CONFIG_HZ_250=y
+CONFIG_HZ=250
+
+
+как  в arch посмотреть эту перменную ведь у них нет /boot/config* файла
+
+# zcat /proc/config.gz |grep CONFIG_HZ
+
