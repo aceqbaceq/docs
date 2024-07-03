@@ -1,0 +1,138 @@
+| hibernate
+| ubuntu
+
+
+оказывается есть целая проблема как заставить комп на убунту
+уходить в hibernate если у нас свап сидит не на отдельном 
+партишене а в файле !
+
+если просто взять и ввести
+
+# systemctl hibernate
+
+это вообще нахуй ничего недаст
+
+если ввести
+
+# pm-hibernate
+
+то дернется экран и в логах он напишет
+
+   pm: cannot find swap device, try swapon -a
+
+
+
+итак поехали ебаться с этой задачей:
+
+
+в итоге у меня сраобтало на основе этой статьи
+  https://www.linuxuprising.com/2021/08/how-to-enable-hibernation-on-ubuntu.html
+но она взята за основу а кое что измеенно
+
+во первых приколная команда посмотреть где у нас щас 
+свап харнится
+
+  $ cat /proc/swaps
+Filename				Type		Size	Used	Priority
+/swapfile                               file		17825788	0	-2
+
+
+далее надо выяснить UUID ФАЙЛОВОЙ СИСТЕМЫ на котором лежит наш свап файл
+
+$ findmnt -T /swapfile -o TARGET,SOURCE,FSTYPE,UUID
+TARGET SOURCE         FSTYPE UUID
+/      /dev/nvme0n1p2 ext4   aa7152b0-f48f-4f20-ad1a-7e0c404584d3
+
+таким оразом видно что файл \swapfile лежит на разделе /dev/nvme0n1p2 
+и UUID файловой системы на этом разделе равен   aa7152b0-f48f-4f20-ad1a-7e0c404584d3
+раеально важно понять что UUID относится к файловой сситеме а не разделу.
+щас докажу
+
+ $ blkid
+/dev/nvme0n1p1: UUID="B4A0-BF77" TYPE="vfat" PARTLABEL="EFI System Partition" PARTUUID="ec61534f-28b8-4d79-8c19-056503cbe54a"
+
+/dev/nvme0n1p2: UUID="aa7152b0-f48f-4f20-ad1a-7e0c404584d3" TYPE="ext4" PARTUUID="60e23cee-a7bd-4da8-aca8-c69150567113"
+
+
+вот мы видим что PARTUUID раздела равен  "60e23cee-a7bd-4da8-aca8-c69150567113"
+а UUID FS на этом разделе это aa7152b0-f48f-4f20-ad1a-7e0c404584d3
+тоесть UUID это сокражещенное название от FSUUID но эти суки почемуто рещили
+это сократить чтобы ебать нам мозги
+
+итак мы нашли UUID файловой системы на котором лежит наш свап файл
+          aa7152b0-f48f-4f20-ad1a-7e0c404584d3
+
+
+теперь надо найти оффсет на файловой этой системе где у нас лежит
+наш /swapfile
+
+羚  $ sudo filefrag -v /swapfile | head -n4
+Filesystem type is: ef53
+File size of /swapfile is 18253611008 (4456448 blocks of 4096 bytes)
+ ext:     logical_offset:        physical_offset: length:   expected: flags:
+   0:        0..   32767:     407552..    440319:  32768:            
+
+
+нужно нам число это 407552 
+хочу тут расширфовать что значит эта хуйня 
+               407552..
+
+что это блялдь за точки? а на самом деле это вот так 
+
+  physical_offset:
+407552..440319
+
+тоесть точки на самом деле указывают диапазон  в каком диапазоне оффсетов
+лежит наш файл вот и все! суки
+
+теперь идем  в /etc/default/grub
+и в параметр GRUB_CMDLINE_LINUX_DEFAULT нужно добавить два параметра "resume"
+и "resume_offset" 
+
+GRUB_CMDLINE_LINUX_DEFAULT="intel_pstate=enable quiet splash  resume=UUID=aa7152b0-f48f-4f20-ad1a-7e0c404584d3      resume_offset=407552"
+
+
+апдтейдиим граб
+
+    #  sudo update-grub
+
+
+но на этом муки не закачанвиваются
+
+надо содать вот такой файл
+
+ $ cat /etc/initramfs-tools/conf.d/resume 
+RESUME=UUID=aa7152b0-f48f-4f20-ad1a-7e0c404584d3      resume_offset=407552   
+
+и ззааапдейтить initramfs
+
+     $  sudo update-initramfs -c -k all
+
+
+далее перезагружаемся.
+
+далее автор пишет что тперь гибернейт у нас работает по команде
+
+   # systemctl hibernate
+
+А ВОТ НИХУЯ.
+
+он раотает только по команде
+     # pm-hibernate
+
+
+воосстановление выглядит так :
+у нас включается комп, потом у нас загружается граб. 
+и потом у нас идет ввостановление состояния из свапфайла. и вуаля
+мы в шоколаде
+
+ссылки которые были использованы но толком не проработаны
+
+https://www.linuxuprising.com/2021/08/how-to-enable-hibernation-on-ubuntu.html
+
+https://askubuntu.com/questions/6769/hibernate-and-resume-from-a-swap-file
+
+https://askubuntu.com/questions/1038364/pm-cannot-find-swap-device-try-swapon-a/1519427#1519427
+
+https://wiki.archlinux.org/title/Power_management/Suspend_and_hibernate
+
