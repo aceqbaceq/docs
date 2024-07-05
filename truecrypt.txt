@@ -5,4 +5,12 @@
    https://github.com/stefansundin/truecrypt.deb/releases/download/7.1a-15/truecrypt-cli_7.1a-15_amd64.deb
 
 
+ # apt-get install libfuse2
+ # dpkg -i ./truecrypt-cli_7.1a-15_amd64.deb
+
+ как полльзоваться
+
+ # truecrypt --mount ./file
+
+ 
   
