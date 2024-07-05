@@ -11,7 +11,11 @@
 https://docs.kernel.org/hwmon/sysfs-interface.html
 
 ===
+bash
+man top
+язык C книжка "c how to program" автор deitel
 
+===
 разобрать модули. и лишние выключить на обоих ноутбуках
 
 (thinkpad)# lspci -v | grep Kernel
