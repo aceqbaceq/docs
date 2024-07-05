@@ -1,0 +1,8 @@
+| truecrypt
+
+последнее место где можно найти truecrypt
+
+   https://github.com/stefansundin/truecrypt.deb/releases/download/7.1a-15/truecrypt-cli_7.1a-15_amd64.deb
+
+
+  
