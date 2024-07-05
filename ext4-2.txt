@@ -21,6 +21,13 @@ debugfs:  inode_dump <9866215>
 
 ==
 
+| urandom
+
+$ cat  < /dev/urandom  | tr -cd [:xdigit:] | head -c 100; echo ""
+17B9c838d3F1d7b3f60945eFb26fC3F996fac9C35aE7Cc6F66Cbe34859bF3A25dFFBedfafbffBf62F7F2e2eB47358ac4DcceA163fBE593e
+
+
+
 
 
 
