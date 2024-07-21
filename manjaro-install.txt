@@ -12,6 +12,8 @@ cpufreq
 xfce - обще хром неработ
 хром , файвофкс - нихкя нребаратт hardware acceler !!! сука!
 aur - обчзяатлно fakeroot поствить
+    # pacman -Sy fakeroot
+
 
  а так шаги
 

@@ -1,0 +1,127 @@
+| majaro
+| tun
+| tap
+
+задача:  мы запускаем комп с live usb (lubuntu) и хотим с этой лайв системы установить виртуальную машину
+         с manjaro и чтобы можно было из этой гостевой ос ходить в интернет
+         
+
+будем ставить виртуалку на внешний USB диск
+смотрим на как /dev/sd* сидит наш внешний диск
+    lsblk -S                                                                                                                                                                              
+на этом внешнем диске все закрыто LUKS-ом
+    cryptsetup -v luksOpen /dev/sda luks-sda
+монтируем его в ~/Downloads                                                                                                                                              
+    mount /dev/mapper/luks-sda /home/lubuntu/Downloads/                                                                                                                  
+
+    apt-get update 
+    apt-get install qemu-utils -y
+создаем диск под виртуалку
+    qemu-img create -f qcow2 manj2.img 12G
+
+русские буквы
+      prefrenes-lxqt settings - keyboard and mouse - russian - russian legacy
+      keyboard change key = Ctrl+Shift
+      
+
+для начала устаналиваем манжаро. для этого нам сеть ненужна 
+    $ sudo apt-get install qemu-system-x86 -y
+
+    $ qemu-system-x86_64 -name manj2   -m 4096M  -boot d -cdrom ../../manjaro-cinnamon-24.0.2-240710-linux69.iso     -drive file=manj2.img,media=disk,if=virtio,format=qcow2,file.locking=off  -cpu host -enable-kvm    -smp 2 -M pc-q35-2.11     -device virtio-balloon            -device qxl-vga,id=video0,vgamem_mb=16,xres=1800,yres=950    -display gtk  
+
+
+теперь мы когда поставили линукск то теперь надо к нему присобачить
+сеть. для этого на самом ноутбуке на хозяйской ос настроить
+бриджевый br0 интерфейс и tap0 интерфейс
+
+   apt-get install -y bridge-utils
+если это арч\манжаро то  
+   pacman -Sy bridge-utils
+
+   brctl addbr br0
+   ip address add 172.16.10.1/24 dev br0
+
+в убунту
+   apt install uml-utilities
+   tunctl -t tap0 -u `whoami`
+   или тоже самое но средствами пакета iproute2
+   ip tuntap add mode tap user vasya tap8
+
+тоесть на самом деле пакет uml-utilities можно не ставить
+тем более что в арч\манжаро пакет uml_utilities лежит в AUR
+и он сука сломан. он не компиилиурется сука ПОЭТОМУ 
+вместо uml утилит  надо заюзать пакет iproute2 вот в таком виде
+
+   ip tuntap  add mode tap user noroot tap0
+   
+   brctl addif br0 tap0
+   ip -c l set tap0 up
+   ip -c l set br0 up
+
+
+запускаем гостевой манжаро с сетью прикрепленной к нему
+
+    $   qemu-system-x86_64 -name manj2   -m 4096M  -boot d    -drive file=manj2.img,media=disk,if=virtio,format=qcow2,file.locking=off  -cpu host -enable-kvm    -smp 2 -M pc-q35-2.11     -device virtio-balloon            -device qxl-vga,id=video0,vgamem_mb=16,xres=1800,yres=950    -display gtk  -netdev tap,id=mynet0,ifname=tap0,script=no,downscript=no  -device virtio-net-pci,netdev=mynet0,mac=ba:ec:24:5c:80:3f
+
+
+у меня это манжаро+циннамон. поэтому прям идем на рабочем столе значок сетевого интерфейса поэтому 
+надо идти прямо туда и там настраивать сеть а не через ip addr потому что у нас NetworkManager поэтому
+он нам пересрет наши сетевые настройки из командной строки, NetworkManager будет постоянно сбрасывать настройки
+которые мы сделали из командной строки  поэтому надо настройки делать через граф интферейс который справа внизу
+идет в форме граф символа
+и там мы настрвиваем
+   IP 172.16.10.10\24
+   gw 172.16.10.1
+
+все из гостевой ос мы можем пинговать br0 интерефейс хостовой ос
+  
+  (гостевая ос ) ping 172.16.10.1
+
+
+но этого мало для того чтобы из гостевой ос выходить в интернет,
+идем на хостовую ос и 
+ 
+   echo 1 > /proc/sys/net/ipv4/ip_forward
+   iptables -t nat -A POSTROUTING  -o wlp2s0  -j MASQUERADE
+
+где wlp2s0 это имя сетевого интервеса на ноутбуке который смотрит в интернет
+
+возвращаеся на гостевую ос. и оттуда уже мы теперь можем ходить в интернет
+   (гостевая ос) ping -c3 ya.ru
+   
+теперь как поставить LXQT
+на гостевой ос 
+для начала поставим ssh
+    pacman -Syy
+    pacman -Sy openssh
+    pacman -Sy net-tools
+    systemctl enable sshd --now
+    netstat -tnlp
+теперь на хостовой ос
+    ssh manjaro@172.16.10.10 
+все мы попали на  гостевую ос и поехали
+    pacman -S lxqt xscreensaver
+    pacman -S lightdm lightdm-slick-greeter lightdm-settings light-locker
+    systemctl enable lightdm.service --force
+    
+далее идем в /etc/lightdm/lightdm.conf, ищем секцию [Seat:*] и там проверяем строчку
+     greeter-session=lightdm-slick-greeter 
+у меня эта строчка там уже такая и стояла
+перезагружаемся, видим экран логина циннамон, там где вводить пароль есть значок кружочек, тыкаем на него
+и там откроетмся меню, там выбираем "LXQT", вводим пароль, и когда мы его ввели и только вошли в  граф режим
+под юзером выскакивает еще одно окно "Welcome to LXQt" и там выбираем OpenBox, в этом же окне написано что 
+этот параметр всегда можно поменять позже если тыкнуть Preferences-Sesion Settings - Basic Settings
+все. готово
+
+===
+?? следущая задача.  как в ручную разбить диск в LUKS+grub
+?? неотрарботанные ссылки
+    https://forum.manjaro.org/t/does-manjaro-have-etc-sysctl-conf/152234
+    https://wiki.archlinux.org/title/Sysctl
+
+
+
+
+   
+
+

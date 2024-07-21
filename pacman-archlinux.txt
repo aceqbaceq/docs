@@ -18,3 +18,23 @@ usr/share/kbd/keymaps/i386/qwerty/bashkir.map.gz is owned by core/kbd 2.6.4-1
 гоча!
 (отсюда https://unix.stackexchange.com/questions/14858/in-arch-linux-how-can-i-find-out-which-package-to-install-that-will-contain-file)
 
+
+===
+
+| apt-cache search
+
+насколько я понял (неточно) аналог этого у арч это
+
+# pacman -Si qemu-img
+или вот так
+# pacman -Qo qemu-img
+
+а вот как искать по имени файла пакет в AUR
+# pamac search  tunctl
+  uml_utilities  20070815-3  AUR
+    User Mode Linux Utilities (Debian package uml-utilities). It contains uml_net, uml_mconsole, uml_switch, tunctl, … and the lib port-helper.
+
+
+
+
+==

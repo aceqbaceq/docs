@@ -268,7 +268,52 @@ Block devices:
 
 что значит major=0 нппотяно. какой дрквер ее обслуживает. 
 ==
-$ qemu-system-x86_64 -name grub1 -m 550M  -boot d -hda ./grub1.img  -drive file=grub1.img,media=disk,if=virtio,format=qcow2,file.locking=off  -cpu host -enable-kvm    -smp 1 -M pc-q35-2.11     -device virtio-balloon  -hdb ./hda.img  -drive file=hda.img,media=disk,if=virtio,format=qcow2,file.locking=off             -device qxl-vga,id=video0,vgamem_mb=16,xres=1800,yres=950    -display gtk
+если arch/manjaro то установка пакета вот так
+  $ sudo pacman -Sy qemu-full
+там просто дохрена устанавливеся того что нам ненадо.
+зато ставится и то что надо. поэтому пока так
+далее
+вот так ставим линукс из iso
+    $ qemu-system-x86_64 -name ub18 -m 4096M  -boot c -cdrom ./ubuntu-18.04.6-desktop-amd64.iso  -drive file=ub18.img,media=disk,if=virtio,format=qcow2,file.locking=on  -cpu host -enable-kvm    -smp 1 -M pc-q35-2.11     -device virtio-balloon          -device qxl-vga,id=video0,vgamem_mb=16,xres=1800,yres=900    -display gtk 
+
+
+далее чтобы нам запуститься уже устанолвенную систму нам нужно к ней еще сеть
+прикрутиь.
+теперь мы когда поставили линукск то теперь надо к нему присобачить
+сеть. для этого на самом ноутбуке на хозяйской ос настроить
+бриджевый br0 интерфейс и tap0 интерфейс
+
+   apt-get install -y bridge-utils
+если это арч\манжаро то  
+   pacman -Sy bridge-utils
+
+   brctl addbr br0
+   ip address add 172.16.10.1/24 dev br0
+
+в убунту
+   apt install uml-utilities
+   tunctl -t tap0 -u `whoami`
+на самом деле пакет uml-utilities можно не ставить
+тем более что в арч\манжаро пакет uml_utilities лежит в AUR
+и он сука сломан. он не компиилиурется сука ПОЭТОМУ 
+вместо uml утилит  надо заюзать пакет iproute2 вот в таком виде
+   ip tuntap  add mode tap user noroot tap0
+   
+   brctl addif br0 tap0
+   ip -c l set tap0 up
+   ip -c l set br0 up
+
+
+запускаем гостевой манжаро с сетью прикрепленной к нему
+
+    $   qemu-system-x86_64 -name manj2   -m 4096M  -boot d    -drive file=manj2.img,media=disk,if=virtio,format=qcow2,file.locking=off  -cpu host -enable-kvm    -smp 2 -M pc-q35-2.11     -device virtio-balloon            -device qxl-vga,id=video0,vgamem_mb=16,xres=1800,yres=950    -display gtk  -netdev tap,id=mynet0,ifname=tap0,script=no,downscript=no  -device virtio-net-pci,netdev=mynet0,mac=ba:ec:24:5c:80:3f
+
+
+заходим на виртуалку и там настраиваем сетку внутри 
+   172.16.10.10/24 
+тперь мы из вртулки можем пинговать гейтвей который находится на хостовой ос
+осталось настроить чобы можно было из гостевой ос выходить в интернет
+я это расписал в файле "lubuntu-LiveUsb-Qemu-Manjaro.txt"  там читать начиная с места "но этого мало для того чтобы из гостевой ос выходить в интернет"
 
 
 
