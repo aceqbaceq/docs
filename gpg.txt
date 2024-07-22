@@ -1,0 +1,29 @@
+| gpg
+| verify
+
+обычно дается deb пакет b и к нему прилагается 
+gpg подпись 
+вот как этим пользоваться 
+
+	# apt-get install -y mc gpg curl  wget
+
+	# curl -sSL  https://www.idrix.fr/VeraCrypt/VeraCrypt_PGP_public_key.asc       | gpg --import -
+	# gpg --list-keys
+      pub   rsa4096 2018-09-11 [SC]
+      5069 A233 D55A 0EEB 174A 5FC3 821A CD02 680D 16DE
+это число должно совпасть с тем что прописано на сайте(https://www.veracrypt.fr/en/Downloads.html)
+	  5069 A233 D55A 0EEB 174A 5FC3 821A CD02 680D 16DE
+значит ключ мы импортировали нормал
+
+    # mkdir /root/Downloads
+    # cd /root/Downloads/
+    # wget https://launchpad.net/veracrypt/trunk/1.26.7/+download/veracrypt-console-1.26.7-Ubuntu-24.04-amd64.deb
+    # wget https://launchpad.net/veracrypt/trunk/1.26.7/+download/veracrypt-console-1.26.7-Ubuntu-24.04-amd64.deb.sig
+   
+проверяем подпись gpg на пакете
+	# gpg --verify veracrypt-console-1.26.7-Ubuntu-24.04-amd64.deb.sig  veracrypt-console-1.26.7-Ubuntu-24.04-amd64.deb
+
+	gpg: Signature made Mon May 20 20:13:47 2024 UTC
+	gpg:                using RSA key 5069A233D55A0EEB174A5FC3821ACD02680D16DE
+	gpg: Good signature from "VeraCrypt Team ...
+

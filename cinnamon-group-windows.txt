@@ -1,0 +1,10 @@
+| cinnamon
+| group windows
+
+
+как сделать так чтобы циннамон сука не обьединял однтимнвые 
+окна в одну хуйню
+
+
+Right clock on the panel, go to "Applets", search for "Grouped window list" (type just "window" in the search) and tap "Configure" (gear wheels on the right). Deactivate the "Group windows by application" - and be happy.Feb 15, 2019
+

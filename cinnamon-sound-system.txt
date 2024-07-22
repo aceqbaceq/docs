@@ -1,0 +1,8 @@
+| cinnamon
+| sounds
+
+короче системные звуки у циннамона пиздец какие громкие.
+как их вырубить 
+
+
+ START > Preferences > Effects to disable "Desktop and window effects." 
