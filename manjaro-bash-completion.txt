@@ -1,0 +1,10 @@
+| manjaro
+| bash
+| completion
+
+по дефолту этого нет! чтобы было
+
+   # pacman -Sy bash-completion
+
+
+   
