@@ -16,17 +16,30 @@ netowrk manager
 ====
 nmcli 
 
-созжаьбт бридж
+хочу 
+создать бридж br0
+чтобы у него был IP адрес 
+и еще создать tap0 интерфейс и воткнуть его в br0
+и чтобы вся эта шарманка переживала ребут
 
-sudo nmcli connection add ifname br0 type bridge con-name br0
+первый вариант создать бридж херовый потому что он неназначает ip адрес бриджу.
+и если я его назначу руками то он после перезагрузки невыживет я так думаю
+nmcli connection add ifname br0 type bridge con-name br0
+
+второй вариант создать бридж более клевый
+несмущайся что создаеется якобы коннект типа а как же создать вначале утсройство
+вместе с коннектом автоматом создастся и устройство
+nmcli connection add  con-name br0    ifname br0 type bridge  ip4 172.20.0.1/24 autoconnect yes
+
+теперт создаю tap0 
+nmcli connection  add  ifname tap0 type tun    con-name tap0  mode tap owner 12175
+где 12175 это id юзера который будет владеть устройством
+
 
 и он сука выживает перезагрузку!
 
 
-tap0
-nmcli connection  add  ifname tap0 type tun    con-name tap0  mode tap owner `id -u` 
-
-дбавить его к br0
+как его добавить его к br0
 
 (!!!!) ====> хуйня !!nmcli con add type bridge-slave ifname tap0 con-name tap0 master br0
 
@@ -35,11 +48,9 @@ nmcli connection add con-name "tap0-->br0"    type tun   mode tap   ifname "tap0
 
 
 
+В ИТОГЕ МЫ ПОЛУЧИМ br0 с ip адресом и tap0 воткнутый в него
+и вся эта шарманка выживет после перезагрузки
 
- 1$ ip -c link sh master docker0
-7: tap0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel master docker0 state UP mode DEFAULT group default qlen 1000
-    link/ether 56:01:65:7d:89:65 brd ff:ff:ff:ff:ff:ff
-vasya@thinkpad:~/VM/manj1$ 
 
 ===
 qemu он не пробрвает tap инетрфейс хоста внутрт виртуалки. а он 
@@ -152,19 +163,17 @@ mode=2
 
 
 
-вот смысла NEteworkMAMAger  конннекшенов !
+вот смысл NEteworkMAMAger  конннекшенов !
 
 
-workManager/system-connections# nmcli device set docker0  autoconnect yes
-root@thinkpad:/etc/NetworkManager/system-connections# nmcli device set tap0  autoconnect yes
-root@thinkpad:/etc/NetworkManager/system-connections# nmcli device set tap1  autoconnect yes
-root@thinkpad:/etc/NetworkManager
+# nmcli device set docker0  autoconnect yes
+# nmcli device set tap0  autoconnect yes
+# nmcli device set tap1  autoconnect yes
 
 
-s# 
-root@thinkpad:/etc/NetworkManager/system-connections# nmcli connection modify "BridgeSlave:tap0-->docker0" connection.autoconnect yes
-root@thinkpad:/etc/NetworkManager/system-connections# nmcli connection modify "BridgeSlave:tap1-->docker0" connection.autoconnect yes
-root@thinkpad:/etc/NetworkManager/system-connections# 
+
+# nmcli connection modify "BridgeSlave:tap0-->docker0" connection.autoconnect yes
+# nmcli connection modify "BridgeSlave:tap1-->docker0" connection.autoconnect yes
 
 
 

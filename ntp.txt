@@ -1,0 +1,14 @@
+| NTP
+
+сервис синхронизации времени
+
+это UDP port 123
+
+в линуксе это сервис с именем
+
+# systemctl status systemd-timesyncd.service
+
+праивло на ipytables
+-A OUTPUT  -p udp -m udp --dport 123 -o tun+  -j ACCEPT
+-A INPUT   -i wlp2s0 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+

@@ -963,7 +963,9 @@ EOF
 
 # ln -s /etc/systemd/system/acpi-wake.service  /etc/systemd/system/sleep.target.wants/acpi-wake.service
 # systemctl daemon-reload
+# systemctl enable acpi-wake.service --now
 
+ 
 работает эта хрень так что она срабатывает ровно за мгновение до того как комп
 впадет в suspend это как бы pre suspend.
 он переводит все хрени в /proc/acpi/wakeup в disabled состояние. а хрени что там 

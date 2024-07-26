@@ -38,3 +38,26 @@ usr/share/kbd/keymaps/i386/qwerty/bashkir.map.gz is owned by core/kbd 2.6.4-1
 
 
 ==
+| есть такая хуйня
+
+$ sudo pacman -Sy iptables-persistent
+:: Synchronizing package databases...
+ core is up to date
+ extra is up to date
+ multilib is up to date
+error: failed retrieving file 'core.db' from repo.iut.ac.ir : Failed to connect to repo.iut.ac.ir port 443 after 10002 ms: Timeout was reached
+error: failed retrieving file 'extra.db' from repo.iut.ac.ir : Failed to connect to repo.iut.ac.ir port 443 after 10002 ms: Timeout was reached
+error: failed retrieving file 'multilib.db' from repo.iut.ac.ir : Failed to connect to repo.iut.ac.ir port 443 after 10002 ms: Timeout was reached
+warning: too many errors from repo.iut.ac.ir, skipping for the remainder of this transaction
+error: target not found: iptables-persistent
+
+
+
+как это исправить. как заставить pacman обращаться к другому зеркалу
+
+$ sudo pacman-mirrors --country all --api --protocols all --set-branch stable && sudo pacman -Syyu
+
+
+и это реально сработала
+
+

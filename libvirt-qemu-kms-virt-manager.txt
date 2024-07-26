@@ -297,10 +297,12 @@ Block devices:
 тем более что в арч\манжаро пакет uml_utilities лежит в AUR
 и он сука сломан. он не компиилиурется сука ПОЭТОМУ 
 вместо uml утилит  надо заюзать пакет iproute2 вот в таком виде
-   ip tuntap  add mode tap user noroot tap0
+
+   export if1="tap2" 
+   ip tuntap  add mode tap user noroot "$if1"
    
-   brctl addif br0 tap0
-   ip -c l set tap0 up
+   brctl addif br0 "$if1"
+   ip -c l set "$if1" up
    ip -c l set br0 up
 
 
