@@ -25,6 +25,9 @@ usr/share/kbd/keymaps/i386/qwerty/bashkir.map.gz is owned by core/kbd 2.6.4-1
 
 насколько я понял (неточно) аналог этого у арч это
 
+# pacman -Ss  djvu*
+
+еще пара вараприантов
 # pacman -Si qemu-img
 или вот так
 # pacman -Qo qemu-img
@@ -61,3 +64,32 @@ $ sudo pacman-mirrors --country all --api --protocols all --set-branch stable &&
 и это реально сработала
 
 
+==
+
+|
+
+как найти пакет который содержит файл
+
+$ pacman -Qo $(which resolvectl)
+/usr/bin/resolvectl is owned by systemd 256.2-1
+ S 容  $ 
+
+ ==
+ 
+ |
+
+ в инете прочитал что типа устанвливать пакет вот так плохо
+
+ # pacman -Sy  имя
+
+ а надо ставить пакет вот так
+
+ # pacman -Syu  имя
+
+ теперь про смысла ключей
+
+ -S поставить пакет
+-y это субключ от -S и означает скачать базу пакетов обновить ее. без ключа -S неработает
+-u это субключ от -S означает обновить все пакеты которые утсановены до новых
+
+==

@@ -1,0 +1,5 @@
+ | swap 
+
+ $ cat /proc/swaps
+Filename				Type		Size		Used		Priority
+/dev/dm-1     
