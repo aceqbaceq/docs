@@ -1,4 +1,13 @@
 | android
+| miui
+
+как отключить вибрацию при нажатии на кнопки в lock screen
+
+settings - accessibility - закладка physical  - vibraton & haptic strength 
+- тключить там все нахрен
+
+
+| android
 | xiaomi
 | developer
 
