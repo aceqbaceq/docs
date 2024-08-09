@@ -975,4 +975,13 @@ beeline- когда купил симку то на платиске нету н
 
 вот так
 
+
+когда мы узнали PIN как его втавит в андроид
+   setings - password& security - privacy - выираем сикарту - вбиваем пин
+
+как это сделать на iphone
+   settings - cellular - sim 
+
+
+
 ---
