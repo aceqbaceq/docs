@@ -28,8 +28,8 @@ def bezout(a, b):
     return (x, y)
     
 
-a=1025
-b=100500
+a=17*17*17
+b=53
 
 (c,d)=bezout(a,b)
 
