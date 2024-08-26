@@ -8,4 +8,10 @@
 
    # faillock --user myUsername --reset
 
-   
+
+и вот еще как изменить число фейлд логинов после которых 
+он блокирвет вход по этому юзеру
+
+/etc/security/faillock.conf
+deny=100
+
