@@ -93,3 +93,14 @@ $ pacman -Qo $(which resolvectl)
 -u это субключ от -S означает обновить все пакеты которые утсановены до новых
 
 ==
+| pacman 
+| downgrade
+
+как откатить пакет на более старую версию
+
+
+   # pacman -U file:///var/cache/pacman/pkg/package-old_version.pkg.tar.type
+
+статья 
+  https://wiki.archlinux.org/title/Downgrading_packages
+
