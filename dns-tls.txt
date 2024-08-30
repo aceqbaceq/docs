@@ -72,3 +72,273 @@ Global
 	# pacman -Sy bind
 
 
+
+далее через dig можно потестировать запросы через TLS, или через DOH
+
+
+значит гугловский 8.8.8.8 поддерживает ответы через TLS.
+тестируем это 
+
+$ dig  @8.8.8.8    +tls   mail.ru
+
+;; ANSWER SECTION:
+mail.ru.		10	IN	A	217.69.139.200
+
+;; Query time: 286 msec
+;; SERVER: 8.8.8.8#853(8.8.8.8) (TLS)
+
+мы видим что запрос идет к 8.8.8.8 и порт 853
+также видно что запрос выполнен за 286 msec
+
+
+клаудфлееровский 1.1.1.1 тоже поддеживает ответы через TLS
+
+$ dig  @1.1.1.1    +tls  mail.ru
+
+
+;; ANSWER SECTION:
+mail.ru.		30	IN	A	217.69.139.200
+
+;; Query time: 226 msec
+;; SERVER: 1.1.1.1#853(1.1.1.1) (TLS)
+
+мы видим что запрос идет через 1.1.1.1 и порт 853 
+и что ответ за 226 msec
+
+эти же серверра поддерживают ответ через HTTPS
+
+ $ dig  @8.8.8.8   +https   mail.ru
+;; ANSWER SECTION:
+mail.ru.		20	IN	A	94.100.180.200
+
+;; Query time: 233 msec
+;; SERVER: 8.8.8.8#443(8.8.8.8) (HTTPS)
+
+
+
+  $ dig  @1.1.1.1    +https   mail.ru
+;; ANSWER SECTION:
+mail.ru.		32	IN	A	217.69.139.202
+
+;; Query time: 223 msec
+;; SERVER: 1.1.1.1#443(1.1.1.1) (HTTPS)
+
+
+в обоих случая что 853\TCP TLS что 443\TCP HTTPS по факту исопльзуется TLS 
+просто в одном случае за ним стоит HTTP а во втором случае не стоит. так вот вот
+TLS он использует сертификаты. в сертиифкате есть строка "Subject" в которой указан CN
+также в сертификате есть строка "Alternative Name" где тоже указан CN 
+так вот TLS он проверяет чтобы IP\DNS в запросе и CN в сертификате от сервера совпадали
+
+
+если мы вводим вот так
+
+  $ dig  @1.1.1.1    +tls   mail.ru
+или вот так
+  $ dig  @1.1.1.1    +https   mail.ru
+
+
+то наш диг он проверяет есть ли в сертификате CN=1.1.1.1 
+можно задать руками какой CN будет искать в сертификате диг
+
+	$ dig  @1.1.1.1  +tls    +tls-host=1.1.1.1             mail.ru
+
+тоесть мы попросили выполнить dns over tls через 853 порт и IP=1.1.1.1 и  при получении сертиифкта
+проверить что в нем CN=1.1.1.1
+
+
+    $ dig  @1.1.1.1  +https  +tls-host=cloudflare-dns.com  mail.ru
+
+здесь мы попросили выполнить dns over HTTPS что по факту DNS over TLS over HTTP  через 443 порт и при получении сертиифкта проверить что в нем CN=cloudflare-dns.com
+
+
+а вот щас запросим чтобы CN был такой котрого нет в сертификате
+	$ dig  @1.1.1.1  +https +tls-host=vasya.com  mail.ru
+	;; TLS peer certificate verification for 1.1.1.1#443 failed: hostname mismatch
+
+если мы ключ +tls-host=cloudflare-dns.com   неуказаываем то диг ищет CN равный тому
+что мы указали в @1.1.1.1
+
+
+кстати systemd-resolved  не поддерживает DNS over HTTPS (DoH) а только как я уже
+сказал подерживает DNS over TLS (DoT) вот ссылка
+	https://askubuntu.com/questions/1506255/systemd-resolved-dns-over-https-doh-with-custom-port-and-domain
+
+зато dnsmasq поддерживает DoH
+
+еще раз приведу конфиг как задать в systemd-resolved адреса dns серверов и как
+активировать DoT
+
+ # cat /etc/systemd/resolved.conf
+[Resolve]
+DNS=1.1.1.1
+FallbackDNS=8.8.4.4
+
+DNSSEC=on
+DNSOverTLS=yes
+
+насколько я понимаю DNSSEC это "расширение" к обычному DNS запросу через 53-ий порт.
+и оно я думаю ненужно если мы юзаем DoT но все равно пусть будет.
+
+вопрос а как посмотреть какой сертификат показывает удаленный dns сервер когдмы
+мы на него идем по TLS\HTTPS
+
+вот так можно приконектиться
+
+	$ openssl s_client -connect 8.8.8.8:853
+
+Connecting to 8.8.8.8
+CONNECTED(00000003)
+Can't use SSL_get_servername
+depth=2 C=US, O=Google Trust Services LLC, CN=GTS Root R1
+verify return:1
+depth=1 C=US, O=Google Trust Services, CN=WR2
+verify return:1
+depth=0 CN=dns.google
+verify return:1
+---
+Certificate chain
+ 0 s:CN=dns.google
+   i:C=US, O=Google Trust Services, CN=WR2
+   a:PKEY: rsaEncryption, 2048 (bit); sigalg: RSA-SHA256
+   v:NotBefore: Aug  5 07:20:11 2024 GMT; NotAfter: Oct 28 07:20:10 2024 GMT
+ 1 s:C=US, O=Google Trust Services, CN=WR2
+   i:C=US, O=Google Trust Services LLC, CN=GTS Root R1
+   a:PKEY: rsaEncryption, 2048 (bit); sigalg: RSA-SHA256
+   v:NotBefore: Dec 13 09:00:00 2023 GMT; NotAfter: Feb 20 14:00:00 2029 GMT
+ 2 s:C=US, O=Google Trust Services LLC, CN=GTS Root R1
+   i:C=BE, O=GlobalSign nv-sa, OU=Root CA, CN=GlobalSign Root CA
+   a:PKEY: rsaEncryption, 4096 (bit); sigalg: RSA-SHA256
+   v:NotBefore: Jun 19 00:00:42 2020 GMT; NotAfter: Jan 28 00:00:42 2028 GMT
+---
+Server certificate
+-----BEGIN CERTIFICATE-----
+MIIFsjCCBJqgAwIBAgIQTH4h1szUaTQJK6eEMZyoVjANBgkqhkiG9w0BAQsFADA7
+MQswCQYDVQQGEwJVUzEeMBwGA1UEChMVR29vZ2xlIFRydXN0IFNlcnZpY2VzMQww
+CgYDVQQDEwNXUjIwHhcNMjQwODA1MDcyMDExWhcNMjQxMDI4MDcyMDEwWjAVMRMw
+EQYDVQQDEwpkbnMuZ29vZ2xlMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKC
+AQEArWIzO6kEW2guWJZ/c81G+a4mLFxkZDyOx3sxt5GoIqnzW3fFoWcMgmzPbocE
+t6Os3zPAj44kVo/g7EWLPtgrodjsX5aKe0+lEzhqYe1yCNdbjzW6suJiU3dWStJc
+WX7GmVgy8hhYX69uMdyFlvm7iFyiJ+X56TSh7lodS5JqY7D/6BaoZrPQ0QWc4P/u
+y/eMcVLLn33r2NUJ2OzRZQ1QKdN+Ow2vSQSm63LVEWEpWtPtT0qIrIlalZAsqaBR
+YLutjUqfjjAnpd5k9D4elnvHonWYGC5YC26Sv1Cw8ulbEvs3blMEDp/8SAw445nU
+NxR9zpJoY+IlJoz3js4VcIQn6wIDAQABo4IC1jCCAtIwDgYDVR0PAQH/BAQDAgWg
+MBMGA1UdJQQMMAoGCCsGAQUFBwMBMAwGA1UdEwEB/wQCMAAwHQYDVR0OBBYEFDkm
+9Wmetpahz62CCrXYDbP/UnzlMB8GA1UdIwQYMBaAFN4bHu15FdQ+NyTDIbvsNDlt
+QrIwMFgGCCsGAQUFBwEBBEwwSjAhBggrBgEFBQcwAYYVaHR0cDovL28ucGtpLmdv
+b2cvd3IyMCUGCCsGAQUFBzAChhlodHRwOi8vaS5wa2kuZ29vZy93cjIuY3J0MIGs
+BgNVHREEgaQwgaGCCmRucy5nb29nbGWCDmRucy5nb29nbGUuY29tghAqLmRucy5n
+b29nbGUuY29tggs4ODg4Lmdvb2dsZYIQZG5zNjQuZG5zLmdvb2dsZYcECAgICIcE
+CAgEBIcQIAFIYEhgAAAAAAAAAACIiIcQIAFIYEhgAAAAAAAAAACIRIcQIAFIYEhg
+AAAAAAAAAABkZIcQIAFIYEhgAAAAAAAAAAAAZDATBgNVHSAEDDAKMAgGBmeBDAEC
+ATA2BgNVHR8ELzAtMCugKaAnhiVodHRwOi8vYy5wa2kuZ29vZy93cjIvOVVWYk4w
+dzVFNlkuY3JsMIIBBQYKKwYBBAHWeQIEAgSB9gSB8wDxAHcA7s3QZNXbGs7FXLed
+tM0TojKHRny87N7DUUhZRnEftZsAAAGRIZ/pBwAABAMASDBGAiEA9MEVJnQZVuiS
+jXcAAKphsDNPwfHPjbmrEpds2SeOlrQCIQDGlzRZ4JwoWFz6/NngjoyKwE3n2Ick
+ANRnJqCoXTK4ZwB2AD8XS0/XIkdYlB1lHIS+DRLtkDd/H4Vq68G/KIXs+GRuAAAB
+kSGf6SEAAAQDAEcwRQIhANp4abXSPu0P1CXYUkTDma8jMfm87UDIo872JLa1pU8D
+AiBcs6Lp0pLoCxcE1dodB4dMfokzGULzQTluEC1ZaSm0BTANBgkqhkiG9w0BAQsF
+AAOCAQEAHhGtSpdL5cggiAJhb4CrXB54QR9Q7KAdbpWJcWjegb7rBkkBEEr2JORJ
+lO+RkZg2cE7eB1IwfgHhWj8XyFzueCvIRghET6cdNyI7Nc/U0UNzmPy0e0bI5XIf
+lXok85hsAimPRMkCfkdrdO+B6Xt/I2JVaRPPcbe9Q87X9/JVWuQbH+LrmaOokNyb
+CPyujl9eSWuIVzpJHm5z2m1aQXZb+X1yivQwn6Ik2Wct7poz3Ueb3VwjiTJxm4IY
+5gxA092LYw5rvPfjZRBrs4r3OILuefqurN+2StNIhiGz/7ldrPA3+JNQWpLZYyGU
+GNScfKLl2B7kJUx2KyWJwgCQLNNkMA==
+-----END CERTIFICATE-----
+subject=CN=dns.google
+issuer=C=US, O=Google Trust Services, CN=WR2
+
+
+копируем сертификат в тектовый файл. и его 
+содержимое можно вот так посмотреть
+
+$ openssl x509 -noout -text -in cert2.pem  | grep Subject
+        Subject: CN=dns.google
+
+$ openssl x509 -noout -text -in cert2.pem  | grep "Alternative Name" -A1
+            X509v3 Subject Alternative Name: 
+                DNS:dns.google, DNS:dns.google.com, DNS:*.dns.google.com, DNS:8888.google, DNS:dns64.dns.google, IP Address:8.8.8.8, IP Address:8.8.4.4, IP Address:2001:4860:4860:0:0:0:0:8888, IP Address:2001:4860:4860:0:0:0:0:8844, IP Address:2001:4860:4860:0:0:0:0:6464, IP Address:2001:4860:4860:0:0:0:0:64
+
+
+таким образом в сертификате есть CN=8.8.8.8 и CN=dns.google  
+
+а вот что в сертификате с 1.1.1.1
+
+$ openssl x509 -noout -text -in cert.pem  | grep Subject
+CN=cloudflare-dns.com
+
+$ openssl x509 -noout -text -in cert.pem  | grep "Alternative Name" -A1
+            X509v3 Subject Alternative Name: 
+                DNS:cloudflare-dns.com, DNS:*.cloudflare-dns.com, DNS:one.one.one.one, IP Address:1.0.0.1, IP Address:1.1.1.1, IP Address:162.159.36.1, IP Address:162.159.46.1, IP Address:2606:4700:4700:0:0:0:0:1001, IP Address:2606:4700:4700:0:0:0:0:1111, IP Address:2606:4700:4700:0:0:0:0:64, IP Address:2606:4700:4700:0:0:0:0:6400
+
+
+тоесть в нем есть CN=1.1.1.1 и CN=one.one.one.one и CN=cloudflare-dns.com
+
+поэтому скажем к 1.1.1.1 можно обращаться вот такими любыми способами
+
+  dig  -4 @one.one.one.one  +tls   mail.ru
+  dig  -4 @1.1.1.1  +tls   mail.ru
+
+а вот такое почемуто несрабатывает
+
+$ dig  -4 @cloudflare-dns.com  +tls   mail.ru
+;; Connection to 104.16.249.249#853(104.16.249.249) for mail.ru failed: timed out.
+;; no servers could be reached
+
+
+вобщем получается в DNS можно ходить как лох через 53\UDP\TCP
+можно ходить чуть лучше через DNSSEC
+и можно ходить козырно через TLS или через HTTPS
+systemd-resolved поддержтвает все кроме HTTPS но его поддеожвает dnsmasq
+
+насчет клайдфлееровский DNS сервреров они написали вот тут
+	https://developers.cloudflare.com/1.1.1.1/encryption/dns-over-tls/
+
+насчет гугловский dNS серверов они напиали вот тут
+	https://en.wikipedia.org/wiki/Google_Public_DNS
+
+
+есть вопрос а что быстрее отвевет DoT или DoH и еще вопрос что быстрее 1.1.1.1 или 8.8.8.8
+у меня работает все через впн поэтому что так что так по 200-250 msec
+но если зайти на сервер где нет впн и сразу в интерне он смотрит то DoH работает в 
+миллион раз быстрее. щас покажу
+
+
+$ dig -4 @8.8.8.8        +tls  ya.ru  | grep msec
+;; Query time: 8 msec
+
+
+$ dig -4 @1.1.1.1        +tls  ya.ru  | grep msec
+;; Query time: 44 msec
+
+
+
+
+$ dig -4 @8.8.8.8        +https  ya.ru  | grep msec
+;; Query time: 4 msec
+
+
+$ dig -4 @1.1.1.1        +https  ya.ru  | grep msec
+;; Query time: 4 msec
+
+
+видно что через tls выигрывает гугл. на https одинаково.
+и видно что https работает существенно быстрее через tls
+дело не втом что tls плохой и меленный. в htts там же тоже tls есть просто 
+в "tls методе" там же за ним стоит какйото протокол по которому днс клиент и сервер
+разговаривают (tls то это просто шифрвание) и видимо он медленный. а в https методе
+там вместо медленного протокола исползуется http который видимо более быстрый
+мненанотубке переодить с DoT на DoH нет смысла потому что все равно все запросы идут
+через впн и в итоге выходит по 200-250мс. во вторых systemd-resolved не поддерживает DoH
+а пееренастраиваться на dnsmasq я нехочу.
+
+чтоб на компе гарантировать что мы раобоем по DoT надо подстрахоываться через iptables.
+чтобы там все было запорещено кроме того что разрешено. и там у меня 
+вот такое стоит для DNS
+
+:INPUT DROP [39:4773]
+:FORWARD DROP [0:0]
+:OUTPUT DROP [2603:186514]
+
+-A OUTPUT  -p tcp -m tcp --dport 853 -o tun+  -j ACCEPT
+
