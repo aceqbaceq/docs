@@ -342,3 +342,485 @@ $ dig -4 @1.1.1.1        +https  ya.ru  | grep msec
 
 -A OUTPUT  -p tcp -m tcp --dport 853 -o tun+  -j ACCEPT
 
+==
+
+| DNSSEC
+
+скажу сразу это тема это очередной ПИЗДЕЦ. и как обычно потому что описано
+это все МЕГА ПЛОХО.
+
+через какой порт и протокол оно работает. оно не имеет спец порта оно работает 
+через тот порт через котороый работает текущий dns клиент. щас оьбясню.
+
+обычно по деолфту днс клиент ломиться на днс сервер через 53/TCP UDP
+если мы юзаем dns over tls то клиент ломиться на сервер через 853/TCP
+если мы юзаем dns over https то клиент ломиться на сервер через 443/TCP
+
+так вот если при этом любом режим актииован DNSSEC то он ломиться ровно также по тем
+же портам. тоесть DNSSEC он не относится  к тому что мы как то по другому вплане 
+порта  ломимся на днс сервер. dnssec относится к тому что мы ПОСЛЕ этого начинаем 
+говрить с днс сервером несколько по другому. тоесть dnssec это изменение то как 
+мы гооворим с днс серервром уже после того ккак мы с ним наладили конект. поэтому у dnssec
+нету "особого" порта. 
+далее прикол состоит в том что даже от того что мы актививаролвали режим 
+запросов к внешним dns серверам чере dnssec на
+нашем ноутбуке это не значит что мы получим ответ реально через dnssec. 
+
+далее начинается зона сплошных непонятных моментов. во первых днс клиент может работать
+в двух режимах - в одном режиме он делает запрос к днс-А серверу и тот обычно пишет
+что он нихуя не знает и шлет нас на другой днс-Б сервер. тогда мы делаем запрос к днс-Б
+серверу тот тоже ничего незнает и шлет нас на днс-Ц сервер. тогда мы делаем запрос 
+на днс-Ц сервер. и так несколько раз. этот режим называется итеративный. тоест 
+нам например нужно найти host3.vasya.com мы обращаемся на корневой днс сервер и 
+говорим а где сидит днс сервер который .com зону обслуживает. он нам шлет.
+мы идем туда и спрашиваем а где сидит днс который обслжуивает зону vasya.com
+он нас шлет на следущий днс сервер который обслуживает зону vasya.com мы у него спрашиваем
+а кто обслуживает host03.vasya.com и наконец блядь мы попали на сервер который обслуживает
+зону host03.vasya.com 
+естть другой режим - мы шлем запрос на ближайший днс сервер. он делаею всю грузню 
+работу а нам возвращает ответ. это рекурсивный режим работы нашего днс клиента.
+если я ничего не путаю.  насколько я понимаю 100% всех днс клиентов на домащних компах
+и обычных серврерах работают в рекурсивном режиме. 
+
+так я вовзвраащаюсь к днссек. как эта хуета  в целом работает. на днс сервере который
+отвечает за зону размещается несколько записей. ктото должен эти записи скачать. 
+и проанализировать. а после этого еще скачать записи и головных доменов вплоть до корневого
+сервера. и проанализировава куче записей придти к выводу достоверные записи нам предоставил
+самый первый сервер или нет. так вот что я не понимаю - все это анализирует наш днс клиент
+на ноубтуке или за это все отвечает днс серевер на который мы обращаемся а нам уже только
+выдается конечный ответ ? непонятно. 
+
+значит как плюс минус работает dnnsec:
+ пусть  у нас есть зона. и мы в ней хозяева. пусть это зона cloudflare.com
+ в этой зоне есть записи которые имеют один и тот же вид , например 
+
+ $ dig -4 A  cloudflare.com   +multi
+;; ANSWER SECTION:
+cloudflare.com.		70 IN A	104.16.132.229
+cloudflare.com.		70 IN A	104.16.133.229
+
+
+значит в данном случае в зоне есть домен cloudflare.com который имеет две записи.
+говря другими словами в зоне есть несколько записей у которых один и тот же домен.
+так вот такие записи называются RRset. c этого начинается днссек. мы берем группу 
+таких записей ( ксатти запись в днс называется RR - resource record) и для этой кучи
+записей создаем цифровую подпись. и эту цифровую подпись записываем в эту же зону
+в запись типа  RRSIG (RR Signature - Resource Record set Signature)
+еще раз эта цифровая подпись создается не для отдельного RR а сразу для кучи RR.
+где куча состоит из записей в которых одного называние домена. в вданном случае это  
+RRset состоит из
+	cloudflare.com.		70 IN A	104.16.132.229
+	cloudflare.com.		70 IN A	104.16.133.229
+
+спрашивается как посмотреть цифровую подпись RRSIG для этого RRset ?
+ответ - надо запросить RRset указав что мы хоотим использовать при запросе dnssec
+и днс сервер нам выдаст и RRset и его RRSIG
+
+$ dig -4 @8.8.8.8  A  cloudflare.com   +multi +dnssec
+
+;; ANSWER SECTION:
+cloudflare.com.		274 IN A 104.16.133.229
+cloudflare.com.		274 IN A 104.16.132.229
+cloudflare.com.		274 IN RRSIG A 13 2 300 (
+				20240902224340 20240831204340 34505 cloudflare.com.
+				Iv0mqaRfjHvCN0aWkpePZeWEbPqrnVJcSS3NqIpx+Hgi
+				8kREH7LZVZYCtkV6KjOBsXWndBBt/h2KNhwG7n9tUA== )
+
+
+значит я через dig запросил у 8.8.8.8  запись тип A с именем cloudflare.com чеерез dnnsec
+а оно в ответ смотрит есть для эттих записей RRSIG запись
+
+ключ +multi говорит для диг  чтобы длинные записи он не обрезал типа того.
+
+соотвесвтенно если мы просим у диг отдать нам днс имя через dnssec и он не показывает
+при этом RRSIG то 100% что мы получили домен и ip не через dnssec. почему . по разным
+причинам. например у этой зоны не установлен днссек. кстати чтобы получить запись 
+cloudflare.com через dnssec то нужно либо обратиться к днс серверу который отвечает 
+за эту зону либо к серверу который за нас проделает грязную работу - узнает какой днс
+сервер отвечает за зону cloudflare.com сделает к нему запрос через днссек и вернет нам
+ответ. значит как узнать какой сервер отвечает за зону clooudflare.com 
+
+$ dig   +trace cloudflare.com
+
+значит как работает этот запрос. без ключа +trace диг делает запрос к тому
+днс серерву который прописан в /etc/resolv.conf и ждет от него конечного ответа. 
+а если мы юзаем ключ +trace то диг делает запрос к днс прописанному в /etc/resolv.conf
+об том какой адрес у корневых днс серверов. получает ответ. потом диг делает запрс
+к одному из корневых серверов и спрашивает какие днс отвечает за зону .com
+получает ответ. потом он у одного из них спршаивыает какой север отвечает за зону
+cloudflare.сom получает ответ. и у одного из них спрашивывает какой ip имеет домен 
+cloudflare. com вот как выглядит листинг
+
+вначале список крневых сервров 
+и кто дал о них ответ
+.			218	IN	NS	m.root-servers.net.
+.			218	IN	NS	l.root-servers.net.
+            ...
+            ...
+;; Received 239 bytes from 127.0.0.53#53(127.0.0.53) in 4 ms
+
+
+
+потом сервера которые держат зону .com
+и кто дал про них ответ
+com.			172800	IN	NS	e.gtld-servers.net.
+com.			172800	IN	NS	b.gtld-servers.net.
+                                ...
+com.			86400	IN	DS	19718 13 2 ;; Received 1174 bytes from 2001:500:2f::f#53(f.root-servers.net) in 4 ms
+
+
+
+потом кто держит зону cloudflare.com
+ и кто дал про них ответ
+cloudflare.com.		172800	IN	NS	ns6.cloudflare.com.
+                                    ...
+;; Received 720 bytes from 192.41.162.30#53(l.gtld-servers.net) in 20 ms
+
+
+
+потом инфо о доменах cloudflare.com
+и кто дал про них ответ
+cloudflare.com.		300	IN	A	104.16.132.229
+cloudflare.com.		300	IN	A	104.16.133.229
+;; Received 185 bytes from 2400:cb00:2049:1::a29f:121#53(ns4.cloudflare.com) in 0 ms
+
+
+так вот получается что в предполследеней секции мы узнаем днс сервреа
+которые держат зонву cloudflare.com это ns6.cloudflare.com
+теперь мы знаем к кому обращаться чтобы получить инфо о домене cloudflare.com 
+через dnssec
+
+$ dig    cloudflare.com   @ns6.cloudflare.com +dnssec  +multi
+
+;; ANSWER SECTION:
+cloudflare.com.		300 IN A 104.16.132.229
+cloudflare.com.		300 IN A 104.16.133.229
+cloudflare.com.		300 IN RRSIG A 13 2 300 (
+				20240902230553 20240831210553 34505 cloudflare.com.
+				6np86HGZsSLSypsWIEpRsphdjJWJsuJDx+0IMtQ/HIzD
+				CbPf510eRW/79z7tvNa3WDtpDTCg0w/3z47UNH8/SA== )
+
+
+итак я обратился к днс серверу ns6.cloudflare.com и попрасил у него выдать инфо 
+о домене cloudflare.com (или о записи RR) через dnssec и он выдал именно через дннсек
+почему. потому что он нам помимо RR тип A еще выдал тип RRSIG
+
+вот делаю тот же самый запрос без дннсек
+
+$ dig    cloudflare.com   @ns6.cloudflare.com  +multi
+
+;; ANSWER SECTION:
+cloudflare.com.		300 IN A 104.16.133.229
+cloudflare.com.		300 IN A 104.16.132.229
+
+никакого RRSIG не выдает. 
+
+а вот еще 
+
+$ dig cloudflare.com @ns6.cloudflare.com
+
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 58231
+;; flags: qr aa rd; QUERY: 1, ANSWER: 2, AUTHORITY: 0, ADDITIONAL: 1
+;; WARNING: recursion requested but not available
+
+
+;; ANSWER SECTION:
+cloudflare.com.		300	IN	A	104.16.133.229
+cloudflare.com.		300	IN	A	104.16.132.229
+
+смотрим вот эту строку
+;; flags: qr aa rd; QUERY: 1, ANSWER: 2, AUTHORITY: 0, ADDITIONAL: 1
+
+в ней флаг "aa" он типа значит что ответ наш есть  Authoritative Answer
+тоесть его раельно дал сервер отвчающий за этот домен
+
+кстати вот еще строка
+;; WARNING: recursion requested but not available
+
+это типа о том что мы его попросили сделать за нас всю граузую работу а он 
+отказывается? типа того что если мы его просим нам найти запись о каком то левом
+домене то он нас нахер пошле?
+
+$ dig -4 google.com @ns6.cloudflare.com
+
+; <<>> DiG 9.18.12-0ubuntu0.22.04.3-Ubuntu <<>> -4 google .com @ns6.cloudflare.com
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: SERVFAIL, id: 19959
+;; flags: qr aa rd ra; QUERY: 1, ANSWER: 0, AUTHORITY: 0, ADDITIONAL: 1
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 65494
+;; QUESTION SECTION:
+;google.com				IN	A
+
+
+вроде как да. потому что 
+			status: SERVFAIL
+типа диг по дефолту делает рекурсивный запрос а этот днс сервер наш шлет нахер.
+а если к нему с итеративным подвалить?
+
+$ dig -4 google.com @ns6.cloudflare.com +trace
+
+; <<>> DiG 9.18.12-0ubuntu0.22.04.3-Ubuntu <<>> -4 google .com @ns6.cloudflare.com +trace
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: SERVFAIL, id: 40309
+
+тоже самое status: SERVFAIL,
+
+единсвтенное чего он может обслужить это доменые за которые он сам отвечает
+
+итеративный запрос выдаст пустоту даже для cloudflare.com 
+почему. потому что итераитинвый значит то что к тому сервреу первому что мы обращаемся
+мы спросим адреса корневых сервеов. а этот сервер нам их не отдаст.
+
+$ dig -4 cloudflare.com @ns6.cloudflare.com  +trace
+
+; <<>> DiG 9.18.12-0ubuntu0.22.04.3-Ubuntu <<>> -4 cloudflare.com @ns6.cloudflare.com +trace
+;; global options: +cmd
+;; Received 34 bytes from 162.159.3.11#53(ns6.cloudflare.com) in 0 ms
+
+
+тоесть этот днс облсужываеи только рекурсивный запрос и только по доменам которые он
+обслужиывает. и все
+
+так есть команда delv в чем ее прикол. если диг нужно спец ключом +dnnsec просить чтбы
+он запрос сделал через днссек то delv делает тлооько днссек запросы и никакие другие. 
+его ненужно уговаривать. и  delv в отличеи от диг более явно нам напишет получилось ли
+получить данные через днссек или нет. в диг это более расплывачато
+
+кстати более короткий способ узнаьт какой днс  сервер хостит зону
+
+~$ dig -4 cloudflare.com    NS
+
+;; ANSWER SECTION:
+cloudflare.com.		5698	IN	NS	ns6.cloudflare.com.
+...
+...
+
+так вот ксатти ключ +dnssec в диг он сука совсем не про то чтобы диг получил данные
+о домене через днссек. НИХУЯ. оно всего лишь про то чтобы он вместе с доменом
+запросил RRSIG запись и все. нахуй сука. как я понял диг неумеет работать с днссек. 
+он тлько лишь эту маленькую писюлечку может делать - запрашивать RRSIG запись и все.
+получается тлоько delv может делать запросы по дннсек. 
+так как же работает дннсек. 
+рабтает он вот как. у нас в зоне есть однтипные записи. например у нас несколько 
+записей cloudlfare.com для них создается запись RRSIG которая много чего внутри себя
+включает но главное она включает цифровую подпись сделанную на основе приватного ключа 
+ассиметричного шифрвания. публичный ключ запиывается в этой же зоне в запись типа DNSKEY
+далее положим что все запросы делает наш днс клиент на компе сам. значит наш днс клиент запрашиывает запись cloudflare.com ему вывалиывается две записи и RRSIG. он запрашиывает
+с этого же днс сервера DNSKEY запись. получается мы имеем исходные две записи. имеем
+составленное для них цифроую подпись. имеем публичный ключ. значит можем проверить что
+контент исходных записей
+
+cloudflare.com.		300	IN	A	104.16.133.229
+cloudflare.com.		300	IN	A	104.16.132.229
+
+не был изменен злодеем. (насколько  я понимаю цифровая подпись кода сосавляется то 
+она составляется нетолько на основе имени домена cloudflare.com но в нее также входят еще
+и IP адреса. пролема в том что естесвтенно ненашел а основе каких полей составляется
+цфрроывая подпись)
+однако проблема в том что мы незнаем к нам на комп приетлетел настощий публиный ключ 
+или всю информацию заменил злодей. в обычной жизни мы бы получили публиный ключ из серти
+фиката который бы был бы заверен центром сертификации. а у тут у нас нет сертификата. 
+но есть вот что - в родительском  домене лежит запись типа DS она в себе содержит 
+хэш от публичного этого ключа. но не просто хеш а хеш зашифрован приватным ключом родительс
+кой зоны. и там же в родительской зоне в DNSKEY лежит публичный ключ. значит мы скаыием
+с родительской зоны DNSKEY , скачиываем оттуда же DS, расшиывароываем этот DS 
+через DNSKEY и получаем хеш нашего публичного ключа. смотрим какой публичный ключ мы 
+скачали вычисляем хеш сравниывм. если совпадает то это незлодейтский пуб ключ. но что 
+мешает злодею заменить и ту пару DNSKEY , DS . значит надо идти в более родитльскрй
+домен и оттуда качать DNSKEY , DS и так до самого корня. на корневом серерве будет DS
+но не будет DNSKEY. он уже должен быть на нашем компе как говорится встроен. где 
+он хранится в линусе не знаю. в delv он встроен внури программы. тогда провреяем всю 
+цепочку. если вся цепь совпала значит все данные достоврыеные. щас покажу 
+на примрее.
+
+запраиываем A cloudflare.com +RRSIG_cloudflare.com на серверер ns6.cloudflare.com 
+который отвечает за зону cloudflare.com
+
+$ dig -4 cloudflare.com @ns6.cloudflare.com  +dnssec
+
+;; ANSWER SECTION:
+cloudflare.com.		300	IN	A	104.16.132.229
+cloudflare.com.		300	IN	A	104.16.133.229
+cloudflare.com.		300	IN	RRSIG	A 13 2 300 20240903000405 20240831220405 34505 cloudflare.com. wedW9sAEow+A/IIUcQdfxC7Lqml/+PP9Xd1zm2Kuf7XT1dWhVm1XM1Ha yVoNfSWSpKEN7oIetiYH8Hz/Sl8J1A==
+
+далее с этго же серврера запраиываем DNSKEY
+
+$ dig -4 DNSKEY cloudflare.com @ns6.cloudflare.com  
+
+
+;; ANSWER SECTION:
+cloudflare.com.		3600	IN	DNSKEY	257 3 13 mdsswUyr3DPW132mOi8V9xESWE8jTo0dxCjjnopKl+GqJxpVXckHAeF+ KkxLbxILfDLUT0rAK9iUzy1L53eKGQ==
+cloudflare.com.		3600	IN	DNSKEY	256 3 13 oJMRESz5E4gYzS/q6XDrvU1qMPYIjCWzJaOau8XNEZeqCYKD5ar0IRd8 KqXXFJkqmVfRvMGPmM1x8fGAa2XhSA==
+
+эта не два клюач. это один разбит на два куска.
+
+узнаем сервре который отвечает за родительску зону .com
+
+$ dig -4 NS com. 
+
+;; ANSWER SECTION:
+com.			72983	IN	NS	d.gtld-servers.net.
+com.			72983	IN	NS	e.gtld-servers.net.
+
+
+теперь с него запрашиываем DS для домена cloudflare.com
+
+$ dig -4 DS cloudflare.com.  @d.gtld-servers.net
+
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 20641
+
+;; ANSWER SECTION:
+cloudflare.com.		86400	IN	DS	2371 13 2 32996839A6D808AFE3EB4A795A0E6A7A39A76FC52FF228B22B76F6D6 3826F2B9
+
+очень важно постяно смотреть чтобы в шапке ответа было NOERROR тоесть значит реквест
+прошел без ошибок
+
+итак этот DS это DS_от_cloudflare.com   в нем  в виде хэша записан публичный ключ DNSKEY
+который мы получили с сервера ns6.cloudflare.com  правда он зашифрован приватным ключом
+сервера d.gtld-servers.net, значит надо с этого сервера считать публичный ключ DNSKEY
+для этого в запросе нужно указать нетлько сервер но и домен родителтский
+
+~$ dig -4 DNSKEY com.   @d.gtld-servers.net
+
+;; ANSWER SECTION:
+com.			86400	IN	DNSKEY	257 3 13 tx8EZRAd2+K/DJRV0S+hbBzaRPS/G6JVNBitHzqpsGlz8huE61Ms9ANe 6NSDLKJtiTBqfTJWDAywEp1FCsEINQ==
+com.			86400	IN	DNSKEY	256 3 13 Nps5nxuQHRbY3e9hcbH36kxiELJH5wil+6dC4K1keQI9ci1nqyCP4k1X oXBBn2aeSK4KxwPEs0Opqc0dicuujg==
+
+итак мы имеем DNSKEY_com може расшфировать DS_от_cloudflare.com и получить оттуда 
+хэш от DNSKEY_cloudflare.com и сравнить его с DNSKEY_cloudflare.com кторый мы считали
+с ns6.cloudflare.com и если они совпадат то с помощью него расшифровать RRSIG_cloudflare.com
+а точнее имея оригинальный текст
+
+cloudflare.com.		300	IN	A	104.16.133.229
+cloudflare.com.		300	IN	A	104.16.132.229
+
+имея подветженный настоящий DNSKEY_cloudflare.com и имея цифроую подпись RRSIG_cloudflare.com
+можно со всем этим поколдовать и сделать вывод совпдаает ли оригинальный текст с цировой
+подписью или нет. 
+в этом раскаде только одна проблема мы незаем DNSKEY_com настойщий или поддеьный.
+для этого идем на сервер отвчающий за родит домен "."  и там ищем DS от ".com"
+
+$ dig -4 DS .   
+
+;; ANSWER SECTION:
+.			0	IN	DS	20326 8 2 E06D44B80B8F1D39A95C0B0D7C65D08458E880409BBC683457104237 C7F8EC8D
+
+
+провяерм достверномть этого DS через DNSKEY от "." 
+
+
+
+$ dig . DNSKEY @8.8.8.8
+
+
+;; ANSWER SECTION:
+.			15568	IN	DNSKEY	256 3 8 AwEAAdSiy6sslYrcZSGcuMEK4DtE8DZZY1A08kAsviAD49tocYO5m37A vIOyzeiKBWuPuJ4m9u5HonCM/ntxklZKYFyMftv8XoRwbiXdpSjfdpNH iMYTTV2oDUNMjdLFnF6HYSY48xrPbevQOYbAFGHpxqcXAQT0+BaBiAx3 Ls6lXBQ3/hSVOprvDWJCQiI2OT+9+saKLddSIX6DwTVy0S5T4YY4EGg5 R3c/eKUb2/8XgKWUzlOIZsVAZZUSTKW0tX54ccAALO7Grvsx/NW62jc1 xv6wWAXocOEVgB7+4Lzb7q9p5o30+sYoGpOsKgFvMSy4oCZTQMQx2Sjd /NG2bMMw6nM=
+.			15568	IN	DNSKEY	257 3 8 AwEAAaz/tAm8yTn4Mfeh5eyI96WSVexTBAvkMgJzkKTOiW1vkIbzxeF3 +/4RgWOq7HrxRixHlFlExOLAJr5emLvN7SWXgnLh4+B5xQlNVz8Og8kv ArMtNROxVQuCaSnIDdD5LKyWbRd2n9WGe2R8PzgCmr3EgVLrjyBxWezF 0jLHwVN8efS3rCj/EWgvIWgb9tarpVUDK/b58Da+sqqls3eNbuv7pr+e oZG+SrDK6nWeL3c6H5Apxz7LjVc1uTIdsIXxuOLYA4/ilBmSVIzuDWfd RUfhHdY6+cn8HFRm+2hM8AnXGXws9555KrUB5qihylGa8subX2Nn6UwN R1AkUTV74bU=
+
+
+а вот так типа можно надежно его скачать 
+~$ curl -s https://www.internic.net/domain/root.zone | grep "^\.\s\+[0-9]\+\s\+IN\s\+DNSKEY"
+
+
+имея DNSKEY_. можно расшифрвать DS_. сравнит его с DNSKEY_. 
+если совпадает то с его помощью расшфировать DS_cloudflare.com сравниь с DNSKEY_cloudfalre.com
+если совпдаает то проверить цифроую подпись RRSIG_cloudfalre.com с текстом
+
+cloudflare.com.		300	IN	A	104.16.133.229
+cloudflare.com.		300	IN	A	104.16.132.229
+
+если совпадает то значит эти две строчки настоящие.
+ебала та еще.
+
+то что это все неьльзя подделать упирвается в то что у нас есть заранее достоверный 
+DNSKEY_. на нем все держится что достаточно дебильно
+
+далее вот что обнаружил. что для нашего днс клиента systemd-resolved вроде как
+ненужно в комп закачивать DS запись от "." домена. так называемый dns root anchor
+ибо они пишут в докумнетации что он "встроен". однако 
+я все же сделал это рукками.
+так вот я взял сделал вот такой запрос
+
+ z 撋  $ dig  .  DS  +multi
+
+			0 IN DS	20326 8 2 (
+				E06D44B80B8F1D39A95C0B0D7C65D08458E880409BBC
+				683457104237C7F8EC8D )
+
+далее надо 0 убрать и скобки убрать и вот так оставить
+
+. IN	DS	20326 8 2 E06D44B80B8F1D39A95C0B0D7C65D08458E880409BBC683457104237C7F8EC8D
+
+
+длаее нужно проверить что цифры ровно такие же как в https://data.iana.org/root-anchors/root-anchors.xml
+далее нужно создвать вот такой файл
+
+
+/etc/dnssec-trust-anchors.d/root.positive
+. IN DS 20326 8 2 E06D44B80B8F1D39A95C0B0D7C65D08458E880409BBC683457104237C7F8EC8D
+
+
+
+далее надо перезапустить 
+
+	# systemct restart systemd-resolved
+
+в логах должно появится
+
+сен 02 03:12:37 lenovo systemd-resolved[157427]: Positive Trust Anchors:
+сен 02 03:12:37 lenovo systemd-resolved[157427]: . IN DS 20326 8 2 e06d44b80b8f1d39a95c0b0d7c65d08458e880409bbc683457104237c7f8ec8d
+
+далее типа как проверить что работает dnssec через systemd-resolved
+
+
+$ systemd-resolve cloudflare.com
+cloudflare.com: 2606:4700::6810:84e5           -- link: tun0
+                104.16.132.229                 -- link: tun0
+
+-- Information acquired via protocol DNS in 565.6ms.
+-- Data is authenticated: yes; Data was acquired via local or encrypted transport: yes
+-- Data from: network
+
+нам важна запись 
+	Data is authenticated: yes
+
+также проверим 
+
+ $ cat /etc/resolv.conf   | grep -v '#'
+
+nameserver 127.0.0.53
+options edns0 trust-ad
+search .
+
+значит если мы будем делать запрос через delv то в итоге он пойдет через systemd-resolved
+окей. тогда
+
+ $ delv  cloudflare.com +rtrace
+;; fetch: cloudflare.com/A
+;; fetch: cloudflare.com/DNSKEY
+;; fetch: cloudflare.com/DS
+;; fetch: com/DNSKEY
+;; fetch: com/DS
+;; fetch: ./DNSKEY
+; fully validated
+cloudflare.com.		193	IN	A	104.16.133.229
+cloudflare.com.		193	IN	A	104.16.132.229
+cloudflare.com.		193	IN	RRSIG	A 13 2 300 20240903015602 20240831235602 34505 cloudflare.com. XcVELgaBlYFzejr1xEL7KwLgcsePWfdXLcb9HGtkpGSUnTZiM4plkUyb 1NX0Me4Vj3lOJYoVWN9xdXFDrhUlig==
+
+
+>>> далее я хотел показать через RSA как это подписывать файл и проерять подпись
+с оригиналом. 
+ 
+
+
+
+
+
+
+
