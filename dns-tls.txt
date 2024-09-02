@@ -814,12 +814,784 @@ cloudflare.com.		193	IN	A	104.16.132.229
 cloudflare.com.		193	IN	RRSIG	A 13 2 300 20240903015602 20240831235602 34505 cloudflare.com. XcVELgaBlYFzejr1xEL7KwLgcsePWfdXLcb9HGtkpGSUnTZiM4plkUyb 1NX0Me4Vj3lOJYoVWN9xdXFDrhUlig==
 
 
->>> далее я хотел показать через RSA как это подписывать файл и проерять подпись
+получается что чтобы dnssec обеспечить в качестве клиента надо всего навсего 
+чобы клиент на компе сделал ряд обычных днс запросов. скачал нужные RR. и сделал 
+над ними мамематику. вот и все. никакого чуда.
+
+если пригрлялдетьсся то у нас в описании процесса неуказана а где мы скачивали RRSIG
+на самом деле мы его скачиваем на этом этапе
+
+;; fetch: cloudflare.com/A
+
+
+проделаем туже операцию с большей степнью деталиацзиации
+
+
+ $ delv cloudflare.com +mtrace
+
+вначале скачиваем 
+	A cloudflare.com 
+и
+	RSIG cloudflare.com
+
+;; fetch: cloudflare.com/A
+;; ANSWER SECTION:
+;cloudflare.com.		182	IN	A	104.16.133.229
+;cloudflare.com.		182	IN	A	104.16.132.229
+;cloudflare.com.		182	IN	RRSIG	A 13 2 300 (
+;						20240903074442 20240901054442 34505 cloudflare.com.
+;						P4VGFsyOkIdD6I21/xAnrwweZKVw
+;						sVv+Xy445tpGT+vUMyhugcMsNDo5
+;						28sjev/WVIYychybAbUYlzRcXQYU
+;						mA== )
+
+
+
+потом скачиваем с DNSKEY_cloudflare.com
+здесь можно заметить что скачивается ДВА DNSKEY.  один dnskey как и положено содержит публичный ключ которым можно расшифровать RRSIG
+а второй как я прочитал на сайте "как доп степень зашиты" содержит копию DS которая хранится
+в родительской зоне. это просто треш. очередные накрутки сложности. как видно он нам 
+скачал еще и RSIG от DNSKEY. зачем этот ключ нужен хрен знает.
+
+
+;; fetch: cloudflare.com/DNSKEY
+;; ANSWER SECTION:
+
+;cloudflare.com.		604	IN	DNSKEY	257 3 13 (
+;						mdsswUyr3DPW132mOi8V9xESWE8j
+;						To0dxCjjnopKl+GqJxpVXckHAeF+
+;						KkxLbxILfDLUT0rAK9iUzy1L53eK
+;						GQ==
+;						) ; KSK; alg = ECDSAP256SHA256 ; key id = 2371
+
+
+;cloudflare.com.		604	IN	DNSKEY	256 3 13 (
+;						oJMRESz5E4gYzS/q6XDrvU1qMPYI
+;						jCWzJaOau8XNEZeqCYKD5ar0IRd8
+;						KqXXFJkqmVfRvMGPmM1x8fGAa2Xh
+;						SA==
+;						) ; ZSK; alg = ECDSAP256SHA256 ; key id = 34505
+
+;cloudflare.com.		604	IN	RRSIG	DNSKEY 13 2 3600 (
+;						20241012045415 20240812045415 2371 cloudflare.com.
+;						EGAV8jdo2rRj9Tl5hTM7c4FVKQX2
+;						Llep3yQ61cPKqyLSBFpnkJQA2Twh
+;						Acng2FfrWMKQ1SzXnppJni6X8W91
+;						pg== )
+
+
+
+
+итак на данном этапе у нас есть 
+	A_cloudflare.com
+	RSIG_cloudflare.com
+	DNSKEY__cloudflare.com
+
+
+
+на следущем этапе мы скачиваем DS_cloudflare с родиитесосткой зоны
+и нам выдают нетолько DS но и цифровую подпись от DS
+согласно rfc4304 - DS содержит в себе хеш от DNSKEY. этот хеш никак не зашифрован 
+итп. и как я понимаю аутентичность DS проверяется через цифровую подпись через запись RRSIG DS cloudflare.com которая хранится в зоне .com .  непутаем ее с RRSIG A cloudflare.com 
+которая хранится в зоне cloudflare.com которая являетяс цифровой подписью записи A_cloudflare.com
+
+
+
+;; fetch: cloudflare.com/DS
+;cloudflare.com.			IN	DS
+
+;cloudflare.com.		2053	IN	DS	2371 13 2 (
+;						32996839A6D808AFE3EB4A795A0E
+;						6A7A39A76FC52FF228B22B76F6D6
+;						3826F2B9 )
+;cloudflare.com.		2053	IN	RRSIG	DS 13 2 86400 (
+;						20240908011735 20240901000735 59354 com.
+;						Hb4Zkf8qiklvQzEEp6RmjSzJMa9M
+;						H8VQdEmerL+G6IIUJ6tZPkJtgNbc
+;						YFRu5QYnJ+x0PgEdKaPqAkTaspJK
+;						VA== )
+
+
+
+итак на данном этапе у нас есть 
+	(скачано из зоны cloudflare.com) A_cloudflare.com  +	RSIG_cloudflare.com
+	(скачано из зоны .com) DNSKEY__cloudflare.com + DS__cloudflare.com
+
+RSIG_cloudflare.com
+
+теперь скачиваем DNSKEY_.com
+он нам позволит 
+
+;; fetch: com/DNSKEY
+;com.				IN	DNSKEY
+
+;com.			2228	IN	DNSKEY	256 3 13 (
+;						Nps5nxuQHRbY3e9hcbH36kxiELJH
+;						5wil+6dC4K1keQI9ci1nqyCP4k1X
+;						oXBBn2aeSK4KxwPEs0Opqc0dicuu
+;						jg==
+;						) ; ZSK; alg = ECDSAP256SHA256 ; key id = 59354
+;com.			2228	IN	DNSKEY	257 3 13 (
+;						tx8EZRAd2+K/DJRV0S+hbBzaRPS/
+;						G6JVNBitHzqpsGlz8huE61Ms9ANe
+;						6NSDLKJtiTBqfTJWDAywEp1FCsEI
+;						NQ==
+;						) ; KSK; alg = ECDSAP256SHA256 ; key id = 19718
+;com.			2228	IN	RRSIG	DNSKEY 13 1 86400 (
+;						20240909140235 20240825135735 19718 com.
+;						8dBNzd4TFQj35TTQr1/6MM+BG2mm
+;						mgGZfgn231XORw7M2r67xSzo0D5o
+;						jdvl5ufLm8guJmKQKG20mbSSTnpu
+;						Tw== )
+
+
+ксатти нихрена не понимаю разницу между зоной и доменом. зато я думаю я понял что 
+значит NS серервер. у нас есть записи RR. в каждой записи идет название домена и 
+его IP. так вот такие записи они в конечном итоге должны гдето храниться так вот NS
+сервер для домена abc.xyz означает что на этом NS сервере физически хранится запись
+
+	abc.xyz  192.168.11.11
+
+есть еще SOA запись. с ней разбиратся не будут. 
+поэтмоу когда я ищу NS сервер от cloudflare.com то это значит что мы ищем сервер внутри
+которго физически хранятся записи вида
+
+    cloudflare.com   11.12.13.14
+
+в dig можно проставлять флаги в запрос например +aaonly но по факту они нихуя часто
+неработают. зато эти флаги очень полезны в статусе при просмотре ответа. нарпример 
+флаг aa в ответе означает что ответ нам вернул авторитейтив сервер тоесть именно сервер
+на котором физически хранятся запроешенны нами RR записи. вообще смысла дига такой -
+мы ему говорим пойди на такой то сервер и принеси нам записи RR с таким то именем
+и таким то типом. например выясним чему равны записи с именем google.com и типом NS
+будем спрашивать у серврера 8.8.8.8
+
+$ dig @8.8.8.8   NS google.com
+
+;; flags: qr rd ra; QUERY: 1, ANSWER: 4, AUTHORITY: 0, ADDITIONAL: 1
+
+google.com.		21600	IN	NS	ns3.google.com.
+google.com.		21600	IN	NS	ns4.google.com.
+google.com.		21600	IN	NS	ns1.google.com.
+google.com.		21600	IN	NS	ns2.google.com.
+
+
+в вернутых флагах аа нет. это значит что серврер 8.8.8.8 нехранит внутри себя 
+записи NS google.com они хранятся где то в другом месте. когда мы узнали серера указанные
+в NS записи то мы узнали сервера внутри которых по идее хранятся все записи относящие
+ся к домену google.com  
+так вот все да не все. записи типа NS о домене google.com хранятся совсем не на
+серверах
+
+	ns3.google.com.
+	ns4.google.com.
+	ns1.google.com.
+	ns2.google.com.
+
+записи NS  google.com хранятся на серверах которые отвечают за родительский домен. 
+тоесть серверы которые отвечают за .com (зону или домен хуй знает как это сказать)
+именно на них хранятся записи
+
+google.com.		21600	IN	NS	ns3.google.com.
+google.com.		21600	IN	NS	ns4.google.com.
+google.com.		21600	IN	NS	ns1.google.com.
+google.com.		21600	IN	NS	ns2.google.com.
+
+что логично . и получается схема такая. 
+мы лазем на 1.2.3.4 который явялется корневым днс сервером. внутри него харнятся
+NS записи вида
+
+   NS a.com    server1.a.com
+   NS a.com    server2.a.com
+   
+   NS b.com    server1.b.com
+   NS b.com    server2.b.com
+
+   NS yandex.com    server1.yandex.com
+   NS yandex.com    server2.yandex.com
+
+   NS vasya.com    server1.vasya.com
+   NS vasya.com    server2.vasya.com
+
+замечу что запись типа NS она не содержит IP. она резволвит один домен в другой. 
+физ смысл такой что она указывает на сервер который хранит внутри себя записи 
+про домен
+
+я так думаю что адреса корневых днс сервром где то вщиты внутри кишок линукса
+
+еще раз подчеркиваю что NS это тип записи в днс файле. физ смысл этой записи 
+такой что   у нас берется домен google.com и для него указывается имя сервера ns1.google.com который
+содержит почти что все записи для дормена google.com 
+все да не все. потому что запись NS google.com хостится не на ns1.google.com а 
+на сервере который хостит родительский домен .com
+
+еще раз. 
+есть корневйо "." днс сервер 1.2.3.4
+внутри него хранятся записи NS с именами  .*
+
+		NS  .*       ...
+		NS  .*       ...
+		NS  .*       ...
+
+	com.			NS	i.gtld-servers.net.
+	com.			NS	c.gtld-servers.net.
+	com.			NS	g.gtld-servers.net.
+
+тоесть тип записи NS имя записи "com." и значение i.gtld-servers.net.
+эти записи хранятся на корневом сервере c.root-servers.net
+
+
+$ dig  @c.root-servers.net  com. 
+
+;com.				IN	A
+
+;; AUTHORITY SECTION:
+com.			172800	IN	NS	i.gtld-servers.net.
+com.			172800	IN	NS	c.gtld-servers.net.
+com.			172800	IN	NS	g.gtld-servers.net.
+
+
+внутри сервером отвечающих за зону\домен com лежат NS записи вида  *.com
+в частности yahoo.com
+
+$ dig @c.gtld-servers.net NS  yahoo.com
+
+;; AUTHORITY SECTION:
+yahoo.com.		172800	IN	NS	ns1.yahoo.com.
+yahoo.com.		172800	IN	NS	ns5.yahoo.com.
+yahoo.com.		172800	IN	NS	ns2.yahoo.com.
+yahoo.com.		172800	IN	NS	ns3.yahoo.com.
+yahoo.com.		172800	IN	NS	ns4.yahoo.com.
+
+внутри сервера ns1.yahoo.com который отвечает за домен yahoo.com лежат 
+записи NS   вида *.yahoo.com 
+
+кстати прикол еще в том что всякий домен на конце заканчивается точкой которую 
+почемуто принято опускать. скажем mail.ru на самом деле это mail.ru.
+это пиздец. это как воздух вроде он есть а вроде его нет. 
+
+так вот еще пример
+выясняем какие серера отвечают за домен\зону uk.
+
+смотрим на коренвом сервере
+	$ dig  @c.root-servers.net  NS uk. 
+
+;uk.				IN	NS
+
+uk.			172800	IN	NS	nsa.nic.uk.
+uk.			172800	IN	NS	dns4.nic.uk.
+uk.			172800	IN	NS	dns3.nic.uk.
+
+по мне уебищно что NS запись резолвит не на IP а на доменное имя. что за фигня ?
+идем на этот сервер и смотрим на нем записи NS с именем co.uk.
+
+	$ dig  @nsa.nic.uk  NS  co.uk.
+
+;co.uk.				IN	NS
+
+;; ANSWER SECTION:
+co.uk.			172800	IN	NS	dns4.nic.uk.
+
+идем на этот сервер и смотрим записи вида NS bbc.co.uk
+
+	$ dig  @dns4.nic.uk  NS  bbc.co.uk.
+;; flags: qr rd; QUERY: 1, ANSWER: 0, AUTHORITY: 8, ADDITIONAL: 9
+;bbc.co.uk.			IN	NS
+
+;; AUTHORITY SECTION:
+bbc.co.uk.		172800	IN	NS	dns0.bbc.co.uk.
+bbc.co.uk.		172800	IN	NS	dns0.bbc.com.
+
+видим что это неще на aa ответ.
+
+идем на одни из серверов и опять же ищем NS записи с именем bbc.co.uk.
+
+$ dig  @dns0.bbc.com  NS  bbc.co.uk.
+
+;; flags: qr aa rd; QUERY: 1, ANSWER: 8, AUTHORITY: 0, ADDITIONAL: 1
+
+;bbc.co.uk.			IN	NS
+
+;; ANSWER SECTION:
+bbc.co.uk.		900	IN	NS	dns0.bbc.co.uk.
+bbc.co.uk.		900	IN	NS	dns0.bbc.com.
+bbc.co.uk.		900	IN	NS	dns1.bbc.co.uk.
+bbc.co.uk.		900	IN	NS	dns1.bbc.com.
+
+видим что это уже "аа" ответ. 
+
+
+а вот для www.bbc.co.uk
+
+	$ dig  @dns4.nic.uk  NS  www.bbc.co.uk.
+
+;; flags: qr rd; QUERY: 1, ANSWER: 0, AUTHORITY: 8, ADDITIONAL: 9
+;www.bbc.co.uk.			IN	NS
+
+;; AUTHORITY SECTION:
+bbc.co.uk.		172800	IN	NS	dns0.bbc.co.uk.
+bbc.co.uk.		172800	IN	NS	dns0.bbc.com.
+
+малек я запутался. видно что это "аа" овтет. также видно что сервер хостящий запсии для
+домена может принадлежать другому домену. без проблем.
+
+
+получается если есть сервер который  на каком то другом сервере обозначен в NS записи
+
+  super.com  NS   server1.blabla.com
+
+то это значит на данном сервере хранятся всеовзомжные типы записей (для простоты пусть
+все они типа А) и с именем вида
+
+
+  *.super.com  A   IP_N
+
+и если у данного домена super.com есть подзона  ABC.super.com в которой есть записи 
+вида
+   
+   *.ABC.super.com    A   IP_M
+
+то на этом сервере server1.blabla.com будет NS запись вида
+
+
+	ABC.super.com   NS   super.server2.com
+
+
+только мы узнать об этой NS записи можем только если мы знаем имя этой записи
+
+   ABC.super.com  NS
+
+ а если мы незнаем ее имя. то обращаясь к server1.blabla.com мы не можем есго спросить
+ мол покажи мне какие NS записи ты имеешь
+
+щас приведу пример
+
+
+вот у нас есть yandex.ru
+щас мы узнаем какой сервер хранит записи вида  
+
+
+   *.yandex.ru     A    ....
+
+
+для начала узнаем какой сервер хранит NS записи вида
+
+	   *.ru    NS ...
+  yandex.ru    NS ...
+
+
+	$ dig  @c.root-servers.net  NS ru. 
+
+;ru.				IN	NS
+
+;; AUTHORITY SECTION:
+ru.			172800	IN	NS	b.dns.ripn.net.
+
+
+теперь на этом сервере нужно узнать чему равна запись
+
+
+  yandex.ru    NS ...
+
+
+$ dig  @b.dns.ripn.net.  NS yandex.ru. 
+
+;yandex.ru.			IN	NS
+
+YANDEX.RU.		345600	IN	NS	ns2.yandex.RU.
+YANDEX.RU.		345600	IN	NS	ns1.yandex.RU.
+
+
+значит именно на этих серверах хранятся записи вида
+
+  *.yandex.ru   A IP_N
+
+например запросим оттуда запись  news.yandex.ru   A  
+
+
+$ dig  @ns1.yandex.RU  A  news.yandex.ru. 
+
+;; flags: qr aa rd ra; QUERY: 1, ANSWER: 4, AUTHORITY: 0, ADDITIONAL: 1
+
+;news.yandex.ru.			IN	A
+
+;; ANSWER SECTION:
+news.yandex.ru.		300	IN	A	87.250.250.12
+news.yandex.ru.		300	IN	A	87.250.251.12
+
+все верно. мы видим вответе "аа"  флаг. и две записи
+
+news.yandex.ru.		300	IN	A	87.250.250.12
+news.yandex.ru.		300	IN	A	87.250.251.12
+
+которые физически храняться на этом сервере.
+
+а есть ли на этом серверер NS записи вида
+
+  *.yandex.ru NS  ....
+
+неузнать. нужно знать имя такой записи
+для этого нужно знать имя домена 4 уровня. тогда можно будет указать NS имя 
+
+
+посмотрим еще пример. вот у меня есть ссылка
+
+huskiecommons.lib.niu.edu
+
+на корневом сервере на котором хостятся записи вида NS   *.
+найдем запись 
+  edu.    NS    сервер
+
+тоесть о сервере  который хостит домен *.edu
+
+
+ 	$ dig  @c.root-servers.net  NS edu. 
+
+;edu.				IN	NS
+
+edu.			172800	IN	NS	g.edu-servers.net.
+
+
+внутри этого сервера g.edu-servers.net. найдем запись NS  *.edu 
+а именно 
+
+	niu.edu   NS  сервер
+
+которая нам скажем сервер который хостит внутри себя записи *.niu.edu
+
+
+$ dig  @g.edu-servers.net  NS niu.edu.
+
+;niu.edu.			IN	NS
+
+niu.edu.		172800	IN	NS	dns-ext1.niu.edu.
+
+
+итак у нас есть сервер 
+
+		dns-ext1.niu.edu
+
+который внутри себя хранит записи вида
+
+	*.niu.edu      A     .......
+	*.niu.edu      CNAME .......
+	*.niu.edu      NS     .......
+
+будем там искать 
+
+  lib.niu.edu  NS    server
+
+
+	$ dig  @dns-ext1.niu.edu  NS lib.niu.edu
+;; flags: qr aa rd ra; QUERY: 1, ANSWER: 0, AUTHORITY: 1, ADDITIONAL: 1
+
+;lib.niu.edu.			IN	NS
+
+;; AUTHORITY SECTION:
+niu.edu.		3600	IN	SOA	dns-ext1.niu.edu. empty.empty. 2024042074 3600 600 1209600 3600
+
+он говорит о том что нет такой NS записи
+
+будем искаьт на нем запись вида
+
+	huskiecommons.lib.niu.edu   CNAME  ...
+
+
+	$ dig @dns-ext1.niu.edu. CNAME  huskiecommons.lib.niu.edu
+
+;; flags: qr aa rd ra; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 1
+
+;huskiecommons.lib.niu.edu.	IN	CNAME
+
+;; ANSWER SECTION:
+huskiecommons.lib.niu.edu. 86400 IN	CNAME	dcniu.bepress.com.
+
+
+получается внутри *.nit.edu создан CNAME
+
+	huskiecommons.lib.niu.edu. CNAME -->	dcniu.bepress.com.
+
+который перенаправляет на другой домен
+
+	$ dig NS   bepress.com
+
+;bepress.com.			IN	NS
+
+;; ANSWER SECTION:
+bepress.com.		5556	IN	NS	ns-739.awsdns-28.net.
+
+
+проверим что на сервеере    ns-739.awsdns-28.net. лежит запись dcniu.bepress.com
+
+
+$ dig @ns-739.awsdns-28.net   A   dcniu.bepress.com
+
+;; flags: qr aa rd; QUERY: 1, ANSWER: 2, AUTHORITY: 4, ADDITIONAL: 1
+
+;dcniu.bepress.com.		IN	A
+
+;; ANSWER SECTION:
+dcniu.bepress.com.	60	IN	A	13.57.92.51
+dcniu.bepress.com.	60	IN	A	50.18.241.247
+
+видим флаг "аа" значит да. на этом сервере хранится эта запись
+в итоге получается домен huskiecommons.lib.niu.edu. должен резволится в 
+IP 
+
+	13.57.92.51
+    50.18.241.247
+
+
+$ dig A huskiecommons.lib.niu.edu
+
+;; flags: qr rd ra; QUERY: 1, ANSWER: 3, AUTHORITY: 1, ADDITIONAL: 1
+
+;huskiecommons.lib.niu.edu.	IN	A
+
+;; ANSWER SECTION:
+huskiecommons.lib.niu.edu. 336	IN	CNAME	dcniu.bepress.com.
+dcniu.bepress.com.	60	IN	A	13.57.92.51
+dcniu.bepress.com.	60	IN	A	50.18.241.247
+
+ага так и есть.
+
+
+
+забавно что когда мы запршиваем запись NS с сервера на котором она реально
+хранится
+
+
+$ dig  @c.root-servers.net  NS ru. 
+
+;; flags: qr rd; QUERY: 1, ANSWER: 0, AUTHORITY: 5, ADDITIONAL: 11
+;; WARNING: recursion requested but not available
+
+;ru.				IN	NS
+
+;; AUTHORITY SECTION:
+ru.			172800	IN	NS	a.dns.ripn.net.
+
+то почему то в ответе нет флага "аа"
+но ведь запись 
+
+	ru.				IN	NS	a.dns.ripn.net.
+
+
+хранится на коренвом серевере
+
+	c.root-servers.net
+
+почему же в ответе нет флага аа ?
+
+
+зато если обратиться на уже найденный серввер и запросить ту же самую запись NS
+то он уже выдаст флаг "аа"
+
+~$ dig  @a.dns.ripn.net.  NS ru. 
+
+;; flags: qr aa rd; QUERY: 1, ANSWER: 5, AUTHORITY: 0, ADDITIONAL: 1
+
+;ru.				IN	NS
+
+;; ANSWER SECTION:
+RU.			345600	IN	NS	a.dns.ripn.net.
+
+
+получается на сервере который указан в NS записи хранится точно такая же запись NS
+указывающая сама на себя. 
+
+давай с яндексом проверим
+
+находим сервер хранит NS записи вида  *.ru
+	$ dig  @c.root-servers.net  NS ru. 
+
+;ru.				IN	NS
+
+;; AUTHORITY SECTION:
+ru.			172800	IN	NS	b.dns.ripn.net.
+
+
+на этом сервере ищем запись о сервере который хостит зону yandex.ru
+
+	$ dig  @b.dns.ripn.net  NS yandex.ru. 
+
+;yandex.ru.			IN	NS
+
+;; AUTHORITY SECTION:
+YANDEX.RU.		345600	IN	NS	ns1.yandex.RU.
+YANDEX.RU.		345600	IN	NS	ns2.yandex.RU.
+
+
+получается на сервере   b.dns.ripn.net хранится запись о том что зону yandex.ru
+хостит сервер ns1.yandex.RU
+
+	$ dig  @ns1.yandex.RU.  NS yandex.ru. 
+
+;; flags: qr aa rd ra; QUERY: 1, ANSWER: 2, AUTHORITY: 0, ADDITIONAL: 5
+
+;yandex.ru.			IN	NS
+
+;; ANSWER SECTION:
+yandex.ru.		604800	IN	NS	ns1.yandex.ru.
+yandex.ru.		604800	IN	NS	ns2.yandex.ru.
+
+
+и на сервере ns1.yandex.RU тоже хранится точно такая же запись о том что он 
+сервер ns1.yandex.RU хостит зону yandex.ru
+смешно. 
+причем ответ с флагом "aa" прилетает при запросе к ns1.yandex.RU а не к серверу
+ b.dns.ripn.net.
+смешно
+
+
+далее я хотел показать через DSA как это подписывать файл и проерять подпись
 с оригиналом. 
- 
+
+вначале нужно вот так это файло параметров ( что это ?)
+	 $ openssl dsaparam -out dsaparam.pem 2048
+
+теперь генерация приватного ключа (че такое des3?)
+     $ openssl gendsa -des3 -out priv-dsa.pem dsaparam.pem
+
+теперь генерация приватного ключа
+    $ openssl dsa   -in priv-dsa.pem -pubout -out pub-dsa.pem
+
+теперь генерация цифровой подписи
+    $ openssl dgst -sha256 -sign priv-dsa.pem  -out arecord.txt.sha256 arecord.txt
+
+теперь проверка оригинала по цифровой подписи
+    $ openssl dgst -sha256 -verify pub-dsa.pem   -signature arecord.txt.sha256 arecord.txt
+
+
+главное чтот тут нужно увидеть это то что для проверки участвуют
+		1) цифрова подпись
+		2) публичный ключ
+		3) оригинал
+
+если чегто из этого нет. то проверка неполучится
+
+теперь я вовзращаюсь к dnnsec
+берем запись A cloudflare.com
+
+найдем сервер который хостит эту запись
+
+	$ dig  @h.root-servers.net  NS com.
+
+;com.				IN	NS
+
+;; AUTHORITY SECTION:
+com.			172800	IN	NS	h.gtld-servers.net.
 
 
 
+	$ dig  @h.gtld-servers.net  NS cloudflare.com.
+
+;cloudflare.com.			IN	NS
+
+;; AUTHORITY SECTION:
+cloudflare.com.		172800	IN	NS	ns3.cloudflare.com.
+
+
+	
+
+	$ dig  @ns3.cloudflare.com  A  cloudflare.com.  +dnssec +multi
+
+;; flags: qr aa rd; QUERY: 1, ANSWER: 3, AUTHORITY: 0, ADDITIONAL: 1
+
+;cloudflare.com.		IN A
+
+
+cloudflare.com.		300 IN A 104.16.132.229
+cloudflare.com.		300 IN A 104.16.133.229
+cloudflare.com.		300 IN RRSIG A 13 2 300 (
+				20240903130233 20240901110233 34505 cloudflare.com.
+				jNrY7KD11fQ7hBJeRv2G2OfuVkB5SXFE1i2Cr39fjSP1
+				TLlhMPWdo8UdDJWb+gXpeY2mK3Mhan6QsdfzIwAoVg== )
+
+
+
+так вот у нас есть "оригинальный текст " это записи 
+
+cloudflare.com.		300	IN	A	104.16.132.229
+cloudflare.com.		300	IN	A	104.16.133.229
+
+у нас есть цифровая подпись
+
+cloudflare.com.		300 IN RRSIG A 13 2 300 (
+				20240903130233 20240901110233 34505 cloudflare.com.
+				jNrY7KD11fQ7hBJeRv2G2OfuVkB5SXFE1i2Cr39fjSP1
+				TLlhMPWdo8UdDJWb+gXpeY2mK3Mhan6QsdfzIwAoVg== )
+
+
+щас мы скачаем публичный ключ
+
+	$ dig  @ns3.cloudflare.com  DNSKEY  cloudflare.com. +multi
+
+;; flags: qr aa rd; QUERY: 1, ANSWER: 2, AUTHORITY: 0, ADDITIONAL: 1
+;cloudflare.com.		IN DNSKEY
+
+;; ANSWER SECTION:
+cloudflare.com.		3600 IN	DNSKEY 257 3 13 (
+				mdsswUyr3DPW132mOi8V9xESWE8jTo0dxCjjnopKl+Gq
+				JxpVXckHAeF+KkxLbxILfDLUT0rAK9iUzy1L53eKGQ==
+				) ; KSK; alg = ECDSAP256SHA256 ; key id = 2371
+cloudflare.com.		3600 IN	DNSKEY 256 3 13 (
+				oJMRESz5E4gYzS/q6XDrvU1qMPYIjCWzJaOau8XNEZeq
+				CYKD5ar0IRd8KqXXFJkqmVfRvMGPmM1x8fGAa2XhSA==
+				) ; ZSK; alg = ECDSAP256SHA256 ; key id = 34505
+
+из этих двух публичный ключ которым защфирована цифровая подпись это 
+
+cloudflare.com.		3600 IN	DNSKEY 256 3 13 (
+				oJMRESz5E4gYzS/q6XDrvU1qMPYIjCWzJaOau8XNEZeq
+				CYKD5ar0IRd8KqXXFJkqmVfRvMGPmM1x8fGAa2XhSA==
+				) ; ZSK; alg = ECDSAP256SHA256 ; key id = 34505
+
+
+ксттии видно что в RRSIG  есть поле 34505
+и в DNSKEY есть тоже самое поле key id = 34505
+тоесть в DNSKEY указыается key id, а потом в цифровой подписи заосится признак какой
+публичный ключ может быть  использован для расшифровки этой цифровой подписи
+
+итак получается
+
+RRSIG - это цировая подрпись зашифрованная неким приватным ключом
+
+записи типа A это оригиналы
+	cloudflare.com.		300	IN	A	104.16.132.229
+	cloudflare.com.		300	IN	A	104.16.133.229
+
+
+DNSKEY это публичный ключ  который получен из приватного и которым можно проверить 
+цифроую подпись
+
+DS это хэш от DNSKEY. DS запись хранится в парент домене. 
+
+значит на одном сервере1 хранятся:
+   ориг текст A 
+   RRSIG1 от A  
+   DNSKEY1  
+
+в сервере2 парент домена хранится
+   DS1 от DNSKEY1
+
+также в парент домене хранися 
+   RRSIG2 от DS1 
+зашиорванный пртватным ключом сервера2. значит на нем лежит публичный ключ от него 
+   DNSKEY2
+которым можно расшифрвать RRSIG2
+
+как я понимаю он как делает. он берет DNSKEY2 с парент домена. расшифровает RRSIG2
+находит в нем DS1 сравнивает его с DS1 который хранится на этом же парент домене. 
+и приходитк выводу что DS1 настоящий. потом он идет в наш домен и там берет DNSKEY 
+вычиляет от него хеш и сравнивает с DS1 который мы "проверили" что он настоящий.
+если хеш от DNSKEY1 совпадает с DS1 значит DNSKEY1 принимается настойщим. тогда
+он с помощью него расшфировыает RRSIG1 и сравнивает с оригиналным текстом.
+еси оно совпадает то оригнальный текст считается настоящим. в этой схеме только нужно
+убедитьс что DNSKEY2 настоящий. для этого надо подняться выше, найти там DS2 проверить 
+что он настоящий..... итд итп. пока мы до корневого сервера не дойдем и его DS
+все это можно увидеть в delv что и я сделаю но попозже. да.. dnssec это несупер сложно
+но непросто и муторно.
 
 
 
