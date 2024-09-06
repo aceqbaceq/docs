@@ -4263,6 +4263,69 @@ cloudflare.com.		1721 IN	DNSKEY 257 3 13 (
 но он нерасписал какая между ними связь и разница
 
 
+а есть еще одна фигня это программа resolvconf. что еще хуже она есть в классической
+модификации от дебиан а есть в модицифкации от openresolv. на арче стоит openresolv
+тоест она называется resolvconf но под капотом openresolv
+нахрен она нужна. типа она нужна для того что - если у нас на компе несколько 
+прогаимм каждоая из которых хочет менять resolv.conf то вместо этого можно так 
+настроить те программы и этот resolvoconf что те прогарммы меняют некие вспомогательные
+конфги а resolvconf читает эти конфиги и уже формирует resolv.conf типа так что в нем
+отражаются все хотелки тех программ. прикол в том что в списке поддреживаемых программа у resolvconf это 
+
+          nss dns
+          dnsmasq
+          named
+          pdnsd
+          unbound
+
+а systemd-resolved в этом списке нет!
+
+значит я обнаружил что у меня нет ничего из этого кроме nss dns
+поэтому я захотел удалит openresolv пакет, а он зависит от пакета netctl
+а он явялется еще одним менежером сети наряду с NetworkManager который исплоьую
+и systemd-networkd который я не использую.  в итоге я удалил 
+
+	openresolv
+	netctl
+
+и избавился от утилиты resolvconf котоаямне нахрен не сдалась потму что мне resolv.conf
+генериурет systemd-resolved и мне этого достоатчтно
+
+так вот есть еще один прикол. если взять и создать симлинк
+
+  ln -s $(which resolvectl) /usr/bin/resolvconf
+
+то он сможет выполнять ограниченный функционал от "классического " resolvconf.
+даже разбтарться не буду. мне это нахрен ненадо.
+
+ад какйтто
+
+вот я нашел синтакс resolv.conf
+search
+The search option accepts up to six domains, separated by tabs or spaces. This is used if the resolver receives a request without any dots in it. It will then try to resolve the query with the search domain appended, then the original request. For example, if the search domain was example.com, and http://test/index.html was requested, it would first query http://test.example.com/index.html, and then http://test/index.html.
+
+domain
+The domain directive is an obsolete name for the search directive that handles one search list entry only. For more syntax options, check man 5 resolv.conf. 
+
+
+хотя по мне пример с http несработает.
+
+продолдажаю читать статью https://www.gabriel.urdhr.fr/2020/04/20/linux-host-name-resolution/#fnref2
+
+в ней написано 
+
+The /etc/resolv.conf file defines which resolvers are used by the dns NSS module (with the nameserver directive).
+
+я считаю что это не совсем так. файл resolv.conf читает нетолько nss module но и вообще
+любая программа которая захочет его прочиать например это делает dig который к NSS
+не имеет нкиакого отношения. а так изначально resolv.conf это конфиг файл для 
+nss dns модуля и больше ни для кого вобщето.
+
+
+
+например systemd-resolved нет
+
+
 
 
 
