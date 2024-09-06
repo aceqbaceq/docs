@@ -104,3 +104,10 @@ $ pacman -Qo $(which resolvectl)
 статья 
   https://wiki.archlinux.org/title/Downgrading_packages
 
+| список файлов
+
+если пакет уже устанолвен то посмотреть список в нем файлов
+
+ $ pacman -Ql ...
+
+ 

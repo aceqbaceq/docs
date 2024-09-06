@@ -3308,16 +3308,967 @@ openat(AT_FDCWD, "/etc/nsswitch.conf", O_RDONLY|O_CLOEXEC) = 3
 
 тоесть пока что из всех утилит только ping и curl юзают NSS !
 
+кстати еще утилита getent
+
+ $ strace -e openat -f  getent ahostsv4    mail.ru  2>&1 | grep nsswitch
+openat(AT_FDCWD, "/etc/nsswitch.conf", O_RDONLY|O_CLOEXEC) = 3
+
+эта утилита она позволяет сделать lookup используя любую базу не тлоько hosts
+я попозже в примерах это покажу
 
 
+получается если у нас есть утилита которая лезет в сеть и ей нужно сделать резволвинг
+домена в IP она может пойти двумя путями. либо она читает /etc/resolv.conf и сама 
+делает запрос к рекурсивному днс, либо она использует NSS , подргружает плагины 
+который прописаны в nsswtch.conf и просит эти плагины проделать эту работу. я так понимаю.
+
+интересно то что файл /etc/resolv.conf это изначально файл который относится к NSS плагину 
+dns. я так понял. это он из него читает свой конфиг и дальше делает запрос к рекурсивному
+днс серверу. а щас в этот файл лазиют все утилиты которым не лень.
+
+никога не думал что даже микрозадача резолвинга это такой огромный сложный трабл
+
+получается файл resolv.conf это файл настройки для NSS плагина dns он же встроенный в глибц
+днс резовлер. однако как мы уже видим этот файл читает все кому не лень.
+c этим resolv.conf получается вот такая странная ситуация как я уже сказал вообще то
+изначально это файл откуда читает nss dns плагин. но по факту с этого файла читают тоже 
+все проги которые сами делают днс резовлинг без участия NSS.
+с этим файлом вообще сложная эпопея. дело в том что его хоят поменять куча программ.
+по дефолту NetworkManager его меняет, systemd-resolvd формирует свой такой файл и 
+не один 
+
+	/run/systemd/resolve/stub-resolv.conf
+	/run/systemd/resolve/resolv.conf
+
+и предлагает сделать /etc/resolv.conf симлинком на один из этих файлов
+есть программа resolvconf она вот что предлагает. она как то там предлагает другим 
+программам в нее пулять изменения а она как то будет это сама пропихиывать в resolv.conf
+тоесть resolv.conf это какое то просто лобное место куда все хотят полазить и все поменять
 
 
+далее я хотел осветить настройку  "trust-ad"
+    $ cat /etc/resolv.conf 
+ 	...
+ 	options trust-ad
+
+цитирую о чем она из man resolv.conf
+
+trust-ad (since glibc 2.31)
+                     Sets RES_TRUSTAD in _res.options.  This option controls the AD bit behavior of the stub resolver.  If a validating resolver sets the  AD
+                     bit in a response, it indicates that the data in the response was verified according to the DNSSEC protocol.  In order to rely on the AD
+                     bit,  the  local  system has to trust both the DNSSEC-validating resolver and the network path to it, which is why an explicit opt-in is
+                     required.  If the trust-ad option is active, the stub resolver sets the AD bit in outgoing DNS queries (to enable AD bit  support),  and
+                     preserves  the  AD bit in responses.  Without this option, the AD bit is not set in queries, and it is always removed from responses be‐
+                     fore they are returned to the application.  This means that applications can trust the AD bit in responses if the  trust-ad  option  has
+                     been set correctly.
+
+                     In glibc 2.30 and earlier, the AD is not set automatically in queries, and is passed through unchanged to applications in responses.
+
+
+как я понимаю смысл этого вот какой : файл resolv.conf он изначально предазначен как файл
+конфигурирования nss плагина dns который является стаб резолвером и это его конфиг. 
+так вот этот флаг в этом конфиге говорит этому резолверу чтобы он когда шлет запрос
+на реркусивный внешний днс сервер чтобы он в query вставил флаг ad который как  я обсуждал
+уже выше должен привести к тому что рекурсивный днс сервер должнен попробовать наш реквест
+проверить через dnnsec и если ему это удастся чтобы он в ответ этот флаг прислал к 
+нам тоесть к нашему днс резолверу а он этот флаг передаст приложению которые вызывало 
+встроенный резолвер. без этой опции встроенный днс резволвер не будет вставлять флаг ad
+в кьюри а если он таковой получит в ответе от рекурсивного днс сервера то он его уберет
+из ответа при передаче ответа приложению которое вызывало встроенный днс резолвер
+вобшем по факту если эту опцию в resolv.conf вставить
+
+ 	options trust-ad
+
+и мы используем программу которая для днс резолвинга юзает nss, и если в nsswitch.conf
+указан плагин dns
+
+
+	/etc/nsswitch.conf
+
+	hosts: dns
+
+то этот плагин пошлет на внешний рекурсивный днс сервер запрос в теле кьюри прописав флаг ad
+и таким макааром он попросит внешний рекурсивный днс сервер чтобы он сделал запрос через 
+dnssec. и еси днссек проверка будет удачная то он в ответ нам тоже пришлет флаг ad.
+таким образом мы добииваемся чтобы рекурсивный днс сервер делал за нас и для нас
+dnssec запросы. вот какая практическая польза. теперь а как это проверить? как нам
+провреить что ответ имеет ad флаг.  дело в том что если  мы используем dig где мы 
+видим как выглдяит ответ  то dig он не использует NSS. 
+кстати забавно что даже если мы для диг укажем сами на какой днс сервер ему
+стучать он все равно читает resolv.conf
+
+ 	$ strace -e openat -f  dig @8.8.8.8  cloudflare.com +tls 2>&1 | grep resolv.conf
+ 	openat(AT_FDCWD, "/etc/resolv.conf", O_RDONLY) = 11
+
+а это еще раз доказательство что он не юзает NSS
+ 	$ strace -e openat -f  dig @8.8.8.8  cloudflare.com +tls 2>&1 | grep nsswitch
+    пусто
+
+так вот - диг он не испльзует NSS, значит nss плагин не открывается не запускается.
+значит опция 
+
+	 	options trust-ad
+
+из resolv.conf не учитывается дигом. по кракйней мере он не обязан. потому что файл
+resolv.conf рассчитан как файл конфиг для nss dns плагина. и все его фишки в целом
+толко для него. 
+
+итак dig он неиспольщует NSS значит он сам формирует dns запрос без участия nss dns 
+плагина. 
+
+так вот получается нам нужна программа которая с одной стороны использует NSS
+плюс нам надо чтоб в nsswitch.conf была подклчен dns плагин
+
+	hosts: dns
+
+плюс нам надо чтобы наша программа которая юзает NSS чтобы она нам на экране рисовала
+ответ. а еще лучше и запрос. тогда мы сможем проверить что реально на основе опции
+
+
+	 	options trust-ad
+
+и туда улетает флаг ad и обратно он прилетает.
+пока что из программа которые юзают nSS я знаю только ping и curl
+они информацию о запросе и ответе по днс не показывают. более того да они конечно запрос
+и не состалвяют. они кидают в nss имя домена а сам запрос к вншнему рекурсивной днс
+серверу составляет плагин nss dns , он это делает сам. и о том как он это делает он
+необязан сообщать наверх вызывавшей его программе
+
+как я читал nss dns плагин не делает кэшифрования . не запоминает результат. 
+но можно поставит демон nscd который делает но который якобы имеет баги.
+
+также я читал что при изменении nsswitch.conf мгновенно изменения применяются
+для нового реквеста к nss. написано что раньше если какойто процесс пользовал nss
+то он читал этот файл один раз и больше его не трогал. а щас видимо сразу перечитывает.
+
+щас поделаю запросы через nss через утилиту getent едиснвтенное что она не показывает
+как идут запросы. она только показывает ответ. зато с помощью нее можно делать запрос
+к любой "базе" NSS
+
+я беру базу aliases. во первых у меня в nsswitch.conf нету ничего для этой базы это значит
+что по дефолту будет заюзан плагин files. в мане написано что при использлвании сервиса
+files читается файл /etc/aliases
+щас проверим.
+
+ $ strace -e openat getent aliases   abuse 
+openat(AT_FDCWD, "/etc/nsswitch.conf", O_RDONLY|O_CLOEXEC) = 3
+openat(AT_FDCWD, "/etc/aliases", O_RDONLY|O_CLOEXEC) = 3
+
+еще странно то что при использовании плагин files  я не вижу чтобы процесс
+открывал этот плагин в виде файла 
+
+	libnss_files.so.2
+
+посмотрим как работает запрос к базе group
+у нас в nsswitch.conf идет запись
+
+
+	group: files [SUCCESS=merge] systemd
+
+  $ strace -e openat getent group   noroot  2>&1
+openat(AT_FDCWD, "/etc/nsswitch.conf", O_RDONLY|O_CLOEXEC) = 3
+openat(AT_FDCWD, "/etc/group", O_RDONLY|O_CLOEXEC) = 3
+openat(AT_FDCWD, "/usr/lib/libnss_systemd.so.2", O_RDONLY|O_CLOEXEC) = 3
+
+вот видно что он внаале заюзал files правда сам плагин почемуто он не грузит
+и залез в /etc/group
+а потом залез в плагин systemd
+
+а вот мы лезем в passwd базу
+
+  $ strace -e openat getent passwd    noroot  2>&1
+openat(AT_FDCWD, "/etc/nsswitch.conf", O_RDONLY|O_CLOEXEC) = 3
+openat(AT_FDCWD, "/etc/passwd", O_RDONLY|O_CLOEXEC) = 3
+
+noroot:x:1000:1000:noroot:/home/noroot:/bin/bash
+
+
+оказывается есть база protocols и через плагин files она лезет в /etc/protocols файл
+
+  $ strace -e openat getent protocols   trunk-1  2>&1
+openat(AT_FDCWD, "/etc/nsswitch.conf", O_RDONLY|O_CLOEXEC) = 3
+openat(AT_FDCWD, "/etc/protocols", O_RDONLY|O_CLOEXEC) = 3
+
+trunk-1               23 TRUNK-1
+
+
+есть база rcp и плагин files лезет в файл /etc/rpc
+
+ $ strace -e openat getent rpc   sprayd  2>&1
+openat(AT_FDCWD, "/etc/nsswitch.conf", O_RDONLY|O_CLOEXEC) = 3
+openat(AT_FDCWD, "/etc/rpc", O_RDONLY|O_CLOEXEC) = 3
+
+sprayd          100012  spray
+
+
+есть база services и плагин files лезет в файл /etc/services
+
+⨨  $ strace -e openat getent services  ssh  2>&1
+openat(AT_FDCWD, "/etc/nsswitch.conf", O_RDONLY|O_CLOEXEC) = 3
+openat(AT_FDCWD, "/etc/services", O_RDONLY|O_CLOEXEC) = 3
+
+ssh                   22/tcp
+
+
+есть база с паролями shadow и с плагином fules она лезет в файл  /etc/shadow
+
+ну походу все интересное что можно было выжать из getent мы сделали. эта утилита
+просто позволяет нам указать базу в которой искать и  ключ который искать и она покажет
+что она нашла
+
+еще пример
+
+$  getent hosts  yandex.ru
+2a02:6b8:a::a   yandex.ru
+
+
+ $  getent ahostsv4  yandex.ru
+77.88.55.88     STREAM yandex.ru
+77.88.55.88     DGRAM  
+77.88.55.88     RAW    
+5.255.255.77    STREAM 
+5.255.255.77    DGRAM  
+5.255.255.77    RAW    
+77.88.44.55     STREAM 
+77.88.44.55     DGRAM  
+77.88.44.55     RAW    
+
+
+  $  getent ahosts  yandex.ru
+77.88.55.88     STREAM yandex.ru
+77.88.55.88     DGRAM  
+77.88.55.88     RAW    
+77.88.44.55     STREAM 
+77.88.44.55     DGRAM  
+77.88.44.55     RAW    
+5.255.255.77    STREAM 
+5.255.255.77    DGRAM  
+5.255.255.77    RAW    
+2a02:6b8:a::a   STREAM 
+2a02:6b8:a::a   DGRAM  
+2a02:6b8:a::a   RAW    
+
+кстати поле TTL для днс  например 
+
+ya.ru.			348	IN	A	77.88.44.242
+
+здесь TTL=348
+
+зачем она? а она затем как я понимаю что когда наш комп прочитает эту запись внутрь 
+себя то он наверное ее хранит может быть где то в своих кишках? и TTL указывает
+сколько надо хранить  а потом с компа удалить и заново к днс обратиться.
+
+
+на счет NSS как мне делая код на си использовать этот функционал ?
+как я понимаю надо в код подключить чтото типа
+
+incude nss.h
+и получишь доступ к функциям (API) это NSS
+но это неточно
+
+походу так и есть потому что glibc функция getaddrinfo() она достоверно известно что
+она юзает NSS. загляен в код этой функции (https://github.com/lattera/glibc/blob/master/sysdeps/posix/getaddrinfo.c)
+и что мы таам видим
+
+#include <assert.h>
+#include <ctype.h>
+#include <errno.h>
+#include <ifaddrs.h>
+#include <netdb.h>
+#include <nss.h>     <===== !!!
+..
+
+
+мы видим как раз подключение nss.h
+тоесть вот так этот функционал подключается к моему коду
+
+еще там и вот такое есть
+
+#include <nsswitch.h>
+
+а вот как выглядят все строки из кода этой фнукции в которым встречается слово nss
+
+#include <nss.h>
+#include <nsswitch.h>
+typedef enum nss_status (*nss_gethostbyname4_r)
+typedef enum nss_status (*nss_gethostbyname3_r)
+typedef enum nss_status (*nss_getcanonname_r)
+  nss_getcanonname_r cfct = __nss_lookup_function (nip, "getcanonname_r");
+	  enum nss_status inet6_status = NSS_STATUS_UNAVAIL;
+	  enum nss_status status = NSS_STATUS_UNAVAIL;
+	  if (__nss_not_use_nscd_hosts > 0
+	      && ++__nss_not_use_nscd_hosts > NSS_NSCD_RETRY)
+	    __nss_not_use_nscd_hosts = 0;
+	  if (!__nss_not_use_nscd_hosts
+	      && !__nss_database_custom[NSS_DBSIDX_hosts])
+	      else if (__nss_not_use_nscd_hosts == 0)
+	  if (__nss_hosts_database == NULL)
+	    no_more = __nss_database_lookup ("hosts", NULL,
+					     &__nss_hosts_database);
+	  nip = __nss_hosts_database;
+	      nss_gethostbyname4_r fct4 = NULL;
+		fct4 = __nss_lookup_function (nip, "gethostbyname4_r");
+		  nss_gethostbyname3_r fct = NULL;
+		    fct = __nss_lookup_function (nip, "gethostbyname3_r");
+		    fct = __nss_lookup_function (nip, "gethostbyname2_r");
+			 be listed in /etc/nsswitch.conf).  Assume the
+	      if (nss_next_action (nip, status) == NSS_ACTION_RETURN)
+nss_interface_function (getaddrinfo)
+
+тоесть если мы хотим юзать NSS то мы должны подключить ее в свой код
+
+	#include <nss.h> 
+	#include <nsswitch.h>
+
+и начать юзать те функции которые она предоставляет. 
+
+функция getaddrinfo() прибегает к NSS чтобы зарезолвит dns имя в серию IP но она 
+еще потом это все конвертирует в такой тип данных чтобы это можно было потом напрямую
+передать в bind() или connect() тоесть это не просто функция которая нам резволит 
+днс имя в IP это нечто большее
+
+код с примером исполльзования этой фнкции getaddrinfo() в коде 191.c (ествсвтенно его написал не я. его написали в интернете.)
+
+$ strace  -e openat ./191.exe  
+openat(AT_FDCWD, "/etc/nsswitch.conf", O_RDONLY|O_CLOEXEC) = 3
+openat(AT_FDCWD, "/etc/host.conf", O_RDONLY|O_CLOEXEC) = 3
+openat(AT_FDCWD, "/etc/resolv.conf", O_RDONLY|O_CLOEXEC) = 3
+openat(AT_FDCWD, "/usr/lib/libnss_resolve.so.2", O_RDONLY|O_CLOEXEC) = 3
+openat(AT_FDCWD, "/etc/gai.conf", O_RDONLY|O_CLOEXEC) = 3
+
+соотвественно getadrinfo при ее вызове она лезет через nss в базу hosts:
+поэтому у нас открывается файл nsswitch.conf  
+кстати файлы
+
+	/etc/host.conf
+	/etc/resolv.conf
+
+они оба являются конфиг файлами nss dns  плагина он же встроенный в глибц резолвер,
+смысла файла host.conf несовсем понятен, ну да ладно, так как у нас плагин nss resolve
+тоже является днс клиентом то видимо поэтому перед его открытием открываюься теже
+файлы что и при открытии nss dns , поэтому мы видим эту полсдовательность
+
+		"/etc/host.conf"
+		"/etc/resolv.conf"
+		"/usr/lib/libnss_resolve.so.2"
+
+
+при этом понятно что в nswitch.conf у меня стоит вот так
+
+	hosts: resolve files myhostname dns
+
+я уверен что если я щас настрою вот так 
+
+	hosts: dns
+
+то уменя откроются вот такие файлы 
+
+
+		"/etc/host.conf"
+		"/etc/resolv.conf"
+		"/usr/lib/libnss_dns.so.2"
+
+проверяю, проставил в nsswitch.conf
+		hosts: dns
+
+
+茜  $ strace  -e openat ./191.exe  
+openat(AT_FDCWD, "/etc/nsswitch.conf", O_RDONLY|O_CLOEXEC) = 3
+openat(AT_FDCWD, "/etc/host.conf", O_RDONLY|O_CLOEXEC) = 3
+openat(AT_FDCWD, "/etc/resolv.conf", O_RDONLY|O_CLOEXEC) = 3
+openat(AT_FDCWD, "/etc/gai.conf", O_RDONLY|O_CLOEXEC) = 3
+
+
+кхм.. странно почему небыл открыт файл 
+
+	libnss_dns.so.2
+
+пробую по другому
+
+  $ strace -e openat getent hosts mail.ru
+openat(AT_FDCWD, "/etc/host.conf", O_RDONLY|O_CLOEXEC) = 3
+openat(AT_FDCWD, "/etc/resolv.conf", O_RDONLY|O_CLOEXEC) = 3
+openat(AT_FDCWD, "/etc/nsswitch.conf", O_RDONLY|O_CLOEXEC) = 3
+
+странно почемуто при 
+
+	hosts: dns
+
+и использовании проги которая использует NSS я не вижу того чтобы подгружался 
+nss plugin dns 
+
+ну да ладно. из теории известно что вообще то именно он используется
+
+а если верну
+
+	hosts: resolve
+
+то все происходит четко по теории
+открывается файл отвечающий за плагин resolve
+
+	$ strace  getent hosts mail.ru  2>&1 | grep nss
+	openat(AT_FDCWD, "/etc/nsswitch.conf", O_RDONLY|O_CLOEXEC) = 3
+	openat(AT_FDCWD, "/usr/lib/libnss_resolve.so.2", O_RDONLY|O_CLOEXEC) = 3
+
+я кстати иду по этой статье щас ( https://www.gabriel.urdhr.fr/2020/04/20/linux-host-name-resolution/#fn2)
+так вот там интересная штука показана. можно взять ELF файл и посмотреть какие функции
+определены внутри этого файла. тоест скжаем если это shared библиотека то можно
+посмотреть какие функции нам станут доступны при подключении этой библиотеки
+
+возьем некоторые nss плугины и посмтрим на этот счет
+
+  $ ls -1 /usr/lib/libnss_*.so.2
+/usr/lib/libnss_compat.so.2
+/usr/lib/libnss_db.so.2
+/usr/lib/libnss_dns.so.2
+/usr/lib/libnss_files.so.2
+/usr/lib/libnss_hesiod.so.2
+/usr/lib/libnss_mdns4_minimal.so.2
+/usr/lib/libnss_mdns4.so.2
+/usr/lib/libnss_mdns6_minimal.so.2
+/usr/lib/libnss_mdns6.so.2
+/usr/lib/libnss_mdns_minimal.so.2
+/usr/lib/libnss_mdns.so.2
+/usr/lib/libnss_myhostname.so.2
+/usr/lib/libnss_mymachines.so.2
+/usr/lib/libnss_resolve.so.2
+/usr/lib/libnss_systemd.so.2
+/usr/lib/libnss_winbind.so.2
+/usr/lib/libnss_wins.so.2
+ 
+кстати видно что есть плагин  с именем db
+вопрос к какой базе он умеет поключаться. я нашел что вроде как к berkley db
+я ее поставил
+
+  # pacman -Sy db
+
+но как я понял это какая то поделка. в том плане что у нее нет ни демона которым
+ее стартовать , ни клиента чтобы к ней пдключаться. из того что я увидел обращение
+к ней например делают из кода на си. поэтому поигрраться с ней неудалось. я хотел
+в нее чтони бду записать а потом через NSS db считать.
+
+итак смотрим внутрь плугинов какие функции они нам дают если их подгрузить
+
+в плугине db этих фнукций просто дохрена
+я их все не буду приводит
+ $ readelf -Ws /usr/lib/libnss_db.so.2   | grep FUNC  | grep -v UND
+    35: 0000000000005cd0   695 FUNC    GLOBAL DEFAULT   13 _nss_db_getrpcbynumber_r@@GLIBC_PRIVATE
+    36: 0000000000002940   137 FUNC    GLOBAL DEFAULT   13 _nss_db_setgrent@@GLIBC_PRIVATE
+    37: 0000000000005fa0   947 FUNC    GLOBAL DEFAULT   13 _nss_db_initgroups_dyn@@GLIBC_PRIVATE
+
+что странно в плугинах dns и files якобы вообще нет фнкций
+ 
+$ readelf -Ws /usr/lib/libnss_dns.so.2   | grep FUNC  | grep -v UND
+$ readelf -Ws /usr/lib/libnss_files.so.2   | grep FUNC  | grep -v UND
+
+$ readelf -Ws /usr/lib/libnss_myhostname.so.2   | grep FUNC  | grep -v UND
+   123: 00000000000105b0    27 FUNC    GLOBAL DEFAULT   11 _nss_myhostname_gethostbyname2_r
+   124: 0000000000010bd0    28 FUNC    GLOBAL DEFAULT   11 _nss_myhostname_gethostbyaddr_r
+   125: 00000000000105d0   153 FUNC    GLOBAL DEFAULT   11 _nss_myhostname_gethostbyname_r
+   126: 000000000000f980  1730 FUNC    GLOBAL DEFAULT   11 _nss_myhostname_gethostbyname4_r
+   127: 0000000000010670  1376 FUNC    GLOBAL DEFAULT   11 _nss_myhostname_gethostbyaddr2_r
+   128: 0000000000010050  1361 FUNC    GLOBAL DEFAULT   11 _nss_myhostname_gethostbyname3_r
+
+
+$ readelf -Ws /usr/lib/libnss_resolve.so.2   | grep FUNC  | grep -v UND
+   113: 000000000000e950  3200 FUNC    GLOBAL DEFAULT   11 _nss_resolve_gethostbyname3_r
+   114: 000000000000f690  2831 FUNC    GLOBAL DEFAULT   11 _nss_resolve_gethostbyaddr2_r
+   115: 000000000000f5d0    27 FUNC    GLOBAL DEFAULT   11 _nss_resolve_gethostbyname2_r
+   116: 000000000000dee0  2662 FUNC    GLOBAL DEFAULT   11 _nss_resolve_gethostbyname4_r
+   117: 00000000000101a0    28 FUNC    GLOBAL DEFAULT   11 _nss_resolve_gethostbyaddr_r
+   118: 000000000000f5f0   153 FUNC    GLOBAL DEFAULT   11 _nss_resolve_gethostbyname_r
+
+$ readelf -Ws /usr/lib/libnss_systemd.so.2   | grep FUNC  | grep -v UND
+   172: 0000000000006a50    27 FUNC    GLOBAL DEFAULT   12 _nss_systemd_endspent
+   173: 0000000000007910  1231 FUNC    GLOBAL DEFAULT   12 _nss_systemd_getspent_r
+   174: 0000000000011e40  2495 FUNC    GLOBAL DEFAULT   12 _nss_systemd_initgroups_dyn
+   175: 000000000000baf0  1978 FUNC    GLOBAL DEFAULT   12 _nss_systemd_getpwuid_r
+   ...
+   ...
+
+
+соотвесвтенно в плагине resolve у нас два типа функций gethostbyname и gethostbyaddr
+тоесть все логично. он либо ищет IP для домена либо наоборот
+
+тоесть подкючается плагин. а потом я так понимаю в нем вызывается функция
+
+далее статья пишет что пакет glibc поставляет nss плагины files и dns,
+пакет systemd поставлет NSS плагины resolve , myhostname, mymachines
+
+mymachines - типа для резволвинга виртуалок которые созданы через systemd короче
+никто этим не занимтеся этот плагин неинтересен.
+
+myhostname - это плагин про него можно прочитать тут
+
+	man  nss-myhostname
+
+там написано что он пригоден для днс резолвинга вот таких доменных имен
+
+	local
+	localhost
+	localhost.localdomain
+	_gateway
+	_outbound
+
+мне стало интересно а что какой IP он покажет для _gateway и _outbound
+
+ $ getent hosts _gateway
+192.168.47.179  _gateway
+
+$ getent hosts _outbound
+192.168.47.1    _outbound
+
+
+а что это за ip адреса?
+
+ $ ip -c r sh
+0.0.0.0/1 via 172.16.50.1 dev tun0 
+default via 192.168.47.179 dev wlp2s0 proto dhcp src 192.168.47.1 metric 20600 
+
+ $ ip -c a sh  dev wlp2s0
+    inet 192.168.47.1/24 brd 192.168.47.255 
+
+получается что _gateway это ip гейтвея того который был до того как включил впн
+а _outbound это ip адрес с которого в этот гейтвей мы ходим
+
+убедимся что getent юзал плагин nss myhostname
+
+ $ strace -e openat  getent hosts _gateway
+openat(AT_FDCWD, "/etc/host.conf", O_RDONLY|O_CLOEXEC) = 3
+openat(AT_FDCWD, "/etc/resolv.conf", O_RDONLY|O_CLOEXEC) = 3
+openat(AT_FDCWD, "/etc/nsswitch.conf", O_RDONLY|O_CLOEXEC) = 3
+openat(AT_FDCWD, "/usr/lib/libnss_resolve.so.2", O_RDONLY|O_CLOEXEC) = 3
+openat(AT_FDCWD, "/etc/hosts", O_RDONLY|O_CLOEXEC) = 3
+openat(AT_FDCWD, "/usr/lib/libnss_myhostname.so.2", O_RDONLY|O_CLOEXEC) = 3
+
+мы видим что да вконце концов был заюзан
+
+	libnss_myhostname.so.2
+
+про nss плагин resolve можно прочитать через
+
+    man nss-resolve
+
+там в частности написано что он идет как бы на замену nss dns плагину. написано 
+что он умеет частично синтезировать то бишь резолвит локальные днс имена но тока
+отчасти поэтому он отчасти перекрывает плагин myhostname но тока отчасти поэтому 
+плагин myhostname рекомендуется тоже оставлять в nsswitch.conf
+также написано что этот плагин это всего лишь фронтенд и он на самом деле обращается
+к сервису systemd-resolved который есть ничто иное как бинарник /usr/lib/systemd/systemd-resolved и уже тот делает реально вот эту работу по резолвингу. так вот 
+nss плагин resolve он обращается общается с /usr/lib/systemd/systemd-resolved через
+сокет  AF_UNIX /run/systemd/resolve/io.systemd.Resolve 
+
+щас я проверю а есть ли он у меня на компе
+$ stat /run/systemd/resolve/io.systemd.Resolve
+  File: /run/systemd/resolve/io.systemd.Resolve
+  Size: 0         	Blocks: 0          IO Block: 4096   socket
+
+
+правла статья в отличие от мана утверждает что плагин с демном общается через D-Bus.
+я вот незнаю сокет который  я привел имеет ли отноение к D-Bus или нет? вмане ничего
+про D-Bus не сказано.
+
+длаее говорится что через resolvectl можно обратиться к systemd-resolved чтобы он 
+нам зарезолвил днс имя. я посмтрел реаьно resolvectl входит в состав пакета systemd
+
+# pacman -F  $(which resolvectl)
+usr/bin/resolvectl is owned by core/systemd 256.5-1
+
+тоесть походу пьемы resolvectl это cli, client доступа к systemd-resolved через
+командную строку. 
+
+в мане от resolvectl так и написано что он обращается к systemd-resolved
+команла
+
+		$ sudo resolvectl monitor
+
+покажет какие днс запросы к systemd-resolved идут в рил тайме
+
+		$ sudo resolvectl show-cache
+
+покажет что в кеше щас лежит
+
+а вот интерсено что еще можно делать
+
+	$ resolvectl openpgp zbyszek@fedoraproject.org
+
+я попробовал через dig такое не получить
+
+вот еще интересны пример
+
+    $ resolvectl tlsa tcp fedoraproject.org:443
+_443._tcp.fedoraproject.org IN TLSA 3 1 1 85dadbdd506853d258213480f8688a7d5821294576195c79616a9dba576a1738
+        -- Cert. usage: Domain-issued certificate
+        -- Selector: SubjectPublicKeyInfo
+        -- Matching type: SHA-256 -- link: wlp2s0
+
+тоесть это днс запись типа TLSA
+
+когда пишут libc resolver это имеют ввиду nss dns плагин
+
+прикол в том что NetworkManager имеет свой сгенерированный как ему кажется resolv.conf
+и лежит он в /run/NetworkManager/resolv.conf
+об этом на самом деле я писал выше и еще можно прочитать в 
+
+	man 5 NetworkManager.conf
+
+
+далее еще раз о том что systemd-resolved тооже генерирует несколько resolv.conf 
+один из которых можно выбрать чтобы на него направит симлинк /etc/resolv.conf
+
+
+ $ grep -v '#'  /run/systemd/resolve/stub-resolv.conf 
+
+nameserver 127.0.0.53
+options edns0 trust-ad
+search com
+
+ $ grep -v '#'  /run/systemd/resolve/resolv.conf 
+
+nameserver 1.1.1.1
+nameserver 8.8.8.8
+nameserver 8.8.4.4
+nameserver 192.168.47.179
+search .
+
+ $ grep -v '#'  /lib/systemd/resolv.conf
+
+nameserver 127.0.0.53
+options edns0 trust-ad
+
+
+разница второго файла с первым в том что во втором файле указаны сугубо только 
+внешние рекурсивные днс сервера , тоест какой бы днс клиент ни был он сразу направляется
+на внешние рекурсивные днс сервера, а первый файл таков что он в качестве внешнего рекур
+сивного днс сервера указывает локальный днс сервера установленный на компе а 
+именно за адресом 127.0.0.53 сидит systemd-resolved , тоесть наш днс клиент будет
+обращаться к нему а уже он будет обращаться к тем внешним рекурсинвынвым днс серверам
+которые указанв в кофниге systemd-resoled (конфиг лежит в /etc/systemd/resolved.conf)
+фишка такого варианта в том что systemd-resolved он кэширует данные которые через него
+проходят. приколв в том что systemd-resolved явялется по своей сути  стаб днс клиентом
+с функцией кэшиврования. тоесть тот запрос который на него приходит он перенаравляет
+на внешний рекурсивный днс сервер. получает от него ответ и отдает его клиенту.
+плюс запрос кэширует. так вот вопрос нахрена он тогда гененрериует  вот этот вариант
+resolv.conf
+
+ $ grep -v '#'  /run/systemd/resolve/resolv.conf 
+
+nameserver 1.1.1.1
+nameserver 8.8.8.8
+nameserver 8.8.4.4
+nameserver 192.168.47.179
+search .
+
+
+если при таком вариант systemd-resolved вообще не будет задействован? тоесть программа
+генерирует такой конфиг при котором она исползоваться вообще не будет!
+
+разница между первым и третьим в том что в третьем нет строки search,
+вот и всяразица. а что мешает туда добавить search ?
+
+
+еще раз хочу сказать что под "TRADITIONAL GLIBC STUB RESOLVER" понимаю всроенный в 
+glibc в его NSS компнент а именно в nss dns плагин днс резовлет или днс клиент.
+
+наопмню что search эта то что мы делаем какоето имя домена в запросе
+а днс клиент(резолвер) автоматом добавляет ему в хвост то что стоит в строке search
+и уже это имя шлет на внешний рекурсинвый днс сервер. например мы указали
+
+	saearch com
+
+и в клиенте пишем 
+
+	getent hosts   google
+
+тогда getent у нас лезет в nswitch,conf
+а там в строке
+
+   hosts: resolver
+
+значит задейстует плагин resover который поидее через локальный сокет обратиться в 
+systemd-resolved котоырй прочитает resolv.conf в котором кстати может бывть вот так
+
+	nameserver 127.0.0.53
+	search com
+
+и тогда получаетс что клиент днс systemd-resolved обратиться сам к себе (хаха)
+и попросит сам себя обрабоать днс запрос, обратившис сам к себе он загляентет
+в свой конфиг в /etc/systemd/resolved.conf обнаружит там указанынй внешний днс 
+сервер 8.8.8.8 и сделает туда запрос и так как в resolv.conf был указан
+
+   search com
+
+а он понимает что это значит то он добавит к домену который у него запросили в хвост
+еще com
+тоесть если мы запросили google то он на 8.8.8.8 направиит имя google.com
+
+можно и без getent можно обратиться через resolvectl . это прямой клиент в systemd-resolved
+
+что интересно вариант через getent добавит к google еще и com
+а вариант с resolvectl нет!
+
+ : 왟  $ strace -e  openat   getent hosts google
+openat(AT_FDCWD, "/etc/host.conf", O_RDONLY|O_CLOEXEC) = 3
+openat(AT_FDCWD, "/etc/resolv.conf", O_RDONLY|O_CLOEXEC) = 3
+openat(AT_FDCWD, "/etc/nsswitch.conf", O_RDONLY|O_CLOEXEC) = 3
+openat(AT_FDCWD, "/usr/lib/libnss_resolve.so.2", O_RDONLY|O_CLOEXEC) = 3
+openat(AT_FDCWD, "/etc/hosts", O_RDONLY|O_CLOEXEC) = 3
+openat(AT_FDCWD, "/usr/lib/libnss_myhostname.so.2", O_RDONLY|O_CLOEXEC) = 3
+
+2a00:1450:4001:81d::200e google.com
+
+я вот не знаю толи сам getent прочитав resolv.conf и увидев там
+
+	search com
+
+добавляет этот com к google и потом сует в плагин libnss_resolve.so.2
+толи плагин добавляет и уже сует в systemd-resolved
+
+а вот resolvectl ничего не добавляет!
+он даже resolv.conf нечитает
+
+$ strace -e  openat  resolvectl query google
+google: resolve call failed: No appropriate name servers or networks for name found
++++ exited with 1 +++
+
+кстати ping так как он юзает NSS то если я ему задам 
+
+  $ ping google
+
+то он а точнее его запрос к NSS зарезолвить ему доменное имя google как google.com
+и вернет ему IP от google.com
+
+  $ ping google
+PING google.com (142.250.186.142) 56(84) bytes of data.
+64 bytes from fra24s07-in-f14.1e100.net (142.250.186.142): icmp_seq=1 ttl=57 time=248 ms
+
+кстати curl он же тоже резволит доменное имя в IP чрез NSS поэтому
+
+ 瀪  $ curl -v google
+* Host google:80 was resolved.
+* IPv6: 2a00:1450:4001:81c::200e
+* IPv4: 216.58.206.46
+*   Trying 216.58.206.46:80...
+
+тут видно что я ему скормил домен google он его передал NSS а тот его перевел
+в google.com и нарпавл на внешнйи днс сврер и он вернул ip от google.com
+
+* Connected to google (216.58.206.46) port 80
+> GET / HTTP/1.1
+> Host: google
+но воттут прокол. ip то он он нашел.  а хост в протокол HTTP вставил прежний
+просто google
+
+> User-Agent: curl/8.9.1
+> Accept: */*
+> 
+* Request completely sent off
+
+поэтому гугл шлет его нахрен. с ошибкой
+
+< HTTP/1.1 404 Not Found  <=====================!
+...
+...
+  <title>Error 404 (Not Found)!!1</title>
+
+поэтому честно говорят вот эта фича "search" в resolv.conf она вроде как 
+беды несет.
+
+тоесть получаетс вот как. мы верхнеувроенвой программе подсосываем на самом деле
+неверное доменное имя. эта программа его передает вниз в NSS для резволвинга. 
+она задним числом молифицирует это доменное имя и находит для него IP. наверх 
+она отдает тлько IP а о том что она модифиицировала исходный домен она умалчивает
+и верхнеуровенвая программа думает что IP ей дали от исходного домена. но этоже 
+брехня. IP ей дали от совершенно другого доаменма. поэтмоу с пинг такой номер
+типа успешно проказывает а с курл уже нет.
+поэтому пока что я думаю что опция "search" это гадость причинящая ошибки.
+
+еще насолкко я понял systemd-resolved не поддерживает так называемй PER-Interface DNS
+тоесть это когда у нас для кажого сетевого интервейса назначааются свои днс 
+сервера которые за этим интерфейсом сидят. и также назначаются домены которые за этими
+интерфесами сидят. тогда если мы вводим запрос к днс то днс клиент смотрит за каким
+интерфейсом сидит домен в запросе и пуляет его в нужный интфрейс в нужный днс
+сервер. например
+
+интрфейс 01
+DNS 1.1.1. 
+domain com
+
+интфрейсе 02
+dns 2.2.2.2
+домен net
+
+мы делаем ping vasya.com 
+тогда для резволвинга этог домена запрос напрвяется через интерфсей01 к 1.1.1.1
+
+это очень актуально кога унас впн коннекты есть а за ним свой локальный домен.
+
+я знаю что так точно можено делать с поомощью dnsmasq, но помоему через systemd-resolved
+так несделать. 
+кстати dnsmsq можно поставить отдельно а можно использовать dnsmasq плагин к NetworkManager
+
+я уже написал что 
+
+	$ resolvectl
+
+это cli к systemd-resolved 
+
+тоесть мы укаызвамемм домен через resolvectl и он этот реквест напрямую шлет сразу
+к systemd-resolved
+тоест у нас есть как бы днс резолвер в форме демона systemd-resolved.
+к нему есть cli который позволяет запрос из командной строки перенаравить этому демону.
+этот cli это resolvectl. нормальная схема клиент-сервер
+все понятно
+
+но тут на сцену вылезает еще одна утилита это 
+
+	$ systemd-resolve
+
+а это что такое ?
+ОКАЗЫВАЕТСЯ! systemd-resolve это симлинк на resolvectl!!! 
+
+$ stat $(which systemd-resolve)
+  File: /usr/bin/systemd-resolve -> resolvectl
+  Size: 10        	Blocks: 0          IO Block: 4096   symbolic link
+
+об этом кстати инфо  я нашел в мане! но не мане который идет к моему компу. нееет!
+я нашел ее в мане от убунты
+
+resolvectl is a multi-call binary, which previously was named "systemd-resolve" and used
+       slightly different parameters. When it is invoked as "systemd-resolve" (generally achieved
+       by means of a symbolic link of this name to the resolvectl binary), it runs in
+       compatibility mode. For details on the specific parameters and calling syntax, see the
+       output from systemd-resolve --help. Calling the binary as "systemd-resolve" is deprecated
+       and should only be done for backwards compatibility. All current and new use should call
+       the binary as "resolvectl".
+
+
+что такое multi-call binary. это код который проверяет arg[0] при запуске тоесть он 
+смотрит как называется файл под которым его запустили. и если файл называется resolvectl
+то он активрует один свой кусок а если файл назыаывали systemd-resolve он актиуирует
+другой кусок. и как мы видим написано что раньше файл назывался systemd-resolve
+а потом его переимновали в resolvectl но оставили и старое название для совместимости.
+в  общем получается про systemd-resolve можно забыть. это старое называние. новое
+название resolvectl и его надо юзат. (хотя по мне новое нвазавание более хуеовое)
+
+кстати можно вот такую статитсиику посмотреть
+	$ sudo resolvectl statistics
+
+...
+...
+Cache                                            
+                         Current Cache Size:  176
+                                 Cache Hits:  706
+                               Cache Misses: 1097
+                                                 
+...
+...                                                 
+DNSSEC Verdicts                                  
+                                     Secure:  490
+                                   Insecure: 1325
+                                      Bogus:    6
+                              Indeterminate:    0
+
+
+тут ксатти я маолек непонимаю кто занимается dnssec проверкой? именно наш systemd-resolved
+или он эту работу поручает тому рекурсивному днс серверу которому он запросы посылвает?
+с dig все понятно он это не умеет сам проверяять. с delv все понятно он сам это делает.
+я думаю что systemd-resolved тоже проверяет сам потому что - у него в кеше лежат DNSKEY
+записи. а зачем они ему нужны только если он их скачивает. а скачивать он их будет
+только если онсам делает dnsssec проверку
+
+вот например делаю  я запрос
+ $ resolvectl -4  query cloudflare.com
+cloudflare.com: 104.16.133.229                 -- link: tun0
+                104.16.132.229                 -- link: tun0
+
+-- Information acquired via protocol DNS in 1.7ms.
+-- Data is authenticated: yes; Data was acquired via local or encrypted transport: yes
+-- Data from: cache
+
+вот эта строка Data is authenticated: yes обозначает что данные подтверждвены по dnssec
+а теперь смотрим что лежит в кеше демона
+
+	$ sudo resolvectl show-cache
+
+cloudflare.com IN AAAA 2606:4700::6810:85e5
+
+cloudflare.com IN AAAA 2606:4700::6810:84e5
+
+cloudflare.com IN DS 2371 13 2 32996839a6d808afe3eb4a795a0e6a7a39a76fc52ff228b22b76f6d63826f2b9
+
+cloudflare.com IN DNSKEY 257 3 ECDSAP256SHA256
+        mdsswUyr3DPW132mOi8V9xESWE8jTo0dxCjjnopKl+GqJxpVXckHAeF+KkxLbxILfDLUT0rA
+        K9iUzy1L53eKGQ==
+        -- Flags: SEP ZONE_KEY
+        -- Key tag: 2371
+
+cloudflare.com IN DNSKEY 256 3 ECDSAP256SHA256
+        oJMRESz5E4gYzS/q6XDrvU1qMPYIjCWzJaOau8XNEZeqCYKD5ar0IRd8KqXXFJkqmVfRvMGP
+        mM1x8fGAa2XhSA==
+        -- Flags: ZONE_KEY
+        -- Key tag: 34505
+
+днс записи с типом DNSKEY асболютно не могут попасть на комп чреез обычные запросы 
+толко если их не  запрашивал днс клиент с целью проверки по DNSSEC
+значит systemd-resolved сам проеряет dnssec! что хорошо!
+
+ я прям помню вот эти keyid = 2371 и 34505 у клаудфлеер 
+
+вопрос тлоько в том какой из них ZSK ключ а какой KSK ключ
+
+ ^ 蚕  $ dig DNSKEY cloudflare.com +multi
+
+;; flags: qr rd ra ad; QUERY: 1, ANSWER: 2, AUTHORITY: 0, ADDITIONAL: 1
+
+;; QUESTION SECTION:
+;cloudflare.com.		IN DNSKEY
+
+
+;; ANSWER SECTION:
+cloudflare.com.		1721 IN	DNSKEY 256 3 13 (
+				oJMRESz5E4gYzS/q6XDrvU1qMPYIjCWzJaOau8XNEZeq
+				CYKD5ar0IRd8KqXXFJkqmVfRvMGPmM1x8fGAa2XhSA==
+				) ; ZSK; alg = ECDSAP256SHA256 ; key id = 34505
+cloudflare.com.		1721 IN	DNSKEY 257 3 13 (
+				mdsswUyr3DPW132mOi8V9xESWE8jTo0dxCjjnopKl+Gq
+				JxpVXckHAeF+KkxLbxILfDLUT0rAK9iUzy1L53eKGQ==
+				) ; KSK; alg = ECDSAP256SHA256 ; key id = 2371
+
+полуаетя key id = 34505 это ZSK 
+а key id= 2371 это KSK
+
+у resolvectl это имеет названия
+
+ -- Flags: SEP ZONE_KEY
+ -- Key tag: 2371
+
+ -- Flags: ZONE_KEY
+ -- Key tag: 34505
+
+
+понятно!
+
+так значит с разницей между systemd-resolve и resolvectl прояснили!
+(кошмар какйото )
+
+парень вот в этой статье (https://www.gabriel.urdhr.fr/2020/04/20/linux-host-name-resolution/#fnref2) указал что обратиться к systemd-resolved
+можно и через resolvectl и через systemd-resolve
+
+	resolvectl -4 query www.example.com
+	resolvectl -6 query www.example.com
+	systemd-resolve -4 www.example.com
+	systemd-resolve -6 www.example.com
+
+но он нерасписал какая между ними связь и разница
 
 
 
 
 
 полезные ссылки:
+https://www.gabriel.urdhr.fr/2020/04/20/linux-host-name-resolution/
+https://ldpreload.com/blog/testing-glibc-nsswitch
  https://www.cloudflare.com/learning/dns/dns-server-types/#:~:text=All%20DNS%20servers%20fall%20into,TLD%20nameservers%2C%20and%20authoritative%20nameservers.
  https://serverfault.com/questions/729025/what-are-all-the-flags-in-a-dig-response
  https://www.ietf.org/rfc/rfc1035.txt
