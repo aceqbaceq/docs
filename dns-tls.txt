@@ -4964,26 +4964,1094 @@ Current DNS Server: 8.8.8.8
 dns плагин. тогда гавное в resolv.conf постваить nameserver IP_dnsmask
 
 
+но все таки я возвращаюсь к прлблеме - как мне запретить sd(systemd-resolved) засасывать
+конфиг из нетворкменеджера.
+
+так еще раз возвращаюсь к конфигу sdr (systemd-resolved /etc/resolved.conf)
+в нем есть ключ
+  
+    Domains =
+
+в него мы включаем имена доменов которые будут делать вот что
+
+Any domains not prefixed with "~" are used as search suffixes when resolving single-label hostnames (domain names which contain no dot), in order
+to qualify them into fully-qualified domain names (FQDNs). These "search domains" are strictly processed in the order they are specified in, until
+the name with the suffix appended is found. For compatibility reasons, if this setting is not specified, the search domains listed in
+/etc/resolv.conf with the search keyword are used instead, if that file exists and any domains are configured in it.
+
+или по русски - если я вбиваю в клиенте домен A из одного слова то его вначале надо
+прервраить в нормального вида домен FQDN=A.B и тогда к моему слову A добавлвяется 
+тот домен который указан в строке Domains
+напрмиер если я укажу
+
+  Domains = com
+
+и в кленте укажу
+
+    $ resolvectl vasya
+
+то в итоге sd пошлет запрос про домен  vasya.com
+resolvectl это клиент командной строки к sd. а как же резолвят домены программы которые
+незапрашивают домен с командной строки. например браузер. они резовлят домены
+вот как - либо подключая к себе nss библиотеку и потом юзают nss glibc функции которые
+обращаются к файлу nsswitch.conf в котором прописан nss плагин например у меня это 
+плагин resolve. тогда он берет ззапрошенный домен от программы и через d-bus сокет
+шлет его к sd. тоесть если программа юзает nss то nss плагин берет реквест и пересылает
+его к sd. файл /etc/resolv.conf (далее erc) при этом может вобще неиспользватся. если же программа неюзает nss систему то она обычно считывает erc и сама делает запрос к
+nameserver указанный в erc. если в erc записано что 
+
+  nameserver 127.0.0.53
+
+то запрос попадает к sd
+
+также когда мы указываем чтото в 
+  
+    Domains = com
+
+то sd добавляет в erc параметр search com для того чтобы те программы которые будут
+читать erc увидели как хозяин компа хочет чтобы обрабатывались однословные домены. 
+тут кстати вопрос если мы указали в конфиге sdr параметр 
+
+  Domains = com
+
+то нафиг его доавлять в erc. ведь sd уже знает как интерпетироовать однословные домены.
+ведь я так понимаю не клиент добавляет к реевесту клиента этот хвост com а сам sd
+добавляет. тогда добавление 
+
+  search com
+
+в erc по иедее не играет никакой роли. ну может быть вот такой вариант. мы можем заюзать
+dig который читает erc и в диге мы можем указать днс сервер 8.8.8.8 тогда диг обратиьтся
+не к sd а к 8.8.8.8 но также он увидит что в erc есть запись
+
+  search com
+
+и он направл к 8.8.8.8 запрос не виде vasya а в виде vasya.com  щас проверим.
+
+вот у меня какой erc
+
+  ..
+  ..
+  search net vasya kukuruza co.uk
+
+
+и я запускаю 
+    
+    $ dig @8.8.8.8  vasya
+
+и что я вижу?
+
+$ dig @8.8.8.8 vasya +tls +qr
+
+;; QUESTION SECTION:
+;vasya.       IN  A
+
+
+;; Got answer:
+;; OPT PSEUDOSECTION:
+;; QUESTION SECTION:
+;vasya.       IN  A
+
+
+тоесть получает диг  открывает erc
+  $ strace -e  openat  dig @8.8.8.8 vasya +tls +qr 2>&1 | grep resolv
+openat(AT_FDCWD, "/etc/resolv.conf", O_RDONLY) = 11
+
+и видит там
+
+  search net vasya kukuruza co.uk
+
+но он при этом эту строку совершенно игнориует!
+получается что? получается что dig читает erc только для того чтобы там прочитать
+названия 
+
+  nameserver X.Y.X.Z
+
+но опять же справшивается если у указал для диг неймсервер зачем тогда он лезет
+читать IP днс сервера в erc. ему было бы логичнее лезть туда читать опции. 
+а мы как видим он опцию search просто иногнориутет
+
+пошлем запрос через диг к sd
+
+$ dig @127.0.0.53  vasya  +qr
+
+;; QUESTION SECTION:
+;vasya.       IN  A
+
+
+;; Got answer:
+;; OPT PSEUDOSECTION:
+;; QUESTION SECTION:
+;vasya.       IN  A
+
+тоже самое. получается хотя sd знает про настройку ведь у нее в sdr есть запист
+
+    Domains = net vasya kukuruza co.uk
+
+но почему то sd тоже ее игнориует!
+
+единственное как работает это либо через resolvectl либо через программу
+кооторая юзает nss
+
+$   resolvectl query vasya 
+vasya: 3.64.163.50                             -- link: tun0
+       (vasya.net)
+
+
+$ getent ahostsv4 vasya
+3.64.163.50     STREAM vasya.net
+
+
+я точно знаю что resolvctl он не открывает erc значит добавку .net делает 
+сам sd. но почему он тогда ее неделает когда  к нему обращается диг?
+
+getent открывает erc и он юзает nss.
+
+исходя из этого у меня нет точно ответа кто должен добавлять хвост домена к однословному
+домену из изначального реквеста?  первичная программа? nss плагин? сам sd ? 
+в случае использования resolvect добавляет сам sd потому что он же знает про этому настройку
+ибо она у него конфиге sdr прописана. ему чиать erc вобще нет нужды. 
+в случае nss программы я так понимаю добавление .com делает nss плагин и шлет к sd
+уже vasya.com запрос, как я понял диг хотя и читает erc но .com недобавляет и почемуто
+sd тоже недобавляет. 
+вобщем загадка кто из : изначальная программа, nss плагин (если используется), sd демон - 
+кто из них должен заниматься добавлением .com к изначальному реквесту.
+как обычно все через гадню сделано.
+поэтому я бы сказал так если программа самого верхенго уровня сама непрочитает erc
+и сама не модифицирует изначльный однословный реквеест то большой шанс что те компоненты
+которые пойдут ниже они тоже этого не сделают.
+на самом деле изначально получается вот что - если программа незнает что такое nss
+то для нее запись
+
+  nameserver 127.0.0.53
+
+выглядит так что сервер 127.0.0.53 это уже сервер сидящий в интернете который к нашему
+erc неимеет никакого достуа и понятия о нем. поэтому запрос к внешнему рекурсивному днс
+серверу должен идти уже в конечном виде подгттоовленный поносстью. поэтому по идее 
+sd вобщем то недолжен заниматься модифицикаией однослвовного домена. ему должны уже
+представить полностю сформированный запрос. потому что еще раз на месте записи
+
+  nameserver 127.0.0.53
+
+может быть запись
+
+  nameserver 8.8.8.8
+
+и понятно что этот сервер неимеет понятия ни о каком erc и парметре search net
+
+поэтому по хорошему то что мы указыаем в файле sdr параметр
+
+  Domains = net
+
+должно бы приваодить к тому что sd модицифрует erc пропсиывая там 
+
+  search net
+
+и на этом его роль в этом плане заканчивается. а дальше это уже проблема программы
+верхенго уровня чтобы она считала erc , счиатал параметр search и либо его использвала
+либо нет и чтобы к sd запрос уже шел в конечном модифициованном виде vasya.com
+
+вобщем мура тут потому что - изначально файл erc это был конфиг файл для nss dns
+плагина. он его читал. и он исполнял днс запросы. а потом все кому не лень начали
+читать erc файл.  в итоге я бы скаал так что если прогармма юзает NSS и в ней указан
+либо плагин resolve либо dns то эти плагины считают erc считают оттуда search 
+модфицируют реквест  и настройка search сработает. внезависимости от того как поведет
+себя программа верхеннего уровня. с другой стороны - представим что прогармма верхенго уровня
+считала erc, модфиицировала vasya на vasya.net потом она ывазывает nss подсистема,
+там плагин nss dns еще раз читает erc видит search - БА! но он небудет модифицировать
+запрос еще раз потому что он что НЕОДНОСЛОВНЫЙ! все номррально всеработает. тоесть
+если программа юзает NSS то лиобо програма верхенего уровня может модицифицровать запрос
+либо за нее это сделает NSS плагин. все круто. все надежно.
+предположим что sd модифиурет запрос помуто что она видит что реквест ей прислал
+тупой клиент resolvectl по d-bus поэтому sd знает что всю работу нужно делать ей
+и модцифировать рекест.  непонятно только почему диг читает erc но при этом полностью
+игнориует опцию search
+
+кстати можно очень круто с другой стороны проверить какой реквест шлет диг к sd
+вот так
+
+  $ dig vasya
+
+  $ sudo resolvectl monitor
+→ Q: vasya IN A
+← S: no-servers
+
+то есть sd нам рапортует что у него спросили домен=vasya
+
+а вот как с resolvectl
+
+  $ resolvectl -4 query vasya
+  $ sudo resolvectl monitor
+
+→ Q: vasya IN A
+← S: success
+← A: vasya.net IN A 3.64.163.50
+
+тоесть четко видно что от resolvect к sd лелит запрос в виде vasya
+потом очеивдно сам sd его модифицирует понимая что resolvectl это тупой клиент. за него
+надо делать все самому. потому что он значет что resolvectl не просматрвиает erc.
+
+странно еще то что в диге есть опция чтобы кастомно задавать search
+ +domain=somename
+              This  option sets the search list to contain the single domain somename, as if specified in a domain directive in /etc/resolv.conf, and enables
+              search list processing as if the +search option were given.
+
+так какого хрена он не читает серч из erc ???
+
+короче я понял!!! по дефолту диг читает erc но не читает оттуда опцию search!
+а чтобы он оттуда ее начал читать это надо задать чере ключ +search !!!
+тоесть этот ключ незадает домены которые надо прибавтлять! он задает то чтобы диг 
+начал из erc читать seaarch ключ.
+показываю
+
+$ dig vasya +search
+
+;; QUESTION SECTION:
+;vasya.net.     IN  A
+
+;; ANSWER SECTION:
+vasya.net.    7200  IN  A 3.64.163.50
+
+и вот что показывает sd монитор
+
+→ Q: vasya.net IN A
+← S: success
+← A: vasya.net IN A 3.64.163.50
+
+
+тоесть диг считат search из erc , модифицировал реквест и наравил к sd уже  vasya.net
+
+получается что если к sd идет запрос через 127.0.0.53 то он реквест не модифиуирует
+он ведет себя также как вел бы внешний интернет днс рекурисвный севрер. если  к нему
+приелетел запрос для vasya то он для него и ищет iP.
+а если к sd приелетел запрос через локальрный сокет - по всей видимости тогда он 
+модифицирует реквест при условии что реквест состоит из одного слова
+
+а мы щас проверим как обстоят дела  в случае nss программы 
+
+ $ getent ahosts4 vasya
+
+ $ resolvectl monitor
+→ Q: vasya IN A
+← S: success
+← A: vasya.net IN A 3.64.163.50
+
+это доказывает вот что - программа верхнено уровня getnent передатет в nss плагин 
+домен=vasya, nss плагин resolve хотя он и читает erc (это я показывал ранее) но он 
+не модифицирует реквест! незнаю почему! он через сокет передает исходный немодицифированный
+запрос domain=vasya на sd. а уже sd модифицрует его в domain=vasya.net
+
+ТАКИМ ОБРАЗОМ я делаю вывод = демон sd он модифицирет однословный запрос только если 
+запрос пришел через локальный сокет! а если запрос пришел через 127.0.0.53 то он 
+однословный запрос НЕМОДИФИЦИРУЕТ. также практика показала что nss resolve плагин
+НЕМОДИФИЦИРУЕТ исходный запрос. поэтому если программа верхнего уровня хочет чтобы
+однословный запрос был модифицирован то его должга модифицировать либо сама программа
+верхнего уровня, либо программа верхнено уровня должна сделать запрос к sd 
+через локальный сокет. тогда sd модифициурет однословный запрос.  также nss resolve запрос не модиифицирует но так как nss resolve связыватся  с sd по локальнмому сокету то 
+в итоге sd модифицириует запрос. итого финальная таблица.
+у нас есть програма верхнего уровня. если она обращается к sd через локальный сокет
+либо через nss то ей ничего делать ненадо, сам sd модифицрует однословный запрос.
+а если программа верхенго уровня обраащается к sd через 127.0.0.53 (по сети) то ттогда
+она сама должна прочитать erc, прочиать оттуда search опцию, модифицировать исходный запрос
+и только потом послать его на sd. потому что в случае коода к sd запрос идет не через
+локальный сокет а через сетевой сокет 127.0.0.53 то sd однослвные реквесты не 
+модифицирует !!!
+dig по дефолту опцию search из erc нечитает. чтобы он ее читал надо делать +search
+
+  $ dig vasya +search
+
+также разагадан закадка о том что если у нас search выглядит вот так
+
+  search . com net
+
+то вот что происходит. у нас при запросе domain=vasya диг превратит его в 
+  domain=vasya.
+
+по идее этот запрос должен закочнится ошибкой. тогда диг долен взять следущий домен
+и праервтить vasya в vasya.net который уже есть. проверяем
+
+# dig @8.8.8.8 +search vasya +tls
+
+
+;; QUESTION SECTION:
+;vasya.net.     IN  A
+
+;; ANSWER SECTION:
+vasya.net.    7200  IN  A 3.64.163.50
+
+
+все верно!
+
+а тперь направим такой же запрос к sd
+
+[lenovo etc]# 
+[lenovo etc]# dig  +search vasya +qr
+
+;; QUESTION SECTION:
+;vasya.       IN  A
+
+
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: REFUSED, id: 22973
+
+и что мы видим наш дин наравил domain=vasya.  и sd ответил статусом status: REFUSED
+мне тут непоняно почему диг не продоолжил и непнаврил следущий запрос 
+domain=vasya.net
+вопрос а каким статусом отвечал 8.8.8.8 что диг продолжил и направил запрос domain=vasya.net
+
+тоесть диг в своем выводе на экран
+# dig @8.8.8.8 +search vasya +tls  
+
+;; QUESTION SECTION:
+;vasya.net.     IN  A
+
+;; ANSWER SECTION:
+vasya.net.    6977  IN  A 3.64.163.50
+
+он почему то скрывает тот кусок когда он слал на 8.8.8.8 запрос в виде domain=vasya.
+он нам парит мозг что якобы он сразу слал vasya.net а это брехня.
+
+ксатти как уже стало понятно все же есть разница то как обаращаться к sd через 
+локальный сокет или сетевой адрес, потому что sd обрабаывает запросы по разному
+в зависимосити как на него обратились. в случае диг без разрницы если мы обрааемся
+вот так
+
+  $ dig vasya
+
+или вот так
+
+  $ dig @127.0.0.53 vasya
+
+просто в первом случае он прочитает адрем 127.0.0.53 из erc и фактически 
+сделает вызов sd как во втором случае
+
+из того что dig почемто не продолжаает бомбить sd после того как он ему направил 
+vasya. я считаю что из search надо точку убирать. 
+
+я думаю с опцией search разобрались. когда она работает когда она неработает. 
+почему она неработает. хотя конечно это ад на пустом месте.
+
+итак если в sdr(systemd-resolved /etc/systemd/resolved.conf) вставить
+
+  Domains= net com co.uk
+
+то при перезапуске sd он вставить в erc 
+
+  search net com co.uk
+
+далее если запрос к sd идет через локальный сокет (в том числе через nss) то сам 
+демон sd будет модфицировать однослованые запросы согласно тому что указанов search
+тоесть пртбавляяя .net или .com итд.
+если же запрос к sd идеет через сеть через 127.0.0.53 то sd модифицировать однослваные
+запросы не будет. это тогда задача вызывающей его программе верхенго уровня!
+получается кстати в линуксе по дефолту днс запросы резволвит не ядро а юзер код в
+виде глибц библиотеки из nss библиотеки.ядро только создает ipv4 сокет и все и сам
+протокол tcp\udp делает. а днс резволвер он же nss dns он работает в юзер спейсе.
+и наша программа должна его к себе подгрузить подключить на стадии выполеннения. 
+так что днс резволинг это юзер спейс хрень  а не сидит в ядре.
+получается что линукс все такие это нетлоько ядро. это еще обязательно набор супер
+базовых хреней в юзерспейсе в виде glibc. это уже не ядро. но это я бы сказал и не 
+юзер код не юзер программы. это системный код только он работает не в привилинированном
+режиме цпу а в непривлигированном режиме. формально glibc это юзерская програмаа
+но по факту это системный линукс код работающий в юзер спейс режиме. поэтому 
+я бы скзаал что линукс это обяазтельно ядро+глибц. без глибц ядро это как мозг но 
+без тела. а глибц это тело без мозга. только они вместе могут дать рабоающую систему.
+а уже поверх этого накодывается реальный юзер код.
+поэтому важны нетлоко новые релизы ядра но и новые релизы глибц. это два столба
+на которых стоит линукс. а уже треять припизочка сбоку это юзерские программы.
+ябы так сравниал . ядро это движок. глибц это корпус машины. двери ручки руль. 
+а юзер код это человек за рулем. 
+
+в итоге получается интерсно вот что - на компе чтобы работал днс резолвинг
+никакой доп днс резовлер ненужен. ибо nss dns уже встроен. для работы nss dns
+ему ненужно висеть в системе в форме демона ненужно сидеть не сетевом сокете. 
+он работает через локальный сокет. тоесть нам ненужна никккая служба которая 
+виисит на сет карточке на 53 порту. это ненужно необязательно. доступ к днс резволверу
+nss dns идет тупо через вызов nss dns функции! даже сокет ненужен. а вот уже этот
+nss dns код он через сетевой сокет связывается  с внешним интернет днс сервером. 
+поэтому ненеужен на компе чтобы была служба которая висит на 53 порту.
+также получается что так как код резолвера вынесен за ядро. тоесть по сути это 
+просто программа которая лезет в сеть. ровно также как программа бразуер через 
+такой же сетевой сокет лезет в сеть на 443 порт. а днс резовлер это такой же 
+условно браузер только леезет он на 53 или 853 порт. тоесть никакой загадки
+особенности в днс резволвере нет. диг это такой же nss dns только написан дуриими 
+людьдьми. вобщем я о том что так как днс резволе вынесен в юзер спейс то у нас на компе
+можно ставить самые разные днс резволверы. у нас плный выбор ядру все равно. это как
+какой браузер ты поставишь на компе. единсвтенное то что многие программы они к коду
+днс резволвера обращаются через nss. поэтому днс резволвер должен иметь nss плагин. 
+ну или если у днс резволвера не nss плагина то тогда надо чтобы днс резволвер
+на компе сел на сетевой сокет , потом происать его в erc
+
+  nameserver IP
+
+и обращаться к этому днс резволверу через прокладку в виде nss dns резволвера
+
+
+ программа --->> nss dns --->> наш днс резволвер
+
+чем плох nss dns у него слабый фукционал. он неумеет кэшировать. он не умеет
+в зависисмости от домена лазить на кастомный днс сервер. 
+
+тоесть он встроен. он надежный. ему ненужен сеетевой сокет на компе чтобы до него
+достучаться - по факту если программа умеет работаьт с днс только через nss
+то никакой сетевой сокет не поможет нужен nss плагин. но nss dns беден на функционал.
+это типа как встроенный блокнот. писать можно . но и толко то.
+
+если программа сама не умеет днс реквесты делать а знает только nss то тогда
+без наличияи nss плагина на компе хрен она днс зарезволвит. но  к счатсью на 
+компе всегда есть nss dns плагин
+
+кстати dnsmasq он выполеннен как в отдеьном пакете так и в форме плагина у NetworkManager
+
+на дебиан есть systemd но sd там выключен. и комп юзает nss dns
+  
+  /etc/nsswitch.conf
+  hosts:          files dns
+
+после таого как поставли пакет systemd-resolved
+он сам автоаматом меняет nsswotch.conf на такой
+
+hosts:          files myhostname resolve [!UNAVAIL=return] dns
+
+
+также он сам убирает старый erc и делает новый в виде симлинка на /run/systemd/resolve/stab-dns.conf
+едисннветтенная какая то хуня в дебиан что нужно зайти в sdr и там руками 
+указать внешние днс сврервера 
+
+  # grep -v '#'  /etc/systemd/resolved.conf 
+
+  [Resolve]
+  DNS=1.1.1.1
+
+иначе он незнает куда ему обрашаться. дебил.
+тоесть этот пакет он полноценно переключает все нужные хрени в системе на новый резолвер.
+это хорошо. это радует
+получется что если бы все программы умели работать через nss то демону sd ему ненужно
+было бы поднимать сетевой сокет на ip адреа 127.0.0.53 , ему было бы достоточно 
+плагина resolv и локального AF_UNIX сокета 
+посмотрим какие сокеты имеет открытыми наш sd демон
+для этого удобно посмотреть его номер процесса и юзнуть lsof
+
+# lsof -n  -p 1053 | grep -E "unix|IP"
+11u     IPv4              17741      0t0    UDP *:5355 
+12u     IPv4              17742      0t0    TCP *:5355 (LISTEN)
+13u     IPv6              17749      0t0    UDP *:5355 
+14u     IPv6              17750      0t0    TCP *:5355 (LISTEN)
+18u     IPv4              17752      0t0    UDP 127.0.0.53:domain 
+19u     IPv4              17753      0t0    TCP 127.0.0.53:domain (LISTEN)
+20u     IPv4              17754      0t0    UDP 127.0.0.54:domain 
+21u     IPv4              17755      0t0    TCP 127.0.0.54:domain (LISTEN)
+22u     unix 0x0000000067e240b0      0t0  17756 /run/systemd/resolve/io.systemd.Resolve
+23u     unix 0x0000000068a42ba6      0t0  17757 /run/systemd/resolve/io.systemd.Resolve.Monitor
+
+
+видно что демон имеет открытми сокеты UDP/TCP на 53 и 54 порту. это я еще 
+понимаю. но зачем ему UDP\TCP сокеты на 5355 порту? 
+и еще он имеет локальные AF_UNIX сокеты через файлы io.systemd.Resolve
+и io.systemd.Resolve.Monitor
+
+через сокет io.systemd.Resolve.Monitor скорей всего работает resolvectl monitor
+щас проверю
+да все верно
+
+# strace -e connect  resolvectl monitor
+connect(3, {sa_family=AF_UNIX, sun_path="/run/dbus/system_bus_socket"}, 30) = 0
+connect(7, {sa_family=AF_UNIX, sun_path="/run/systemd/resolve/io.systemd.Resolve.Monitor"}, 50) = 0
+
+правда зачем он еще открывает сокет д-бас непонятно. 
+я думал что через сокет io.systemd.Resolve программа resolvectl связывается с демоном
+когда делает просто query запрос
+кхм... не нихрена
+он связываетс с демоном через д-бас сокет
+# strace -e connect  resolvectl -4 query mail.ru
+connect(3, {sa_family=AF_UNIX, sun_path="/run/dbus/system_bus_socket"}, 30) = 0
+
+прикол. а вот getent точнее nss resolve через этот сокет связватся с демоном
+# strace -e connect  getent ahostsv4  mail.ru
+connect(3, {sa_family=AF_UNIX, sun_path="/run/systemd/resolve/io.systemd.Resolve"}, 42) = 0
+в общем конечно это такой ад... 
+
+а вот что ltrace на дебиан покызвает
+  # ltrace  getent ahostsv4  mail.ru
+getaddrinfo("mail.ru", nil, 0x7ffcfee17e10,  cfee17e08) = -3
+тоесть внутри этого addrinfo уже идет подклчение к nss и вызов nss
+фукнкций
+
+а вот я добавил com в 
+
+    Domains = com
+
+и щас мы увидим на дебиане как getent (nss aware программа ) обращается внутрь nss
+
+# ltrace  -e getaddr*  getent ahostsv4  mail
+getent->getaddrinfo("mail", nil, 0x7ffe5faa75b0, 0x7ffe5faa75a8)                                 = 0
+
+тоесть здесь четко видно что gentent обращается внутрь nss шарманки передвая 
+ей немодифициованный реквест просто mail
+
+далее я повторил команду и пососведству я запустил монитор
+
+ # resolvectl monitor
+→ Q: mail IN A
+← S: success
+← A: mail.com IN A 82.165.229.87
+
+он показывает что мало того что внутрь nss реквест передается не модифициваорованным,
+далее сам nss плагин resolve тоже передает в демоне НЕМОДИЦИИРОВНЫЙ РЕКВЕСТ.
+
+
+→ Q: mail IN A
+
+и только сам демон sd меняет реквест
+
+← A: mail.com IN A 82.165.229.87
+
+таким образом еще раз найден ответ на вопрос кто меняет исходный реквест когда мы 
+работаем через nss: верхняя прогармма? nss плагин? sd демон? 
+ответ sd демон!
 
 
 
 
+итак я расматривал какое значение  имеет насторйка
+
+  Domains=  net com co.uk
+
+в sdr
+
+c этим как бы разобрались.
+
+
+ксатти эта настройка втсупает в силу при выполеннии прочих условий также только в том
+случае если днс реквест состоит ИЗ ОДНОГО СЛОВА. тоеесть
+
+   # ping vasya
+   # ping mail
+
+если запрос состоит из хотя бы двух слов
+
+  # ping vasya.com
+
+то эта настройка НЕИМЕЕТ НИКАКОГО ЗНАЧЕНИЕ!!!!!
+то есть она по факту ничего неломает. 
+у нас по определению доменное имя должно состоять из двух частей мимниум!
+
+    vasya.com
+
+пэтому когда мы вводим доменое имя из одного слова мы уже нарушаем тип запроса. 
+и ключ search типа пытается наш уродский запрос превратить в правльный.
+
+еще раз скажу на счет строки
+    
+    Domains = .  com
+
+или
+
+    search . com
+
+как он работает. 
+
+во первых если мы вставим
+
+  Domains = . com
+
+и перегрузим демона то у нас erc не превратится в 
+
+  sesrch . com
+
+он будет 
+  
+  search com
+
+если мы сразу в stab-resolv.conf поставим 
+
+  search . com
+
+а потом перегрузтим демона то он перетет файл и снова мы увидим
+
+  search com
+
+если мы сразу в stab-resolv.conf поставим 
+
+  search . com
+
+и не перегрузим демона 
+исделаем запрос через resolvectl то отработает как надо
+
+# resolvectl -4 query mail
+mail: 82.165.229.87                            -- link: enp0s3
+      (mail.com)
+
+
+через getent тоже
+# getent ahostsv4 mail
+82.165.229.87   STREAM mail.com
+
+тоесть внаале отрабатывается домен mail. он выдает ошибку потом он посдтавляет
+следущий домен mail.com
+
+с дигом тоже все окей
+
+# dig +search  mail
+
+;; QUESTION SECTION:
+;mail.com.      IN  A
+
+;; ANSWER SECTION:
+mail.com.   114 IN  A 82.165.229.87
+
+
+далее еще интерснее если  я ставлю
+
+ Domains=.
+
+перегружают демоана то в erc получаю
+
+  search .
+
+если  я ставлю
+
+ Domains=. com 
+
+перегружают демоана то в erc получаю
+
+  search com
+
+в общем сплошные особенности исключения и прочий ад
+
+в общем я не рекомендую ставит в stab-resolv.conf точку самому руками. 
+нужно ставит все настройки в sdr (/etc/systemd/resolved.conf ) а он сам уже что 
+считает нужным ставит в /etc/resolv.conf
+тогда не будет никаких непоняток. для sd файл erc он вторичный информационный. а не 
+конфиграционый. если мы чтот вобщем напряую в stab-resolv.conf то мы обманем сами
+себя потому что по факту демон sd работаем по тем настройкам что он отобразил 
+в оригиальном stab-resolv.conf а от того что мы чтот поменяли руками  в нем от этог
+настройки sd не поменялись. 
+
+не стои менять руками stab-resolv.conf потому что в этом файле он нам покаызает 
+свои настройки. но от тооо что мы его поменяе мруками от этого режим работы демона sd
+непоменется. еалимы мы хотим поменя настройки демона надо менять файл sdr
+и перегружат демона. также если мы поменяем erc то после перезугрузки демона наши
+настройки перетурктся. максимум на кого повлияют наши ручные правки erc это прогарммы
+типа dig. 
+
+дальше про опцию Domains если мы в ней пропишем домен с тильдой
+
+    Domains = ~com
+
+то такой домен называется "route-only domain"
+насколко  я понял домены которые вписаны в Domains без тильды называются в терминах "search domains" в темринах sd
+еше раз напомню что добавление "search домена" в изначальный реквест происходит толко 
+вслучае если изначальный реквест состоит ИЗ ОДНОГО СЛОВА. если изначлаьный реквест 
+имеет два слова и больше то  подстановка идет нахрен.
+дальше они пишут что если мы задали серч домен или роут-онли домен то вообще то эта
+настройка может быть привязана к конкретному интерфейсу а не быть глобальной. и это
+значит что строка Domains перестает играть рояль только для случая запрса из одного
+слова. если у нас в запросе уже есть домен указанный в Domains и этот домейнс
+навешен на какото интерфейс то для sd это знак того что данный днс реквест нужно 
+кинуть на днс сервера этого интерфейса. щас все покажу на примере.
+у меня в коннфиге sdr написано
+
+ $ grep -v '#' /etc/systemd/resolved.conf 
+
+[Resolve]
+Domains=com
+
+смотрим статус демона
+
+Global
+           Protocols: -LLMNR -mDNS +DNSOverTLS DNSSEC=yes/supported
+    resolv.conf mode: stub
+  Current DNS Server: 1.1.1.1
+         DNS Servers: 1.1.1.1
+Fallback DNS Servers: 8.8.4.4
+          DNS Domain: com       <========  !
+
+Link 3 (wlp2s0)
+    Current Scopes: DNS
+         Protocols: +DefaultRoute -LLMNR -mDNS +DNSOverTLS DNSSEC=yes/supported
+Current DNS Server: 8.8.8.8
+       DNS Servers: 8.8.8.8 8.8.4.4 192.168.47.179
+
+тоесть у меня на данный момент настройка "DNS Domain:" глобальная не привязання
+ник какому интерфейсу. пока что это мало интересно. пока что эта настройка 
+работает только для случая когда в запросе домен имеет одно слово. это уже все 
+было обсуждено. 
+
+так вот смотрим что у нас показвает resolvectl для интерфейса br0
+
+
+
+Link 4 (br0)
+    Current Scopes: none
+    Protocols: -DefaultRoute -LLMNR -mDNS +DNSOverTLS DNSSEC=yes/supported
+
+
+теперь я ввожу команду через resolvctl которая подкрутит настройки у демана sd
+я подкркчиваю то что я устанавливаю Domains=nyc3.example.com но не глобально 
+а только для интерфейса br0
+
+    # resolvectl domain  br0 nyc3.example.com
+
+смотрим как поменялись настройки на демоне sd
+
+
+Link 4 (br0)
+    Current Scopes: none
+         Protocols: -DefaultRoute -LLMNR -mDNS +DNSOverTLS DNSSEC=yes/supported
+        DNS Domain: nyc3.example.com
+
+
+значит я считаю что на данный моент эта настройка говорит вот что так как Domains
+указан не глоабально а для интерфеса то это значит что если в исходном реквесте
+будет фигурировать домен nyc3.example.com то  sd посмотрит на список днс серверов
+прописанных у него глобально 
+
+Global
+           Protocols: -LLMNR -mDNS +DNSOverTLS DNSSEC=yes/supported
+    resolv.conf mode: stub
+  Current DNS Server: 1.1.1.1
+         DNS Servers: 1.1.1.1
+Fallback DNS Servers: 8.8.4.4
+
+
+и если какйото из глобальных днс серверов лежит за br0 то sd пошлет запрос именно
+к днс серверу лежащему за br0 интерфейсом. насколько я понимаю настройка Domains
+сделанная не глобально а присобаченная к интерфейсу теряет тот смысл которая она несет
+когда она устанолвена глобально. тоесть если мы введем односложный запрос то 
+я так понимаю что подстановка домена будет идти из Domains указанного глобально , 
+и постановка не будет идти из Domains присоабвенного к кокнертному интерфейсу.может
+я ошибкаюсь ибо тут все ебануто сделано.
+
+далее я вставляю еще одну команду которая пропишет днс сервера не глобально 
+а именно сидящие за этим интерфейсом
+
+  # resolvectl dns   br0  172.16.10.11
+
+проеряем статус демона
+
+
+Link 4 (br0)
+    Current Scopes: DNS
+         Protocols: -DefaultRoute -LLMNR -mDNS +DNSOverTLS DNSSEC=yes/supported
+Current DNS Server: 172.16.10.11
+       DNS Servers: 172.16.10.11
+        DNS Domain: nyc3.example.com
+
+
+теперь это будет работтать вот как.
+если я запульну реквест для nyc3.example.com
+то sd запустить этот реквест через br0 к днс серверу 172.16.10.11
+проверим , знначит я все вроде правилно настроил но получил сразу отлуп
+
+# resolvectl query ns1.nyc3.example.com
+ns1.nyc3.example.com: resolve call failed: All attempts to contact name servers or networks failed
+
+и тут очень поможет нам вот что (https://www.gabriel.urdhr.fr/2020/04/20/linux-host-name-resolution/) очень толковая с подробностями статья
+
+так вот в ней подсказано что можно поменят уровень логирования у sd
+
+    # resolvectl log-level debug
+
+напомню какиы бываю уровни логирования это либо числа 0..7 либо слова
+emerg, alert, crit, err, warning, notice, info, debug
+
+запускаем еще раз траназцаакцию 
+
+ $ resolvectl query ns1.nyc3.example.com
+
+и смотрим логи
+
+    # journalctl -f -u systemd-resolved
+
+и что я там вижу
+
+
+Got message type=method_call sender=:1.527 destination=org.freedesktop.resolve1 path=/org/freedesktop/resolve1 interface=org.freedesktop.resolve1.Manager member=ResolveHostname  cookie=2 reply_cookie=0 signature=isit error-name=n/a error-message=n/a
+
+idn2_lookup_u8: ns1.nyc3.example.com → ns1.nyc3.example.com
+
+Sent message type=method_call sender=n/a destination=org.freedesktop.DBus path=/org/freedesktop/DBus interface=org.freedesktop.DBus member=GetConnectionCredentials cookie=245 reply_cookie=0 signature=s error-name=n/a error-message=n/a
+
+Got message type=method_return sender=org.freedesktop.DBus destination=:1.480 path=n/a interface=n/a member=n/a  cookie=4294967295 reply_cookie=245 signature=a{sv} error-name=n/a error-message=n/a
+
+D-Bus hostname resolution request from client PID 61654 (resolvectl) with UID 0
+
+Looking up RR for ns1.nyc3.example.com IN A.
+
+Looking up RR for ns1.nyc3.example.com IN AAAA.
+
+Sent message type=method_call sender=n/a destination=org.freedesktop.DBus path=/org/freedesktop/DBus interface=org.freedesktop.DBus member=AddMatch cookie=246 reply_cookie=0 signature=s error-name=n/a error-message=n/a
+
+Sent message type=method_call sender=n/a destination=org.freedesktop.DBus path=/org/freedesktop/DBus interface=org.freedesktop.DBus member=GetNameOwner cookie=247 reply_cookie=0 signature=s error-name=n/a error-message=n/a
+
+Got message type=method_return sender=org.freedesktop.DBus destination=:1.480 path=n/a interface=n/a member=n/a  cookie=4294967295 reply_cookie=247 signature=s error-name=n/a error-message=n/a
+
+Cache miss for ns1.nyc3.example.com IN AAAA
+
+тоесть к этому моменту он написал что получил реквет через дбас и что посмотрел в
+кеше а вкеше ничего нет
+
+
+Firing regular transaction 45369 for <ns1.nyc3.example.com IN AAAA> scope dns on br0/* (validate=yes).
+
+Using feature level TLS+EDNS0+DO for transaction 45369.
+
+Using DNS server 172.16.10.11 for transaction 45369.
+сен 10 15:44:13 lenovo systemd-resolved[60609]: Sending query via TCP since UDP isn't supported or DNS-over-TLS is selected.
+
+далее он нпаспиал что запускает "стандартную" транзацию и что для нее он будет
+использвать TLS + EDNS0 + DO то бишь он будет стучать по TLS через 853 порт и еще 
+будет делать DSSNEC. так вот у меня днс сервер 172.16.10.11 у него нет ни TLS
+ни DSNSSEC  это надо все отключить . правда отключит это конкретно для этого срвера
+не получиться. отключается все на уровне интерфейса. тоесть для всех днс 
+серверов которые лежат за этим интфрейсом. 
+делаю это так
+
+  # resolvectl dnsovertls br0 off
+  # resolvectl dnssec  br0 off
+
+
+проверяею как изменились настройки демона  sd
+
+    $ resolvectl status
+
+
+Link 4 (br0)
+         Current Scopes: DNS
+         Protocols: -DefaultRoute -LLMNR -mDNS -DNSOverTLS DNSSEC=no/unsupported
+Current DNS Server: 172.16.10.11
+        DNS Servers: 172.16.10.11
+        DNS Domain: nyc3.example.com
+
+видно что для реквестов через br0 у нас и TLS и DNSSEC выключены
+  -DNSOverTLS 
+  DNSSEC=no/unsupported
+
+запускаю повторно мой реквест
+
+  # resolvectl query ns1.nyc3.example.com
+  ns1.nyc3.example.com: 172.16.10.11             -- link: br0
+  -- Data is authenticated: no; Data was acquired via local or encrypted transport: no
+  -- Data from: cache
+
+успех. вот он написал что делал реквест через интерфейс br0  это главное. 
+тоесть это у нас отработала настройка
+
+Link 4 (br0)
+        DNS Domain: nyc3.example.com
+
+тоесть мы указали sd чтобы он обрабатывал реквесты для домена nyc3.example.com
+чеерз днс серверы лежащие за интерфейсом br0 и он так и сделал. 
+ну и попутно он нписал что реквест был сделан без TLS (encrypted transport: no)
+и что реквест был сделан без dnssec (Data is authenticated: no;)
+я смотрб в логах какая там ифно есть
+
+
+Got message type=method_call sender=:1.534 destination=org.freedesktop.resolve1 path=/org/freedesktop/resolve1 interface=org.freedesktop.resolve1.Manager member=ResolveHostname  cookie=2 reply_cookie=0 signature=isit error-name=n/a error-message=n/a
+
+idn2_lookup_u8: ns1.nyc3.example.com → ns1.nyc3.example.com
+
+Sent message type=method_call sender=n/a destination=org.freedesktop.DBus path=/org/freedesktop/DBus interface=org.freedesktop.DBus member=GetConnectionCredentials cookie=365 reply_cookie=0 signature=s error-name=n/a error-message=n/a
+
+Got message type=method_return sender=org.freedesktop.DBus destination=:1.480 path=n/a interface=n/a member=n/a  cookie=4294967295 reply_cookie=365 signature=a{sv} error-name=n/a error-message=n/a
+
+D-Bus hostname resolution request from client PID 61950 (resolvectl) with UID 0
+
+Looking up RR for ns1.nyc3.example.com IN A.
+
+Looking up RR for ns1.nyc3.example.com IN AAAA.
+
+Sent message type=method_call sender=n/a destination=org.freedesktop.DBus path=/org/freedesktop/DBus interface=org.freedesktop.DBus member=AddMatch cookie=366 reply_cookie=0 signature=s error-name=n/a error-message=n/a
+
+Sent message type=method_call sender=n/a destination=org.freedesktop.DBus path=/org/freedesktop/DBus interface=org.freedesktop.DBus member=GetNameOwner cookie=367 reply_cookie=0 signature=s error-name=n/a error-message=n/a
+
+Got message type=method_return sender=org.freedesktop.DBus destination=:1.480 path=n/a interface=n/a member=n/a  cookie=4294967295 reply_cookie=367 signature=s error-name=n/a error-message=n/a
+
+NODATA cache hit for ns1.nyc3.example.com IN AAAA
+
+Regular transaction 9888 for <ns1.nyc3.example.com IN AAAA> on scope dns on br0/* now complete with <success> from cache (unsigned; non-confidential).
+
+Positive cache hit for ns1.nyc3.example.com IN A
+
+Regular transaction 34454 for <ns1.nyc3.example.com IN A> on scope dns on br0/* now complete with <success> from cache (unsigned; non-confidential).
+
+Freeing transaction 9888.
+
+Freeing transaction 34454.
+
+
+значит он написал что получил запрос по дбасу. что ищется две записи
+
+  ns1.nyc3.example.com IN A.
+  ns1.nyc3.example.com IN AAAA.
+
+
+далее он написал что для обоих записей есть инфо в кеше , что для AAAA инфо нет от днс
+сервера. а для A она есть
+также он написал что информация была ранее получена через br0
+и то что конец обоих транзакций
+
+я полагаю но нехочу проверять что если бы я запустил свежий реквест то влогах он бы
+отразил и адрес DNS сервера к котрму он посылал запрос.
+
+я возвращаю уровень логирования sd демаона до минимума
+
+    # resolvectl log-level 0
+
+
+еще я хочу поймать этот запрос через tcpdump
+
+  # tcpdump -i any -n "port 53"
+
+и я его поймал
+
+br0   Out IP 172.16.10.1.51586 > 172.16.10.11.53:  A? ns2.nyc3.example.com. 
+br0   Out IP 172.16.10.1.54490 > 172.16.10.11.53: AAAA? ns2.nyc3.example.com.
+br0   In  IP 172.16.10.11.53 > 172.16.10.1.51586: 18585* 1/0/1 A 172.16.10.3 (65)
+br0   In  IP 172.16.10.11.53 > 172.16.10.1.54490: 14037* 0/1/1 (95)
+
+тоесть видно что через br0 к 172.16.10.11 было послано два запроса 
+и получено оттуда два ответа.
+все как я и хотел добиться от ds демона!
+
+еще приведу эти команды
+
+    # resolvectl domain  br0 nyc3.example.com
+    # resolvectl dns   br0  172.16.10.11
+    # resolvectl dnsovertls br0 off
+    # resolvectl dnssec  br0 off
+ 
+теперь вопрос , как добитьс чтобы это можно было занейсти в конфиг sdr
+а не вводить руками ?
+
+я пока незнаю как это сделать но я скажу еще одну важную вещь. 
+конфиг sdr /etc/systemd/resolved.conf его не рекомендуется править. это можно 
+но не рекомендуется. ибо в нем типа записны дефолтовые устанвоки которые были сделаны
+на стадии комплирования этого демона. вместо этого рекмоедуется создать новый файл
+в папке
+
+  /etc/systemd/resolved.conf.d
+
+  например 
+
+  $ > /etc/systemd/resolved.conf.d/custom.conf
+
+и туда засунуть наши настройки
+
+# cat custom.conf 
+
+[Resolve]
+DNS=1.1.1.1
+FallbackDNS=8.8.4.4
+
+DNSSEC=on
+DNSOverTLS=yes
+Domains=com
+
+MulticastDNS=no
+LLMNR=no
+
+по мне лишняя усложняющая хрень. хотя наверно они имеют ввиду что когда 
+демон обнвоится то его файл с дефолтами безболелзнено обвновится а мой кастом файл
+при этом останетя и ничего не затреться. ну незнаю. 
+
+так вот имея такую гроздь из конфигов они предалгаю вот как   в итоге смотреть
+все это на одном экране
+
+ # systemd-analyze cat-config systemd/resolved.conf
+
+во первых эта комада приколно все подсвечивает. 
+воо вторых она мне соберет единый конфиг из исходного sdr и моего кастомного.
+нормал но как то заморочно на пустом месте.
+
+кстати моя версия systemd-resolved
+      $ systemd-resolve --version
+        systemd 256 (256.4-1-manjaro)
+
+
+так вот у меня щас два вопроса 
+  1) как венсти изменения в конфиг чтобы не вбивать руками каждый раз
+    # resolvectl domain  br0 nyc3.example.com
+    # resolvectl dns   br0  172.16.10.11
+    # resolvectl dnsovertls br0 off
+    # resolvectl dnssec  br0 off
+    # resolvectl  domain  br0 nyc3.example.com  dns   br0  172.16.10.11  dnsovertls br0 off dnssec  br0 off
+
+  2) что значат "route-only domains" с тильдой в Domains ?
+
+(бл никода не думал что systemd-reslved это целый мир.)
+
+
+по поводу превого вопроса как я понял заснуть эти настройки в конфи невозможно.
+это реально прикол. настройки как я понял в sdr они глобальные. а для интерфейсов
+туда ничего засунуть нельзя. они завялвют в мане к resolved.conf
+что для ключа
+
+  DNS=
+
+можно вот такое заюзать
+
+Each address can optionally take a port number separated with ":",
+a network interface name or index separated with "%", and a Server Name Indication (SNI) separated with "#"
+That is, the acceptable full formats are 
+      "11.22.33.44:9953%ifname#example.com"
+
+я пробовал - эта хрень неработает вообще никак. работает только вот так
+    11.22.33.44:9953#example.com
+
+этот днс добавлется имено в секцию Global. и мое впечатление что example.com это не домен
+для котрого он предназачен а это доменное имя самого этого днс сервера! вобщем это не 
+рабочая хрень и не то что мне нужно
+
+из тго что я пока нашел что днс сервера пер интвфейс можно вставит в sd либо через
+resovelctl cli, либо через настроки systemd-networkd но это мне нахрен ненадо у меня
+для этого NetworkManager, либо (я еще непонял как) всостать настройки от NetworkMAnager
+
+хочу замтеит еще вот что по поводу как работает конфиг sdr
+если  я укажу вот так 
+
+  [Resolve] 
+  DNS=1.1.1.1 
+  DNS=2.2.2.2
+
+то вторая настройка не перебьет первую они сложаться и оба сервера добавятся. 
+кстати эквивалентом яялется 
+
+  [Resolve]
+  DNS=1.1.1.1  2.2.2.2
+
+
+так что первый вопрос пока висит в воздухе
+  1) как венсти изменения в конфиг чтобы не вбивать руками каждый раз
+    # resolvectl domain  br0 nyc3.example.com
+    # resolvectl dns   br0  172.16.10.11
+    # resolvectl dnsovertls br0 off
+    # resolvectl dnssec  br0 off
+    # resolvectl  domain  br0 nyc3.example.com  dns   br0  172.16.10.11  dnsovertls br0 off dnssec  br0 off
+
+
+перехожу пока к вопросу номер два
+  2) что значат "route-only domains" с тильдой в Domains ?
 
 
 
 
+нерешенные вопросы:
+
+  > как венсти изменения в конфиг чтобы не вбивать руками каждый раз
+    # resolvectl domain  br0 nyc3.example.com
+    # resolvectl dns   br0  172.16.10.11
+    # resolvectl dnsovertls br0 off
+    # resolvectl dnssec  br0 off
+    # resolvectl  domain  br0 nyc3.example.com  dns   br0  172.16.10.11  dnsovertls br0 off dnssec  br0 off
 
 
-
-
-
-
-вопрос обычно днс клиент на линуксе он такой что он сам ничего искать не хочет
+ > вопрос обычно днс клиент на линуксе он такой что он сам ничего искать не хочет
 он делает запрос к рекурсивному днс серверу и ждет готтовый ответ от него. таким
 макаром наш днс клиент зависит от этого ркурсивного сверере который про нас собирает
 логи. возникает вопрос а какой днс клиент можно поставиь на свой комп чтобы этот 
 днс клиент делал сам все итеративные запросы. и чтот на вскидку не вижу ответа
-
 
 
 полезные ссылки:
