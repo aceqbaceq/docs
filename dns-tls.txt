@@ -6554,8 +6554,483 @@ networking.service который по факту запускает ifup бин
 что сетевой менеджер нелезет в дела днс клиента. а адрес днс сервера как я понял 
 в дебиан 12 задается не через ручную правку erc а через запуск команды resolvconf
 которая где то там конфиугурирвется а уже она лезет и делает настройки в erc.
+я посмотрел по факту этот resolvconf это всего навсего симлинк на resolvectl
+тоесть этот resolvconf это скажем так огрызок от resolvconf тоесть это неполноценный 
+resolvconf. мне его испльзовать нахрен ненужно потому что  я просто сделал что erc
+это симлинк на stab-resolv.conf 
+
+в дебиан12 версия sr 
+   systemd-resolved              252.3
 
 
+далее  я открыл интереснейшую вещь про sr, во первых если остановить эту службу
+
+  # systemctl stop systemd-resolved
+
+и потом сделать к ней реквест через resolvectl
+
+  $ resolvectl status
+
+то sr сразу же стартует! 
+и вторая интереснейшая вещь - предположим  я налету сделал пер-интерфейс 
+настройку например 
+
+    # resolvectl dns tun0 12.12.12.12
+
+которая привела к 
+
+Link 3 (tun0)
+Current Scopes: DNS
+     Protocols: +DefaultRoute +LLMNR -mDNS -DNSOverTLS DNSSEC=no/unsupported
+   DNS Servers: 12.12.12.12
+
+
+так как эта настройка по идее нехранится нив каком файле то логично предпожить
+что если я перезагружку sr то эта настройка пропадет. так вот хрен там. она останется!
+можно остановить sr а потом запустить. можно перзагрузит sr - настройка все 
+равно останется! но как это возможно?! а вот как - оказывается пер-интфрейс настройки
+sr сохраняет в папку
+
+  # ls -1 /run/systemd/resolve/netif
+  2
+  3
+
+так вот в этой папке лежат файлы имена которых составлены из индексов сетевых карт
+тоесть что такое 2 или 3. а вот что
+
+# ip -c a
+
+2: enp0s3: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP group default qlen 1000
+    link/ether ba:ec:24:5c:80:3f brd ff:ff:ff:ff:ff:ff
+    inet 172.16.10.11/24 brd 172.16.10.255 scope global enp0s3
+    ...
+    ...
+
+3: tun0: <POINTOPOINT,MULTICAST,NOARP,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UNKNOWN 
+group default qlen 500
+    link/none 
+    inet 172.16.30.1 peer 172.16.30.2/32 scope global tun0
+    ...
+    ....
+
+обрати внимание цифра 2 и 3 слева. оно показывает так называемый индекс сеетеовй
+карты. 
+
+так вот - если мы делаем пер-интерфейс настройки в systemd-resolved то он создает
+файл в папке который я указал , имя файла это индекс сетевой карты, замечу что 
+карта tun0 имеет индекс 3. ранее мы над этой картой сделали модификацию , мы к ней
+прилепили днс сервер. так вот посмотрим что находится в файле 3
+
+# cat 3 
+# This is private data. Do not parse.
+LLMNR=yes
+MDNS=no
+SERVERS=12.12.12.12
+
+как я и сказал - оказывается в этой папке  /run/systemd/resolve/netif 
+и в файле 3 наш sr сохраняет те самые пер-интерфейс настройки! 
+также оказывается что если я остановлю службу sr то обычно служты при этом удаляют
+все файлы которые они создали в папке /run но только не sr! он эти файлы оставляет!
+поэтому когда мы стартуем обратно эту службу sr то она читает свои же файлы 
+и в итоге sr узнает какие были пер-интерфейс настройки до того как ее остановили!
+таким образом перезагрузка сервиса неприводит к тому что пер-интерфейс настройки
+терялись. они нетеряются. потому что они сохранены в файлах! просто эти файлы
+лежат не в /etc/... а в /run/...
+да конечно - если перегрузить комп то все файлы в /run будут потеряны.но если
+перегрузить только службу  то файлы нихрена нетеряются. потому что как я уже 
+сказал sr при своей остановке нестирает свои файлы в /run/... папке.еще раз 
+подчеркну что в /run/systemd/resolve/... sr сохраняет пер-интерфейс настройки!
+
+теперь я вовзращаюсь несколько обратно по теме. я теперь знаю как работает менеджер
+сети  который опирается на файл /etc/network/interfaces. 
+мне надо застопить сервис networking.service
+и стартануть systemd-networkd, правда надо еще к нему конфиги написать.
+есть и еще одна проблема - дело в том что каждлая служба она зависиит от каких то 
+служб и какието зависят от нее. поэтому скажем когда я гашу службу networking 
+то вопрос - а какие еще нужно вместе с ней погасить службы.
+
+# cat networking.service | grep After
+After=
+      apparmor.service
+      ifupdown-pre.service
+      local-fs.target 
+      network-pre.target <======
+      systemd-modules-load.service
+      systemd-sysctl.service <======
+
+# cat systemd-networkd.service | grep After
+After=
+      systemd-networkd.socket 
+      network-pre.target <========
+      systemd-sysctl.service <======
+      systemd-sysusers.service 
+      systemd-udevd.service 
+      
+через "<====" я указал общие службы.
+вобщем я пока решил только остановить службу networking.service
+не трогая службы от которых он зависит.
+
+  # systemctl disable networking 
+
+перезагрузился. но к моему удивлению все карточки были подняты и у них
+были IP. ! значит застоитьэту службу этого мало!
+
+я задизейблил еще одну службу
+  # systemctl disable ifupdown-pre
+
+перезагрузился но все по прежнему. карточки подняты. ip адреса на них есть!
+тут я понял что сделал ошиибку! оказывается слово "After=" имеет нето значение 
+которое я думал. слово "After" означает службы которые будут запущены ПОСЛЕ старта
+данного юнита. значит мне надо смотреть не юниты "After=" а юниты "Before="!!
+
+итак networking.service имеет свойства
+  Before=*network.target *shutdown.target network-online.target
+
+а юнит systemd-networkd имеет свойства
+  Before=*network.target multi-user.target *shutdown.target initrd-switch-root.target
+
+звездами я обозначил те которые общие для обоих. 
+я задизейблил 
+    # systemctl disable network-online.target
+
+но сеть по прежнему есть!
+
+далее я вот что увидел. в файле interfaces можно указать днс сервера. и там написано
+что они будут законфигуииованы если в системе есть пакет resolvconf.
+у меня в системе он есть по факту это симлинк на rsolvconf то есть это компонент sr
+это такаая наебка.да. это не настоящий resolvocnf это такая еще раз скажу подделка
+входящая в состав resolvectl, у нашего недоделанного resolvconf  входные ключи как у настоящего resolvonf а по факту это resolvectl. тоесть суть в том что когда мы вызываем resolvconf тоэто симлине на resolvctl и   resolvectl это мультибинарный файл и он это понимает и понимает новые ключи такие же как у оригинального resolvocnf, часть ключей.
+так вот как это работает в итоге. когда мы вызываем это resolvconf то мы вызываем его 
+вот так
+
+    # echo "nameserver 12.12.12.12 " | resolvconf -a tun0
+
+а по факту эта комагда в точности отработает как бутто я вызвал вот такую команду
+
+    # resolvectl dns tun0 12.12.12.12
+
+тоесть всего наввсего в демеоне sr для интерфейса tun0 добавится днс 12.12.12.12 
+тоесть вот так было
+
+Link 3 (tun0)
+Current Scopes: none
+     Protocols: -DefaultRoute +LLMNR -mDNS -DNSOverTLS DNSSEC=no/unsupported
+
+
+вот так станет
+
+Link 3 (tun0)
+Current Scopes: DNS
+     Protocols: +DefaultRoute +LLMNR -mDNS -DNSOverTLS DNSSEC=no/unsupported
+   DNS Servers: 12.12.12.12
+
+
+тоесть этот недоделанный "resolvconf" на лету поменяет кусок работы демона sr
+
+также будет создан файл во временной папке /run
+
+# cat /run/systemd/resolve/netif/3 
+# This is private data. Do not parse.
+LLMNR=yes
+MDNS=no
+SERVERS=12.12.12.12
+
+
+и еще будет изменен вот этот опять же временный файл
+будет добавлена строка с 12.12.12.12
+
+# grep -v '#' /run/systemd/resolve/resolv.conf 
+
+nameserver 1.1.1.1
+nameserver 8.8.8.8
+nameserver 8.8.4.4
+nameserver 12.12.12.12   <======== !!!!!
+search .
+
+
+если файл /run/systemd/resolve/resolv.conf не уходит через симлинк в /etc/resolv.conf
+то кроме systemd-resolved никакие другие днс клиенты которые не юзают NSS 
+незаметят этого изменения. если только у нас в /etc/resolv.conf не указан сам 
+же этот systemd-resolved через 127.0.0.53 тогда да. 
+
+вобщем я хочу сказать что вот этот недоделанный resolvconf который ссылается 
+как симлинк на resolvectl когда мы его запускаем то пофакту его работа состоит в том
+что пофакту в итоге запускается 
+
+    # resolvectl dns .... 
+
+а как эта команда работает  я уже знаю
+итак еще раз скажу что вот эат команда
+
+    # echo "nameserver 12.12.12.12 " | resolvconf -a tun0
+
+по факту запускает вот эту команду
+
+    # resolvectl dns tun0 12.12.12.12
+
+описание этого недодалелнного resolvconf можно найти в 
+
+    # man resolvectl 
+
+если промотать вниз до слов
+  COMPATIBILITY WITH RESOLVCONF(8)
+
+причем я хочу тут подчеркнуть что слово "компатибилити  с resolvconf" имеет тот смысл
+что сравнивается этот недоделанный resolvconf и настоящий полноценный resolvoconf
+который ставится из совершенно другого пакета. 
+тоесть еще раз systemd-resolved потавляет некую имитация программы программы 
+resolvconf. корявую имитацию. она приимает ряд ключей таких же как настоящий resolvconf
+так вот в мане написано что эта параша понимает ключ nameserver  и это так. и что
+также она понимает ключ search/domain так вот как бы я ни старался она их нихуя 
+не понимает
+
+# echo "domain  vasya.com " | resolvconf -a tun0
+No DNS servers specified, refusing operation.
+
+# echo "search  vasya.com " | resolvconf -a tun0
+No DNS servers specified, refusing operation.
+
+и насколько я понял просматривая файл interfaces  и читая man interfaces что 
+в файле interfaces нельзя прописать домен а только адреса днс серверов. 
+насолько я понял файл interfaces это на самом деле часть пакета ifupdown 
+это написано в man interfaces а этот ман это часть файлов из пакета ifupdown
+плюс в пакете ifupdown есть вот такие папки
+
+$ dpkg -L ifupdown
+...
+/etc/network/interfaces.d
+
+в этот пакет входят бинарники 
+
+  ifup
+  ifdown
+  ifquery
+
+я ранее говорил что сеть на дебиан12 поднимается через службу networking
+так вот в ней как раз идут эти бинарники
+
+ExecStart=/sbin/ifup -a --read-environment
+ExecStart=-/bin/sh -c 'if [ -f /run/network/restart-hotplug ]; then /sbin/ifup -a --read-environment --allow=hotplug; fi'
+
+
+тоесть по факту подьем интерфейсов сетевых в дебиан 12 основано целиком
+и полностью на бинарниках ifup\ifdown , а автоматизатором их запуска служит
+системд юнит networking. но он чисто автоматизатор. а так получается вся хрень 
+по поднятию сеетвых интерфейсов лежит на ifup\ifdown вот на чем держится вся "сеть"
+в дебиан12
+
+так вот этот ifup он читает файл interfaces и на основе него "поднимает " сетевые
+интерейсы тоесть дает интфрейсу IP, маску, пропиывает роут на основе укаанного 
+гейтвея. и еще ifup он запускает скрипты из папки 
+    
+      /etc/network/if-up.d
+
+там есть скрипт
+
+      /etc/network/if-up.d/resolved
+
+наскоколь я понимаю ifup до запуска этого скрипта он парсит файл interfaces
+потом из того что он там начитал он это все преобазует в переменные. 
+и он вызывает этот скрипт скрмиливая ему значения переменных. потому что 
+в скрипте есть куча переменных. его нет смысла вызывать если этому скрипту 
+не скормить знаения переменных.
+
+так вот скрипт 
+он проверяет запущен ли на компе сервис systemd-resolved 
+и если да то происходит вот что , он берет название сетевой карты  котоую скормили 
+скрипту например eth0 и находит для нее ееный индекс через чтение
+
+   /sys/class/net/eth0/ifindex
+
+потом он для этой карты создает файл 
+
+    /run/network/ifupdown-inet-eth0
+
+в этом файле он пропиывает был ли для нее в /etc/network/interfaces укаазаны 
+адреса днс серверов и search домены, выглядит это так
+в /etc/network/interfaces
+
+iface eth0 inet static
+  address ...
+  gateway ...
+  dns-nameservers 8.8.8.8 8.8.4.4
+  dns-search com co.uk ru
+
+так вот ifup это читает и сует в скрипт переменные IFACE=eth0
+NEW_DNS="8.8.8.8 8.8.4.4"  NEW_DOMAINS="com co.uk ru"
+чтото типа того 
+
+и тогда в /run/network/ifupdown-inet-eth0 будет записано
+"DNS"="8.8.8.8 8.8.4.4"
+"DOMAINS"="com co.uk ru"
+
+я проверил так и есть. перезапускаем
+
+    # systemctl restart networking
+
+и получаем 
+ # cat  /run/network/ifupdown-inet-eth0
+"DNS"="8.8.8.8 8.8.4.4"
+"DOMAINS"="com co.uk ru"
+
+
+
+четсно говорят нахрена вообще эта папка /run/network нужна незнаю  кроме как
+для отчетности чтобы показать что ifup успешно прочитаь конфиг карты eth0 из 
+файла interfaces и обработал его.типа как бы этот файло говорит : эй! смотри
+я успешно пропарсил файл interfaces! я вычленил из него такой то днс IP
+и такой то домен!
+далее происходит в этом скрипте вот что. он берет и читает тот файл
+который созал в /run/network/ifupdown-inet-eth0
+и получается скрипт в себя всасывет переенные
+
+DNS="8.8.8.8 8.8.4.4"
+DOMAINS="com co.uk ru"
+
+
+и если пеерменная $DNS непустая  то он пишет в файл  /run/systemd/resolve/netif/2
+(где 2 это индекс сет картчоки eth0) вот такой контент
+
+LLMNR=yes
+MDNS=no
+SERVERS=$(echo $DNS6 $DNS)
+DOMAINS=$(echo $DOMAINS6 $DOMAINS)
+
+
+тоесть если в interfaces мы зададим только ключ
+
+    dns-search com co.uk ru
+который потом породит переенную DOMAINS то файл  /run/systemd/resolve/netif/2
+создаваться не будет. 
+а вот если в interafaces задан ключ
+
+  dns-nameservers 8.8.8.8 8.8.4.4
+
+который потом передет в переенную DNS то тогда будет создан файл /run/systemd/resolve/netif/2
+и в него будет записан и DNS и DOMAINS
+
+# cat 2 
+# This is private data. Do not parse.
+LLMNR=yes
+MDNS=no
+SERVERS=8.8.8.8
+DOMAINS=com co.uk ru
+
+
+ксати в этом скрипте баг ошибка.
+вот так было 
+...
+"$DNS"="$NEW_DNS"
+...
+"$DOMAINS"="$NEW_DOMAINS"
+
+
+
+а вот так надо
+...
+$DNS="$NEW_DNS"
+...
+$DOMAINS="$NEW_DOMAINS"
+
+иначе он нихуя неработает как надо . об этом и вот тут написано (https://unix.stackexchange.com/questions/714901/dns-broken-when-using-ifupdown-and-systemd-resolved-after-upgrade-to-ubuntu-22-0)
+
+
+причем мы видим что скрипт пишет в ту папку systemd-resolved  в которую systemd-resolved
+пишет пер-интерфейс измененния. обычно это делается через запуск resolvctl
+так вот скрипт пишет туда тупо через echo > ... 
+а потом в скрипте они пишут мол както нехоророшо получается что мы взяли и вот так
+руками туда записали файл, давайте ка мы теперь как положено сделаем тоже самое
+но через вызов resolvectl !! охренеет!
+
+                resolvectl llmnr "$ifindex" yes || resolvectl_failed=$?
+                resolvectl mdns  "$ifindex" no || resolvectl_failed=$?
+                resolvectl domain "$ifindex" $DOMAINS6 $DOMAINS || resolvectl_failed=$?
+                resolvectl dns "$ifindex" $DNS6 $DNS || resolvectl_failed=$?
+
+тогда спраиывается нахрена было до этого писать в папку /run/systemd/resolve/netif/2
+руками?? а потом делать как положено через вызов resolvectl
+
+вобщем в итоге как это ратаеь. мы имеем файл interfaces. так мы указываем 
+ключи для днс и для search доменов.
+потом запускаем службу networking.service  она запускает ifup
+он парсит interfaces и запускат скрипт resolved
+а этот скрипт в конце концов запускает resolvectl с параметрами. 
+таким макамрром у нас systemd-resolved получает per-interface параметры 
+про  днс !!
+
+еще в чем наебка - пакет ifupdown внутри него есть вот такие маны
+
+# dpkg -L ifupdown | grep gz | grep man
+/usr/share/man/man5/interfaces.5.gz
+/usr/share/man/man8/ifup.8.gz
+/usr/share/man/man8/ifdown.8.gz
+/usr/share/man/man8/ifquery.8.gz
+
+так вот ни водном из этих манов нерасписано по человечески все те ключи
+которые можно юзать в interfaces тоесть я ни водном из манов ненашел ключи
+
+    dns-nameservers 
+    dns-search com 
+
+единсвтенное где я это нашел это вот тут (https://unix.stackexchange.com/questions/128439/good-detailed-explanation-of-etc-network-interfaces-syntax) 
+это пипец. что есть пакет. есть конф файлы.  а в манах от этого пакета нихрена
+нет инфо! мне что код исходный читать чтоли
+
+кстати вот еще какая наебка. в файле interfaces есть вот такая запись
+
+# cat interfaces
+allow-hotplug enp0s3
+   ...
+   ...
+  # dns-* options are implemented by the resolvconf package, if installed
+  dns-nameservers 8.8.8.8
+  dns-search com co.uk ru
+
+я имею ввиду вот эту строчку
+    # dns-* options are implemented by the resolvconf package, if installed
+
+она оказывается полная брехня. полнейшая. потому что получается по факту что
+вот эти две настройки из interfaces
+
+  dns-nameservers 8.8.8.8
+  dns-search com co.uk ru
+
+
+они попадают в systemd-resolved нихуя не через пакет resolvconf!
+они туда попадают через сервис networking который запускает ifup который входит в пакет ifupdown который запускает свой баш скрипт resolved внутри которого запускается команда
+resolvectl которая является частью пакета systemd-resolved !!!!!! охренет! 
+в этой цепочке нету нихрнена никакого участия пакета или команды resolvconf
+вот в чем их огромнйшая брехня!
+
+
+
+
+
+( на хостиенге достаточно хитрая сеть. там нетплан. в нем настройки а он уже 
+влияет на systemd-networkd ппц прчием я непонял как нетплан влияет на systemd-network
+то ли нет план создает конфиги для systemd-networkd то ли он конфинуетрует 
+на лету systemd-networkd без составления егоных конфигов)
+
+
+
+
+
+теперь берем конфиг от старого менеджера сети. 
+потому что нам надо его воспросизвести в новом менеджере сети
+# cat /etc/network/interfaces
+
+source /etc/network/interfaces.d/*
+
+auto lo
+iface lo inet loopback
+
+allow-hotplug enp0s3
+iface enp0s3 inet static
+  address 172.16.10.11/24
+  gateway 172.16.10.1
+  # dns-* options are implemented by the resolvconf package, if installed
+  dns-nameservers 8.8.8.8
+root@debian12-c1:/lib/systemd/system# 
 
 
 <><><><><><><><><><><><><><><><><><><><><><><><><>
