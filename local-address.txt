@@ -1534,4 +1534,104 @@ enp0s3 M   IP 172.16.10.12.5353 > 224.0.0.251.5353: 0*- [0q] 1/0/0 (Cache flush)
 
  Added positive unauthenticated non-confidential cache entry for debian12-c2.local IN A 120s on enp0s3/INET/172.16.10.12
 
+таким макаром я рассмотрел mDNS в целом и как он релизован в сервисе sr
+
+значит далее я хочу расшифровать значение "Current Scopes" в свойствах секции
+связанной с сет картой. 
+значит если в этой секции указано mDNS
+
+        Current Scopes: mDNS/IPv4 mDNS/IPv6
+
+то как я сказал это озачает что через данный интерфейс обслуживаются запросы извне
+как к серверу mDNS и из этой карты наружу демону можно запускать mDNS запросы вовне.
+
+так вот если в этой строке написано DNS вот так 
+
+        Current Scopes: DNS
+
+то это значит что для данной сетевой карты задан днс сервер
+
+Link 2 (enp0s3)
+Current Scopes: DNS 
+   DNS Servers: 12.12.12.12
+
+а что это значит на практике?
+а вот что если у нас задан днс сервер в глобальной секции
+и задан днс сервер на карточке
+
+
+Global
+         Protocols: -LLMNR +mDNS -DNSOverTLS DNSSEC=no/unsupported
+  resolv.conf mode: stub
+Current DNS Server: 8.8.8.8
+        DNS Servers 8.8.8.8
+
+Link 2 (enp0s3)
+    Current Scopes: DNS mDNS/IPv4 mDNS/IPv6
+         Protocols: +DefaultRoute -LLMNR +mDNS -DNSOverTLS DNSSEC=no/unsupported
+Current DNS Server: 8.8.4.4
+       DNS Servers: 8.8.4.4
+
+
+то запросы будут делаться по очереди. через один сервер потом 
+через другой
+
+systemd-resolved[2558]: Using DNS server 8.8.8.8 for transaction 3808.
+systemd-resolved[2558]: Using DNS server 8.8.4.4 for transaction 59562.
+systemd-resolved[2558]: Using DNS server 8.8.4.4 for transaction 34271.
+systemd-resolved[2558]: Using DNS server 8.8.8.8 for transaction 5613.
+systemd-resolved[2558]: Using DNS server 8.8.4.4 for transaction 29693.
+systemd-resolved[2558]: Using DNS server 8.8.8.8 for transaction 48764.
+systemd-resolved[2558]: Using DNS server 8.8.4.4 for transaction 1227.
+
+если я добавлю в генеральную секцию парамтер 
+
+Domains=~.
+то тогда все днс сервера указанные пер-интфрейс будут игнорироваться и 
+будет исползоваться только днс сервер уазнный в генеральной секции
+
+если я добавляю домен с тильдой (route-only домен) в интерфейс
+
+     # resolvectl domain enp0s3 ~co.uk
+
+
+
+Global
+         Protocols: -LLMNR +mDNS -DNSOverTLS DNSSEC=no/unsupported
+  resolv.conf mode: stub
+Current DNS Server: 8.8.8.8
+        DNS Servers 8.8.8.8
+
+Link 2 (enp0s3)
+    Current Scopes: DNS mDNS/IPv4 mDNS/IPv6
+         Protocols: -DefaultRoute -LLMNR +mDNS -DNSOverTLS DNSSEC=no/unsupported
+Current DNS Server: 8.8.4.4
+       DNS Servers: 8.8.4.4
+        DNS Domain: ~co.uk  <======= 
+
+
+то тоггда это работает так. если я делаю запрос для доомена *.co.uk то он исполняется
+через 8.8.4.4  а для всех остальных доменов через 8.8.8.8
+единственное я не знаю если днс сервер указанный в интерфейсе нележит за данным 
+интерфейсом то что? тоесть когда днс сервер лежит за интерфейсом тога все просто
+при создании реквесте у пакета убдет указан src_IP=IP интерфейса а dest_IP=8.8.8.8
+а мне интересно если на основе таблицы маршрутизации получается расхождение что 
+если на основе табицы маршутизации получается что маршрут до 8.8.8.8 лежит через другую
+карту и тоесть src_IP будет другой и пакет будет высран в сеть через другую карту.?
+тоесть я не могу понять через какуб карту и какой src_ip будет использован для создания
+пакета который должен лететь к 8.8.8.8 на оснвое таблицы мрауртизации или на основе
+таблицы что выше?
+я кстати еще раз почитал man NetworkManager.conf и его две наатрройки dns и rc-manager
+и как я понял они в основном касаются будет ли модифициован /etc/resolv.conf (erc)
+а как настроить чтобы NetworkManager не пушил свои настройки на интерфейс через 
+resolvectl в systemd-resolved этого вообще нет. и как я понял он их будет пушить 
+всегда.
+далее я проэкспериментировал и пришел к выводу что домены с тильдой (роут-онли домены)
+они не используются для  превращения запросов из одного слова в запросы полноценные
+хотя бы из двух слов. тоесть домены с тильдой не дописываются в хвост однословного 
+запроса.
+
+
+
+
 
