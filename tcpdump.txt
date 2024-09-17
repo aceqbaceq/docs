@@ -1,0 +1,6 @@
+| tcpdump
+
+как отловить icmp v6
+
+		# tcpdump -i eth0 "icmp6 && ip6[40] == 128"
+

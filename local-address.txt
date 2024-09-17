@@ -3,7 +3,9 @@
 | global
 | host
 | multicast
+| mDNS
 
+огроманая часть этой порятнки посвящена mDNS 
 
 
 все началось с того что увидел в свойтвах сет карты а точнее  в свойствах
@@ -1592,6 +1594,47 @@ Domains=~.
 то тогда все днс сервера указанные пер-интфрейс будут игнорироваться и 
 будет исползоваться только днс сервер уазнный в генеральной секции
 
+а ДАЛЬШЕ ПОЛНЫЙ ПРИКОЛ. я то думал что "Domains=~." добавленный в General секцию
+заставляет игнорировать пер-интерфейс настройки. ОКАЗЫВАЕТСЯ НИХРЕНА! это верно
+тоолько если в per-interfcae секциях не прописан паараметр Domains. 
+а если он прописан то поведение совершенно другое! 
+вот пример
+
+вот конфигурация
+
+Global
+         Protocols: -LLMNR +mDNS -DNSOverTLS DNSSEC=no/unsupported
+  resolv.conf mode: stub
+Current DNS Server: 172.16.10.1
+        DNS Servers 172.16.10.1
+         DNS Domain ~.
+
+Link 2 (enp0s3)
+    Current Scopes: DNS mDNS/IPv4 mDNS/IPv6
+         Protocols: +DefaultRoute -LLMNR +mDNS -DNSOverTLS DNSSEC=no/unsupported
+Current DNS Server: 8.8.8.8
+       DNS Servers: 8.8.8.8
+        DNS Domain: com ru
+
+она будет работать вот как - если запрос содержит com или ru тоода огн будет
+наравлен через 8.8.8.8 а еесли не содержит тогда через 172.16.10.1
+а если " DNS Domain: com ru" будет убран то тогда да все реквесты подйут через 
+172.16.10.1, а если еще убрать и  "DNS Domain ~." то каждый запрос будет послыаться
+одноврменно на оба и 8.8.8.8 и 172.16.10.1 
+еще раз скажу я почему удивлен. я то удумал что если вставить в Geenneral сукцию
+настройку   "DNS Domain ~."  то это засавит  все запросы проходит через днс 
+генеральной секции и плевать на днс  в интерфейсах. оказывается нет. нихрена.
+если запрос содрежржрит com или ru то запрос пойдет чрез 8.8.8.8 и плевать на 
+эту тильду в генеральной секции!
+
+чем resolvectl крут. он позволяет поменять налету оператвино легко и просто
+пер интерфейс настройки у демона не засавляяя его перегружаться. кроме изменений
+глобальной секции. что ксатти дебильно
+
+
+
+
+
 если я добавляю домен с тильдой (route-only домен) в интерфейс
 
      # resolvectl domain enp0s3 ~co.uk
@@ -1761,6 +1804,109 @@ Current Scopes: DNS mDNS/IPv4 mDNS/IPv6
 если в запросе уже есть .com то он будет запущен на 8.8.4.4
 для всех остаьных запросов - запрос будет запущен сразу на и на 8.8.8.8 и на 8.8.4.4
 
+
+ксати настройка +DefaultRoute как обычно в мане описание ужасное.
+я взял вот такую кофнигурацию
+
+Global
+         Protocols: -LLMNR -mDNS -DNSOverTLS DNSSEC=no/unsupported
+  resolv.conf mode: stub
+Current DNS Server: 172.16.10.1
+        DNS Servers 172.16.10.1
+
+Link 2 (enp0s3)
+    Current Scopes: DNS
+         Protocols: -DefaultRoute -LLMNR +mDNS -DNSOverTLS DNSSEC=no/unsupported
+Current DNS Server: 8.8.8.8
+       DNS Servers: 8.8.8.8
+
+
+и я в секции пер-интерфейс игрался. я делал то  -DefaultRoute то делал +DefaultRoute
+ксатти важно заметить что генеральной секции нет настройки Domains=~.
+что я открыл. если выставить -DefaultRoute то запросы идут только через 172.16.10.1
+если выставит +DefaultRoute то запрос идет и через 172.16.10.1 и через 8.8.8.8
+это рындец какойто
+
+как я уже сказал если сделать вот так
+
+Global
+         Protocols: -LLMNR -mDNS -DNSOverTLS DNSSEC=no/unsupported
+  resolv.conf mode: stub
+Current DNS Server: 172.16.10.1
+        DNS Servers 172.16.10.1
+        Domains: ~.
+
+Link 2 (enp0s3)
+    Current Scopes: DNS
+         Protocols: -DefaultRoute -LLMNR +mDNS -DNSOverTLS DNSSEC=no/unsupported
+Current DNS Server: 8.8.8.8
+       DNS Servers: 8.8.8.8
+       Domains: com
+
+и запросить  vasya.com то реквест пойдет через 8.8.8.8 
+
+
+если вот так
+тоесть в глобаьльной секции Doamins незаадан
+в пер-интфрейс секции задан Domains = com
+и в пер интрфрейс -DefaultRoute
+
+Global
+         Protocols: -LLMNR -mDNS -DNSOverTLS DNSSEC=no/unsupported
+  resolv.conf mode: stub
+Current DNS Server: 172.16.10.1
+        DNS Servers 172.16.10.1
+
+Link 2 (enp0s3)
+    Current Scopes: DNS
+         Protocols: -DefaultRoute -LLMNR +mDNS -DNSOverTLS DNSSEC=no/unsupported
+Current DNS Server: 8.8.8.8
+       DNS Servers: 8.8.8.8
+        DNS Domain: com
+
+и запрос к valya.ru то он идет через ..10.1
+
+если активировать +DefaultRoute  он идет через оба днс
+
+если я добаволю в генеарильно секции Domains="~."
+
+Global
+       Protocols: -LLMNR -mDNS -DNSOverTLS DNSSEC=no/unsupported
+resolv.conf mode: stub
+      DNS Servers 172.16.10.1
+       DNS Domain ~.
+
+Link 2 (enp0s3)
+Current Scopes: DNS
+     Protocols: -DefaultRoute -LLMNR +mDNS -DNSOverTLS DNSSEC=no/unsupported
+   DNS Servers: 8.8.8.8
+    DNS Domain: com
+
+
+то запрос к valya.ru пойдет по уже через один днс ...10.1
+если изменить на +DefaultRoute и сделать petya.ru то запрос пойдет опять же
+чрез 10.1
+
+есть еще вариант когда вот такой
+
+Global
+       Protocols: -LLMNR -mDNS -DNSOverTLS DNSSEC=no/unsupported
+resolv.conf mode: stub
+      DNS Servers 172.16.10.1
+       DNS Domain ~.
+
+Link 2 (enp0s3)
+Current Scopes: DNS
+     Protocols: -DefaultRoute -LLMNR +mDNS -DNSOverTLS DNSSEC=no/unsupported
+   DNS Servers: 8.8.8.8
+    DNS Domain: ~.
+
+в этой ситауции запрос к valya.ru буедети идти через оба днс вензавсисимости 
+от знака DefaultRoute
+
+
+
+
 о чем говорит если в скоупе интерфейса есть слово DNS ?
 
         Current Scopes: DNS
@@ -1777,40 +1923,260 @@ Current Scopes: DNS mDNS/IPv4 mDNS/IPv6
 что касается mdns через этот интерфейс пропускать не получится.
 так вот слово DNS в скоупе значит СОВЕРШЕННО ДУРГОЕ. если оно есть то это всего 
 навсего значит что для данного интерфейса прописан индвидуальный днс сервер. 
-что это дает на практие завсиит еще от нескольких факторов. а именно если в
-генеральной секции указано 
- 
-        Domains=~.
+что это дает на практие завсиит еще от нескольких факторов.
+а именно если от того чему равно слово Domains в генеральной секции. 
+в пер-интерфейс секции. чему равно DefaultRoute  в пер-интерфейс секции.
 
-то тогда днс сервер пер- интерфейс не имеет никакого значения. все реквесты будут 
-идти через днс сервер в генеарльной секции.
-если этого нет то еще один момент важен . если на интерфейсе есть настройка
 
-        DNS Domain: com
-
-то тогда реквесты вида *.com будут запускатьс на индивидуаьный днс сервер.
-также если запрос состоит из одного слова то к нем будет добавлен .com и 
-он будет также направлен на днс сервер интерфейса.
-если запрос ни то ни другое то он будет одновременно нпарвлен на днс сервер из 
-генеарльной секции и на днс указаный на интерфейсе. 
-если у интерфейса нет настройки
-
-        DNS Domain: com
-
-то любые запросы будут одноврменно направлены и на днс в генеарльной секции
-и на днс на интерфейсе.
-
-если указан на интерфейсе домен с тильой
-
-        DNS Domain: ~.com
-
-то все тоже самое что для домена без тильды только нет превращения однословных доменов
-в многословные
-
-если  в скоупе нет слова DNS то все равно через этот интерфейс будут демоном запукскатся
-юникаст днс запросы. 
 
 что такое LLMNR пожалуй я изучать не буду.
 
+в общем на этом я пока щас буду ставить точку. ибо надо начать 
+заниматься другими делами. увы.
+
+ксатти насколько я узнал узнать привязан ли (назнчен ли) мультикст IP адрес на 
+сетевой карте можно через ip -c a и должен быть выставлен флаг MULTICAST
+
+3: wlp2s0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 ...
+    link/ether 80:30:49:b2:85:cf brd ff:ff:ff:ff:ff:ff
+    inet 192.168.211.1/24 brd 192.168.211.255 scope global ...
+
+вот в первой строке крупно написано MULTICAST
+значит к нему приавязан и мультикст ip который уже можно узнать через
+
+   # ip -4 maddr
 
 
+
+на счет типов ip адресов. то с чего я наверху начал. 
+есть global , есть local , есть host ip адреса 
+
+lo: <LOOPBACK,UP,LOWER_UP> 
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+                            /\
+                            ||
+                            ||
+
+                           слово host
+
+
+tun0: <POINTOPOINT,MULTICAST,NOARP,UP,LOWER_UP> 
+    link/none 
+    inet 172.16.50.5 peer 172.16.50.1/32 scope global tun0
+                                                 /\
+                                                 ||
+                                                 ||
+
+                                              слово  global
+
+  inet6 fe80::3fa3:799e:1e93:5c7/64 scope link stable-privacy proto kernel_ll 
+                                           /\
+                                           ||
+                                           ||
+
+                                       слово  link
+
+этот тип ip адреса назначает ядро. назнчает оно исходя из диапазона в который 
+входит этот ip адрес.
+можно его поменять. щас не буду углубляться. но в целом соль в чем. 
+если ip адрес имеет тип host это значит что он виден только процессам внутри хоста.
+с другого хоста до этого ip адреса не достучаться. возникает вопрос а почему не 
+достучаться. давайте назначим его на реальную сетевую карту и пинганем. для пакета
+в эзернет сети какая разница какой там внутри ip адрес. ведь все работает на 
+уровен мак адресов. я не проверял но скорей всего само ядро недаст назначить
+такой адрес на реалбную сеевую карту. вобщем нет времени проверять. 
+говорю лишь вывод - такой ип адрес доступен и виден только внутри хоста. снаружи нет.
+
+link ип адрес - он виден только между компами внутри сегмента. тесть между компаи
+локалки. роутер такой ip адрес пропускать наружу недолжен.
+
+global - самый коызрный. его через себя наружу пропускает роутер.
+
+в man systemd.network 
+нашел
+scope адреса:
+      The scope of the address, which can be "global" (valid everywhere on the network, even through a gateway), "link" (only valid on this device, will
+           not traverse a gateway) or "host" (only valid within the device itself, e.g. 127.0.0.1) or an integer in the range 0...255. Defaults to "global".
+           IPv4 only - IPv6 scope is automatically assigned by the kernel and cannot be set manually.
+
+           Added in version 235.
+
+оказываетя что есть не только global, host, link  ip адреса. 
+есть похожая хрень и для маршрутов.
+
+про scope маршрута:
+  Scope=
+           The scope of the IPv4 route, which can be "global", "site", "link", "host", or "nowhere":
+
+           •   "global" means the route can reach hosts more than one hop away.
+
+           •   "site" means an interior route in the local autonomous system.
+
+           •   "link" means the route can only reach hosts on the local network (one hop away).
+
+           •   "host" means the route will not leave the local machine (used for internal addresses like 127.0.0.1).
+
+           •   "nowhere" means the destination doesn't exist.
+
+           For IPv4 route, defaults to "host" if Type= is "local" or "nat", and "link" if Type= is "broadcast", "multicast", "anycast", or "unicast". In
+           other cases, defaults to "global". The value is not used for IPv6.
+
+           Added in version 219.
+
+у меня не хватило времени с этим разобраться. пока оставил.
+
+
+
+
+
+
+
+
+
+прикольная мысль - вот ты слазил в dns чрез tls 
+и значит никто пока незнает куда ты соираешься лазить.
+а потом ты уже лезеш туда через бразуер и https и то куда ты лезешь ввысвчеено в SNI 
+который не криптуется. гоча. и вся секретность в жопе.
+
+поэтому и надо весь трафик совать в впн. там уже никто ничего не уивдиьт
+
+у меня вопрос нахер нужен этот SNI. вот у меня есть веб серер процесс на порту 443.
+тоесть это 
+
+    IP= 12.12.12.12 TCP 443
+
+и на этом сокете сидит веб сервер. 
+вот я с одного компа клиента стучу на этот сервер на сайт www1.ru 
+у нас используется tls шифрование. которое выполняет юзер код этого сервера 
+поутем подключения библиотеки. значит от клиента втекает шифрованный трафик. 
+его процесс веб сервера декриптует. получает на выходе HTTP трафик. там четко 
+написано что host: www1.ru  , все веб серверу процессу четко понятно куда ломился
+клиент. 
+потом другой клиент ломиться на этот же сокет этого же веб сервера но на сайт www2.ru
+в этом нет проблемы. у нас просто теперь в этот сокет влетает два шифрованных потока
+но каждй пакет этого потока имеет уникальное сочетание src_ip src_port 
+и сервер дешифрвет этот поток через tls в юзер спейсе то есть он сам это декриптует
+при этом он понимает что это другой поток от другого клиента. и получает другой http 
+поток где указан ксатти другой host: www2.ru  
+поэтому я непонимаю нахуй нужен SNI.
+
+рассматривая mDNS я еще не рассмотрел как у него выглядит мультикаст MAC потому
+что он формируется исходя из того какой мультикаст IP мы собираемся юзать
+
+
+
+также мне тут открылось что почемуто chrome браузер сидит и слушает 
+mDNS мультикаст трафик
+
+# ss -nlp4
+Local Address:Port              Peer Address:Port      Process                                         
+224.0.0.251:5353                   0.0.0.0:*          users:(("chromium",pid=2669,fd=184))           
+224.0.0.251:5353                   0.0.0.0:*          users:(("chromium",pid=2669,fd=179))           
+224.0.0.251:5353                   0.0.0.0:*          users:(("chromium",pid=2669,fd=143))           
+224.0.0.251:5353                   0.0.0.0:*          users:(("chromium",pid=2710,fd=712))           
+224.0.0.251:5353                   0.0.0.0:*          users:(("chromium",pid=2710,fd=685))  
+  
+тоесть получается если у меня  в сети есть компы на которых есть mDNS то они
+шлют свои хостнеймы  в виде server-01.local на мультикаст адрес IP 224.0.0.251  UDP 5353
+и получается хром это слушает и собирает эти данные. нахуя он это делает?
+если они вставитли это в хром чтобы он мог заходить на сайты вида 
+
+  http://server-01.local/
+
+то по мне это остой потому что резволвином доменов должен заниматься днс клиент
+но никак не конечное приложение. 
+в инетет пишут что мало того . хром еще решулярно шлет по всем сет картам IGMP 
+трафик чтобы типа его свичи включили в мульттикаст группу. (вот тут пишут https://gist.github.com/mzpqnxow/ff88b5a519f5c3303ef8bc9de0245179)
+поэтому очень поолезно получается на файврроолле закрывать не тлоько он траифка извне
+но и от трафика изнутри. закрвая все по дефолту кроме того что явно сам разрешил
+
+я ксати четко проверил что это не systemd-resolved как то там читает конфиг или 
+чтото там у systemd-networkd. нихрена.
+именно systemd-networkd при старте пушит в systemd-resolved (через сокет d-bus 
+или resolvectl свои хотели про днс настройки пер интерфейс)
+как я это прверил. у меня был конфиг systemd-netowrkd. я его перезапустил. получил
+обвноленный статус интфрейсов в rsolvectl . потом я вручную изменил настроки пер-интерфефс
+для одной из карточек. потом я перегрузил systemd-resolved. как известно при его
+перезагрузке он нетрогает свои файлы в /run/... папке а тупо их обратно их обратно
+счтыатвает. в частности там лежат файл в которых записана пер-интерфейс информация. 
+ия перегрузил syetemd-resilbved и у меня пер интерйефйс информация не изменилась.
+а если бы он чтото там читал запрашивал у systemd-networkd она должна была изменится.
+зато когда я после этого ппрерузил systemd-networkd то сразу у меня в resolvedctl
+изменилась обратная конфигурция пер-интрейс. это все значит что именно syyemd-networkd
+при старте пушит свои хотелки в systemd-resolved. но никак не наоброт. когда 
+sytemd-resolved стартует он ни к кому необращается на тему своих пер-интерфейс
+настроек ни к sysytemd-networkd ни к NetworkManager. он единственное что читает
+это свои файлы из папки /run/ssytemd/resolve/... и все. поэтому если какая то
+программа хочет просунуь свои днс настрйоки на systemd-resolved она должна сама 
+это сделаь. запушить их либо через d-bus либо через resolvectl . 
+
+
+
+
+
+Ссылки:
+IFUPDOWN(/etc/network/interfaces)
+https://www.debian.org/doc/manuals/debian-reference/ch05.en.html
+https://unix.stackexchange.com/questions/71062/ubuntu-how-to-configure-dns-servers-in-etc-network-interfaces-correctly-for-re
+
+
+
+LINK-LOCAL
+https://www.linux.com/news/zero-configuration-networking-linux/
+https://en.wikipedia.org/wiki/Zero-configuration_networking
+https://en.wikipedia.org/wiki/Zero-configuration_networking
+https://www.iana.org/assignments/iana-ipv4-special-registry/iana-ipv4-special-registry.xhtml
+https://www.rfc-editor.org/info/rfc3927
+https://serverfault.com/questions/118324/what-is-a-link-local-address
+https://en.wikipedia.org/wiki/Link-local_address#cite_note-rfc3927-1
+https://serverfault.com/questions/63014/ip-address-scope-parameter/1035326#1035326
+
+
+
+mDNS и мультикаст
+https://datatracker.ietf.org/doc/html/rfc6762#appendix-B
+https://askubuntu.com/questions/972630/what-is-mdns-is-it-possible-to-make-mdns-query-without-mdns-service-running/1526875#1526875
+https://wlog.viltstigen.se/articles/2021/05/02/mdns-for-linux/
+https://stackoverflow.com/questions/68540755/can-linux-mdns-client-be-pure-client
+https://superuser.com/questions/1453910/linux-command-to-get-mdns-service-discovery-and-to-get-its-ip-address
+https://unix.stackexchange.com/questions/745609/ss-or-ip-equivalent-to-netstat-gn-to-show-multicast-memberships
+https://stackoverflow.com/questions/63381026/ss-and-netstat-show-different-multicast-groups
+https://unix.stackexchange.com/questions/25872/how-can-i-know-if-ip-multicast-is-enabled
+https://unix.stackexchange.com/questions/25872/how-can-i-know-if-ip-multicast-is-enabled
+https://stackoverflow.com/questions/15892675/listing-multicast-sockets
+https://www.auvik.com/franklyit/blog/multicast-networking/
+https://support.biamp.com/General/Networking/Multicast_traffic_and_IGMP
+https://www.firewall.cx/networking/network-fundamentals/network-multicast.html
+https://superuser.com/questions/306065/what-is-icmp-broadcast-good-for
+https://docs.datadoghq.com/security/default_rules/xccdf-org-ssgproject-content-rule-sysctl-net-ipv4-icmp-echo-ignore-broadcasts/
+https://0x657573.wordpress.com/2010/11/22/localhost-does-not-response-to-ping-to-multicast-address-224-0-0-1/
+https://stackoverflow.com/questions/21574463/no-reply-on-ping-224-0-0-1
+https://access.redhat.com/solutions/110013
+https://www.poweradmin.com/blog/how-to-configure-a-multicast-linux-network/
+https://jameshfisher.com/2018/03/04/create-udp-connection-with-netcat/
+https://unix.stackexchange.com/questions/459991/how-to-configure-systemd-resolved-for-mdns-multicast-dns-on-local-network
+https://en.wikipedia.org/wiki/Multicast_DNS
+https://www.networkacademy.io/ccie-enterprise/multicast/introducing-multicast
+https://networklessons.com/multicast/multicast-ip-address-to-mac-address-mapping
+https://serverfault.com/questions/881644/do-all-ethernet-switches-support-multicast
+https://www.poweradmin.com/blog/how-to-configure-a-multicast-linux-network/
+https://www.pynetlabs.com/difference-between-broadcast-and-multicast/#:~:text=The%20main%20difference%20between%20broadcast,it%20as%20the%20intended%20receivers.
+https://0pointer.de/lennart/projects/nss-mdns/
+https://wiki.archlinux.org/title/Avahi
+https://unix.stackexchange.com/questions/404917/what-are-link-scopes-in-systemd-resolved/783639#783639
+
+
+ICMP
+https://en.wikipedia.org/wiki/Traceroute#:~:text=On%20Unix%2Dlike%20operating%20systems,to%20use%20ICMP%20Echo%20Request
+https://www.ibm.com/docs/en/zos-basic-skills?topic=nll3-internet-control-message-protocol-icmp-other-layer-3-protocols
+https://networklessons.com/cisco/ccie-routing-switching-written/icmp-internet-control-message-protocol#:~:text=ICMP%20messages%20are%20encapsulated%20in,considered%20a%20layer%203%20protocol.&text=The%20first%20byte%20specifies%20the%20type%20of%20ICMP%20message.
+https://www.cloudflare.com/learning/ddos/glossary/internet-control-message-protocol-icmp/
+https://datatracker.ietf.org/doc/html/rfc792
+
+
+LLMNR
+https://datatracker.ietf.org/doc/html/rfc4795
+https://www.eiman.tv/blog/posts/lannames/#the-ietf-debacle
+https://learn.microsoft.com/en-us/previous-versions//bb878128(v=technet.10)?redirectedfrom=MSDN
+https://en.wikipedia.org/wiki/Link-Local_Multicast_Name_Resolution
