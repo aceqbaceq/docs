@@ -1926,7 +1926,7 @@ Current Scopes: DNS
 что это дает на практие завсиит еще от нескольких факторов.
 а именно если от того чему равно слово Domains в генеральной секции. 
 в пер-интерфейс секции. чему равно DefaultRoute  в пер-интерфейс секции.
-
+причем большое знаение имеет и параметр Domains="" (пусто)
 
 
 что такое LLMNR пожалуй я изучать не буду.
@@ -2112,6 +2112,182 @@ sytemd-resolved стартует он ни к кому необращается 
 это сделаь. запушить их либо через d-bus либо через resolvectl . 
 
 
+если деблиан и resolvectl показыает в секции итерфейса что DNS DOMAIN = DOMAINS
+
+# resolvectl 
+Global
+       Protocols: -LLMNR -mDNS -DNSOverTLS DNSSEC=no/unsupported
+resolv.conf mode: stub
+      DNS Servers 172.16.10.1
+       DNS Domain ~.
+
+Link 2 (enp0s3)
+Current Scopes: none
+     Protocols: -DefaultRoute +LLMNR -mDNS -DNSOverTLS DNSSEC=no/unsupported
+    DNS Domain: DOMAINS  <======
+
+спраиваетс откуда это взялоьс. а взялось оно из пакета ifupdown это такой
+менеджер сети. его примета он раобтает с файлом 
+
+/etc/network/interfaces
+
+так вот там есть скрипт в /etc/network/...
+и в нем есть строка которая чрез resovectl пихает в systemd-resolved 
+для интрфейса dns DOMAINS. вот откуда это беертся. 
+
+
+AVAHI.
+
+  # apt-get -y install avahi-daemon
+  # apt-get -y install avahi-utils
+
+это такой демон и клиент который является в частности mDNS клиентом и сервером.
+как мы уже знаем sr тоже может выполнять роль клиента и сервера mDNS. 
+когда мы установим авахи то он начинает слущать вот такие сокеты
+
+# ss -4nlp | grep avahi
+udp   0.0.0.0:5353       0.0.0.0:*    users:(("avahi-daemon",pid=1011,fd=12))   
+udp   0.0.0.0:54017      0.0.0.0:*    users:(("avahi-daemon",pid=1011,fd=14))   
+
+я незнаю зачем он слушает UDP 54017, но понятно что дает что он слушает UDP 5353
+это mDNS протоокл как раз. я также проверил что он создает на сеетевых картах 
+мультикаст IP адрес 224.0.0.251 как положено для mDNS
+
+так вот если мы установили и заустили авахи как mDNS клиент\сервер то тогда 
+нужно отключить mDNS в sr. потому что два процесса немогут слушать один сокет. 
+по крайней мере так пишет интернет. я все таки активировал mDNS и на sr 
+и вот что я вижу
+
+# ss -4nlp | grep 5353
+udp   0.0.0.0:5353       0.0.0.0:*    users:(("systemd-resolve",pid=1110,fd=19))
+udp   0.0.0.0:5353       0.0.0.0:*    users:(("avahi-daemon",pid=1011,fd=12))   
+
+
+немогу понять как это два процесса могут сидеть на одном сокете?
+что еще прикльно это то что sr показвает что все окей. что он обслуживает mDNS
+впорядке
+
+# resolvectl 
+Global
+       Protocols: -LLMNR +mDNS -DNSOverTLS DNSSEC=no/unsupported
+
+Link 2 (enp0s3)
+Current Scopes: mDNS/IPv4 mDNS/IPv6
+     Protocols: -DefaultRoute -LLMNR +mDNS -DNSOverTLS DNSSEC=no/unsupported
+
+тоесть видно что везде где надо и самое главное в строке "Current Scopes:" есть 
+mDNS это значит что sr считает что он "включил " mDNS как надо.
+
+вобщем если авахи включили то тогда надо mDNS выключить у sr
+значит как я это делаю
+
+# cat /etc/systemd/resolve.conf.d/global.conf
+[Resolve]
+...
+...
+MulticastDNS=no
+
+
+# cat /etc/systemd/network/50-static.network 
+...
+...
+[Network]
+...
+...
+MulticastDNS=False
+
+# systemctl restart systemd-resolved
+# systemctl restart systemd-networkd
+
+когда мы дезактиировали mDNS в sr и активировали его обслуживание через avahi.
+далее надо провериить что в nsswitch.conf у нас прописан NSS  плагин от avahi
+который принимает "заказ" от приложения и перенаправоляет его видимо через локальный сокет
+котоырй слушает процесс авахи в этот авахи
+
+
+# cat /etc/nsswitch.conf | grep hosts
+hosts:          files myhostname mdns4_minimal [NOTFOUND=return] resolve
+
+вот тут видно что этот плагин называется mdns4_minimal , он перенправляет запрос
+от приложения в демона
+
+кстати 
+
+# systemctl status avahi-daemon
+...
+...
+     CGroup: /system.slice/avahi-daemon.service
+             ├─731 "avahi-daemon: running [debian12-c1.local]"
+             └─732 "avahi-daemon: chroot helper"
+
+непонятно почему и зачем демон авахи имеет два процесса
+
+так вот теперь у нас какая ситуация. у нас sr сейчас неявляется ни клиентом ни сервером mDNS
+а клиентом и севром mDNS явялется авахи. этот авахи он умеет резволить только mDNS
+реквесты и не умеет резволить обычные DNS реквесты.
+а sr умеет резволить и юникаст DNS запроcы и mDNS запросы но мы на нем щас декзактивировали
+mDNS хрени. чтобы обратиться к авахи функционалу надо чтобы юзер приложение умели 
+и использовало для днс реквестов NSS подсистему либо "фирменный " клиент авахи в командной
+строке (аналог resolvectl для sr) , а если юзер программа неумее делать ни то ни другое
+то она несможет обратиться к авахи. и не сможет зарезолвить в итоге днс домен вида
+
+            *.local
+
+в этом плане sr использоваться гораздо круче! потому что юзер программа которая для
+днс реквестов не юзет NSS и все такое она обычно читает /etc/resolv.conf и туда
+можно прописать 127.0.0.53 который ведет в sr и таким макаром даже такая программа 
+попаедет на sr и запрос от программы на домен vasya.local будет успешно зарезволлвен 
+через sr и вернется юзер программе. поэтому я считаю что  суммарно авахи это более
+хревноое решение чем sr для обслуживания mDNS трафика.
+а так получается когда мы устанвоили авахи. проверяем что сдужбы стартанули,
+проверяем что появился ip мултикаст адрес на сет карте, проверяем что прцоесс авахи
+начал слушать * UDP 5353 , проверяем что мы отключили mDNS у sr. 
+тогда после этого можно начать резолвить *.local 
+как это сделать ? нужна юзер прогармма которая знает и юзает NSS
+например getent
+
+    # getent ahostsv4  debian12-c2.local
+
+IP 172.16.10.11.5353 > 224.0.0.251.5353: 0 A (QM)? debian12-c2.local. (35)
+IP 172.16.10.12.5353 > 224.0.0.251.5353: 0*- [0q] 1/0/0 (Cache flush) A 172.16.10.12 (45)
+
+
+# ltrace -e getaddr* getent ahostsv4  debian12-c2.local
+getent->getaddrinfo("debian12-c2.local", nil, 0x7fff7832a8d0, 0x7fff7832a8c8)                    = 0
+
+ping же унас NSS юзает так что с ним тоже прокатит
+
+# ltrace -e getaddr* ping   debian12-c2.local  -c1
+ping->getaddrinfo("debian12-c2.local", nil, 0x7ffc65056ee0, 0x7ffc65056ec8)                      = 0
+
+вот тоже видно что ping юзает функцию getaddrinfo а она юзает nss это точно
+
+а вот получается dig он неиспользует NSS. и получается что через диг уже 
+никак не обратитья к авахи и не зарезволваит  *.local домен !
+а когда  у нас mDNS обслуживался через sr то мы могли это сделать! вот в чем
+прикол разницы когда mDNS обслуживается через авахи и через sr
+если начать читать маны от авахи то там написано
+
+          avahi-daemon - The Avahi mDNS/DNS-SD daemon
+
+что такое mDNS я уже знаю (rfc6762) а оказывается еще есть хрень DNS-SD это 
+DNS service discovery (rfv6763) - это я изучать щас не буду.
+
+ксати  у меня возник вопрос про nssworch.conf а именно плагина NSS systemd
+нахрнен он нужен
+оказывается 
+ nss-systemd, libnss_systemd.so.2 - 
+ UNIX user and group name resolution for user/group lookup via Varlink
+
+тоесть это NSS плагин который юзер прогармме позволяет резовлить имя юзера\группы
+в его ID . окей
+
+ксати авахи как я увидел - он не кеширует запросы. он их незапоминает. как это
+умеет делать sr. он кадый раз делает запросы в сеть. по мне это здец.
+
+
+
+
 
 
 
@@ -2165,6 +2341,7 @@ https://www.pynetlabs.com/difference-between-broadcast-and-multicast/#:~:text=Th
 https://0pointer.de/lennart/projects/nss-mdns/
 https://wiki.archlinux.org/title/Avahi
 https://unix.stackexchange.com/questions/404917/what-are-link-scopes-in-systemd-resolved/783639#783639
+https://www.baeldung.com/linux/resolve-conf-systemd-avahi
 
 
 ICMP
