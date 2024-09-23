@@ -8695,6 +8695,18 @@ openat(AT_FDCWD, "/etc/nsswitch.conf", O_RDONLY|O_CLOEXEC) = 3
 значит getent использует NSS а resolvectl не использует NSS !
 
 
+есть dnsmasq и он сходу выглядит горазло более лучше чем sr потому что у ненадо
+мудить чтобы задать домен и днс сервер через который его резолвить. но оказыается 
+днсмаск имеет огромаднейший минус - он умеет рабоать с dnnssec но не умеет работать
+с dns over tls. и чтобы этого добиться то нужно ставит еше прогу stubby. 
+тогда связка такая - запрос идет на днсмаск нешифрованный. он обращается к stubby
+а он уже умеет dns over tls. по мне это пиздец. что sr имеет сеьрезнешие недоработки
+и днсмаск имеет серьезнейшую недорработку. это просто пиздец.
+я остаюсь пока на sr.
+
+
+
+
 нерешенные вопросы:
 
 > далее я не рассмотрел опцию -DefaultRoute в sr нет времени
@@ -8797,6 +8809,7 @@ https://serverfault.com/questions/1143090/understanding-rrsig-dns-query
 https://www.cyberciti.biz/faq/unix-linux-test-and-validate-dnssec-using-dig-command-line/
 https://www.cloudflare.com/dns/dnssec/how-dnssec-works/
 https://github.com/systemd/systemd/issues/25676
+https://serverfault.com/questions/1074377/is-dnssec-useful
 
 
 
@@ -8809,6 +8822,7 @@ https://man7.org/linux/man-pages/man1/getent.1.html
 https://man7.org/linux/man-pages/man5/nsswitch.conf.5.html
 https://nelsonslog.wordpress.com/2016/10/29/ubuntu-name-lookup-dns-vs-nss/
 https://man.archlinux.org/man/nss-resolve.8.en
+https://unix.stackexchange.com/questions/596434/what-is-the-difference-between-resolvconf-systemd-resolve-and-avahi/783799#783799
 
 
 SYSTEMD-RESOLVED, SYSTEMD-NETWORKD:
@@ -8834,6 +8848,9 @@ https://blogs.gnome.org/mcatanzaro/2020/12/17/understanding-systemd-resolved-spl
 https://news.ycombinator.com/item?id=19436613
 https://wiki.archlinux.org/title/Systemd-resolved
 https://github.com/systemd/systemd/issues/2683
+https://superuser.com/questions/1586471/linux-mint-20-systemd-networkd-is-ignoring-dhclient-conf-by-not-calling-dhclie#:~:text=systemd%2Dnetworkd%20has%20never%20used,in%20the%20%5Bmain%5D%20section.
+https://unix.stackexchange.com/questions/548830/whats-the-difference-between-run-systemd-resolve-stub-resolv-conf-and-run-sys/783931#783931
+https://unix.stackexchange.com/questions/431870/clarifying-four-modes-of-handling-etc-resolv-conf-in-systemd-resolved/783832#783832
 
 
 

@@ -76,3 +76,23 @@ qemu ..  -M help
 qemu-system-x86_64  -S  -name cont3 -uuid 702d8a50-3777-4184-b584-6be05fa3754f -daemonize  -cpu host -nographic -serial /dev/pts/193 -pidfile ./qemu2.pid -smbios type=2,manufacturer=Canonical Ltd.,product=LXD -runas lxd
 
 
+===
+задача создать виртуалку и на ней чтобы было две сет карточки.
+если мы создали на компе две карты tap1 и tap3 то каждая карта просоывается внутрь 
+через 
+
+  -netdev tap,id=mynet0,ifname=tap1,script=no,downscript=no  -device virtio-net-pci,netdev=mynet0,mac=ba:ec:24:5c:80:3a 
+
+обязательно  два параметра. tap1 это имя сет карты на хосте. mynet0 это штука
+от балды,  ba:ec:24:5c:80:3a - это какой мак адрес будет у карты изунтри виртуалки
+
+если нам надо две карты просунуть то надо вставить
+
+
+ -netdev tap,id=mynet0,ifname=tap1,script=no,downscript=no  -device virtio-net-pci,netdev=mynet0,mac=ba:ec:24:5c:80:3a  -netdev tap,id=mynet1,ifname=tap3,script=no,downscript=no   -device virtio-net-pci,netdev=mynet1,mac=ba:ec:24:5c:80:2a
+
+ итого
+
+
+ $ qemu-system-x86_64 -name manj3   -m 678M  -boot d    -drive file=hda.img,media=disk,if=virtio,format=qcow2,file.locking=off  -cpu host -enable-kvm    -smp 2 -M pc-q35-2.11     -device virtio-balloon            -device qxl-vga,id=video0,vgamem_mb=16,xres=1800,yres=950    -display gtk  -netdev tap,id=mynet0,ifname=tap1,script=no,downscript=no  -device virtio-net-pci,netdev=mynet0,mac=ba:ec:24:5c:80:3a  -netdev tap,id=mynet1,ifname=tap3,script=no,downscript=no   -device virtio-net-pci,netdev=mynet1,mac=ba:ec:24:5c:80:2a
+
