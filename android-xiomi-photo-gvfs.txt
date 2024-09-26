@@ -985,3 +985,39 @@ beeline- когда купил симку то на платиске нету н
 
 
 ---
+| android 
+multi user это фича андроида а не ксиоим
+
+second space это фича  miui
+
+в second space можно войти только входа в primary space
+
+miui 13 second space лежит  в Special Features
+
+в Second Space в Multi users нельзя завести юзера. Он ???? в First Space
+
+multiple users. 
+ особенности в мультипл юзерс есть флажок On/Off. Если флажок =  Off
+ то с экрана исчезает список этих юзеров.
+ Далее попасть в такого нового юзера можно только через меню основного юзера 
+ нажав на него и "Switch to user", с нуля через Lock Screen в него ты ненпопадаешь
+ Еще прикол если зайти в юзера котоырй устанолвен через multiple users и потом
+ power ткнуть  , потом обратно power ткнуть и попадаем в Lock Screen 
+ и через него мы не можем войти в Second space пошлтет нахер. мы можем войти
+ только в основного юзера (хозяина multiple users). В Second Space можно попсть
+ только войдя в в First Space. потом Power, и только потом Second Space. это
+ пиздец
+
+Second space. 
+  Если нажать на "Multiple Users" ничего не произойдет. Входа в внутрь в меню не будет.
+
+---
+
+| iphone
+
+отключить хуйню
+
+   Settings - General - Date Time - LANG & Region
+   Settings - messages - imessage
+   Settings - ScreenTime - Content Privacy Restrictions - Allowed Apps - Camera - FaceTime
+

@@ -1,0 +1,6 @@
+| cinnamon
+
+как добавить Ctrl+Shift
+   Start - System Settings - Keyboard - Layouts - Options - Switch to another layout - Ctrl+Shift
+
+ 

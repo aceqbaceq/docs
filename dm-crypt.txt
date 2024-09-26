@@ -1,0 +1,18 @@
+| dm-crypt
+
+
+
+ссылки:
+
+https://wiki.archlinux.org/title/Dm-crypt/Encrypting_an_entire_system#Avoiding_having_to_enter_the_passphrase_twice
+https://askubuntu.com/questions/1346741/is-it-safe-to-delete-crypto-keyfile-bin
+https://superuser.com/questions/1639504/is-there-a-tool-to-query-fat-filesystem-details
+https://www.toomanyatoms.com/computer/gpt_partition_type_guids.html
+https://dm-crypt.saout.narkive.com/5UtM7h8u/luks-gpt-guid
+https://wiki.archlinux.org/title/Parted
+https://www.win.tue.nl/~aeb/partitions/partition_types-1.html
+https://www.linux.org/threads/gparted-partition-and-filesystem-flags.11640/
+https://www.reddit.com/r/ManjaroLinux/comments/zemlhv/encrypted_manjaro_install_with_separate_home_how/?rdt=32817
+https://github.com/calamares/calamares/issues/1564
+https://wiki.alpinelinux.org/wiki/Create_UEFI_boot_USB
+
