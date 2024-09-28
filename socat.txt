@@ -1,6 +1,9 @@
-| socat
+| socs
 
-если у нас запущен ssh socat прокси на 
+тут будет вся тема связанная с socks
+
+итак
+если у нас запущен ssh socs прокси на 
 
 		127.0.0.1:1080
 
@@ -16,4 +19,98 @@ User git
 ProxyCommand nc -v -x 127.0.0.1:1080 %h %p  <====== !!!!!!
 
 и реально работает!
+
+
+далее. 
+дело в том что socks это типа прокси сервера. это значит что 
+программа должа уметь говорить на языке протокола socks. дело в том что 
+программа которая сокс сервер. она создает сетевой сокет.
+так вот программа которая будет обращаться на этот 127.0.0.1:1080 к примеру
+то программа должна уметь говрить на языке протокола socks 
+тоесть если мы хотим чтобы прогамма выходила в интернет через сокс сокет
+но она не умеет ползовться протоколом сокс то нужна другая прграмма которая 
+это умеет делать. и такая програмаа является 
+
+		proxychains-ng 4.17-2
+
+вот ее конфиг
+
+# grep -v '#' /etc/proxychains.conf 
+
+strict_chain
+remote_dns_subnet 224
+tcp_read_time_out 15000
+tcp_connect_time_out 8000
+
+
+[ProxyList]
+socks5 	127.0.0.1 1080
+
+я незнаю что значат настроки кроме последней строки
+в последенй строке мы указываем адрес сокс сервера на который мы и будем
+заворачивать тарафик.
+тогда применение будет вот такое
+
+
+
+	# proxychains  curl -4     ifconfig.co/country
+	[proxychains] config file found: /etc/proxychains.conf
+	[proxychains] preloading /usr/lib/libproxychains4.so
+	[proxychains] DLL init: proxychains-ng 4.17
+	[proxychains] Strict chain  ...  127.0.0.1:1080  ...  104.120.120.120:80  ...  OK
+	Germany
+
+curl в приницпе сам умеет ходить в инет через сокс прокси вот так
+
+		#  curl -4   --socks5 127.0.0.1:1080   ifconfig.co/country
+		Germany
+
+но я просто показал пример. например можно на прмиере пинга 
+тока какая то хуйня с пингом
+
+
+
+#  proxychains4 -f /etc/proxychains.conf   ping 1.1.1.1
+[proxychains] config file found: /etc/proxychains.conf
+[proxychains] preloading /usr/lib/libproxychains4.so
+[proxychains] DLL init: proxychains-ng 4.17
+couldnt read configuration file: Permission denied
+
+
+# strace -e openat proxychains4 -f /etc/proxychains.conf   ping 1.1.1.1
+...
+openat(AT_FDCWD, "/etc/proxychains.conf", O_RDONLY) = -1 EACCES (Permission denied)
+couldnt read configuration file: Permission denied
+
+я нихуя не понял. почему рут не может прочитать   /etc/proxychains.conf
+схуяли??
+
+я думаю с пингом хйня в том что он там права повышает а потом понижает. ну 
+и поэтому файл как то там нихуня не читается. нужна прогамма попроше.
+
+с dig все рабтотает
+
+# proxychains4  dig -4 ya.ru
+[proxychains] config file found: /etc/proxychains.conf
+[proxychains] preloading /usr/lib/libproxychains4.so
+[proxychains] DLL init: proxychains-ng 4.17
+
+;; ANSWER SECTION:
+ya.ru.			155	IN	A	77.88.44.242
+
+
+# strace -f -e connect   proxychains4  dig -4 ya.ru
+[proxychains] config file found: /etc/proxychains.conf
+[proxychains] preloading /usr/lib/libproxychains4.so
+[proxychains] DLL init: proxychains-ng 4.17
+connect(13, {sa_family=AF_INET, sin_port=htons(53), sin_addr=inet_addr("127.0.0.53")}, 16) = 0
+
+бля. чето нетуда лезет
+
+а вот с курлом это работает
+
+connect(6, {sa_family=AF_INET, sin_port=htons(1080), sin_addr=inet_addr("127.0.0.1")}, 16) = -1 EINPROGRESS (Operation now in progress)
+
+кстати пинг это же ICMP. а он же сука ни TCP ни UDP поэтому его нельзя
+просунуть через SOCKS !!
 
