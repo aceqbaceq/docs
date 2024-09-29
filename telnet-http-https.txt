@@ -1,0 +1,65 @@
+| telnet
+| http
+| https
+| s_client
+
+
+как подключиться рукками к HTTP сервреру из командной строки
+и саомму написать реквест
+там где "<===== " это строки которые я ввожу сам
+остальне строки это выводит либо мой комп либо удаленный комп
+
+ $ telnet                          <==
+telnet> open ifconfig.co 80        <==
+Trying 104.21.54.91...
+Connected to ifconfig.co.
+Escape character is '^]'.
+GET /country HTTP/1.1              <==
+Host: ifconfig.co                  <==
+User-Agent: curl/8.9.1             <==
+пустая строка                      <==
+
+в ответ прилетает ответ
+HTTP/1.1 200 OK
+Date: Sun, 29 Sep 2024 22:10:13 GMT
+Content-Type: text/plain; charset=utf-8
+Content-Length: 8
+Connection: keep-alive
+CF-Cache-Status: DYNAMIC
+Report-To: {"endpoints":[{"url":"https:\/\/a.nel.cloudflare.com\/report\/v4?s=zKbdgZLqR67kSXVcMvR4piXnkaeZdel57jAeWngjHP8c165CwVGfUGRUY6wh7mqGOX9c8FSdceXZcP4pG29R2dNkklPiHhEHRVdR7giMaf5R%2BBZP6J4BTebzgQFdKQ%3D%3D"}],"group":"cf-nel","max_age":604800}
+NEL: {"success_fraction":0,"report_to":"cf-nel","max_age":604800}
+Server: cloudflare
+CF-RAY: 8caf4d4bdf623645-FRA
+alt-svc: h3=":443"; ma=86400
+
+Germany
+
+
+
+
+вопррс как установит TLS сессию к серверу через cli.
+а потом уже руками вбивать HTTP реквесты
+
+  $ openssl s_client -connect ifconfig.co:443   <===
+    ...
+    ...
+    ...
+GET /country HTTP/1.1    <==
+Host: ifconfig.co        <==
+User-Agent: curl/8.9.1   <==
+    ...
+    ...
+HTTP/1.1 200 OK
+Date: Sun, 29 Sep 2024 22:16:24 GMT
+Content-Type: text/plain; charset=utf-8
+Content-Length: 8
+Connection: keep-alive
+CF-Cache-Status: DYNAMIC
+Report-To: {"endpoints":[{"url":"https:\/\/a.nel.cloudflare.com\/report\/v4?s=y2%2B0%2FW0HM57kvoE%2BtpdHGShpi6DTOgFYZDVeQ4Z3ge5Qff0%2BJnNh7Nkd%2BQA2HTWVVoCDtp2njMAwKJpG6kAtTqwDaGaSUSVf7yzIpWrQuzojaw0t09ufk2pPVBKmYA%3D%3D"}],"group":"cf-nel","max_age":604800}
+NEL: {"success_fraction":0,"report_to":"cf-nel","max_age":604800}
+Server: cloudflare
+CF-RAY: 8caf565fde069741-FRA
+
+Germany
+
+
