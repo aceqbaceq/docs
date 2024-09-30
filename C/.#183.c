@@ -1,1 +1,0 @@
-vasya@lenovo.30220

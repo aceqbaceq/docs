@@ -997,6 +997,9 @@ HostByteOrder. а порядок сетевой называется NetworkByte
 далее рассатривтся что такое struct в СИ . читай про это тут - c+assembly.txt
 ( | struct)
 
+дальнейшее повестовтваие идет в  "c+assembly.txt"
+
+==
 
 
 
