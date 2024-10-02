@@ -22,23 +22,21 @@ void main() {
     hints.ai_socktype = SOCK_STREAM; // TCP stream sockets
     hints.ai_flags = AI_PASSIVE;     // fill in my IP for me
 
-    if ((status = getaddrinfo("google.com", "http", &hints, &servinfo)) != 0) {
+    if ((status = getaddrinfo(NULL, "ftp", &hints, &servinfo)) != 0) {
 	fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(status));
 	exit(1);
     }
 
 
-	struct addrinfo  * current = servinfo;
+    struct addrinfo  * current;
 
+    for(current = servinfo; current != NULL; current = current->ai_next) {
         struct sockaddr  * p_P1 = current->ai_addr;
         struct sockaddr_in* internet_addr = (struct sockaddr_in*) p_P1;
-        printf("google.com is at: %s\n", inet_ntoa(internet_addr->sin_addr));
-    
-    while (current->ai_next != NULL) {
-        struct sockaddr  * p_P1 = current->ai_addr;
-        struct sockaddr_in* internet_addr = (struct sockaddr_in*) p_P1;
-        printf("google.com is at: %s\n", inet_ntoa(internet_addr->sin_addr));
-        current = current->ai_next;
+        short unsigned int port = internet_addr->sin_port;  
+        printf("IP is at: %s, port = %hu \n", inet_ntoa(internet_addr->sin_addr), ntohs (port)  );
+
+        
     }
 
 
