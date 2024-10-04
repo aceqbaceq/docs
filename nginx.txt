@@ -462,6 +462,8 @@ nginx -T
 
 =====
 
+| nginx
+| php
 
 про то как настроить nginx + php
 

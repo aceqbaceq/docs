@@ -35,7 +35,7 @@ void main() {
 
 
 
-    int sockfd = socket(servinfo->ai_family, servinfo->ai_socktype, 0);
+    int sockfd = socket(servinfo->ai_family, servinfo->ai_socktype|SOCK_NONBLOCK, 0);
     int optval = 1;
     setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval));
 

@@ -15619,6 +15619,565 @@ $ prog_name="223.exe"; for i in $(pidof $prog_name); do    lsof -p $i -n -P 2>/d
 
 как изнутри так и снаружи
 
+нмнгого в сторону про nc
+приколлно что коода мы указываем порт она нам покаызает как называется
+этот "service" согласно /etc/services
+
+    $ nc -zv 127.0.0.54 53
+    Connection to 127.0.0.54 53 port [tcp/domain] succeeded!
+
+    поэтому в nc можно вместо порта пихат название сервиса
+
+    $ nc -zv 127.0.0.54 domain
+    Connection to 127.0.0.54 53 port [tcp/domain] succeeded!
+
+
+я посмотрел у жинкса. у него вот такой список процессов
+
+# ps aux | grep nginx
+root      647274  0.0  0.0  15512  2460 ?        Ss   14:19   0:00 nginx: master process /usr/bin/nginx
+http      647275  0.0  0.0  15960  4016 ?        S    14:19   0:00 nginx: worker process
+
+как видно у него есть так назвыаемый мастер
+процесс а есть воркер процесс.
+посмтрим "слушающий" сокет есть только у мастера
+или у обоих?
+
+# lsof -Pn -p 647274 | grep TCP
+nginx   647274 root   5u  IPv4            9985150      0t0       TCP *:80 (LISTEN)
+nginx   647274 root   6u  IPv4            9985151      0t0       TCP *:443 (LISTEN)
+
+# lsof -Pn -p 647274 2>/dev/null| grep TCP
+nginx   647274 root   5u  IPv4            9985150      0t0       TCP *:80 (LISTEN)
+nginx   647274 root   6u  IPv4            9985151      0t0       TCP *:443 (LISTEN)
+
+кхм.. есть у обоих. непонятно. каждый из процессов делает
+accept или кто? 
+
+еще непонятно как запустить процесс так чтобы было в ps aux 
+написано 
+
+nginx: master process /usr/bin/nginx
+
+эту хрень ps читает из /proc/$pid/cmdline
+причем если посмотреть /proc/cmdline (заметь разницу)
+то там будет написано какая строка была передана в ядро при его старте.
+то что в граб мы прописыываем 
+
+    root=UUID=a8b12a63-3808-4318-8b75-1dbbe167aec5 rw quiet ...
+
+
+ксатти я походу нашел как же эти суки вот так интересно меняют cmdline
+у процесса который показыает ps.
+оказывается это то что у нас записано  в /proc/pid/cmdline
+а там записано то что содержится в argv[0]+argv[1]+argv[2] ...+argv[n]
+тоест в cmdline содержится массив argv[] который ос передает в main() при запуске
+бинарника. а сам массив содержит в себе имя бинарника и полный набор тех аргументов
+которые указаны были в командной строке
+например вот что покаызает ps про процесс
+
+root        1137  3.2  1.5 1344048 245612 tty7   Ssl+ сен12 1028:14 /usr/lib/Xorg :0 -seat seat0 -auth /run/lightdm/root/:0 -nolisten tcp vt7 -novtswitch
+
+и тоже самое я вижу вот тут
+
+    $ cat /proc/1137/cmdline
+    /usr/lib/Xorg:0-seatseat0-auth/run/lightdm/root/:0-nolistentcpvt7-novtswitch 
+
+а еще сразу укажу что имя бинарника с которого был запущен процесс указан вот тут
+
+    $ cat /proc/1137/status | grep Name
+    Name:   Xorg
+
+еще раз скажу что ps покзаывает содержимое cmdline , ps в status не смотрит вообще
+
+так вот после старта процесса можно легко поменять параметр Name в status, 
+например 
+
+скажем берет программу
+
+
+$ cat 225.c
+#include <stdio.h>
+#include <arpa/inet.h>
+#include <string.h>
+#include <netdb.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <linux/prctl.h>  /* Definition of PR_* constants */
+#include <sys/prctl.h>
+
+
+void main();
+
+
+
+
+void main() {
+
+
+    sleep (120);
+
+}
+
+
+
+смотрим 
+
+$ cat /proc/650436/status | grep Name
+Name:   225.exe
+
+тоесть по дефолту указано что процесс был запущен из бинарника с именем 225.exe
+
+так вот после старта процесса можно это поле поменять. хотя смысла в этом никаокго
+кроме как по приколу нет. но делается легко, через 
+
+    int s;
+    s = prctl(PR_SET_NAME,"Ehal Greka Cherez Reku\0",NULL,NULL,NULL); // name: myProcess
+
+
+вот полный текст
+
+
+  $ cat 225.c
+#include <stdio.h>
+#include <arpa/inet.h>
+#include <string.h>
+#include <netdb.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <linux/prctl.h>  /* Definition of PR_* constants */
+#include <sys/prctl.h>
+
+
+void main();
+
+
+
+
+void main() {
+
+
+    int s;
+    s = prctl(PR_SET_NAME,"Ehal Greka Cherez Reku\0",NULL,NULL,NULL); // name: myProcess
+    if ( s == -1 ) {
+      printf ("error! \n");
+    }
+
+    int prctl(int op, ...);
+
+
+
+    sleep (120);
+
+
+
+
+
+}
+
+
+
+ $ cat /proc/650721/status | grep Name
+Name:   Ehal Greka Cher
+
+
+а вот если мы хотим поменять cmdline то это уже сложнее. нужно менять argv[] массив.
+я не понял . но почему то это сложно. 
+вот это делают в жинкс
+
+    https://github.com/nginx/nginx/blob/master/src/os/unix/ngx_setproctitle.c
+
+
+
+возвращаюсь к beej.us (https://beej.us/guide/bgnet/html/#listen)
+далее он пишет что для ппередачииспользуют send() recv() точнее как выянсяется что их 
+можно юзать если в своствах сокета уже записана информация об 
+
+        ip1 port1 ip2 port2
+
+потому что в этих командах нет информации об IP + port
+
+        #include <sys/socket.h>
+        ssize_t send(int socket, const void *buffer, size_t length, int flags);
+        ssize_t recv(int socket, void *buffer, size_t length, int flags);
+
+в них указывается тлоько сокет, буфер откуда читать или писать , и длиннна буфера
+
+тесть перед вывзвом этой команды ядро уже доожно знать все 4 сущности
+
+            ip1 port1 ip2 port2
+
+для tcp соединения это достигается тем что мы взываем bind() + listen()
+либо мы вызываем bind()+connect()
+
+для udp содкниенеия для серервера мы тоже вызываем bind() + listen()
+для исходящего содениенеия мы вывзаем bind()+connect() и хотя connect() недалеает
+никаких в этом случае хендшейков но зато он устанавлвиет в своствах сокета пару ip2+port2
+
+малек в сторону отойду. когда мы открывали open() простые файлы на диске у нас создававлся
+на выходе файл дескриптор. socket() тоже выдыает как результат файл дескриптор. так вот в
+open() можно было указывать разыне флаги. например O_NONBLOCK который давал то что когда
+мы делали read() то если ядро немогло щас выполнить запрос оно некладет процесс в S а сразу
+возвращает процессу прлсто код возврата EAGAIN мол щас немогу прочиать пробуй позже. у меня
+был вопрос а можно тоже самое для файл дескриптора сокета socket() както установить? 
+оказается есть еще один мануал по socket() это 
+
+        $ man 2  socket
+
+и там написано что когда мы взываем socket() то во втором параметре можно указать 
+опцию SOCK_NONBLOCK вот так
+
+        socket (AF_INET, SOCK_STREM|SOCK_NONBLOCK, 0);
+
+еще эту опцию можно установить через fcntl() уже после того как сокет создан
+проверяю
+
+    $ strace -e socket  ./223.exe
+    socket(AF_INET, SOCK_STREAM|SOCK_NONBLOCK, IPPROTO_IP) = 3
+
+в ман 2 сокет наисано что прежде чем можно будет через сокет слать сетевой поток сокет
+долен быть переведн в состоние conected. я думаю это именно о том что нужно чтобы в свойстах
+сокета должно быть устанолвено 4 числа
+        
+        ip1 port1  ip2 port2
+
+
+далее указаны функции sendto() и recvfrom() это фнкции в которых указывается адрес
+куда отправлять или адрес откуда принимать. написано что они раблтают как для SOCK_STREAM
+так и для SOCK_DGRAM, рассмотрим tcp вот мы уже сделалаи connect() унас уже есть 
+3шаговый хендшек. и далее мы делаем sendto() с другим dest адресом. мана пишет что 
+отправка через данный сокет все равно пройдет перебит dest ip из того что задавал connect()
+мне толко непонятно что будет со свойтвами старого конекта. ведь нужно чтото делать со старым
+конектом. его нужно либо закрывать. либо что я не понимаю. но я не буду выяснять потому
+что у меня нет времени. в жизни sendto() и recvfrom() используются все таки в основном 
+для udp. я так понимаю что так как с точки зрения udp нет никкого конекта то получается
+что можно без проблем хоть в каждом sendto() указывать  новый dest ip
+тоже я проверять не буду нет времени. 
+скажу тока что send() sendto() recv() recvfrom() могут использоваться для всех типов конектов.
+send() recv() в них нет ip адреса поэтому они могут узаться толко для отправки приема когда в
+свойтвах сокета уже установлены все ip адреса. sendto() задает либо меняет dest ip в свойствах
+сокета. recvfrom() задает  src ip у пакетов или меняет его если он уже был задан в свойстах
+сокета. как я это вижу для udp. мы делаем
+
+        socket()
+        bind(ip1 port1)
+
+далее  listen() у нас не работает потому что он только лдя SOCK_STREAM.
+далеемы можем написать 
+
+        recv()
+и тогда в этот сокет прилетит пакет  dst_ip=ip1 dest_port=port1 и с любого внешеноо IP
+а можем написать 
+
+        recvfrom (ip2)
+
+ксатти не буду даже разбраться нужно ли порт указывать в recvfrom()
+и тогда в сокет прилетии пакет с  dst_ip=ip1 dest_port=port1 и src_IP=ip2
+
+если честно то я не понимаю зачем нужен send() , recv() если есть read() write()
+и по арнументам они похожи. и разбиарться не буду нет времени
+
+когда я делаю пинг то в свойства сокета в процессе будет воттакое
+
+$ lsof -Pn -p $(pidof ping) 2>/dev/null | grep icmp
+ping    655374 noroot   3u  icmp              0t0  10040195 00000000:0089->00000000:0000
+
+что значат цифры
+
+        00000000:0089->00000000:0000
+
+хрен знает
+
+
+
+далее. разница между close() и shutdown()
+клоуз закрвает конект в обе стороны а шатдаун позволяет закрыть конект в одну сторону.
+так что мне шатдаун ненужен. мне подйдет всегда клоуз
+
+shutdown() он неуничтожает дескриптор. он только недает в него влетать новому трафику.
+уничтожает дескриптор только close()
+
+
+далее
+функция getpeername()
+
+        #include <sys/socket.h>
+        int getpeername(int sockfd, struct sockaddr *addr, int *addrlen); 
+
+она дает то что мы ей сокет скармиливаем и фнкция запиывает во второй аргумент 
+адрес IP который на той стороне для  этого сокета. тоесть с кем мы контачим на той 
+стороне 
+
+далее функция getnameinfo() = address-to-name translation in protocol-independent manner
+не стал разбираться. сложно замудрено
+
+
+следущая фнкция попроше gethostname()
+дает нам какой хостнейм у хоста внутрь прроцесса. потому что да. порцесс понятия
+не имееет какой хостейм. это надо еще выяснить.
+
+
+ 1 ྇  $ 
+ k ퟘ  $ cat 227.c
+#include <stdio.h>
+//#include <arpa/inet.h>
+#include <unistd.h>
+
+
+void main();
+
+
+
+
+void main() {
+
+    char host[16];
+    int s = gethostname( host, 16); 
+    printf (" hostname = %s \n", host );
+
+
+}
+
+
+выхлоп
+ hostname = lenovo
+
+что заабавно эта функция неиспользует NSS. 
+какона тодгда определяет непоняьно. но хороо что хоть фнуция протаая
+для понимания
+
+далее малек по теме но всторону от статьи beej.us
+поговорим про структуры *addr*
+
+        $ man sockaddr
+
+
+первая структура
+        struct sockaddr {
+           sa_family_t     sa_family;      /* Address family */
+           char            sa_data[];      /* Socket address */
+        };
+
+
+незнаю почму так написано в мане. потому что на самом деле структура имеет вид
+
+        struct sockaddr {
+           sa_family_t     sa_family;      /* Address family */
+           char            sa_data[14];    /* Socket address */
+        };
+
+вот размеры этого всего
+
+ struct sockaddr = 16 (size in bytes) 
+ sa_family = 2 (size in bytes) 
+ sa_data[] = 14 (size in bytes) 
+
+
+доказатесльво 
+
+J 旣  $ cat 229.c
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+
+
+
+
+int main(void)
+{
+
+
+        short int i1;
+        printf ( " short int = %i (size in bytes) \n", sizeof(i1) );
+        printf ( "========================================\n\n" );
+
+
+        int i2;
+        printf ( " int = %i (size in bytes) \n", sizeof(i2) );
+        printf ( "========================================\n\n" );
+
+
+        long int i3;
+        printf ( " long int = %i (size in bytes)  \n", sizeof(i3) );
+        printf ( "========================================\n\n" );
+
+
+
+        struct sockaddr_storage s1;
+        printf ( " struct sockaddr_storage = %i (size in bytes) \n", sizeof(s1) );
+        printf ( "========================================\n\n" );
+
+
+        struct sockaddr s2 ;
+        printf (" struct sockaddr {\n");
+        printf ("        sa_family_t     sa_family;      /* Address family */ \n");
+        printf ("        char            sa_data[];      /* Socket address */ \n");
+        printf (" };\n\n");
+
+        printf ( " struct sockaddr = %i (size in bytes) \n", sizeof(s2) );
+        printf ( " sa_family = %i (size in bytes) \n", sizeof(s2.sa_family) );
+        printf ( " sa_data[] = %i (size in bytes) \n", sizeof(s2.sa_data) );
+        printf ( "========================================\n\n" );
+
+
+
+       
+
+
+}
+
+
+
+выхлоп на экране
+
+ struct sockaddr {
+        sa_family_t     sa_family;      /* Address family */ 
+        char            sa_data[];      /* Socket address */ 
+ };
+
+ struct sockaddr = 16 (size in bytes) 
+ sa_family = 2 (size in bytes) 
+ sa_data[] = 14 (size in bytes) 
+
+
+
+сраху хочу разницу между 
+        
+        char  sa_data[]
+        char  *sa_data[]
+
+первая штука это поинтер (хотя он необозначен так суки) котоыйр укаызвает на массив
+из чар байтов в конце которых еще и стоит НУЛЛ байт иначе говоря это стринг. 
+
+вторая штука это поинтер (который слава богу обозначен реально как поинтер) и он указывает
+на список поинтеров каждй из котороых указывает на стринг
+
+
+так вот в поле sockaddr.sa_family хранят признак протокола 3 уровня ( обычно это признак
+протокола ipv4 или ipv6). тоесть в этом поле признак того протоокла который будет исользоваться
+как протокол 3-го уровня для пакетов прокачиваемых через сокет который будет создаваться 
+с указанием struct socaddr в качестве аргумента. далее говорим только про протокол третьего
+уровня только ipv4 или ipv6
+
+в поле sockaddr.sa_data прописывается ipv4 или ipv6 адрес  + еще и TCP\UDP порт  
+не могу понять как в 14 байт этого поля можно запихнуть ipv6 + порт , ведь ipv6
+он сам по себе 16 байт. плюс еще порт два байта. итого 18 байт. а у нас 14.
+что за пиздец.
+я спецаиьно написал программу
+
+
+
+ V Ӄ  $ cat 230.c
+#include <stdio.h>
+#include <arpa/inet.h>
+#include <string.h>
+#include <netdb.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+
+void main();
+
+
+
+
+void main() {
+
+
+    char ip6_1[] = "fe80::841b:711d:d728:5950";
+    printf (" ip_v6 input = %s \n", ip6_1 );
+
+
+
+    int status;
+    struct addrinfo hints;
+    struct addrinfo *servinfo;  // will point to the results
+
+
+    memset(&hints, 0, sizeof hints); // make sure the struct is empty
+    hints.ai_family = AF_INET6;       // 
+    hints.ai_socktype = SOCK_STREAM;  // 
+    hints.ai_flags = AI_PASSIVE;     // fill in my IP for me
+
+
+    if ((status = getaddrinfo(ip6_1, NULL, &hints, &servinfo)) != 0) {
+    fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(status));
+    exit(1);
+    }
+
+    printf (" size of &(addrinfo->ai_addr) = %i \n", sizeof (*(servinfo->ai_addr)) );
+
+
+    struct sockaddr_in6 * s_v6 = (struct sockaddr_in6 *) servinfo->ai_addr;
+
+    char ip6_2 [INET6_ADDRSTRLEN];
+    const char * p_P1 = inet_ntop (AF_INET6, &(s_v6->sin6_addr), ip6_2, sizeof(ip6_2) );
+    printf (" size = %s \n", ip6_2  );
+
+
+
+
+}
+
+
+она берет ipv6 в ascii виде
+      char ip6_1[] = "fe80::841b:711d:d728:5950";
+
+пихает ее в getaddrinfo()
+    getaddrinfo(ip6_1, NULL, &hints, &servinfo))
+
+и эта фнкция она берет этот ascii ipv6 и пихает его в  этот структ
+
+  struct addrinfo {
+               int              ai_flags;
+               int              ai_family;
+               int              ai_socktype;
+               int              ai_protocol;
+               socklen_t        ai_addrlen;
+               struct sockaddr *ai_addr;
+               char            *ai_canonname;
+               struct addrinfo *ai_next;
+           };
+
+в его поле   ai_addr который поинтер на 
+
+          struct sockaddr {
+           sa_family_t     sa_family;      /* Address family */
+           char            sa_data[];      /* Socket address */
+       };
+
+
+точнее фкунция в итоге пихает введенный ipv6 в поле   sa_data[]
+после этого дела а ведь это будет реальная структура в памяти , я запрпшиваю у линукса
+размер  структуры котоаря хранится по адресу ai_addr
+
+и он мне раельно показывает что размер этого стркукта 16 байт. это пиздец.
+потому что sa_data[] получается реально 14 байт. как можно в 14 байт впихнуть 16 байтовый
+ipv6 адрес плюс порт который мы незадали но он тоже два баайта занимает. я не понимаю.
+
+далее я запускаю обратную процедуру. я через фнкцию inet_ntop () обратно оттуда вытаскиваю 
+ipv6 и транфморирую его в ascii вид.
+
+вывод программы на экран
+
+$ ./230.exe
+ ip_v6 input = fe80::841b:711d:d728:5950 
+ size of &(addrinfo->ai_addr) = 16 
+ size = fe80::841b:711d:d728:5950 
+
+
+в первой строке наш исходный ipv6.
+во второй строке размер  struct sockaddr в который мы всунули этот ipv6
+в третьей строке обратное преобразование из этих структов в ascciii
+и видно что исходный ipv6 и который я обратно вытащил - все совпадает. как это возможно.я
+ я нихуя не понимаю.
+
+
+статус: я прдоллжаю изучать beej.us но перед этим я рещил ппорподоробнее познкаоится с
+разным струками из man sockaddr , с их размерами и занчениями полей.
 
 
 
@@ -15627,6 +16186,17 @@ $ prog_name="223.exe"; for i in $(pidof $prog_name); do    lsof -p $i -n -P 2>/d
 
 
 вопросы и ссылки:
+как отправить icmp из си программы
+tls. жинкс+сертфиикат. в нем совпадает домен но ip несовпадает.
+браузер примет или нет? 
+ответ - это сделать очень непросто. 
+https://github.com/coding-fans/linux-network-programming/blob/master/src/c/icmp/ping/ping.c
+также 224.с но я его неразобрал. сложно сходу.
+
+
+
+
+
 если конект устанваливает tcp хендшейки. то он нахер ненужен для UDP
 но тода как ядро узает dest ip dest port
 
