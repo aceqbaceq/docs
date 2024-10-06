@@ -9511,6 +9511,17 @@ u2 = r * w (mod q)
 
 ССЫЛКИ:
 https://security.stackexchange.com/questions/50878/ecdsa-vs-ecdh-vs-ed25519-vs-curve25519
+https://crypto.stackexchange.com/questions/27593/hashing-a-diffie-hellman-result
+https://datatracker.ietf.org/doc/html/rfc3526#page-3
+https://crypto.stackexchange.com/questions/90373/what-is-the-role-of-sha-1-on-diffie-hellman-group1-sha1
+https://datatracker.ietf.org/doc/html/rfc3526#page-6
+https://datatracker.ietf.org/doc/html/rfc4253#page-23
+https://www.ietf.org/rfc/rfc4419.txt
+https://datatracker.ietf.org/doc/html/rfc3526#page-3
+https://www.datai.net/article/ipsec-diffie-hellman-groups/
+https://docs.ssh.com/manuals/server-admin/66/csc-algorithms-kexs.html
+https://www.cyberciti.biz/faq/openssl-get-common-name-cn-from-ssl-certificate-on-linux-unix/
+https://qna.habr.com/q/1221696
 
 
 

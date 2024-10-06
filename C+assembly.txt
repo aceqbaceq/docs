@@ -16180,6 +16180,69 @@ $ ./230.exe
 разным струками из man sockaddr , с их размерами и занчениями полей.
 
 
+вобщем на данном этапе я полнстью заканчиваю это все учить. потому что надо перейти
+к другому вопросу
+
+
+ниже непрраработатннные и проработванные ссылки и непрарбоатанные куски:
+https://stackoverflow.com/questions/24817642/sockaddr-and-ipv6-address
+https://man7.org/linux/man-pages/man3/sockaddr.3type.html
+https://stackoverflow.com/questions/19528820/difference-between-sockaddr-and-sockaddr-storage?rq=3
+https://stackoverflow.com/questions/16010622/reasoning-behind-c-sockets-sockaddr-and-sockaddr-storage?rq=3
+https://stackoverflow.com/questions/38801292/how-exactly-does-sockaddr-storage-work
+https://stackoverflow.com/questions/11924068/what-is-sa-family-t
+https://jvns.ca/blog/2022/02/23/getaddrinfo-is-kind-of-weird/
+https://jameshfisher.com/2018/02/03/what-does-getaddrinfo-do/
+https://beej.us/guide/bgnet/html/#ip-addresses-structs-and-data-munging
+https://beej.us/guide/bgnet/html/#listen
+http://www.haifux.org/lectures/217/netLec5.pdf
+https://ops.tips/blog/how-linux-creates-sockets/
+https://stackoverflow.com/questions/27014955/socket-connect-vs-bind
+https://docs.oracle.com/cd/E19504-01/802-5886/6i9k5sgsl/index.html#:~:text=The%20bind()%20call%20allows,()%20complete%20a%20socket's%20association.
+https://jameshfisher.com/2016/12/15/file-descriptor-misnomer/
+https://www.ibm.com/docs/en/zos/2.4.0?topic=functions-bind-bind-name-socket
+https://www.linuxhowtos.org/data/6/client.c
+https://www.linuxhowtos.org/data/6/server.c
+https://www.linuxhowtos.org/C_C++/socket.htm
+
+struct sockaddr_storage {
+    sa_family_t  ss_family;     // address family
+
+    // all this is padding, implementation specific, ignore it:
+    char      __ss_pad1[_SS_PAD1SIZE];
+    int64_t   __ss_align;
+    char      __ss_pad2[_SS_PAD2SIZE];
+};
+
+
+struct sockaddr {
+   unsigned short    sa_family;    // address family, AF_xxx
+   char              sa_data[14];  // 14 bytes of protocol address
+};
+
+
+struct sockaddr_in {
+    short            sin_family;   // e.g. AF_INET, AF_INET6
+    unsigned short   sin_port;     // e.g. htons(3490)
+    struct in_addr   sin_addr;     // see struct in_addr, below
+    char             sin_zero[8];  // zero this if you want to
+};
+
+
+struct sockaddr_in6 {
+    u_int16_t       sin6_family;   // address family, AF_INET6
+    u_int16_t       sin6_port;     // port number, Network Byte Order
+    u_int32_t       sin6_flowinfo; // IPv6 flow information
+    struct in6_addr sin6_addr;     // IPv6 address
+    u_int32_t       sin6_scope_id; // Scope ID
+};
+
+
+198.c
+199.c
+197.c
+arp.txt
+
 
 ===
 

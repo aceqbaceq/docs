@@ -1,0 +1,13 @@
+| chrome
+
+
+dns resolution
+
+ссылки:
+
+https://developers.cloudflare.com/1.1.1.1/encryption/dns-over-https/encrypted-dns-browsers/https://chromium.googlesource.com/chromium/src/+/main/net/dns/README.md#dns
+https://netlog-viewer.appspot.com/#dns
+https://www.nslookup.io/install/how-to-view-dns-records-in-chrome/
+https://stackoverflow.com/questions/25406547/chrome-show-dns-resolve-time-and-other-network-timings
+https://superuser.com/questions/65382/does-chrome-use-a-different-dns-server-from-firefox-and-ie-which-use-the-os-defa
+https://stackoverflow.com/questions/25406547/chrome-show-dns-resolve-time-and-other-network-timings

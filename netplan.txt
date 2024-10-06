@@ -1,0 +1,6 @@
+| netplan
+
+
+ссылки
+
+https://askubuntu.com/questions/1013455/is-there-a-way-to-try-out-a-netplan-configuration-without-altering-the-system

@@ -1,6 +1,18 @@
 | pacman
+
+как распечатть список устаровленных пактов
+
+
+  $ pacman -Q
+  
+
+
+| pacman
 | archlinux
 | manjaro
+
+
+
 
 как найм зная имя файла найти из какого он пакета
 
@@ -120,3 +132,13 @@ $ pacman -Qo $(which resolvectl)
 
 # pacman -Syw
 
+
+
+ссылки:
+https://wiki.archlinux.org/title/Pacman/Tips_and_tricks
+https://bbs.archlinux.org/viewtopic.php?id=55055
+https://bbs.archlinux.org/viewtopic.php?id=298573
+https://wiki.archlinux.org/title/Pacman/Package_signing
+https://bbs.archlinux.org/viewtopic.php?id=155751
+https://github.com/curl/curl/issues/11458
+https://forum.manjaro.org/t/pamac-behind-proxy/123773/7

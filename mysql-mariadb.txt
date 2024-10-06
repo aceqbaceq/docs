@@ -4704,3 +4704,10 @@ disable_log_bin
  SET PASSWORD FOR 'magento2'@'localhost' = PASSWORD('magento2');
 
 ===
+
+
+ссылки непроработанные:
+
+https://www.quora.com/How-do-I-determine-how-much-RAM-I-need-for-a-MySQL-server-Our-database-is-big-20-GB-dump-file-and-our-current-server-has-64-GB-of-memory-of-which-58-GB-is-allocated-to-InnoDB-buffer-pool-which-is-all-used-Should-I
+https://forums.mysql.com/read.php?25,432754,432917
+https://serverfault.com/questions/1132417/mysql-server-eating-all-ram-100gb-when-load-is-running

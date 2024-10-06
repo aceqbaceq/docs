@@ -114,3 +114,4 @@ connect(6, {sa_family=AF_INET, sin_port=htons(1080), sin_addr=inet_addr("127.0.0
 кстати пинг это же ICMP. а он же сука ни TCP ни UDP поэтому его нельзя
 просунуть через SOCKS !!
 
+

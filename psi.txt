@@ -1,0 +1,15 @@
+| psi
+
+удонее всего его ссмотреть не через 
+ 
+
+  #   $ cat /proc/pressure/
+cpu     io      irq     memory  
+
+
+а прям апросто смотреть это в ATOP
+
+		$ atop
+
+
+		

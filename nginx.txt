@@ -859,3 +859,6 @@ location @notfound {
 }
 
 
+
+ссылки:
+https://stackoverflow.com/questions/8332617/nginx-location-fix-redirect-to-index-html

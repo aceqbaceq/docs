@@ -2419,7 +2419,7 @@ debug1: identity file ~/.ssh/id_ed25519 type 3
 тот хеш который нам на экане позуыаают это что? это хеш пуличного  ключа серврера?
 или что ?
 
-//dddddd
+
 видимо вот эта пара файлов (хост кеев)
 
 	ssh_host_ecdsa_key
@@ -2429,6 +2429,30 @@ debug1: identity file ~/.ssh/id_ed25519 type 3
 
 
 
-
-
+вопросы:
 что такое HMAC?
+кex алгоритмы - алгоритм один из списка который выбирается чтобы выработать общий ключ
+	список: 
+	debug2: KEX algorithms: 
+
+	curve25519-sha256,
+	curve25519-sha256@libssh.org,
+
+	ecdh-sha2-nistp256,
+	ecdh-sha2-nistp384,
+	ecdh-sha2-nistp521,
+
+	sntrup761x25519-sha512@openssh.com,
+
+	diffie-hellman-group-exchange-sha256,
+	diffie-hellman-group16-sha512,
+	diffie-hellman-group18-sha512,
+	diffie-hellman-group14-sha256,
+
+	kex-strict-s-v00@openssh.com
+
+
+https://superuser.com/questions/744816/how-do-i-specify-the-key-exchange-method-in-openssh
+https://www.ssh.com/blog/what-are-ssh-host-keys
+https://unix.stackexchange.com/questions/340844/how-to-enable-diffie-hellman-group1-sha1-key-exchange-on-debian-8-0
+https://en.wikipedia.org/wiki/SHA-2

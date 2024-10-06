@@ -1,0 +1,8 @@
+| git
+
+
+git через ssh чарез прокси
+
+сслки
+https://stackoverflow.com/questions/58245255/how-to-force-git-to-use-socks-proxy-over-its-ssh-connection
+https://stackoverflow.com/questions/15227130/using-a-socks-proxy-with-git-for-the-http-transport
