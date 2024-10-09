@@ -109,9 +109,14 @@ $ pacman -Qo $(which resolvectl)
 | downgrade
 
 как откатить пакет на более старую версию
-
+если с кеша на компе
 
    # pacman -U file:///var/cache/pacman/pkg/package-old_version.pkg.tar.type
+
+
+а если с сайта в интеентернтере
+
+  # pacman -U  https://archive.archlinux.org/packages/c/chromium/chromium-120.0.6099.62-2-x86_64.pkg.tar.zst
 
 статья 
   https://wiki.archlinux.org/title/Downgrading_packages
