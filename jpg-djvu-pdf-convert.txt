@@ -102,6 +102,7 @@ $ djvudump modulus-1#2.djvu
 для начала можно уменьшить размер исходныых jpg файлов
 
   $ sudo apt-get install imagemagick
+  $ pacman -Sy imagemagick
 
   $ for i in *; do  convert -resize 50% $i  $(echo "$(echo $i | rev | cut -c 5- | rev)""-c.jpg") ; done
 
@@ -111,6 +112,8 @@ $ djvudump modulus-1#2.djvu
 
 
   $ img2pdf *.jpg  --pagesize A4    -o out.pdf
+в манжаро
+  $ magick     -page  A4    *.jpg   -auto-orient   out.pdf
 
 amazing!
 

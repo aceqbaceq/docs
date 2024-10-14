@@ -1,0 +1,5 @@
+| manjaro
+| image
+| editor
+
+# pacman -Su pinta
