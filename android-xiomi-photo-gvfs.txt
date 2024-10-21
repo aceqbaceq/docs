@@ -1021,3 +1021,13 @@ Second space.
    Settings - messages - imessage
    Settings - ScreenTime - Content Privacy Restrictions - Allowed Apps - Camera - FaceTime
 
+
+| xiami
+что длть если удалил значок наример календаря
+как его обратено вернуть
+
+settings - apps - manage home screen shortcuts 
+
+будет список значков. и там включаем или выключаем значок.
+он появистя на робочем столе. а там уже его можно и в папку убрать нужную
+

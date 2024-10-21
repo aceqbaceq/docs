@@ -19,6 +19,9 @@
 
 #define BACKLOG 10	 // how many pending connections queue will hold
 
+#define MAXDATASIZE 100
+
+
 void sigchld_handler(int s)
 {
 	(void)s; // quiet unused variable warning
@@ -51,7 +54,9 @@ int main(void)
 	struct sigaction sa;
 	int yes=1;
 	char s[INET6_ADDRSTRLEN];
-	int rv;
+	int rv, numbytes;
+	char buf[MAXDATASIZE];
+
 
 	memset(&hints, 0, sizeof hints);
 	hints.ai_family = AF_UNSPEC;
@@ -125,6 +130,18 @@ int main(void)
 			close(sockfd); // child doesn't need the listener
 			if (send(new_fd, "\nHello, world!\n", 13, 0) == -1)
 				perror("send");
+
+		
+		if ((numbytes = recv(new_fd, buf, MAXDATASIZE-1, 0)) == -1) {
+		    perror("recv");
+    		    exit(1);
+		}
+
+		    buf[numbytes] = '\0';
+
+		    printf("server: received '%s'\n",buf);
+
+				
 			close(new_fd);
 			exit(0);
 		}
