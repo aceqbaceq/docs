@@ -2751,6 +2751,8 @@ https://stackoverflow.com/questions/16945345/differences-between-tcp-sockets-and
 
 ==
 zswap что это ?
+man 7 capabilities
+
 ==
 
 файлы(преимущественно в конце ссылки):
@@ -2788,7 +2790,9 @@ iptables.txt
 как докер демон контролирует что контейнеры работают если они все сидят наверное в разынх
   пид неймспейсах?
 
-ТЕКУЩЕЕ : ?????
+ТЕКУЩЕЕ : NGINX RATE LIMIT настроить
+
+
 
 
 
