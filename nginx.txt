@@ -859,6 +859,215 @@ location @notfound {
 }
 
 
+| server
+
+значит в ответе от HTTP сервера на запрос GET в заголовке (header) есть разные поля.
+например там есть поле 
+
+		server
+
+что оно значит? нахер оно нужно ?
+
+значит в rfc от HTTP (https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html) я нашел описание поля server в header ответа от HTTP северра
+
+14.38 Server
+The Server response-header field contains information about the software used by the origin server to handle the request. The field can contain multiple product tokens (section 3.8) and comments identifying the server and any significant subproducts. The product tokens are listed in order of their significance for identifying the application.
+
+       Server         = "Server" ":" 1*( product | comment )
+Example:
+
+       Server: CERN/3.0 libwww/2.17
+If the response is being forwarded through a proxy, the proxy application MUST NOT modify the Server response-header. Instead, it SHOULD include a Via field (as described in section 14.45).
+
+      Note: Revealing the specific software version of the server might
+      allow the server machine to become more vulnerable to attacks
+      against software that is known to contain security holes. Server
+      implementors are encouraged to make this field a configurable
+      option.
+
+
+таким образом в этом поле типа содержится детали об том софте который и обеспечивает работу
+HTTP серверар на удаленном сервере. 
+
+насколько я понимаю это поле сугубо опциональное. справочное.
+
+так вот что в этом поле возвращвает nginx который тока что поставили себе на комп
+
+	$ curl --dump-header - http://localhost 2>&1 | grep -i server
+	Server: nginx/1.26.2
+
+на мой взгляд это реально тупо палить какой софт крутится на серверере и даже его версию.
+значит наша задача убрать эту инфо из ответа от жинкса.
+
+для того чтобы исправить эту информацию нужно в жинксе заюзать в конфиге директиву
+
+		more_set_headers ...
+
+но чтобы ее заюзать нужно в ОС поставить доп пакет.
+
+если ОС = УБУНТУ то для этого нужно на убунту поставит доп пакет
+
+	# apt-get instal nginx-extras
+
+при этом в папку 
+		
+		/usr/lib/nginx/modules
+
+будет устанолвен файл 
+
+		ngx_http_image_filter_module.so
+
+также будет создан файл 
+	
+	# cat /etc/nginx/modules-enabled/50-mod-http-headers-more-filter.conf 
+	load_module modules/ngx_http_headers_more_filter_module.so;
+
+
+также  в /etc/nginx.conf
+у нас стоит в самом верху еще до всяких секций вот такая опция
+
+	include /etc/nginx/modules-enabled/*.conf;
+
+поэтому жинкс при загрузке за счет этой строки будет подгружать этот модуль при загрузке. 
+в этом можно убедиться. 
+
+	# lsof -nP -p 93476 | grep  headers_more_filter
+nginx   93476 root    /usr/lib/nginx/modules/ngx_http_headers_more_filter_module.so
+
+и вот этот модуль и дает то что жинкс теперь в конфиге будет воспринмать новую диркетиву
+
+
+		more_set_headers ...
+
+
+НО! это было распиано если жикс у нас крутится на ubuntu 
+а если ОС = МАНЖАРО то для этого нужно сделать вот так
+нужно поставить пакет
+
+	# pacman -Sy nginx-mod-headers-more
+
+и нужно вот этот файл создать САМОМУ РУКАМИ!
+нужно создать файл 
+
+  # mkdir -p /etc/nginx/modules-enabled/ 
+	# cat /etc/nginx/modules-enabled/50-mod-http-headers-more-filter.conf
+			load_module /usr/lib/nginx/modules/ngx_http_headers_more_filter_module.so;
+
+
+и нужно в /etc/nginx.conf 
+добавить строку  в самый верх еще до всяких секций
+
+	include /etc/nginx/modules-enabled/*.conf;
+
+так теперь и жинкс в манжаро у нас подкручен и он теперь понимает
+директиву 
+
+		more_set_headers ...
+
+
+ТЕПЕРЬ 
+  когда мудота с установкой пакетов в линуксе закончена. теперь переходим 
+  уже к самой директиве:
+		нужно в конфиг с веб сайтом в каждую ПОДЧЕРКИВАЮ в каждую секцию "server {}" вставить строку 
+
+				more_set_headers 'Server: VASYA';
+
+	например я вставил в конфиг по этому пути
+
+				/etc/nginx/sites-enabled/default
+
+и вот куда я вставил :
+
+server {
+    listen 80 default_server;
+
+    server_name _;
+    more_set_headers 'Server: VASYA';   <========== !!!!
+    ...
+    ...
+
+
+server {
+
+        server_name XXXX;
+        root /var/www/html;
+
+        listen 2.2.2.2:443 ssl;
+        more_set_headers 'Server: VASYA';     <========== !!!!
+        ...
+        ...
+
+
+теперь проверяем что все сработало 
+
+	# nginx -t
+	# nginx -s reload
+
+
+	$ curl --dump-header -  http://localhost 2>&1 | grep -i ^server
+		Server: VASYA
+
+напомню как было
+
+	$ curl --dump-header - http://localhost 2>&1 | grep -i server
+	Server: nginx/1.26.2
+
+
+соотвесвтенно если у нас нетлько http но и https то тоже надо запустить curl
+и проверить что там тоже сработало
+
+
+	$ curl --dump-header -  httpS://localhost 2>&1 | grep -i ^server
+		Server: VASYA
+
+
+
+а теперь я покажу как выглядит это поле server у разных известных сайтов
+
+		$ curl --dump-header -  https://google.com  2>&1 | grep -i ^server
+server: gws
+
+		$ curl --dump-header -  https://chatgpt.com  2>&1 | grep -i ^server
+server: cloudflare
+
+		$ curl --dump-header -  https://youtube.com  2>&1 | grep -i ^server
+server: ESF
+
+
+обращаю внимание что если проверяем наш веб сервер то надо проверять и для HTTP 
+и для HTTPS и для всех вебсайтов что там крутятся.
+
+а то можно для HTTPS исправит а для HTTP нет и сервер будет палиться.
+
+скорей всего опцию 
+
+
+	    more_set_headers 'Server: VASYA';  
+
+
+можно вставить в /etc/nginx.conf
+куда то в самый верх. и тогда эта опция будет срабвыать для любых сайтов и для
+любых протоколов HTTP/S
+но просто при таком подходе обновление жинкса может возможно вызвать перетирание nginx.conf
+а мы даже этого не заметим. поэтому я эту опцию засунул в настройки уже файла который
+необщий а отвеает за сайт конкеретный. тоеть этот файл обновление жинкс трогать не будет
+перетирать
+
+					/etc/nginx/sites-enabled/default
+
+
+кстати когда мы загрузили тот модуль то можем в ответе нашего жинкса на GET 
+запрос добавлять любые кастомные строки указав в конфиге директиву
+
+			 add_header season winter;
+
+тогда вот как жинкс будет  в ответе нам отвечать
+
+		 $ curl --dump-header -  http://localhost 2>&1 | grep -i season
+				season: winter
+
+
+
 
 ссылки:
 https://stackoverflow.com/questions/8332617/nginx-location-fix-redirect-to-index-html

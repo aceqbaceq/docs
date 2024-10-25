@@ -491,3 +491,48 @@ EnvironmentFile=-/etc/consul.d/consul.env
 
 ====
 
+| memory
+
+в статусах юнитов можно найти статистику по потребленной памяти
+
+邮  $ systemctl status docker
+● docker.service - Docker Application Container Engine
+    ...
+    ...
+     Memory: 23.4M (peak: 104.6M swap: 12.4M swap peak: 12.6M zswap: 1.1M)
+ 
+
+| systemd-analyze
+
+колько времени заняла загрузка бука
+
+$ systemd-analyze time
+Startup finished in 3.772s (firmware) + 19.798s (loader) + 13.754s (kernel) + 15.973s (userspace) = 53.299s 
+multi-user.target reached after 15.973s in userspace.
+
+
+
+узнат скольо время заняла запуск юнитов
+
+  $ systemd-analyze  blame
+  5min 16ms archlinux-keyring-wkd-sync.service
+  12.418s pamac-mirrorlist.service
+   5.775s systemd-cryptsetup@luks\x2dc8c6db10\x2d05df\x2d4674\x2d8f67\x2df7760c0ed356.service
+   5.438s NetworkManager-wait-online.service
+   ...
+   ...
+
+   $ systemd-analyze cat-config   XXX
+
+   эта хрень позволяет на экране напечатать конфиг системд юнита. и его дроп-инс.
+   фишка в том что в XXX нужно к сожалению указывать не имя юнита а полный путь к 
+   файлу конфига. спрашиватся  а нахуй эта команда нужна вместо просто cat
+   а фишка в том что мы укываем путь к главному конфиг файлу юнита а эта команда
+   ищет дроп ины и их тоже автоматом подгружает при выводе на экран.
+   пример
+
+   $ systemd-analyze  cat-config /etc/systemd/resolved.conf
+   ксати как видно можно вивать путь нетолько к ситемд юнитам но и к просто конфигам
+   от системд
+
+  
