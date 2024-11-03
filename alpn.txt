@@ -1,0 +1,13 @@
+| alpn
+
+что это за хрень?
+это часть TLS протокола. которое позволяет более быстро за меньшее
+число оббменов сообщениями между клиентом и сервером для устанолвения TLS конекта
+или тонеля хрен знает как это назыается. 
+
+ссылки
+	https://en.wikipedia.org/wiki/Application-Layer_Protocol_Negotiation
+	https://www.keycdn.com/support/alpn
+
+
+	

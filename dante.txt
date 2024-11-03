@@ -1,0 +1,13 @@
+dante.txt
+
+| dante
+
+это socks proxy сервер
+это forward proxy сервер
+
+
+
+ссылки:
+https://www.digitalocean.com/community/tutorials/how-to-set-up-dante-proxy-on-ubuntu-20-04
+https://community.hetzner.com/tutorials/install-and-configure-danted-proxy-socks5
+https://www.inet.no/dante/doc/latest/config/server.html
