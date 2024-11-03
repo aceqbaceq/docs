@@ -652,9 +652,16 @@ UDP
 
 !!!надо показать как через курл можно послать сразу неслкько запрсово и получить
 в рамках  одного тцп конекта несклоько ответов
+curl это как раз веб клиент только в комадной строке  
 
 
 ссылки:
+https://en.wikipedia.org/wiki/HTTP_persistent_connection
+https://stackoverflow.com/questions/48511908/why-http-2-does-multiplexing-altough-tcp-does-same-thing
+https://stackoverflow.com/questions/36517829/what-does-multiplexing-mean-in-http-2/36519379#36519379
+https://en.wikipedia.org/wiki/HTTP/3
+https://en.wikipedia.org/wiki/HTTP_pipelining
+https://en.wikipedia.org/wiki/Head-of-line_blocking
 https://golang.cafe/blog/how-to-reuse-http-connections-in-go.html
 https://golang.cafe/blog/golang-httptrace-example.html
 https://developer.mozilla.org/en-US/docs/Web/HTTP/Connection_management_in_HTTP_1.x
