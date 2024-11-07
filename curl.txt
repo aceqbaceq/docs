@@ -1,0 +1,27 @@
+| curl socks
+
+как использовать сокс сервер при использовании курл
+
+		https://everything.curl.dev/usingcurl/proxies/socks.html
+
+
+curl -x socks4://proxy.example.com http://www.example.com/
+
+curl --socks4 proxy.example.com http://www.example.com/
+
+
+curl -x socks4a://proxy.example.com http://www.example.com/
+
+curl --socks4a proxy.example.com http://www.example.com/
+
+
+curl -x socks5://proxy.example.com http://www.example.com/
+
+curl --socks5 proxy.example.com http://www.example.com/
+
+
+curl -x socks5h://proxy.example.com http://www.example.com/
+
+curl --socks5-hostname proxy.example.com http://www.example.com/
+
+

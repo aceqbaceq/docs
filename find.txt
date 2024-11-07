@@ -76,3 +76,15 @@
 если надо срочно выделить инодов на диске то понятно где разгулсятся!
 
 
+| find
+
+как посчитаь обьем файлов *.txt в папке 
+
+find ./photos/john_doe -type f -name '*.jpg' -exec du -ch {} + | grep total$
+
+взял в отсюда 
+
+    https://unix.stackexchange.com/questions/41550/find-the-total-size-of-certain-files-within-a-directory-branch
+    
+
+    
