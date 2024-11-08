@@ -4,3 +4,18 @@
 
 		# tcpdump -i eth0 "icmp6 && ip6[40] == 128"
 
+
+| tcpdump
+
+как фильтровть по порту
+
+	# tcpdump -n -i wlp2s0   tcp port 80
+
+
+| tcpdump
+
+как фильтровать по IP адресу
+
+	# tcpdump -n -i wlp2s0  host 1.2.3.4
+
+

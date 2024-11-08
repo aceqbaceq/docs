@@ -1324,10 +1324,13 @@ EOF
 включить консервативное сохранение батарейки бука
 First make sure the ideapad_laptop kernel module is loaded, with the lsmod command.
 If it is, run the following command as root to enable Battery Conservation Mode:
-# echo 1 > /sys/bus/platform/drivers/ideapad_acpi/VPC2004:00/conservation_mode
+
+  # echo 1 > /sys/bus/platform/drivers/ideapad_acpi/VPC2004:00/conservation_mode
+
 это будет приваодит к тому что батарейка бука ее заряд будет поддерживаться на уровне 60%
 и это позицирнируется что это офигенно сохраняет ее срок службы.
 я проверирил реально заряд батарейки неподнимтся выше 60%
+причем это верно как для ThinkPad так и Lenovo для IdeaPad
 А вот тут указано как сделать так чтобы можно было настраивать нетолько 60% но другие какие хочешь значения
 https://askubuntu.com/questions/34452/how-can-i-limit-battery-charging-to-80-capacity/1501104#1501104
 
