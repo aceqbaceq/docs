@@ -1981,6 +1981,7 @@ netcat (nc)    vs   socat?
 чтобы он был за br0
 и на его базе запустит процесс sing-box. тоесть чтобы без виртуалки?
 
+>>>>
 
 ссылки:
 https://en.wikipedia.org/wiki/SOCKS
