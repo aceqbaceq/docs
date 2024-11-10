@@ -734,5 +734,32 @@ tcp  0      0 192.168.122.1:53        0.0.0.0:*               LISTEN      1992/d
 
 ====
 
+| ping.manjaro.com
+
+значит если взять процесс NetworkManager 
+
+
+        # lsof -Pn -p $(which NetworkManager)
+
+
+то можно заметить что у него естт файл
+дескрпитор котрый явялется TCP конектом к ping.manajaro.com
+что это нахер это нужно я непонял. об этом написано тут
+
+    https://man.archlinux.org/man/NetworkManager.conf.5#CONNECTIVITY_SECTION
+
+
+так вот я просто задизейбили эту фичу 
+
+/etc/NetworkManager/conf.d/20-connectivity.conf
+
+[connectivity]
+enabled=false
+
+
+как написано тут
+
+    https://wiki.archlinux.org/title/NetworkManager#Checking_connectivity
+
 
 

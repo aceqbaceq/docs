@@ -1,0 +1,28 @@
+| dirmngr
+
+эта штука которая 
+
+Dirmngr is a server for managing and downloading certificate revocation lists (CRLs) for X.509 certificates and for downloading the certificates themselves. Dirmngr also handles OCSP requests as an alternative to CRLs. Dirmngr is either invoked internally by gpgsm (from GnuPG 2) or when running as a system daemon through the dirmngr-client tool. 
+
+
+я не точно знаю она реально сертфикаты обновляет. но ее точно использует gpg
+а кто испольует на компе gpg хрен знает.
+
+и есть у него systemd unit
+
+	# systemctl restart dirmngr@etc-pacman.d-gnupg.service
+
+он лежит вот тут 
+
+	# /usr/lib/systemd/system/dirmngr@.service;
+
+и вот если у него пробемы с доступом  в инет то в логах будет ругань на вот это 
+
+	ноя 10 17:47:14 lenovo archlinux-keyring-wkd-sync[1756235]: ......
+
+
+и скажем если нужно заставить этот юнит лазит в интернет через прокси то нужно
+зайти в свосйства этого юнита и добавить ключ 
+
+		--http-proxy host[:port]
+
