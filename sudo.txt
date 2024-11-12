@@ -57,3 +57,56 @@ Defaults        timestamp_timeout=1
 хочу еще раз сказать что пароль повторно непридется вводить толко в том же самом 
 окне терминала а в новом терминале вводить пароль первый раз придется 100% 
 
+
+| sudo 
+| pgrp
+
+
+
+не пойму почему программа sudo вызывает себя два раза.
+показываю запускаю 
+
+  $ sudo sleep 120
+
+и вижу
+
+..--bash(561)---sudo(567)---sudo(568)---sleep(569)
+
+оба судо работают под рутом. я не поимаю почему их два. 
+раньше как я помню всегда было вот так 
+
+..--bash(561)---sudo(567)-----sleep(569)
+
+нахрен еще один судо?
+
+ведь оно работает по идее как. баш 561 себя клонирует в 567. там он через execve() взывает
+sudo. его код начинает работат. он спрашивает пароль от юзера и переключает процесс что он 
+уже работает под правами рута. потом 567 вызывает клониования и получаем 569. и в 569
+судо вызывает execve sleep . пэтому я непонимаю нахер нужен еще один судо процесс!
+я нашел вот тут на счет почему первый раз делает форк судо
+  
+    https://superuser.com/questions/859701/why-does-sudo-fork-before-executing-the-process
+
+цитирую
+
+This extra process makes it possible to, for example, suspend and resume the command. Without it, the command would be in what POSIX terms an “orphaned process group” and it would not receive any job control signals. As a special case, if the policy plugin does not define a close function and no pty is required, sudo will execute the command directly instead of calling fork(2) first. The sudoers policy plugin will only define a close function when I/O logging is enabled, a pty is required, or the pam_session or pam_setcred options are enabled. Note that pam_session and pam_setcred are enabled by default on systems using PAM.
+
+
+здсь мне открылась бездна по названеим 
+	process group 
+	process group leader
+	session
+
+и прочий пиздец.
+
+ссылки которые нужно отработатьы:
+
+		https://superuser.com/questions/859701/why-does-sudo-fork-before-executing-the-process	
+
+		https://www.andy-pearce.com/blog/posts/2013/Aug/process-groups-and-sessions/
+
+		https://unix.stackexchange.com/questions/490986/why-do-we-need-to-send-sighup-to-a-newly-orphaned-process-group-containing-a-sto
+
+		file:///home/noroot/Downloads/Advanced%20Programming%20in%20the%20UNIX%20Environment%203rd%20Edition.pdf
+
+
