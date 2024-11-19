@@ -25,3 +25,4 @@ curl -x socks5h://proxy.example.com http://www.example.com/
 curl --socks5-hostname proxy.example.com http://www.example.com/
 
 
+опция чтобы сохрарить скачанный файл -O

@@ -2774,6 +2774,13 @@ nginx.txt
 ssh.txt
 dns-tls.txt
 iptables.txt
+cdn.txt
+vray*.txt
+proxy.txt
+ssh.txt
+ssl.txt
+sudo.txt
+pptpd.txt
 =========
 
 
@@ -2790,7 +2797,9 @@ iptables.txt
 как докер демон контролирует что контейнеры работают если они все сидят наверное в разынх
   пид неймспейсах?
 
-ТЕКУЩЕЕ : NGINX RATE LIMIT настроить
+ТЕКУЩЕЕ : TCPMSS
+
+
 
 
 

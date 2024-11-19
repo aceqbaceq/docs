@@ -4300,14 +4300,157 @@ nginx   1792527 http   5u     IPv4           12351541      0t0       TCP 127.0.0
     https://stackoverflow.com/questions/70925679/curl-command-line-keep-connection-open/79184749#79184749
 
 
+потом я встретил вот этот вопрос
+
+  https://stackoverflow.com/questions/37306068/do-https-connections-require-https-proxies-or-can-i-use-http-proxies/79187847#79187847
+
+вопрос был про HTTPS прокси. прикол в том что это неверный термин.
+нет такой хрени как HTTPS прокси.  когда гоорвят XXX прокси то имеют ввиду тот язык
+проткол на котором  прокси клиент и прокси свреер говорят друг с другом.
+есть SOCKS прокси прооокотокл. есть HTTP протоокол в котором есть  хрени которые позволяют
+часть этого протокола исползовать как прокси протокол.  так вот у хттп протокола есть 
+два подхода его использования как прокси протокола. первый подход это кода прокси клиент
+шлет на прокси севрер оббычные хттп запросы с чуть изменным заголовком. такой подход
+позволяет нам через такой прокси  "проксирвовать" чистые HTTP запросы (без TLS).
+такой подход позволякт нам свяаться с удаленным вебсайтом на связвке tcp+HTTP
+мы обясняем прокси свреру на хттп языке чтобы он связался от нашего имени с удаленным
+веб свервером на tcp+HTTP языке. как следсвтие при таком подходе мы можем в бразуерре
+открывать только ссылки имеющие вид http://.. .
+тоест такйо подход позволяет нам "проксирвать" толко HTTP протокол и больше нкиакой.
+
+второй подход наш прокси клиент шлет на прокси сверер на языке HTTP метод CONNECT.
+это говорит прокси севреру чтобы он по тцп связался с удаленным сервером. а что дальше
+делать он незнает. а дальше мы шлем на прокси сервер уже просто тупо байты. он 
+их вытасвивает и вставлет в тцп конект до удаленного сврера. прокси сервер уже непонимает
+чем мы там занимается с удаленым сервером. он просто принимает байты и пересылает байты
+на удаленный сервер. 
+при таком подходе мы можем "проксирвать" любой портокол котоырй базируется на TCP. - FTP, DNS,
+SMTP, POP3, HTTPS (TLS с HTTP внутри зашифрованным)
+
+так вот второй подход это тоже HTTP прокси . потому что юзает HTTP как прокси протокол.
+а в файрфокс эти деилы называют его "HTTPS прокси" это полня брехня. это такой же HTTP 
+прокси. разница в том что через сервер указанный в файрфокс в строке "HTTP прокси" файрфокс
+может "проксироовать" или открыть урл вида http://....
+а через сервер указанный в файрфокс в строке "HTTPS прокси" файрфокс
+может "проксироовать" или открыть урл любого вида http://....  httpS://....  ftp://....
+scp://....   sftp://....  
+при досутпе к серверу из первой строчки файрфокс использует хттп запросы с модифицированными
+заголовками а при досутпе к свреру из вторйо строчки файрфокс юзает CONNECT
 
 
->>>>непроработанные вопросы:
+так вот есть еще такие прокс которые работает через "HTTP proxy via TLS" 
+наколько я понимаю файрфокс с аткими раотать неможет. а курл якобы может.
+схема выгдядит так - прокси клиент на первом шаге устаналивает с прокси сверером конект 
+через TLS. а когда между ними шифрованный тонель поднять то пускает HTTP proxy реквесты
+через этот шифранный тонель. эта схема дает то что клиент может 100% быт уверен что он 
+шлет и ему отвечает именно ИСТИННЫЙ прокси сервер (подлнность которого обесеивается TLS в 
+частсрности сертфикатом 0). это дает вот что. положим у нас обычнчй HTTP прокси. тогда
+злодей между нами и нами и настояимщим прокси сервером перехвает наш трафик. положим что
+мы юзаем CONNECT для досутпа к прокси. и через "проксификацию" шлем TLS трафик (HTTPS)
+тогда злодей неможе расшфировать наш трафик. но! он знает dest_IP уаденного серервера куда
+все летит (удаленного именно а не прокси серера!) и через SNI он знает домен веб сайта 
+на котоый мы лезем. а это неприятно.   тоесть злодей незнает что мы шлем на удадленный сайт
+но знает куда мы шаримся. если же у нас между прокси клиентмо и прокси среером ест TLS
+то ничего этого злодей неузнает!
+
+вот здесь написно про HTTP proxy via TLS
+
+  https://stackoverflow.com/questions/45874515/what-is-https-proxy
+
+
+насколько я понимаю если мы хотим через курл достчаться именно до токого прокси серера
+то мы это указвыаем в опции -x
+
+  -x httpS://......
+
+тоеесть 
+
+  -x socks4://...    (это мыломимся на сокс прокси)
+
+  -x http://  (это мы ломимся на HTTP прокси)
+
+  -x https://.  (это мы ломимся на HTTP прокси via TLS)
+
+
+если мы ломиися на обычный HTTP прокси то ключ -p в добавок к -x
+
+ -p  -x http://  
+
+говорит курл чтобы он юзал CONNECT метод
+
+если мы ключ -p невставляем то лика курла вот какая если мы ломимся на http url
+то он неиспользует CONNECT а исползует модифицированный обычне http реквесты в прокси
+проткоооле
+
+
+  -x http://...  http://google.com
+
+
+а если у нас ссылка https то  для связи с прокси будет заюзан CONNECT
+
+  -x http://...  httpS://google.com
+
+
+
+ебануться можно.
+
+
+далее.
+курл умеет рыбоать нетолько с HTTP но и сдруим выскоими аппликейшн проктолками.например 
+с ftp. об этом сказано в мане
+
+    $ curl ftp://ftp.slackware.com/welcome.msg
+
+
+далее 
+еше раз пример про  --parallel
+
+  $ curl --parallel --parallel-immediate --parallel-max 5 https://httpbin.dev/headers https://httpbin.dev/headers https://httpbin.dev/headers
+
+
+
+далее
+про nc
+я обнаружил что если я юзаю nc в связке с прокси сервером то nc к сожалению рапортует
+что tcp порт успешно открыт на удаленном сервере хотя прокси сервис несмог успешно установить
+tcp конект с удаленным сервисом! это пиздец
+и код возврата будет 0.
+пример
+
+
+      $ nc -4vnz   -X 5  -x 172.16.10.11:2080    74.6.231.21  448; echo $?
+      0
+
+опции   -X 5    -x 172.16.10.11:2080   говорят что нужно через SOCKS5 протокол
+связаться с прокси сервером  172.16.10.11:2080
+
+опция -z говорит в случае tcp протокола nc тольлко смотрит ядро успешно сделало ли 
+трехшаговый хендшейк (проверяется это через код возврата от connect() ) и все. тоесть
+в устанолвенное tcp соединение nc непихает никакие байты
+
+таким образом к моему ужасу nc нельзя проверять на счет "открыт ли tcp порт" если мы хотим
+это сделать через прокси сервис!
+
+как это сделать через socat я толком ненашел и нестал заморачиваться
+
+
+
+
+
+
+>>>> неотвеченые вопросы
+
+nginx не арботает как forward proxy для https трафика потому что 
+он не поддреживает метод CONNECT?
+
+
+ксатти пимомо SOCSK и HTTP прокси протколоков есть еще прокси проткол от haproxy
+
 
 curl как SCP клиент. или другой диковыиинны клиент
-
+https://www.filestash.app/ftp-with-curl.html
 socat examples
-
+https://www.filestash.app/ftp-with-curl.html
 ??? на теелефоне текстоый файл обрабоать в зап книжке 
 
 
@@ -4345,8 +4488,53 @@ netcat (nc)    vs   socat?
 
 
 
-ссылки:
+ссылки в том числе непроработанные:
+https://www.filestash.app/ftp-with-curl.html
 https://www.w3.org/Protocols/rfc2616/rfc2616.html
 https://www.w3.org/Protocols/rfc2616/rfc2616-sec5.html
 https://en.wikipedia.org/wiki/SOCKS
+https://www.linuxbabe.com/nginx/difference-between-npn-and-alpn-plus-how-to-enable-alpn-on-your-site
+https://github.com/httpwg/http2-spec/wiki/Implementations
+https://en.wikipedia.org/wiki/Application-Layer_Protocol_Negotiation
+https://everything.curl.dev/cmdline/urls/parallel.html
+https://everything.curl.dev/http/versions/http2.html
+https://everything.curl.dev/libcurl-http/multiplexing.html
+https://everything.curl.dev/cmdline/urls/parallel.html
+https://stackoverflow.com/questions/67432199/how-to-send-multiple-http2-requests-over-the-same-connection-with-libcurl
+https://stackoverflow.com/questions/36517829/what-does-multiplexing-mean-in-http-2
+https://www.baeldung.com/cs/http-versions
+https://www.ietf.org/rfc/rfc2068.txt
+https://stackoverflow.com/questions/7577917/how-does-a-http-proxy-utilize-the-http-protocol-a-proxy-rfc
+https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt
+https://seriousben.com/posts/2020-02-exploring-the-proxy-protocol/
+https://dev.to/somadevtoo/difference-between-forward-proxy-and-reverse-proxy-in-system-design-54g5
+https://superuser.com/questions/604352/nginx-as-forward-proxy-for-https
+https://github.com/chobits/ngx_http_proxy_connect_module
+https://ubuntuhandbook.org/index.php/2024/06/lightweight-socks5-ubuntu-debian/
+https://bbs.archlinux.org/viewtopic.php?id=127133
+https://www.alibabacloud.com/blog/how-to-use-nginx-as-an-https-forward-proxy-server_595799
+https://stackoverflow.com/questions/46060028/how-to-use-nginx-as-forward-proxy-for-any-requested-location
+https://www.baeldung.com/nginx-forward-proxy
+https://crosp.net/blog/administration/install-configure-redsocks-proxy-centos-linux/
+https://medium.com/@jogarcia/breaking-the-proxy-walls-with-redsocks-in-linux-f4c1bfb6fb6a
+https://dev.to/somadevtoo/difference-between-forward-proxy-and-reverse-proxy-in-system-design-54g5
+https://dev.to/iaadidev/step-by-step-instructions-for-forward-proxy-setup-c22
+https://wiki.archlinux.org/title/Proxy_server
+https://www.tecmint.com/open-source-reverse-proxy-servers-for-linux/
+https://proxiesapi.com/articles/how-do-i-make-curl-ignore-the-proxy
+https://superuser.com/questions/484265/use-netcat-as-a-proxy-to-log-traffic
+https://www.rutschle.net/2007/05/05/Port_redirection_and_transparent_proxies.html
+https://askubuntu.com/questions/11709/how-can-i-capture-network-traffic-of-a-single-process
+https://stackoverflow.com/questions/4777042/can-i-use-tcpdump-to-get-http-requests-response-header-and-response-body
+https://oxylabs.io/blog/curl-with-proxy
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/CONNECT
+https://www.ietf.org/archive/id/draft-luotonen-web-proxy-tunneling-01.txt
+https://datatracker.ietf.org/doc/html/rfc2616#section-9.9
+https://en.wikipedia.org/wiki/HTTP_tunnel
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Proxy_servers_and_tunneling
+https://oxylabs.io/blog/socks-vs-http-proxy
+https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt
+https://docs.nginx.com/nginx/admin-guide/load-balancer/using-proxy-protocol/
+https://en.wikipedia.org/wiki/SOCKS
+https://stackoverflow.com/questions/67463216/how-does-a-browser-know-if-a-site-supports-http-3
 

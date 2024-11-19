@@ -506,6 +506,59 @@ openat(AT_FDCWD, "/etc/ssl/certs/ca-certificates.crt", O_RDONLY) = 6
 тоесть именно с этого пути какая функция ищет бандл с рут сертификатами.
 
 
+но это еще не конец. можно еще вот так посмотреть список сертфикатов в бандле.
+причем это самый по мне клевый способ
+
+
+$ echo | openssl s_client -proxy 172.16.10.11:2080 -showcerts -servername youtube.com -connect youtube.com:443 2>/dev/null | openssl storeutl  -noout -text -r -certs /proc/self/fd/0
+
+
+что меня поразило это то что команда openssl она может АБСОЛЮТНО СПОКОЙНО  читать текстовый 
+поток который содержит МУСОР и полезный текст и openssl абслютно спокойно отбрасывает мусор
+из потока и выбирает только нужный контент! это поразительно!
+тоесть на второй openssl storeutl влетает поток примерно такой 
+
+CONNECTED(00000003)
+---
+Certificate chain
+ 0 s:CN=*.google.com
+   i:C=US, O=Google Trust Services, CN=WR2
+   a:PKEY: id-ecPublicKey, 256 (bit); sigalg: RSA-SHA256
+   v:NotBefore: Oct 21 08:36:57 2024 GMT; NotAfter: Jan 13 08:36:56 2025 GMT
+-----BEGIN CERTIFICATE-----
+MIIOCjCCDPKgAwIBAgIQQagVgnQLepAJtGHnFyDA9DANBgkqhkiG9w0BAQsFADA7
+MQswCQYDVQQGEwJVUzEeMBwGA1UEChMVR29vZ2xlIFRydXN0IFNlcnZpY2VzMQww
+CgYDVQQDEwNXUjIwHhcNMjQxMDIxMDgzNjU3WhcNMjUwMTEzMDgzNjU2WjAXMRUw
+EwYDVQQDDAwqLmdvb2dsZS5jb20wWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAARD
+7W/bU6abojd0puaRMYsiXqZjXddRl8yW2qlTpw+HOHg3bA183UxWTtZx+yeHSVQE
+3k0jMGvR7C4B3FY+n92ao4IL9zCCC/MwDgYDVR0PAQH/BAQDAgeAMBMGA1UdJQQM
+MAoGCCsGAQUFBwMBMAwGA1UdEwEB/wQCMAAwHQYDVR0OBBYEFIz1r4xlXzoNaxGY
+xiGq0aGZuvJpMB8GA1UdIwQYMBaAFN4bHu15FdQ+NyTDIbvsNDltQrIwMFgGCCsG
+
+так вот сначала идет мусор 
+
+CONNECTED(00000003)
+---
+Certificate chain
+ 0 s:CN=*.google.com
+   i:C=US, O=Google Trust Services, CN=WR2
+   a:PKEY: id-ecPublicKey, 256 (bit); sigalg: RSA-SHA256
+   v:NotBefore: Oct 21 08:36:57 2024 GMT; NotAfter: Jan 13 08:36:56 2025 GMT
+
+
+который наш openss спокойно всасывает и откидывает.
+и только потом идет полезный контент 
+
+-----BEGIN CERTIFICATE-----
+MIIOCjCCDPKgAwIBAgIQQagVgnQLepAJtGHnFyDA9DANBgkqhkiG9w0BAQsFADA7
+MQswCQYDVQQGEwJVUzEeMBwGA1UEChMVR29vZ2xlIFRydXN0IFNlcnZpY2VzMQww
+CgYDVQQDEwNXUjIwHhcNMjQxMDIxMDgzNjU3WhcNMjUwMTEzMDgzNjU2WjAXMRUw
+...
+...
+
+
+это просто удвительно поразительно!
+
 
 итак с этим наконец разобрались.
 
@@ -672,3 +725,154 @@ http {
 
 уже недолжно быть никаких ошибок
 
+
+
+| firefox
+
+оказывается что файрфокс неиспользует установленные на компе линуксе сертификаты которые
+лежат в папке 
+
+    /etc/ca-certificates
+
+а файрфокс использует только сертификаты которые устаолвены внутри файрфокса.
+через графическую часть их можно посмтреть 
+
+   settings - набираем в поиске certificate - view certificates
+
+там можно посмтреть все root CA которые файрфокс имеет в своих недрах. обновляются они незнаю
+как может с обновлением версии самого файрфокса.
+
+поэтому обновление сертифкатов на линукск в /etc/ca-certificates бесполезно для файрфкоса
+
+
+
+| s_client
+
+
+значит я уже знаю как через openssl сделать конект к сайту
+
+        $ openssl s_client -connect ifconfig.co:443
+
+
+так вот эта прога юзает центральную папку с сертификатами 
+
+    /etc/ca-certificates
+
+и положим там нет нужного рут сертификата. так вот положим у нас есть папка с рут 
+сертификатами отдельно. и мы хотим для openssl указать эту альтернативную папку 
+но прикол в том что если там просто папка с сертификатами то для опенссл нужно ее приготовить
+дело вот  в чем - нужно чтобы имя файла которое содержит сертификат имело особый вид
+а именно имя должно иметь вид хэша от строки Subject из сертификата. обьясняю
+вот имеем сертификат  и смотрим его
+
+        $ openssl x509 -text -noout -in    ./Alpha.crt
+
+        Issuer: OU=GlobalSign Root CA - R6, O=GlobalSign, CN=GlobalSign
+        Subject: C=BE, O=GlobalSign nv-sa, CN=GlobalSign GCC R6 AlphaSSL CA 2023
+        ...
+        ...
+        X509v3 Subject Key Identifier: 
+                BD:05:B7:F3:8A:93:3C:73:CB:79:FA:0F:85:12:A1:77:96:18:91:74
+        X509v3 Authority Key Identifier: 
+                AE:6C:05:A3:93:13:E2:A2:E7:E2:D7:1C:D6:C7:F0:7F:C8:67:53:A0
+
+
+строка Issuer - указывать кто выдал сертификат
+строка Subject - указывает кому выдал сертификат
+
+вот эта строка
+        X509v3 Subject Key Identifier: 
+                BD:05:B7:F3:8A:93:3C:73:CB:79:FA:0F:85:12:A1:77:96:18:91:74
+она указывает хэш данного сертификата. 
+
+вот эта строка
+        X509v3 Authority Key Identifier: 
+                AE:6C:05:A3:93:13:E2:A2:E7:E2:D7:1C:D6:C7:F0:7F:C8:67:53:A0
+она указывает хеш сертиификата того кто выдал данный сертификат
+
+так вот нужно вычислить хэш от строки "Subject:"
+        Subject: C=BE, O=GlobalSign nv-sa, CN=GlobalSign GCC R6 AlphaSSL CA 2023
+делается это специально командой
+
+        $ openssl x509 -in Alpha.crt  -noout -subject_hash  
+        4e79b064
+
+и далее нужно создать в папке с сертификатом симлинк на сертификат с таким вот именем
+
+        $ ln -s ./Alpha.crt  4e79b064.0
+
+тоесть либо надо файл с сертификатом переименовать либо создать симлинк и имя должно
+иметь вид
+    
+        "хэш" + ".0" 
+
+в данном случае
+
+        4e79b064.0
+
+и только вот так специально подготовив папку можно тогда ее указать для openssl
+через опцию -CApath
+
+    $ openssl s_client -connect  youtube.com:443 -proxy 172.16.10.11:2080  -CApath /home/noroot/temp/test/
+
+ксатти опция -proxy там в мане явно написано что это будет конект через HTTP прокси протокол
+через CONNECT метод. все понятно все прекарасно!
+
+
+хочу заметить что опция -connect  youtube.com:443 в ней нужно указать только доменное
+имя но не ip адрес. нихуя с ип адресом не сработает
+
+
+а вот еще прикол в том что можно не запускать руками вычисление хэша через опцию -subject_hash 
+для кажого сертификтаата и запуска ln а заюзать команду 
+
+        $ c_rehash /папка
+
+и она сама повычисляет хэши для сертификатом и посоздает симлинки!
+удобно!
+
+
+
+
+
+
+а вот еще то что эта прога покзывает спмсок корневых сертификатов 
+
+  $ openssl s_client -connect  youtube.com:443 -proxy 172.16.10.11:2080   | head -n 20
+Connecting to 172.16.10.11
+depth=2 C=US, O=Google Trust Services LLC, CN=GTS Root R1
+verify return:1
+depth=1 C=US, O=Google Trust Services, CN=WR2
+verify return:1
+depth=0 CN=*.google.com
+verify return:1
+CONNECTED(00000003)
+---
+Certificate chain
+ 0 s:CN=*.google.com
+   i:C=US, O=Google Trust Services, CN=WR2
+   a:PKEY: id-ecPublicKey, 256 (bit); sigalg: RSA-SHA256
+   v:NotBefore: Oct 21 08:36:57 2024 GMT; NotAfter: Jan 13 08:36:56 2025 GMT
+ 1 s:C=US, O=Google Trust Services, CN=WR2
+   i:C=US, O=Google Trust Services LLC, CN=GTS Root R1
+   a:PKEY: rsaEncryption, 2048 (bit); sigalg: RSA-SHA256
+   v:NotBefore: Dec 13 09:00:00 2023 GMT; NotAfter: Feb 20 14:00:00 2029 GMT
+ 2 s:C=US, O=Google Trust Services LLC, CN=GTS Root R1
+   i:C=BE, O=GlobalSign nv-sa, OU=Root CA, CN=GlobalSign Root CA
+   a:PKEY: rsaEncryption, 4096 (bit); sigalg: RSA-SHA256
+   v:NotBefore: Jun 19 00:00:42 2020 GMT; NotAfter: Jan 28 00:00:42 2028 GMT
+---
+Server certificate
+
+
+
+вроде как в манжаро можно обновить корнеывые сертифкаты для папка /etc/ca-certificates
+через
+
+        # update-ca-trust
+
+а вот как можно взять файл с сертификатом что этот файл полностью валиден
+
+    $ openssl verify Alpha.crt 
+    Alpha.crt: OK
+ 

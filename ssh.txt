@@ -2481,11 +2481,168 @@ debug1: identity file ~/.ssh/id_ed25519 type 3
 но так как ssh обычно использует другой kex алогритм. например дифи хельман на 
 эллиптрической кривой то этот файл оббычно не используется
 
+| copy
+
+как скопировать публичный ключ на серврер
+
+	$ ssh-copy-id -i ~/.ssh/mykey user@host
+
+полезная ссылка про все аспекты ssh
+там можно выцчить все про ссш
+
+	https://www.ssh.com/academy/ssh/copy-id
+
+
+
+| root
+
+как запретить чтобы root не мог логиниться на комп через ssh
+
+идем в конфиг файл
+		sshd_config
+
+и там выставляем вот такое
+
+	PermitRootLogin no
+
+это запретит вход руту через ссш и через пароль и через сертификат. 
+
+
+а вот как выглядит гуд конфиг ссш
+
+
+Include /etc/ssh/sshd_config.d/*.conf
+PermitRootLogin no
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+UsePAM yes
+X11Forwarding yes
+PrintMotd no
+PermitTunnel yes
+AcceptEnv LANG LC_*
+Subsystem	sftp	/usr/lib/openssh/sftp-server
+PubkeyAuthentication yes
+StrictModes yes
+
+
+
+первая строка 
+
+	Include /etc/ssh/sshd_config.d/*.conf
+
+там лежат доп конфиги. туда любит соавать свой конфиг cloud-init сервис 
+о том например что нельзя аутентифицировать через пароль 
+
+# cat /etc/ssh/sshd_config.d/50-cloud-init.conf 
+	PasswordAuthentication no
+
+поэтому в эту папку полезно заглянуть и помотреть что там лежит
+там может и гадость какая то лежать
 
 
 
 
+вторая строка
 
+	PermitRootLogin no
+
+запрещает вход на удаенный комп под логином root чеерз любую форму аутенфтиицкации и 
+через пароль и через серитификаты и чреез все остальное
+
+
+
+
+третья и четвертая строки
+
+	PasswordAuthentication no
+	KbdInteractiveAuthentication no
+
+они обе связаны с тем что запрешается вход по паролю с клавиатуры.
+спраишивается а какая разница. я так честно и непонял.
+вот тут чтото про это написано
+
+	https://serverfault.com/questions/189643/sshd-blocking-password-authentication
+
+
+
+
+дальше там ряд опций про них можно в man sshd_config почитать
+а дальше идет строка
+
+		PubkeyAuthentication yes
+
+она разрашает делать атунтификацию через  публичный ключ. в приницпе по деолфту эта
+опция итак равна yes но теме неменее
+
+
+
+следущая строка
+
+	StrictModes yes
+
+она о том что 
+
+Specifies  whether  sshd(8) should check file modes and ownership of the user's files and home directory before accepting login.  This is nor‐
+               mally desirable because novices sometimes accidentally leave their directory or files world-writable.  The default is  yes.   Note  that  this
+               does not apply to ChrootDirectory, whose permissions and ownership are checked unconditionally.
+
+
+вообще про все опции можно прочтать в 
+
+		$ man sshd_config
+
+
+
+также когда идет настойка ссш сервиса обычно это после того как толко что создали
+свежую вирталку и поэтому есть работа подспудная этому а именно
+также нужно root залочить пароль.
+	# usermod -L root
+или
+
+    # passwd -l root
+
+проверить что юзер залочен
+
+
+    # passwd -S  root
+   root L 2024-11-18 0 99999 7 -1
+
+если юзер залочек то мы увидим "L" а если пароль не запрещен то "P"
+
+и ещ вот такоаая прцовкерка
+
+# cat /etc/shadow | grep root
+root:!$y$j9T$w5EsF1xXa9EBPIFP....DgK62:20045:0:99999:7:::
+root@ubuntu:/etc/ssh# 
+
+мы видим знак "!" вначалае строки
+
+
+
+далее 
+как проерить что вход по праолю не рабоатет
+
+ 	$ ssh -o PasswordAuthentication=yes -o PubkeyAuthentication=no  -l user1  -p 22 37.230.153.27
+
+
+если в встойствах ссш серверар разершен и вход по праолю и вход по ключу и в дом 
+папке есть ключ то я незнаю какой способ ссш клиент выбирает как приортетыный
+
+
+а вот еще приколная опция в конфиге прописать
+
+  AllowUsers
+               This  keyword  can  be followed by a list of user name patterns, separated by spaces.  If specified, login is allowed only for user names that
+               match one of the patterns.  Only user names are valid; a numerical user ID is not recognized.  By default, login is allowed for all users.  If
+               the pattern takes the form USER@HOST then USER and HOST are separately checked, restricting logins to particular users from particular  hosts.
+               HOST  criteria  may  additionally contain addresses to match in CIDR address/masklen format.  The allow/deny users directives are processed in
+               the following order: DenyUsers, AllowUsers.
+
+               See PATTERNS in ssh_config(5) for more information on patterns.  This keyword may appear multiple times in sshd_config with each instance  ap‐
+               pending to the list.
+
+
+--
 
 
 
@@ -2496,6 +2653,7 @@ debug1: identity file ~/.ssh/id_ed25519 type 3
 
 
 вопросы:
+man logind.conf ?
 что такое HMAC?
 кex алгоритмы - алгоритм один из списка который выбирается чтобы выработать общий ключ
 	список: 
@@ -2522,3 +2680,4 @@ https://superuser.com/questions/744816/how-do-i-specify-the-key-exchange-method-
 https://www.ssh.com/blog/what-are-ssh-host-keys
 https://unix.stackexchange.com/questions/340844/how-to-enable-diffie-hellman-group1-sha1-key-exchange-on-debian-8-0
 https://en.wikipedia.org/wiki/SHA-2
+https://www.ssh.com/academy/ssh/copy-id
