@@ -1,0 +1,35 @@
+| firefox
+
+задача - нужно чтобы старые открытые табы уходили из памяти так как это есть у хрома.
+эти добоебы по умолчанию это не активируют. 
+
+акттиуируем вот так
+
+	about:config
+
+	browser.tabs.unloadOnLowMemory = True
+
+а вот так можно зайти и руками (доболбеы) освободить память на табах
+
+	about:unloads
+
+
+есть еще одна полезная настрокка
+
+	'browser.tabs.loadDivertedInBackground'
+
+
+она дает то что кода я октрываею несколько вкладок через правую кнопку так вот
+с этой настройкой фокс будет реально грузить таб только когда я на нено нажму и он станет
+активным. это мелочь то в целом пригодится.
+From now on, when you open multiple tabs at once, they will not load automatically. Instead, only the active tab will load, while the others will remain in a suspended state until you click on them. 
+
+
+
+
+
+
+ссылки:
+https://firefox-source-docs.mozilla.org/browser/tabunloader/
+
+

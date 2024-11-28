@@ -1,0 +1,282 @@
+| mouse scroll wheel
+
+задача.
+как сделтать чтобы при кручении колеса мыши прокрутка шла на бОльшее 
+число строк.
+
+оказывается это хрен сделаешь просты способом!!!!
+
+один вариант через imwheel. но както он неочень 
+есть вариант через libinput
+но в итоге у меня через либинтпут пока не получилось. проблема в том что udev
+правиало которое я создаю в итоге не подсасывается в udev в привязке к мышке!
+еще я не понял разницу edev vs libinput
+
+
+как задетекитть номер конопки на мышке. 
+
+ # pacman -Sy xorg-xev
+ $ xev
+
+откроется граф окно и терминал. наводим мышку на граф окно и тыкаем на мышке кнопки. в том числе и крутим колесо в терминале будет идти поток вот такого вида
+
+
+ButtonPress event, serial 38, synthetic NO, window 0x5600001,
+    root 0x4d8, subw 0x0, time 1622859760, (106,98), root:(135,155),
+    state 0x0, button 5, same_screen YES
+
+ButtonRelease event, serial 38, synthetic NO, window 0x5600001,
+    root 0x4d8, subw 0x0, time 1622859760, (106,98), root:(135,155),
+    state 0x1000, button 5, same_screen YES
+
+вэтом хламе код кнопки это вот это 
+		button 5
+это нзначит на мышке нажата услованя кнопка 5 (у меня это крутилка колеса ВНИЗ)
+
+
+
+
+ноесть и другая задача. вот список все мышек клав в ведении X11
+
+ P 愧  $ xinput --list
+⎡ Virtual core pointer                    	id=2	[master pointer  (3)]
+⎜   ↳ Virtual core XTEST pointer              	id=4	[slave  pointer  (2)]
+⎜   ↳ Elan Touchpad                           	id=14	[slave  pointer  (2)]
+⎜   ↳ Logitech M315/M235                      	id=9	[slave  pointer  (2)]
+⎜   ↳ Logitech K270                           	id=10	[slave  pointer  (2)]
+⎜   ↳ Logitech M510                           	id=12	[slave  pointer  (2)]
+⎜   ↳ Logitech Wireless Device PID:4055       	id=16	[slave  pointer  (2)]
+⎜   ↳ Logitech M510                           	id=17	[slave  pointer  (2)]
+⎣ Virtual core keyboard                   	id=3	[master keyboard (2)]
+    ↳ Virtual core XTEST keyboard             	id=5	[slave  keyboard (3)]
+    ↳ Power Button                            	id=6	[slave  keyboard (3)]
+    ↳ Power Button                            	id=8	[slave  keyboard (3)]
+    ↳ Video Bus                               	id=7	[slave  keyboard (3)]
+    ↳ AT Translated Set 2 keyboard            	id=13	[slave  keyboard (3)]
+    ↳ Ideapad extra buttons                   	id=15	[slave  keyboard (3)]
+    ↳ Logitech K270                           	id=11	[slave  keyboard (3)]
+
+
+надо понять какой id отвечает за нашу мышку. как это сделать
+я нахрен нашел эту добланую команду!
+
+		$ sudo libinput debug-events
+
+ event8   POINTER_MOTION          +0.193s	  0.00/  3.14 ( +0.00/ +3.00)
+ event8   POINTER_MOTION          +0.201s	  0.00/  3.00 ( +0.00/ +3.00)
+ event8   POINTER_MOTION          +0.209s	 -1.00/  3.00 ( -1.00/ +3.00)
+ event8   POINTER_MOTION          +0.215s	  0.00/  1.00 ( +0.00/ +1.00)
+ event8   POINTER_SCROLL_WHEEL    +0.875s	vert 15.00/120.0* horiz 0.00/0.0 (wheel)
+ event8   POINTER_SCROLL_WHEEL    +1.898s	vert -15.00/-120.0* horiz 0.00/0.0 (wheel)
+-event3   KEYBOARD_KEY            +2.803s	*** (-1) pressed
+ event3   KEYBOARD_KEY            +2.904s	*** (-1) pressed
+
+
+она покажет и движения мышки и нажатие кнопнок! 
+эта комада полезна тем то она показывает event8 и это нам позволяет понять какая именно мышка
+у нас щас работает из вот этой команды
+
+	# libinput list-devices
+...
+...
+Device:           Logitech M315/M235
+Kernel:           /dev/input/event8   <==== !!!!!
+Group:            7
+Seat:             seat0, default
+Capabilities:     pointer 
+Tap-to-click:     n/a
+Tap-and-drag:     n/a
+Tap drag lock:    n/a
+Left-handed:      disabled
+Nat.scrolling:    disabled
+Middle emulation: disabled
+Calibration:      n/a
+Scroll methods:   button
+Click methods:    none
+Disable-w-typing: n/a
+Disable-w-trackpointing: n/a
+Accel profiles:   flat *adaptive custom
+Rotation:         0.0
+...
+...
+
+вот тоест так как мы видели что event8 значит именно эта мышка!!
+и мы видим что она называется вот так
+
+	Device:           Logitech M315/M235
+
+это  нам дает ключ о какой мылшке идет речь в выводе xinput!!
+
+
+ P 愧  $ xinput --list
+⎡ Virtual core pointer                    	id=2	[master pointer  (3)]
+⎜   ↳ Virtual core XTEST pointer              	id=4	[slave  pointer  (2)]
+⎜   ↳ Elan Touchpad                           	id=14	[slave  pointer  (2)]
+⎜   ↳ Logitech M315/M235                      	id=9	[slave  pointer  (2)]
+⎜   ↳ Logitech K270                           	id=10	[slave  pointer  (2)]
+⎜   ↳ Logitech M510                           	id=12	[slave  pointer  (2)]
+
+а именно это мышка с id=9 !!!!
+сволочи!
+
+ксатии есть полезное в 
+
+		# man libinput
+только манул дебидьный
+наример в нем указано вот так
+
+COMMANDS
+       libinput-debug-events(1)
+               Print all events as seen by libinput
+
+
+а по  факту нужно делать вот так
+
+	# libinput debug-events
+
+дебилы
+
+мышку в списке xinput можно кончно и руками вычислить вот так.
+берм мышки по спику и отключаем их
+
+   # xinput disable 11
+
+ смотрим что мышка на экране не шевлиися. если попали то активрует ее обратно
+
+ 	# xinput enable 11
+
+
+вобщем про libinput можно почитать тольковое вот тут
+
+	https://wayland.freedesktop.org/libinput/doc/latest/scrolling.html#edge-scrolling
+
+
+когда мы нашли мышку мы можем посмтреть ее свойства с тчоки зрения X11 и егоной примочки libinput
+
+ u ꕝ  $ xinput list-props 11
+Device 'Logitech M315/M235':
+	Device Enabled (179):	1
+	Coordinate Transformation Matrix (181):	1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000
+	libinput Natural Scrolling Enabled (308):	0
+	libinput Natural Scrolling Enabled Default (309):	0
+	libinput Scroll Methods Available (310):	0, 0, 1
+	libinput Scroll Method Enabled (311):	0, 0, 1
+	libinput Scroll Method Enabled Default (312):	0, 0, 0
+	libinput Button Scrolling Button (313):	2
+	libinput Button Scrolling Button Default (314):	2
+	libinput Button Scrolling Button Lock Enabled (315):	0
+	libinput Button Scrolling Button Lock Enabled Default (316):	0
+	libinput Middle Emulation Enabled (317):	0
+	libinput Middle Emulation Enabled Default (318):	0
+	libinput Rotation Angle (291):	0.000000
+	libinput Rotation Angle Default (292):	0.000000
+...
+...
+
+вот эти свойства их можно задать в конфиге от xorg (в каком точно файле хуй знает) это
+моно посмтреть в 
+
+  # man 4 libinput 
+  ..
+  ..
+         Option "AccelProfile" "string"
+              Sets the pointer acceleration profile to the given profile. Permitted values are adaptive, flat, custom.  Not all devices support  this  option
+              or  all  profiles. If a profile is unsupported, the default profile for this device is used. For a description on the profiles and their behav‐
+              ior, see the libinput documentation.
+
+       Option "AccelSpeed" "float"
+              Sets the pointer acceleration speed within the range [-1, 1].  This only applies to the flat or adaptive profile.
+
+итд итд
+
+а можно эти свойства поменять налету (ненужно перегружать x11 или xorg ) через xinput
+например 
+было
+
+	# xinput list-props 11 | grep  Horizont
+	libinput Horizontal Scroll Enabled (333):	0
+
+стало
+
+	# xinput set-prop 11 "libinput Horizontal Scroll Enabled" 1
+
+а вот есть свойство насколько пикселей прокручитвать текст при скроллинге
+
+	libinput Scrolling Pixel Distance (334):	30
+
+читаем описание этой опции  в man 4 libinput
+
+
+Option "ScrollPixelDistance" "int"
+              Sets the movement distance, in "pixels", required to trigger one logical wheel click. This option only applies to the scroll methods twofinger,
+              edge, button.  See section SCROLL PIXEL DISTANCE for more details.
+
+читаю дальше
+SCROLL PIXEL DISTANCE
+       The  X  server does not support per-pixel scrolling but it does support smooth scrolling. All scroll events however are based around a logical unit of
+       scrolling (traditionally corresponding to a wheel click).  It is thus not possible to scroll by 10 pixels, but it is possible for a driver  to  scroll
+       by 1/10th of a logical wheel click.
+
+       libinput  provides  scroll data in pixels. The ScrollPixelDistance option defines the amount of movement equivalent to one wheel click. For example, a
+       value of 50 means the user has to move a finger by 50 pixels to generate one logical click event and each pixel is 1/50th of a wheel click.
+
+
+по мне эта настройка она совсем не про скорость прокркутки колеса. я считаю что эта 
+настрока она про вообще то тачпад. и про то что я палец двигаю по тачпаду он смещается
+скажем на 50 пикселей и тогда считается что мы прокрутили колесо мыши на 1 деление. если
+мы говорим про колесо мыши то наерно когда крутится колесо то оно тоже прокручивает пиксели
+кхмм... но если крчение колчеса тоже наворачиает пиксели то эта настройка может влять
+на "чуствительноть" колеса мыщи к прокрурутке
+
+вобещм как идентифицрирвать мыщку я нашел.
+далее получается что за настройки мыши отвечает например libunput некая прокладка к x11\xorg
+серверу. настройки либинпута изложены в man 4 libinput  и их нужно пихать в какйото файл
+хрен знает какйо.  а можно их менять налету через xinput 
+так как колесо мыши тольком нерабоатет то точно понять какая именно настройка вляеит на
+чуствительно прокрутки мыши.
+так вот можнь настойки всунуть в сситему через файлы x11\xorg  а можно их изменить налету
+через xinput а еще можно изменить через udev это я пытался сделать в самом начале статьи
+но пока не полусичлось.
+чтобы чтото понять наверняка нужна для начала новая мышка с здоровой  колсом прокрутки
+
+также про мышкиъ\тачпады а они входя в одну группу. у тачпада есть два способа эмулировать
+колесо прокрутки - никак, через два пальца , через тонкую полоску справа. 
+в настойках это вынлядит вот так
+
+# xinput list-props 11 | grep  -i method
+	libinput Scroll Methods Available (310):	0, 0, 1
+	libinput Scroll Method Enabled (311):	0, 0, 0
+	libinput Scroll Method Enabled Default (312):	0, 0, 0
+
+
+
+
+
+на этом пока все
+
+кстати важная команда
+	# udevadm test /sys/class/input/event8 | grep FOO
+
+
+сссылки которые не проработал:
+https://wiki.archlinux.org/title/IMWheel
+https://askubuntu.com/questions/285689/increase-mouse-wheel-scroll-speed?noredirect=1&lq=1
+https://github.com/systemd/systemd/issues/10459
+https://unix.stackexchange.com/questions/307663/how-to-change-scroll-speed-with-libinput
+https://hunden.linuxkompis.se/2022/01/23/how-to-replace-libinput-with-evdev-for-sane-mouse-control.html
+https://stackoverflow.com/questions/51909557/mouse-events-in-terminal-emulator
+https://askubuntu.com/questions/661238/how-to-change-mouse-scroll-speed-while-using-libinput
+https://askubuntu.com/questions/661238/how-to-change-mouse-scroll-speed-while-using-libinput
+https://bbs.archlinux.org/viewtopic.php?id=279178
+https://forum.manjaro.org/t/libinput-option-rotationangle-doesnt-work/33595
+https://forum.xfce.org/viewtopic.php?id=16561
+https://manpages.ubuntu.com/manpages/bionic/man4/libinput.4.html
+https://askubuntu.com/questions/1182136/how-is-libinputs-scrollmethod-supposed-to-work
+https://unix.stackexchange.com/questions/58900/how-to-scroll-the-screen-using-the-middle-click
+https://wayland.freedesktop.org/libinput/doc/latest/tools.html
+https://bbs.archlinux.org/viewtopic.php?id=210096
+https://github.com/systemd/systemd/issues/10459
+https://wiki.archlinux.org/title/Xinput
+
+
+

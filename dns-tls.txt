@@ -4614,7 +4614,32 @@ systemd-resolve
 опредеелнный интерфейс. значит у меня на компе есть интврейсе br0 я в него воткнул
 интерфейс tap0 и на нем запустил виртуалку с ip=172.16.10.11, 
 у нас получается что за интерфейсом br0 компа сидит виртуалка IP=172.16.10.11
-на этой виртулаке я поднял bind сервис на основе этой инструкции (https://www.digitalocean.com/community/tutorials/how-to-configure-bind-as-a-private-network-dns-server-on-ubuntu-14-04) , этот bind9 
+на этой виртулаке я поднял bind сервис на основе этой инструкции (https://www.digitalocean.com/community/tutorials/how-to-configure-bind-as-a-private-network-dns-server-on-ubuntu-14-04).
+из статьи я изменил такой кусок что я меняю порт который слушает мой bind9 и ip который
+слушает bind9. делаю это исходя из статьи
+
+    https://www.golinuxhub.com/2018/06/configure-your-bind-dns-different-port-53-other/
+
+делаю это вот так 
+    # cat named.conf.options
+    ...
+    ...
+        listen-on port 6236 { 172.16.10.11; };
+
+
+тогда имею
+Netid Local Address:Port     Peer Address:PortProcess
+udp   172.16.10.11:6236      0.0.0.0:*                  users:(("named"
+udp   172.16.10.11:6236      0.0.0.0:*                  users:(("named"
+tcp   172.16.10.11:6236      0.0.0.0:*                  users:(("named"
+tcp   172.16.10.11:6236      0.0.0.0:*                  users:(("named"
+tcp      127.0.0.1:953       0.0.0.0:*                  users:(("named"
+tcp      127.0.0.1:953       0.0.0.0:*                  users:(("named"           
+
+я так сделал чтобы никакой софт "случайно" не попал на мой bind9
+также я хотел забищейблить TCP а потом прочитал что 
+
+этот bind9 
 это одновременно и авторитивный сервер и рекурсивный и он хостит зону 
 
   nyc3.example.com
@@ -9995,7 +10020,7 @@ e.root-servers.net.
 теперь с него я делаю запрос на NS сервер для зоны net
 получаю какото бред в отвтете
 
-noroot@ubuntu-s-1vcpu-512mb-10gb-fra1-01:~$ dig   +qr +noad +nodo  +nocrypto   +multi +norecurse  -t NS net   192.36.148.17
+$ dig   +qr +noad +nodo  +nocrypto   +multi +norecurse  -t NS net   192.36.148.17
 
 ; <<>> DiG 9.18.12-0ubuntu0.22.04.3-Ubuntu <<>> +qr +noad +nodo +nocrypto +multi +norecurse -t NS net 192.36.148.17
 ;; global options: +cmd
@@ -10062,7 +10087,695 @@ noroot@ubuntu-s-1vcpu-512mb-10gb-fra1-01:~$ dig   +qr +noad +nodo  +nocrypto   +
                   |
                    \____ ?????
 
-отсанвритиился на этом!!
+
+
+я еще раз протестировал конект к рут днс серверу. возможно я там неверный ип вставил.
+
+
+$ dig   +qr +noad +nodo  +nocrypto   +multi +norecurse  -t A   vasya.com     @192.36.148.17
+
+; <<>> DiG 9.18.12-0ubuntu0.22.04.3-Ubuntu <<>> +qr +noad +nodo +nocrypto +multi +norecurse -t A vasya.com @192.36.148.17
+;; global options: +cmd
+;; Sending:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 58430
+;; flags:; QUERY: 1, ANSWER: 0, AUTHORITY: 0, ADDITIONAL: 1
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 1232
+; COOKIE: 34e8a8d683a69709
+;; QUESTION SECTION:
+;vasya.com.     IN A
+
+;; QUERY SIZE: 50
+
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 58430
+;; flags: qr; QUERY: 1, ANSWER: 0, AUTHORITY: 13, ADDITIONAL: 27
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 1232
+; COOKIE: 34e8a8d683a697090100000067403cc96c71193b5f0e34b0 (good)
+;; QUESTION SECTION:
+;vasya.com.     IN A
+
+;; AUTHORITY SECTION:
+com.            172800 IN NS b.gtld-servers.net.
+com.            172800 IN NS h.gtld-servers.net.
+com.            172800 IN NS l.gtld-servers.net.
+com.            172800 IN NS a.gtld-servers.net.
+com.            172800 IN NS e.gtld-servers.net.
+com.            172800 IN NS d.gtld-servers.net.
+com.            172800 IN NS g.gtld-servers.net.
+com.            172800 IN NS f.gtld-servers.net.
+com.            172800 IN NS m.gtld-servers.net.
+com.            172800 IN NS c.gtld-servers.net.
+com.            172800 IN NS k.gtld-servers.net.
+com.            172800 IN NS j.gtld-servers.net.
+com.            172800 IN NS i.gtld-servers.net.
+
+;; ADDITIONAL SECTION:
+m.gtld-servers.net. 172800 IN A 192.55.83.30
+l.gtld-servers.net. 172800 IN A 192.41.162.30
+k.gtld-servers.net. 172800 IN A 192.52.178.30
+j.gtld-servers.net. 172800 IN A 192.48.79.30
+i.gtld-servers.net. 172800 IN A 192.43.172.30
+h.gtld-servers.net. 172800 IN A 192.54.112.30
+g.gtld-servers.net. 172800 IN A 192.42.93.30
+f.gtld-servers.net. 172800 IN A 192.35.51.30
+e.gtld-servers.net. 172800 IN A 192.12.94.30
+d.gtld-servers.net. 172800 IN A 192.31.80.30
+c.gtld-servers.net. 172800 IN A 192.26.92.30
+b.gtld-servers.net. 172800 IN A 192.33.14.30
+a.gtld-servers.net. 172800 IN A 192.5.6.30
+m.gtld-servers.net. 172800 IN AAAA 2001:501:b1f9::30
+l.gtld-servers.net. 172800 IN AAAA 2001:500:d937::30
+k.gtld-servers.net. 172800 IN AAAA 2001:503:d2d::30
+j.gtld-servers.net. 172800 IN AAAA 2001:502:7094::30
+i.gtld-servers.net. 172800 IN AAAA 2001:503:39c1::30
+h.gtld-servers.net. 172800 IN AAAA 2001:502:8cc::30
+g.gtld-servers.net. 172800 IN AAAA 2001:503:eea3::30
+f.gtld-servers.net. 172800 IN AAAA 2001:503:d414::30
+e.gtld-servers.net. 172800 IN AAAA 2001:502:1ca1::30
+d.gtld-servers.net. 172800 IN AAAA 2001:500:856e::30
+c.gtld-servers.net. 172800 IN AAAA 2001:503:83eb::30
+b.gtld-servers.net. 172800 IN AAAA 2001:503:231d::2:30
+a.gtld-servers.net. 172800 IN AAAA 2001:503:a83e::2:30
+
+;; Query time: 4 msec
+;; SERVER: 192.36.148.17#53(192.36.148.17) (UDP)
+;; WHEN: Fri Nov 22 08:11:53 UTC 2024
+;; MSG SIZE  rcvd: 862
+
+
+значит видно что в ответе 
+    ;; flags: qr; QUERY: 1, ANSWER: 0, AUTHORITY: 13, ADDITIONAL: 27
+
+нет ra флага. как и должно быть! 
+также видно что на наш запрос vasya.com A он нам вернул серевера которые заведуют
+зоной .com
+
+
+делаю тотже смаый запрос но с RD флагом
+$ dig   +qr +noad +nodo  +nocrypto   +multi +recurse  -t A   vasya.com     @192.36.148.17
+
+; <<>> DiG 9.18.12-0ubuntu0.22.04.3-Ubuntu <<>> +qr +noad +nodo +nocrypto +multi +recurse -t A vasya.com @192.36.148.17
+;; global options: +cmd
+;; Sending:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 5254
+;; flags: rd; QUERY: 1, ANSWER: 0, AUTHORITY: 0, ADDITIONAL: 1
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 1232
+; COOKIE: 4d1f0f8610c2255a
+;; QUESTION SECTION:
+;vasya.com.     IN A
+
+;; QUERY SIZE: 50
+
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 5254
+;; flags: qr rd; QUERY: 1, ANSWER: 0, AUTHORITY: 13, ADDITIONAL: 27
+;; WARNING: recursion requested but not available
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 1232
+; COOKIE: 4d1f0f8610c2255a0100000067403d176cd314986ee89114 (good)
+;; QUESTION SECTION:
+;vasya.com.     IN A
+
+;; AUTHORITY SECTION:
+com.            172800 IN NS b.gtld-servers.net.
+com.            172800 IN NS h.gtld-servers.net.
+com.            172800 IN NS l.gtld-servers.net.
+com.            172800 IN NS f.gtld-servers.net.
+com.            172800 IN NS k.gtld-servers.net.
+com.            172800 IN NS c.gtld-servers.net.
+com.            172800 IN NS i.gtld-servers.net.
+com.            172800 IN NS a.gtld-servers.net.
+com.            172800 IN NS e.gtld-servers.net.
+com.            172800 IN NS d.gtld-servers.net.
+com.            172800 IN NS g.gtld-servers.net.
+com.            172800 IN NS j.gtld-servers.net.
+com.            172800 IN NS m.gtld-servers.net.
+
+;; ADDITIONAL SECTION:
+m.gtld-servers.net. 172800 IN A 192.55.83.30
+l.gtld-servers.net. 172800 IN A 192.41.162.30
+k.gtld-servers.net. 172800 IN A 192.52.178.30
+j.gtld-servers.net. 172800 IN A 192.48.79.30
+i.gtld-servers.net. 172800 IN A 192.43.172.30
+h.gtld-servers.net. 172800 IN A 192.54.112.30
+g.gtld-servers.net. 172800 IN A 192.42.93.30
+f.gtld-servers.net. 172800 IN A 192.35.51.30
+e.gtld-servers.net. 172800 IN A 192.12.94.30
+d.gtld-servers.net. 172800 IN A 192.31.80.30
+c.gtld-servers.net. 172800 IN A 192.26.92.30
+b.gtld-servers.net. 172800 IN A 192.33.14.30
+a.gtld-servers.net. 172800 IN A 192.5.6.30
+m.gtld-servers.net. 172800 IN AAAA 2001:501:b1f9::30
+l.gtld-servers.net. 172800 IN AAAA 2001:500:d937::30
+k.gtld-servers.net. 172800 IN AAAA 2001:503:d2d::30
+j.gtld-servers.net. 172800 IN AAAA 2001:502:7094::30
+i.gtld-servers.net. 172800 IN AAAA 2001:503:39c1::30
+h.gtld-servers.net. 172800 IN AAAA 2001:502:8cc::30
+g.gtld-servers.net. 172800 IN AAAA 2001:503:eea3::30
+f.gtld-servers.net. 172800 IN AAAA 2001:503:d414::30
+e.gtld-servers.net. 172800 IN AAAA 2001:502:1ca1::30
+d.gtld-servers.net. 172800 IN AAAA 2001:500:856e::30
+c.gtld-servers.net. 172800 IN AAAA 2001:503:83eb::30
+b.gtld-servers.net. 172800 IN AAAA 2001:503:231d::2:30
+a.gtld-servers.net. 172800 IN AAAA 2001:503:a83e::2:30
+
+;; Query time: 4 msec
+;; SERVER: 192.36.148.17#53(192.36.148.17) (UDP)
+;; WHEN: Fri Nov 22 08:13:11 UTC 2024
+;; MSG SIZE  rcvd: 862
+
+
+~ 
+~ dig   +qr +noad +nodo  +nocrypto   +multi +norecurse  -t NS   .     @192.36.148.17
+
+; <<>> DiG 9.18.12-0ubuntu0.22.04.3-Ubuntu <<>> +qr +noad +nodo +nocrypto +multi +norecurse -t NS . @192.36.148.17
+;; global options: +cmd
+;; Sending:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 306
+;; flags:; QUERY: 1, ANSWER: 0, AUTHORITY: 0, ADDITIONAL: 1
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 1232
+; COOKIE: 53f096b15ce9ddfa
+;; QUESTION SECTION:
+;.          IN NS
+
+;; QUERY SIZE: 40
+
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 306
+;; flags: qr aa; QUERY: 1, ANSWER: 13, AUTHORITY: 0, ADDITIONAL: 27
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 1232
+; COOKIE: 53f096b15ce9ddfa0100000067403e594f5b8ac083fcf3aa (good)
+;; QUESTION SECTION:
+;.          IN NS
+
+;; ANSWER SECTION:
+.           518400 IN NS e.root-servers.net.
+.           518400 IN NS l.root-servers.net.
+.           518400 IN NS k.root-servers.net.
+.           518400 IN NS b.root-servers.net.
+.           518400 IN NS i.root-servers.net.
+.           518400 IN NS h.root-servers.net.
+.           518400 IN NS c.root-servers.net.
+.           518400 IN NS d.root-servers.net.
+.           518400 IN NS f.root-servers.net.
+.           518400 IN NS a.root-servers.net.
+.           518400 IN NS j.root-servers.net.
+.           518400 IN NS g.root-servers.net.
+.           518400 IN NS m.root-servers.net.
+
+;; ADDITIONAL SECTION:
+m.root-servers.net. 518400 IN A 202.12.27.33
+l.root-servers.net. 518400 IN A 199.7.83.42
+k.root-servers.net. 518400 IN A 193.0.14.129
+j.root-servers.net. 518400 IN A 192.58.128.30
+i.root-servers.net. 518400 IN A 192.36.148.17
+h.root-servers.net. 518400 IN A 198.97.190.53
+g.root-servers.net. 518400 IN A 192.112.36.4
+f.root-servers.net. 518400 IN A 192.5.5.241
+e.root-servers.net. 518400 IN A 192.203.230.10
+d.root-servers.net. 518400 IN A 199.7.91.13
+c.root-servers.net. 518400 IN A 192.33.4.12
+b.root-servers.net. 518400 IN A 170.247.170.2
+a.root-servers.net. 518400 IN A 198.41.0.4
+m.root-servers.net. 518400 IN AAAA 2001:dc3::35
+l.root-servers.net. 518400 IN AAAA 2001:500:9f::42
+k.root-servers.net. 518400 IN AAAA 2001:7fd::1
+j.root-servers.net. 518400 IN AAAA 2001:503:c27::2:30
+i.root-servers.net. 518400 IN AAAA 2001:7fe::53
+h.root-servers.net. 518400 IN AAAA 2001:500:1::53
+g.root-servers.net. 518400 IN AAAA 2001:500:12::d0d
+f.root-servers.net. 518400 IN AAAA 2001:500:2f::f
+e.root-servers.net. 518400 IN AAAA 2001:500:a8::e
+d.root-servers.net. 518400 IN AAAA 2001:500:2d::d
+c.root-servers.net. 518400 IN AAAA 2001:500:2::c
+b.root-servers.net. 518400 IN AAAA 2801:1b8:10::b
+a.root-servers.net. 518400 IN AAAA 2001:503:ba3e::2:30
+
+;; Query time: 4 msec
+;; SERVER: 192.36.148.17#53(192.36.148.17) (UDP)
+;; WHEN: Fri Nov 22 08:18:34 UTC 2024
+;; MSG SIZE  rcvd: 851
+
+
+
+
+он отвечает точно также. в плане тела ответа.
+и что касается флагов в заголовке ответа то 
+
+;; flags: qr rd; QUERY: 1, ANSWER: 0, AUTHORITY: 13, ADDITIONAL: 27
+;; WARNING: recursion requested but not available
+
+
+видно что QR это принак что это пакет ответа
+видно RD который он всегда копирует с пакета с реквестом инфррмируя нас что в 
+пакете реквеста был такой флаг. и отстуствие пакета RA обозначающее что сервер рекурсию
+не поддерживает.
+
+если  я сделаю запрос на vasya.ru он вернет сервера отвечающие за зону .ru
+
+
+также я хочу обозначить что значит в заголовке ответа флаг АА.
+а он значит то что сервер к которому мы обратились является авторитативным для 
+того домена который мы указали. тоесть запись которую мы запросили она лежит в локальной 
+базе этого сервера. об этом сигнлизирует флаг АА
+вот я обращаюсь к корневому серверу и запрашиваю запись
+
+ имя=.
+ тип=NS
+
+
+~ dig   +qr +noad +nodo  +nocrypto   +multi +norecurse  -t NS   .     @192.36.148.17
+
+; <<>> DiG 9.18.12-0ubuntu0.22.04.3-Ubuntu <<>> +qr +noad +nodo +nocrypto +multi +norecurse -t NS . @192.36.148.17
+;; global options: +cmd
+;; Sending:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 306
+;; flags:; QUERY: 1, ANSWER: 0, AUTHORITY: 0, ADDITIONAL: 1
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 1232
+; COOKIE: 53f096b15ce9ddfa
+;; QUESTION SECTION:
+;.          IN NS
+
+;; QUERY SIZE: 40
+
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 306
+;; flags: qr aa; QUERY: 1, ANSWER: 13, AUTHORITY: 0, ADDITIONAL: 27
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 1232
+; COOKIE: 53f096b15ce9ddfa0100000067403e594f5b8ac083fcf3aa (good)
+;; QUESTION SECTION:
+;.          IN NS
+
+;; ANSWER SECTION:
+.           518400 IN NS e.root-servers.net.
+.           518400 IN NS l.root-servers.net.
+.           518400 IN NS k.root-servers.net.
+.           518400 IN NS b.root-servers.net.
+.           518400 IN NS i.root-servers.net.
+.           518400 IN NS h.root-servers.net.
+.           518400 IN NS c.root-servers.net.
+.           518400 IN NS d.root-servers.net.
+.           518400 IN NS f.root-servers.net.
+.           518400 IN NS a.root-servers.net.
+.           518400 IN NS j.root-servers.net.
+.           518400 IN NS g.root-servers.net.
+.           518400 IN NS m.root-servers.net.
+
+;; ADDITIONAL SECTION:
+m.root-servers.net. 518400 IN A 202.12.27.33
+l.root-servers.net. 518400 IN A 199.7.83.42
+k.root-servers.net. 518400 IN A 193.0.14.129
+j.root-servers.net. 518400 IN A 192.58.128.30
+i.root-servers.net. 518400 IN A 192.36.148.17
+h.root-servers.net. 518400 IN A 198.97.190.53
+g.root-servers.net. 518400 IN A 192.112.36.4
+f.root-servers.net. 518400 IN A 192.5.5.241
+e.root-servers.net. 518400 IN A 192.203.230.10
+d.root-servers.net. 518400 IN A 199.7.91.13
+c.root-servers.net. 518400 IN A 192.33.4.12
+b.root-servers.net. 518400 IN A 170.247.170.2
+a.root-servers.net. 518400 IN A 198.41.0.4
+m.root-servers.net. 518400 IN AAAA 2001:dc3::35
+l.root-servers.net. 518400 IN AAAA 2001:500:9f::42
+k.root-servers.net. 518400 IN AAAA 2001:7fd::1
+j.root-servers.net. 518400 IN AAAA 2001:503:c27::2:30
+i.root-servers.net. 518400 IN AAAA 2001:7fe::53
+h.root-servers.net. 518400 IN AAAA 2001:500:1::53
+g.root-servers.net. 518400 IN AAAA 2001:500:12::d0d
+f.root-servers.net. 518400 IN AAAA 2001:500:2f::f
+e.root-servers.net. 518400 IN AAAA 2001:500:a8::e
+d.root-servers.net. 518400 IN AAAA 2001:500:2d::d
+c.root-servers.net. 518400 IN AAAA 2001:500:2::c
+b.root-servers.net. 518400 IN AAAA 2801:1b8:10::b
+a.root-servers.net. 518400 IN AAAA 2001:503:ba3e::2:30
+
+;; Query time: 4 msec
+;; SERVER: 192.36.148.17#53(192.36.148.17) (UDP)
+;; WHEN: Fri Nov 22 08:18:34 UTC 2024
+;; MSG SIZE  rcvd: 851
+
+
+и вот мы видим в заголовке ответа
+
+;; flags: qr aa; QUERY: 1, ANSWER: 13, AUTHORITY: 0, ADDITIONAL: 27
+
+
+что интеерсно - если в строке диг вставялть совещенно левые несущестующие опции то 
+он их просто игнориует а не пишет ошибку!  приколно!
+
+а вот непонятно сегодня я пускаю неркурсивные запросы на 1.1.1.1 и 8.8.8.8
+и они мне возвращают пусто реузльтат хотя вчера возврашали ответ.
+
+~ dig   +qr +noad +nodo  +nocrypto   +multi +norecurse  -t A   -q vasya.com      @1.1.1.1  +noclass 
+
+; <<>> DiG 9.18.12-0ubuntu0.22.04.3-Ubuntu <<>> +qr +noad +nodo +nocrypto +multi +norecurse -t A -q vasya.com @1.1.1.1 +noclass
+;; global options: +cmd
+;; Sending:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 38672
+;; flags:; QUERY: 1, ANSWER: 0, AUTHORITY: 0, ADDITIONAL: 1
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 1232
+; COOKIE: bb65eedac88f5a5d
+;; QUESTION SECTION:
+;vasya.com.     IN A
+
+;; QUERY SIZE: 50
+
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: SERVFAIL, id: 38672
+;; flags: qr ra; QUERY: 1, ANSWER: 0, AUTHORITY: 0, ADDITIONAL: 1
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 1232
+;; QUESTION SECTION:
+;vasya.com.     IN A
+
+;; Query time: 8 msec
+;; SERVER: 1.1.1.1#53(1.1.1.1) (UDP)
+;; WHEN: Fri Nov 22 08:47:34 UTC 2024
+;; MSG SIZE  rcvd: 38
+
+
+~ dig   +qr +noad +nodo  +nocrypto   +multi +norecurse  -t A   -q vasya.com      @8.8.8.8   +noclass 
+
+; <<>> DiG 9.18.12-0ubuntu0.22.04.3-Ubuntu <<>> +qr +noad +nodo +nocrypto +multi +norecurse -t A -q vasya.com @8.8.8.8 +noclass
+;; global options: +cmd
+;; Sending:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 44417
+;; flags:; QUERY: 1, ANSWER: 0, AUTHORITY: 0, ADDITIONAL: 1
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 1232
+; COOKIE: 90efc174b12645cc
+;; QUESTION SECTION:
+;vasya.com.     IN A
+
+;; QUERY SIZE: 50
+
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: SERVFAIL, id: 44417
+;; flags: qr ra; QUERY: 1, ANSWER: 0, AUTHORITY: 0, ADDITIONAL: 1
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 512
+;; QUESTION SECTION:
+;vasya.com.     IN A
+
+;; Query time: 4 msec
+;; SERVER: 8.8.8.8#53(8.8.8.8) (UDP)
+;; WHEN: Fri Nov 22 08:48:41 UTC 2024
+;; MSG SIZE  rcvd: 38
+
+~ 
+
+
+видно в ответе что это нерекурсиный ответ и что ответ пустой по телу.
+получается если делаешь неркурсинвный запрос на обчный днс сервер то если у него нет
+ответа в локальной базе (неважно есть ли у него в кеще) то  вответ он вереннет ноль.
+а если ты точно акже обращается на рут днс сервер то он вычленяет из домена его домен 
+второго уроня скажем мы послали vasya.com он вычленяет .com и возврашает в ответе NS
+записи для домена .com
+
+   .com   NS ...
+   .com   NS ...
+
+в этом его разница с другими днс серверами  в ответе на нереркусинвйы зпапрос
+
+
+кстати про диг. он умеет делать dns over HTTPS (DOH) для этого юзаем ключ +https
+
+$ dig   +qr +noad +nodo  +nocrypto   +multi +norecurse  -t A   -q vasya.com      @1.1.1.1  +noclass +https
+
+
+так. несколько в сторону. про линукс встроенный днс клиент отот котоорый встроен в libc
+у него есть файл конфигурационный /etc/resolve.conf
+и у этого файла есть опция
+   
+     ndots: 3
+     search socketdaddy-namespace.svc.cluster.local svc.cluster.local 
+
+в чем смысл это опции. если в линукс днс клиент прилетает запрос с доменным именем в котоором
+РАВНО  3 точки ИЛИ БОЛЬШЕ то такое доменное имя  считается абсолютным тоесть полноценным
+и днс клиент пытается его зарезолвить. а вот если в доменном имени в запросе МЕНЬШЕ чем 3 точки
+тоесть ноль точек одна или две то такое доменное имя считается неполноценным и  линукс днс
+клиент тогда обязан дополнить это неполнценное доменное имя до полноценного домена 
+прилепляя к нему те домены которые указаны в "search" опции. по дефолту ndots равен 1
+
+   ndots: 1
+
+и поэтому если у нас в доменном имени есть хотя бы одна точка
+
+  vasya.com
+  vasya.super.com
+
+то такое одменное имя считается полноценным абсолютным и мы его сразу посылаем на внещнший
+днс сервер.
+
+а если доменное имя вот такое
+
+  vasya
+
+тоесть даже без одной точки то ттакое одменное имя днс клиент пытается дополгить до 
+полноценнеого через домены в опции search и уже такое дополненное он шлет на днс сервер.
+вот какой смысл опции ndots . обьяснение нашел тут
+        
+        https://socketdaddy.com/kubernetes/understanding-ndots-in-dns-configurations/
+
+совешенно понятно что если мы меняем ndots с дефолтоового значения на какоое дрругое
+то это имеет смысл только если  у нас указан "search" иначе это будет нерабочий бред
+часто эту хрень исполщуют внутри к8 подов. там часто приложения внутри конейтеоров 
+обращаются не в интернет а вдругой под и делают они это через доменые имена. и они это
+делают через которокие доменные имена и чтобы типа в приложении не прорписывать длинные 
+точные домнне имена то само приложение юзает короткое имя зато в resolv.conf пропсиывется
+куча доменов к8 в строке search и модицифировный ndots
+
+     ndots: 5
+     search socketdaddy-namespace.svc.cluster.local svc.cluster.local 
+
+
+ну окей онятно.
+так вот у нас dig он же не исользует resolv.conf если мы ему прописали адрес днс сервера.
+поэтому у него тоже есть опция ndots 
+
++ndots=D
+              This option sets the number of dots (D) that must appear in name for it to be considered absolute. The default value is that defined using  the
+              ndots  statement  in  /etc/resolv.conf, or 1 if no ndots statement is present. Names with fewer dots are interpreted as relative names, and are
+              searched for in the domains listed in the search or domain directive in /etc/resolv.conf if +search is set.
+
+ксатти по дефолту диг не использует строку search котоаря прописана в /etc/resolv.conf
+его можно заставить ее использовать чеоез опцию +search
+
+ксати утвелрждается что если мы берем доменое имя и наконце ставим точку
+
+   vasya.
+
+то якобы похеру что стоит в ndots такое доменное имя всга счиается как полное ваоидное
+аболютное доменное имя и оно предается на внешний днс сервер. приколно!
+
+кстати dig оказывается открывает и читает то что в файле resolv.conf
+
+఺  $ strace -e openat   dig -4 +noclass -t A -q vasya.com +keepopen 2>&1 | grep resol
+openat(AT_FDCWD, "/etc/resolv.conf", O_RDONLY) = 11
+
+
+значит опция +trace она авттоматтом отключем флаг RD и включает флаг DO
+
+
+
+я нашел опцию в диг которая отвечает за имя  днс записи это опция -q
+
+
+а вот еще полезная вещь. в пакете  с ответом есть статус ответа чтото типа код 
+возврата по аналогии спрограммами. 
+
+    $ dig -4 +noclass -t A -q vasya.coopper   +showsearch
+
+; <<>> DiG 9.20.1 <<>> -4 +noclass -t A -q vasya.coopper +showsearch
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NXDOMAIN, id: 50897
+;; flags: qr rd ra ad; QUERY: 1, ANSWER: 0, AUTHORITY: 1, ADDITIONAL: 1
+
+
+вот этот кусочек
+
+    status: NXDOMAIN
+
+этот статус в частности говорит о том что такого домена нет! прикольно!
+
+
+
+далее я сделал вот такой запрос
+
+~ dig   +qr -4 +noad +nodo  +nocrypto   +nomulti +recurse  -t A   -q vasya.com        +noclass  +trace  +showsearch
+..
+..
+...
+vasya.com.      172800  NS  ns2.namefind.com.
+vasya.com.      172800  NS  ns1.namefind.com.
+CK0POJMG874LJREF7EFN8430QVIT8BSM.com. 900 NSEC3 1 1 0 - CK0Q3UDG8CEKKAE7RUKPGCT1DVSSH8LL NS SOA RRSIG DNSKEY NSEC3PARAM
+CK0POJMG874LJREF7EFN8430QVIT8BSM.com. 900 RRSIG NSEC3 13 2 900 20241128002632 20241120231632 29942 com. [omitted]
+AF9M9P4D8KTMNC8MGTOT39TQGCBVACMF.com. 900 NSEC3 1 1 0 - AF9MDA3EISJ4BVVOLHFDM4PL7VDGNTP3 NS DS RRSIG
+AF9M9P4D8KTMNC8MGTOT39TQGCBVACMF.com. 900 RRSIG NSEC3 13 2 900 20241129015932 20241122004932 29942 com. [omitted]
+;; Received 472 bytes from 192.5.6.30#53(a.gtld-servers.net) in 4 ms
+
+
+и вот (так как актиивиован +do за счет +trace)  помимо привычных RRSIG вылезли интеерсные записи тип NSEC3
+
+
+вот я отдельно это же получаю уже звоня нарпмую на  @a.gtld-servers.net
+
+
+
+~ dig   +qr -4 +noad +do  +nocrypto   +nomulti +norecurse  -t A   -q vasya.com        +noclass    +showsearch  @a.gtld-servers.net
+
+; <<>> DiG 9.18.12-0ubuntu0.22.04.3-Ubuntu <<>> +qr -4 +noad +do +nocrypto +nomulti +norecurse -t A -q vasya.com +noclass +showsearch @a.gtld-servers.net
+;; global options: +cmd
+;; Sending:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 64251
+;; flags:; QUERY: 1, ANSWER: 0, AUTHORITY: 0, ADDITIONAL: 1
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags: do; udp: 1232
+; COOKIE: 2ea0d67b9a8876d6
+;; QUESTION SECTION:
+;vasya.com.     IN  A
+
+;; QUERY SIZE: 50
+
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 64251
+;; flags: qr; QUERY: 1, ANSWER: 0, AUTHORITY: 6, ADDITIONAL: 3
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags: do; udp: 4096
+;; QUESTION SECTION:
+;vasya.com.     IN  A
+
+;; AUTHORITY SECTION:
+vasya.com.      172800  NS  ns2.namefind.com.
+vasya.com.      172800  NS  ns1.namefind.com.
+CK0POJMG874LJREF7EFN8430QVIT8BSM.com. 900 NSEC3 1 1 0 - CK0Q3UDG8CEKKAE7RUKPGCT1DVSSH8LL NS SOA RRSIG DNSKEY NSEC3PARAM
+CK0POJMG874LJREF7EFN8430QVIT8BSM.com. 900 RRSIG NSEC3 13 2 900 20241128002632 20241120231632 29942 com. [omitted]
+AF9M9P4D8KTMNC8MGTOT39TQGCBVACMF.com. 900 NSEC3 1 1 0 - AF9MDA3EISJ4BVVOLHFDM4PL7VDGNTP3 NS DS RRSIG
+AF9M9P4D8KTMNC8MGTOT39TQGCBVACMF.com. 900 RRSIG NSEC3 13 2 900 20241129015932 20241122004932 29942 com. [omitted]
+
+;; ADDITIONAL SECTION:
+ns2.namefind.com.   172800  A   173.201.67.64
+ns1.namefind.com.   172800  A   97.74.99.64
+
+;; Query time: 8 msec
+;; SERVER: 192.5.6.30#53(a.gtld-servers.net) (UDP)
+;; WHEN: Fri Nov 22 09:43:01 UTC 2024
+;; MSG SIZE  rcvd: 472
+
+
+что за хрень NSEC3 это свзяано с DNSSEC но что это конкретно читай тут
+
+    https://www.cloudflare.com/dns/dnssec/dnssec-complexities-and-considerations/
+
+
+как заставить dig юзать не UDP потокол а TCP 
+
+    $ dig ... +tcp
+    ...
+    ...
+    ;; SERVER: 216.239.38.10#53(ns4.google.com) (TCP)
+
+как у нас делается связь по tcp. мы там в юзер программе вызываем
+   socket()
+   connect()
+коода юзер программа взывает у ядра connect() и положим мы выставили чтобы это была 
+блокирующая операция то процесс засыпает а ядро делает трех пакетный хендшейк с удаленным
+ядром. и тоько потом ядро будит процесс из connect() 
+и далее юзепроцесс может уже совать живые данные в сеть
+  write(N,...)
+и в этом процессе доолгим аспектом явялется трехпакетный хендшейк который 
+делает ядро при вызове со стороны процесса connect()
+
+как у нас делается udp связь
+это тот же самый
+   socket()
+   connect()
+но в этом случае когда юзер процесс вызывает connect() то этот вызов возвращается
+от ядра к юзер процессу мгновенно потому что при этом  никакого хендшейка между нашим
+ядроми удаленным нет. все что происходит при этом это тлько ядро выбирает некий локальный порт
+для буущих udp пакетов тоесть делается автоматичекий bind()
+и после этого уже уже точно можно совать данные в сеть
+    write(N,...)
+
+тоесть в обоих случаях посддовательность систмных вызовов от лица программы такая же 
+самая. только ядро делает разыне вещи выполняя эти ссиколллы. а именно когда тцп то
+при вызыве connect() ядро делает трехпакетный хендшейк с удаленным ядром что явялется
+очень долгим процессом. вот и вся разница
+
+приколно что dig также умееет делать DoT опция +tls
+единстенрое что не умеет dig это делать  DNSSEC! при этом нао понимать что опция +dnssec
+она же +do это сооеврешено не работа по днссек это всего навсего активация флага DO в запросе
+и все!
+
+
+основные rfc для озанкмления с dns форматом это RFC 1034  ,  RFC 1035
+
+
+далее
+опция -4 у dig 
+она вот зачем. мы можем укзаать днс сервер  @.... в виде не ip адреса а авиде днс имени.
+и диг будет резволить его через днс сервер происанный в /etc/resolv.conf и если получит
+и ipv4 и ipv6 то он выбыватерет ipv4
+тоже самое если мы юзаем флаг +trace там тоже диг будет получать много днс имен серверов
+и он их будет резволить в ip и там буудут и ipv6 и ipv4. и он будет выбирать ipv4
+
+
+насколко я понимаю если запрос нерекурсивный то днс сервер неможет выдать ответ из кэша
+а может только из локальной базы
+а есьи запрос рекурсиный то его запросто можно выдать из кэша
+
+
+>>> я обнаружил если запросить NS для нсуществующего домена
+
+~ dig   +qr -4 +noad +nodo  +nocrypto   +multi           +noclass    +showsearch   +stats   +recurse   -t NS    -q  a1.api.bbc.co.uk 
+
+то он выдает SOA для ближайшего верхненго домена
+
+;; ANSWER SECTION:
+a1.api.bbc.co.uk.   3600 CNAME ati-a1.946d001b783803c1.xhst.bbci.co.uk.
+ati-a1.946d001b783803c1.xhst.bbci.co.uk. 3600 CNAME a1-api-bbc-co-uk-cddc.at-o.net.
+
+;; AUTHORITY SECTION:
+at-o.net.       900 SOA ns-15.awsdns-01.com. awsdns-hostmaster.amazon.com. (
+                1          ; serial
+                7200       ; refresh (2 hours)
+                900        ; retry (15 minutes)
+                1209600    ; expire (2 weeks)
+                86400      ; minimum (1 day)
+                )
+
+
+тут вылез CNAME и еще в чем разница примари сервера и секогдари и как их искать?  ав NS какие указаны примари ли секноднаали?
+
+>>>>>                
+
+
+
+
+шо такое офорити секцшн. что такое адишнл секшн
 
 
 
