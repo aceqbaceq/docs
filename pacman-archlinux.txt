@@ -30,6 +30,8 @@
 # pacman -F  $(pwd)/bashkir.map.gz
 usr/share/kbd/keymaps/i386/qwerty/bashkir.map.gz is owned by core/kbd 2.6.4-1
 
+как видно чтобы это узнать пакман ищет эту инфо нелокально а в интернете
+
 гоча!
 (отсюда https://unix.stackexchange.com/questions/14858/in-arch-linux-how-can-i-find-out-which-package-to-install-that-will-contain-file)
 
