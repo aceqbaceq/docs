@@ -21,6 +21,7 @@ void set_signal_handler(void)
     action.sa_flags = SA_SIGINFO;     
     action.sa_sigaction = signal_handler;
     sigaction(SIGINT, &action, NULL);
+
 }
 
 

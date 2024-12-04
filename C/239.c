@@ -6,6 +6,8 @@
 #include <poll.h>
 #include <string.h>
 #include <errno.h>
+#include <stdio.h>
+
 
 #define TIMEOUT -1  // Timeout in milliseconds (5 seconds)
 
