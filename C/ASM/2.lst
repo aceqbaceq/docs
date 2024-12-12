@@ -1,0 +1,20 @@
+     1                                  section .data
+     2 00000000 68656C6C6F2C20776F-         msg db      "hello, world!"
+     2 00000009 726C6421           
+     3                                  
+     4                                  section .text
+     5                                      global main
+     6                                  main:
+     7 00000000 CC                          int3
+     8 00000001 CC                          int3
+     9 00000002 CC                          int3
+    10 00000003 CC                          int3
+    11 00000004 CC                          int3
+    12 00000005 CC                          int3
+    13 00000006 CC                          int3
+    14 00000007 CC                          int3
+    15 00000008 CC                          int3
+    16 00000009 CC                          int3
+    17 0000000A CC                          int3
+    18                                  
+    19                                  

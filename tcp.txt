@@ -32,6 +32,523 @@
 не принимать ти не отправлять данные это азывается завершить конект. и они друг другу
 тремя пакетами подтвреджают что все друг друга поняли. в udp этого нет. никто нкииго не предупларе=ждает что больше ничего слат не будет.
 
+далее.
+продолжаю описание этгого протокола.
 
+
+| tcp 
+| simple client server
+для начала я приведу пример программ на си одна из них сервер а вторая это клиент.
+на основе них щас будем все тестить для tcp
+это 267.c и 268.c
+
+что касается серерной части. показывают важные куски
+
+
+вот этот кусок он проверят что у нас при старте программы было два аргумента
+
+    // проверяю что программы была запущена с двумя аргументами
+    if(argc != 3)
+    {
+    printf("\n Usage: %s <ip of server>  <port> \n",argv[0]);
+    return 1;
+    }
+
+    // печатаю считанные аргументы
+    for (int i=0; i<argc; i++)
+    {
+    printf("argv[%d] = %s\n", i, argv[i]);
+    }
+
+
+
+
+далее я иницлизиурю нужные переменные и структы
+
+
+    int listenfd = 0, connfd = 0;
+    struct sockaddr_in serv_addr;
+
+    char sendBuff[1025];
+    time_t ticks;
+
+    memset(&serv_addr, '0', sizeof(serv_addr));
+    memset(sendBuff, '0', sizeof(sendBuff));
+
+
+создаю голый IPV4+TCP сокет 
+
+    listenfd = socket(AF_INET, SOCK_STREAM, 0);
+
+он будет работать с ipv4+TCP потоком. но пока что в нем нет конкретных параметров потока
+который будет протекать через этот сокет. параемтром потока является два ip и два порта.
+этого пока нет.  
+
+
+
+теперь я подготтваливаю структ serv_addr 
+который я буду использовать в bind() 
+а именно  я сую IP и PORT в этот структ
+потом я вызову bind() которому подсуну этот структ ser_addr и дескриптор сокета listenfd
+и этот bind он привяжет IP+port к сокету
+таким образом половина параметров потока у нас будет на сокете задана
+
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_port = htons( atoi(argv[2]) );  // сую порт в структ
+
+    // сую IP
+    if(inet_pton(AF_INET, argv[1], &serv_addr.sin_addr)<=0)
+    {
+    printf("\n inet_pton error occured\n");
+    return 1;
+    }
+
+
+чем еще примечателен этот кусок кода. я беру порт и ip из аргументов argv[1] и argv[2]
+с которыми процесс был запущен. но поскольку аргументы это CHAR  а  в структ эти штуки
+надо вставить в бинарном виде да еще в обратном порядке битов поэтому для порта 
+исполлзуется вот такой набор преобразований
+
+    serv_addr.sin_port = htons( atoi(argv[2]) );
+
+а чтобы всунуть в структ текстовый ip адрес то используется 
+
+	inet_pton(AF_INET, argv[1], &serv_addr.sin_addr)
+
+а вот у ИИ я подмотрел другой способ перевести текстоыый IP в бинарный сетевой
+который гораздо проще 
+    server_addr.sin_addr.s_addr = inet_addr( argv[1] );
+
+
+
+так ну хорошо port и ip мы всунули в структ
+теперь все готово можно запускать bind()
+он возьмет ip+port из структа и привяжет их к нашему сокету
+
+    bind(listenfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr));
+
+теперь половина параметров tcp потока определена для сокета. 
+
+теперь задаем вторую половину параметров тоесть вторую половину ip+port
+    listen(listenfd, 10);
+
+таким макаром мы обьяснили ядру что в этот сокет listenfd нужно будет пихать tcp поток
+у которого одна паhf IP+port будут как в argv[1]:argv[2]
+а вторая пара IP+port определяется  так что это любой IP+port из пакета который прилетел 
+из сети и у которого dest_IP=argv[1] и dest_port=argv[2]
+также listen() он превратил наш сокет в слушающий сокет. и что из этого слушающего сокета 
+можно будет наклонировать максимум 10 сокетов которые уже конкнтеные конекты будут через себя
+прокручивать.
+
+и последняя команда которая берет из слушающего сокета один конект и на основе него создает
+новый сокет через который уже коннкретный поток будет прогоняться 
+и возвращает процессу дескриптор connfd который позволяет нашему процессу получать 
+доступ к этому потоку через этот сокет
+    while(1)  {
+	   connfd = accept(listenfd, (struct sockaddr*)NULL, NULL);
+       ..
+       ..
+    }
+
+это была серверная часть.
+самая сложная часть была это правильно всунуть ip и port в структ
+
+
+теперь клиентская часть
+вначале опять же кусок который  проверяет что процесс был зааущен с двумя аргументами
+
+
+    if(argc != 3)
+    {
+    printf("\n Usage: %s <ip of server>  <port> \n",argv[0]);
+    return 1;
+    }
+
+    // печатаю считанные аргументы
+    for (int i=0; i<argc; i++)
+    {
+    printf("argv[%d] = %s\n", i, argv[i]);
+    }
+
+
+
+
+
+
+начальная иницилизация переменных и структов
+
+    int sockfd = 0, n = 0;
+    char recvBuff[1024];
+    struct sockaddr_in serv_addr;
+    memset(recvBuff, '0',sizeof(recvBuff));
+    memset(&serv_addr, '0', sizeof(serv_addr));
+
+создаем пока что пустой tcp ipv4 сокет без параметров
+    if((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+    {
+	printf("\n Error : Could not create socket \n");
+	return 1;
+    }
+
+
+сую IP+port в структ
+этот структ будет ниже использован чтобы привязать IP+port к сокету
+чтобы обьяснить ядру какой поток нужно через сокет пропускать 
+и паралельно чтобы инициировать запуск первого пакета в сеть 
+
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_port = htons( atoi(argv[2]) );  // сую порт в структ
+
+    // сую ip в структ
+    if(inet_pton(AF_INET, argv[1], &serv_addr.sin_addr)<=0)
+    {
+	printf("\n inet_pton error occured\n");
+	return 1;
+    }
+
+
+далее используя наш структ подготовленный и дескриптор сокета
+мы инциируем конект
+  connect(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
+
+
+на этом настройка клиента закончена
+
+повторяю что текст  клиента и сервера  267.c    и 268.c
+
+
+
+
+
+
+
+
+
+
+
+| tcp 
+| 273.exe
+| getsockopt(sockfd, SOL_SOCKET, SO_RCVBUF,
+| getsockopt
+| SOL_SOCKET
+| SO_RCVBUF
+
+
+273.c
+
+
+значит наша задача посмореть параметры внутри сокета.
+делает это через getsockopt
+
+
+
+ getsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, &rcvbuf_size, &len1)
+
+
+SOL_SOCKET  = эта штука показывает фукцнии что мы хотим посмотреть внутири сокета
+параметры касающиеся именно самого сокета. видимо там есть параметры  напрмиер касающиеся
+tcp протокола. 
+
+SO_RCVBUF = название параметра занчение которого мы хотим посмтреть
+
+&rcvbuf_size = это поинтер пременной куда функция запишет занчение SO_RCVBUF которое мы смотим
+
+&len1 = это поинтер переенной которая покзывает размер rcvbuf_size
+
+
+
+
+
+ ἗  $ cat 273.c
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <errno.h>
+
+int main() {
+    int sockfd;
+    struct sockaddr_in server_addr;
+
+    // Создаем сокет
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd == -1) {
+        perror("Socket creation failed");
+        return 1;
+    }
+
+
+
+
+int rcvbuf_size = 0;
+socklen_t len1 = sizeof(rcvbuf_size);
+if (getsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, &rcvbuf_size, &len1) == -1) {
+    perror("getsockopt failed");
+} else {
+    printf("Socket RECEIVE BUFFER SIZE: %i\n", rcvbuf_size);
+}
+
+
+
+
+int sock_error = 0;
+socklen_t len = sizeof(sock_error);
+if (getsockopt(sockfd, SOL_SOCKET, SO_ERROR, &sock_error, &len) == -1) {
+    perror("getsockopt failed");
+} else {
+    printf("Socket error: %s\n", strerror(sock_error));
+}
+
+
+    sleep(120);
+    close(sockfd);
+    return 0;
+}
+
+
+вывод на экран
+
+  $ ./273.exe
+Socket RECEIVE BUFFER SIZE: 131072
+Socket error: Success
+
+
+
+поэтому эта функция
+
+   getsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, &rcvbuf_size, &len1)
+
+
+она нам вытаскивает занчение SO_RCVBUF из нашего  сокета и пишет его в  rcvbuf_size
+
+
+а вот такой зпапрос
+
+
+	getsockopt(sockfd, SOL_SOCKET, SO_ERROR, &sock_error, &len)
+
+нам показывает как псмотреть значение   SO_ERROR  тоесть проверить что в соктее не возникла
+ошибка на уровне сокета. правда взникает вопрос а какие бывают ошибки на уровне сокета?
+
+справка
+  man getsockopt
+  man 7 socket
+
+
+
+
+
+
+| 272.c 272.exe
+| SYN
+| RST
+
+272.c
+
+значит syn пакет он содержит tcp порт. когда удаленное ядро получает от нас syn пакет
+то оно проверяет есть ли процесс который этот порт слушает. если его нет то удаленное
+ядро обратно по сети шлет пакет с RST флагом. 
+что делает наше ядро - оно возвращается в юзер спейс и возвращает функции которая была
+запущнеа ошибку -1 а в глбану прерменную errno ядро записывет детали этой ошибикю
+при этом внутри сокета на уровне сокета никакой ошибки нет. 
+показываю
+
+
+ Z ǹ  $ 
+ L 觱  $ cat 272.c
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <errno.h>
+
+int main() {
+    int sockfd;
+    struct sockaddr_in server_addr;
+
+    // Создаем сокет
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd == -1) {
+        perror("Socket creation failed");
+        return 1;
+    }
+
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(45);  // Порт, на котором нет сервиса
+    server_addr.sin_addr.s_addr = inet_addr("172.16.10.11");
+
+    // Пытаемся подключиться
+    int result = connect(sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr));
+    if (result == -1) {
+        // Ошибка подключения, проверяем errno
+        perror("Connect failed");
+
+
+int sock_error = 0;
+socklen_t len = sizeof(sock_error);
+if (getsockopt(sockfd, SOL_SOCKET, SO_ERROR, &sock_error, &len) == -1) {
+    perror("getsockopt failed");
+} else {
+    printf("Socket error: %s\n", strerror(sock_error));
+}
+
+
+
+        // Печатаем ошибку из errno
+        switch (errno) {
+            case ECONNREFUSED:
+                printf("Connection refused (ECONNREFUSED)\n");
+                break;
+            case ETIMEDOUT:
+                printf("Connection timed out (ETIMEDOUT)\n");
+                break;
+            case EHOSTUNREACH:
+                printf("Host unreachable (EHOSTUNREACH)\n");
+                break;
+            default:
+                printf("Other error: %s\n", strerror(errno));
+        }
+    } else {
+        printf("Connected successfully\n");
+    }
+
+    sleep(120);
+    close(sockfd);
+    return 0;
+}
+
+
+
+
+вывод на эакркан
+
+$ ./272.exe
+Connect failed: Connection refused
+Socket error: Success
+Connection refused (ECONNREFUSED)
+
+
+откуда берется первая строчка
+	Connect failed: Connection refused
+
+
+
+вот отсюда
+
+    int result = connect(sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr));
+    if (result == -1) {
+        // Ошибка подключения, проверяем errno
+        perror("Connect failed");
+
+
+
+мы пытаемся конект() . ядро шлет SYN с портом 45
+удаленное я дро проверяет что такого процесса нет который бы слушал порт 45 и обратно в
+наше ядро шлет RST пакет. наше ядро прекращает оюработку connect() и возвращает ему  -1
+тоесть ошибка. мы это ловим  и запускаем perror(). а как она работает? 
+
+	perror("Connect failed");
+
+она вначале печатает стринг который мы ей дали.  а после него она залазиит в глобальну
+переменную errno в которую ядро записали уже более подробно детали ошибки. тоесть -1 это
+значит просто ошибка непонятно какая в errno ядро записали детали ошибки и perror читает
+errno и транслизуует это число уже в стринг.  поэтому мы видим на экране надпись
+
+
+	Connect failed: Connection refused
+
+
+вторая строка в ввыоде
+
+	Socket error: Success
+
+
+это у нас вот этот кусок
+
+int sock_error = 0;
+socklen_t len = sizeof(sock_error);
+if (getsockopt(sockfd, SOL_SOCKET, SO_ERROR, &sock_error, &len) == -1) {
+    perror("getsockopt failed");
+} else {
+    printf("Socket error: %s\n", strerror(sock_error));
+}
+
+
+значит мы считываем из сокета значение параметра SO_ERROR и суем его в переенную sock_error
+это будет число которое нам ничего недает. значит сам вызов getsocketop() проходит успешно 
+поэтому функция 
+  perror("getsockopt failed");
+не запускется.
+зато далее запускается вот это 
+	    printf("Socket error: %s\n", strerror(sock_error));
+
+функция  strerror(sock_error) она аналогична perror() только perror она жестко читает даныные
+только из errno а strerror ей можно указать из какой перменной читать номер ошибки для 
+трансляции его уже в  стринг в слова. соотсвтенно мы видим на экране
+
+		Socket error: Success
+
+тоесть это значт что внутри сокета SO_ERROR= success тоесть внутири сокета кога к нам приелетел
+RST пакет никакой ошибки не возникает. 
+
+
+а дальше у нас срабывает вот этот кусок
+
+
+        // Печатаем ошибку из errno
+        switch (errno) {
+            case ECONNREFUSED:
+                printf("Connection refused (ECONNREFUSED)\n");
+                break;
+            case ETIMEDOUT:
+                printf("Connection timed out (ETIMEDOUT)\n");
+                break;
+            case EHOSTUNREACH:
+                printf("Host unreachable (EHOSTUNREACH)\n");
+                break;
+            default:
+                printf("Other error: %s\n", strerror(errno));
+        }
+
+
+в нем мы вручную лезем в errno читаем оттуда занчение в форме числа потому что 
+ECONNREFUSED , ETIMEDOUT, EHOSTUNREACH это все на самомо деле числа которые уазаны в форме
+макросов которые на стадии комплияции будут заменены  в коде на числа. в обем мы ранее
+использвали perorr чтобы считаь то что лежит в errno и он нам тарснлировал зачннеиеи в 
+некий стринг. а теперь мы сами читаем из errno и сами транслируем число в стринг.
+поэтму тоже само значние errno=ECONNREFUSED ранее само ядро транслировал в фразу 
+		
+		Connection refused
+
+а мы сами рукми ее трансливрлва ли в фразу 
+
+		ECONNREFUSED
+
+итак таким макаром я показал где икать детали ошибок при возврате функций связанных с сетью.
+бытрый ответ -  ищи в errno.  самое простое запусти 
+
+		perror();
+
+и будет щастть.е
+
+также было выяснено что  если на ядро приелает syn пакет с портом для ктрого нет процесса 
+котоырй бы слушал этот порт то ядро обратно шлет RST пакет. наше ядро принимает этот пакет
+и фиксирует в разных местах ошибки. 
+
+а теперь сетевой дамп этого
+
+	$ sudo tcpdump -i br0 -n 'tcp[tcpflags] & (tcp-syn|tcp-rst) != 0' 
+
+15:45:43.347837 IP 172.16.10.1.57536 > 172.16.10.11.45: Flags [S], seq 3920557974, win 64240, options [mss 1460,sackOK,TS val 53248523 ecr 0,nop,wscale 7], length 0
+15:45:43.348206 IP 172.16.10.11.45 > 172.16.10.1.57536: Flags [R.], seq 0, ack 3920557975, win 0, length 0
+
+
+тоесть
+-----> [S]
+<----- [R.]
 
 

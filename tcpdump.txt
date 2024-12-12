@@ -19,3 +19,11 @@
 	# tcpdump -n -i wlp2s0  host 1.2.3.4
 
 
+| tcpdump
+| syn
+| rst
+
+как отловить  SYN либо RST флаг
+
+   $ sudo tcpdump -i br0 -n               "tcp[tcpflags] & (tcp-syn|tcp-rst) != 0"
+
