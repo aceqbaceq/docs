@@ -1,0 +1,64 @@
+chess
+
+:1
+p e2-e4		p e7-e5
+d d1-e2		k b8-c6
+d e2-e3 	k g8-f6
+p c2-c3 	p b7-b6
+p f2-f3 	p d7-d5
+p h2-h3 	p h7-h5
+l f1-b5 	d d8-d6
+k g1-e2 	p a7-a6
+l b5-a4 	p d5-d4
+p c3-d4+	k f6-d7
+p d4-d5		k c6-d8
+d e3-g5		l f8-e7
+d g5-e3		p b6-b5
+l a4-b3		d d6-f6
+d e3-c3		p c7-c5
+d c3-e3		k d8-b7
+p a2-a3		k b7-a5
+l b3-c2		k a5-c4
+d e3-c3		d f6-g5
+b h1-g1		k d7-b6
+p a3-a4		K e8-g8 b h8-f8 (рокировка)
+p a4-b5+	b f8-d8
+l c2-b3		k b6-d5+
+l b3-c4+	k d5-b4
+l c4-d5		b a8-a7
+p b5-b6		k b4-d5+
+p e4-d5+	b a7-b7
+d c3-d3		l c8-f5
+d d3-a6+	b b7-b8
+d a6-a7		l f5-b1+
+b a1-b1+	p c5-c4
+d a7-c7		l e7-c5
+d c7-c5+l 	p f7-f6
+d c5-c4+p	b b8-b6+p
+p d5-d6* 	K g8-f8
+d c4-c5		b b6-b3
+p d6-d7*	K f8-f7
+d c5-d5*	K f7-f8
+d d6-b3+b 	d g5-g6
+d b3-b4* 	K f8-f7
+d b4-c4* 	K f7-e7
+d c4-c5* 	K e7-e6
+d c5-c6* 	K e6-e7
+b b1-a1 	K e7-f7
+b a1-a8 	b d8-a8+b
+d c6-a8+b 	d g6-g3*
+k e2-g3+d 	p g7-g6
+p d7-d8!d   p f60f5
+d d8-f8* 	K f7-e6
+d a8-e8* 	K e6-d5
+p b2-b3 	p e5-e4
+l e1-e2 	p g6-g5
+d e8-d7**
+
++ = убил
+* = шах
+k = конь 
+K = король
+! = пешка дошла до конца и стала дамой
+** = мат
+

@@ -1,0 +1,58 @@
+| objdump
+| radare2
+| asm
+
+я столкнулся  стем что objdump кога делает дизассембл то он покзывает 
+хуйню например 
+
+
+ $ objdump -d -j .plt  ./hello.exe  -M intel
+
+./hello.exe:     file format elf32-i386
+
+
+Disassembly of section .plt:
+
+08049020 <__libc_start_main@plt-0x10>:
+ 8049020:	ff 35 f8 bf 04 08    	push   DWORD PTR ds:0x804bff8
+ 8049026:	ff 25 fc bf 04 08    	jmp    DWORD PTR ds:0x804bffc
+
+
+рассмотрим эти команды
+	push   DWORD PTR ds:0x804bff8
+	jmp    DWORD PTR ds:0x804bffc
+
+
+так вот прикол в том что никкого ds сука в этих опкодах нет! это неверная интпрертациия
+у objdump
+на саоммом деле команды выглядядят вот так (делаю через radare2)
+
+
+> pd12 @ section..plt
+            ;-- section..plt:
+            ; CODE XREF from sym.imp.__libc_start_main @ +0xb(x)
+            ; CODE XREF from sym.imp.puts @ +0xb(x)
+       ┌┌─> 0x08049020      ff35f8bf0408   push dword [0x804bff8]      ; [13] -r-x section size 48 named .plt
+       ╎╎   0x08049026      ff25fcbf0408   jmp dword [0x804bffc]
+       ╎╎   0x0804902c      0000           add byte [eax], al
+       ╎╎   0x0804902e      0000           add byte [eax], al
+
+
+тоесть
+
+	push dword [0x804bff8]	
+	jmp dword [0x804bffc]
+
+поэтому то что ппозывает objdump это хуйня полнаня.
+из того что я на
+
+тоесть то что он покаызает как	
+		jmp    DWORD PTR ds:0x804bffc
+на сомом длееле
+		jmp dword [0x804bffc]
+
+об этом нашел тут
+
+	https://stackoverflow.com/questions/33226350/ds-segment-register-in-32-bit-architecture
+
+так что ds нахуй игнорируем вэтой команде
