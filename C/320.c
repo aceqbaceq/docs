@@ -1,57 +1,113 @@
-#include <stdio.h>
-#include <string.h>
-#include <arpa/inet.h>
+#define _POSIX_C_SOURCE  200809L
 #include <sys/socket.h>
+#include <stdio.h>
+
 
 int main() {
 
-    /// мы сейчас будем совать 127.0.0.1 и 8080 в sockaddr используя его формат 
-
-    struct sockaddr addr;
-
-    // 1. Установим семейство адресов в AF_INET (IPv4)
-    addr.sa_family = AF_INET;
-
-    // 2. Преобразуем IP в бинарный формат
-    const char *ip = "127.0.0.1"; 
-    unsigned short port = 8080;
-
-    // 3. Записываем порт в первые 2 байта sa_data (формат big-endian)
-    addr.sa_data[0] = (port >> 8) & 0xFF;  // Старший байт порта
-    addr.sa_data[1] = port & 0xFF;         // Младший байт порта
-
-    // 4. Записываем IP в следующие 4 байта sa_data
-    struct in_addr in_addr;
-    inet_pton(AF_INET, ip, &in_addr);  // Преобразуем строку IP в бинарный формат
-    memcpy(&addr.sa_data[2], &in_addr.s_addr, 4);  // Копируем 4 байта IP
-
-    // Печать результатов для проверки
-    printf("sa_family: %d\n", addr.sa_family);
-    printf("sa_data (port): %02x %02x\n", addr.sa_data[0], addr.sa_data[1]);
-    printf("sa_data (IP): %02x %02x %02x %02x\n",
-           (unsigned char)addr.sa_data[2], (unsigned char)addr.sa_data[3],
-           (unsigned char)addr.sa_data[4], (unsigned char)addr.sa_data[5]);
+    //
+    struct sockaddr s1;
+    dprintf (1, "sockaddr SIZE = %hi \n", sizeof(s1) );
+    dprintf (1, "sockaddr  sa_family SIZE = %hi \n", sizeof(s1.sa_family) );
+    dprintf (1, "sockaddr  sa_data[] SIZE = %hi \n",  sizeof(s1.sa_data) );
 
 
 
-    /// а теперь мы возьмем поинтер  который указвает на sockaddr и убедимся что полученные байты
-    /// полностью соотсветуют формату sockaddr_in  на бинарном уровне и мы считаем из памяти данные
-    /// как бутто это не sockaddr а sockadrr_in и убедимся что получим обратно 127.0.0.1 и 8080
-    struct sockaddr_in *sa1 = (struct sockaddr_in *)&addr;
-    printf ("\n"
-            "Socket Protocol familty = %hi, "
-            "port = %hi, "
-            "IPv4 = %s "
-            "\n\n", 
-            (unsigned short int)sa1->sin_family, ntohs(sa1->sin_port), inet_ntoa(sa1->sin_addr)    );
+    //
+    sa_family_t  a1;
+    dprintf (1, "sa_family_t SIZE = %hi \n", sizeof(a1) );
+
+    //
+    char vasya[10];
+    dprintf (1, "char vasya[10] SIZE = %hi \n", sizeof(vasya) );
+
+    //
+    unsigned char kuku[10]={ [0 ... 9] = 0xAA };
+    printf("\n");
+    for (unsigned short int i=0; i<sizeof(kuku); i++) {
+	dprintf (1, "kuku[%hhi] = %hhX\n", i, kuku[i] );
+    }
+    
+    //
+    char petya[10] = "123456789";
+    dprintf (1, "char petya[10] = %s \n", petya );
+
+    //
+    char kolya[10] = {'1', '2', '3', '4', '5', '6', '7', '8', '9', 0x00};
+    dprintf (1, "char kolya[10] = %s \n", kolya );
+    
+    //
+    kolya[0] = 'a';
+    kolya[1] = 'A';
+    kolya[2] = 'b';
+    kolya[3] = 'B';
+    kolya[4] = 'c';
+    kolya[5] = 'C';
+    kolya[6] = 'd';
+    kolya[7] = 'D';
+    kolya[8] = 'e';
+    kolya[9] = 0x00;
+    dprintf (1, "char kolya[10] = %s \n", kolya );
+
+
+    //
+    dprintf (1, "\n");
+    for (unsigned short int i=0; i<sizeof(kolya); i++) {
+	dprintf (1, "kolya[%hi] = %x\n", i, kolya[i] );
+    }
 
 
 
+   //
+   unsigned int b2[10]={1, 2, 3, 4, 5, 6, 7, 8, 9};
+   dprintf (1, "\n"
+	"b2[10] SIZE = %hhi \n"
+	"адрес первого элемента в памяти = %p \n"
+        "b2[0] = %hhX \n"
+                , sizeof(b2), b2, b2[0] );
+    dprintf (1,"b2[0] SIZE = %hi\n", sizeof(b2[0]) );
 
+
+    //
+    struct sockaddr s2;
+    s2.sa_family   = 0xAAFF;
+    s2.sa_data[0]  = 0x01;
+    s2.sa_data[1]  = 0x02;
+    s2.sa_data[2]  = 0x03;
+    s2.sa_data[3]  = 0x04;
+    s2.sa_data[4]  = 0x05;
+    s2.sa_data[5]  = 0x06;
+    s2.sa_data[6]  = 0x07;
+    s2.sa_data[7]  = 0x08;
+    s2.sa_data[8]  = 0x09;
+    s2.sa_data[9]  = 0xAA;
+    s2.sa_data[10] = 0xBB;
+    s2.sa_data[11] = 0xCC;
+    s2.sa_data[12] = 0xDD;
+    s2.sa_data[13] = 0xEE;
+    
     
 
+    dprintf (1, "s2.sa_family = %hX \n", s2.sa_family );
+    for (unsigned short int i=0; i<sizeof(s2.sa_data); i++) {
+	dprintf (1, "s2.sa_data[%hi] = %hhX\n", i, s2.sa_data[i] );
+    }
 
-    return 0;
+
+    char ch1[10];
+    printf("%i\n", sizeof(ch1) );
+    
+    
+    
+   int a = 0xAABBCCDD;
+   int *p1 = &a;
+   char *p2 = (char *)p1;
+   printf("%hhX \n", *p2);
+
+
 }
+
+
+
 
 
