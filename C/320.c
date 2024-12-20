@@ -94,17 +94,65 @@ int main() {
     }
 
 
+   //
     char ch1[10];
     printf("%i\n", sizeof(ch1) );
     
     
-    
+   //    
    int a = 0xAABBCCDD;
    int *p1 = &a;
    char *p2 = (char *)p1;
    printf("%hhX \n", *p2);
 
+   //
+   char s3[]  = "1234";
+   char *p  = s3;
+   dprintf (1, "*p = %s \n", p );
 
+
+   //
+   long int vas1;
+   long long int vas2;
+   printf ("long int SIZE = %i, long long int SIZE = %i \n", sizeof(vas1), sizeof(vas2) );
+   int i4[2]={ 0x11111111, 0x22222222 };
+   int *p5 = i4;
+   int i5 = *p5;
+   printf ("*i5= %X \n", i5 );
+   long int i6 = *p5;
+   printf ("*i6= %lX \n", i6 );
+   long int *p6 = (long int *)i4;
+   long int i7 = *p6;
+   printf ("*i7= %lX \n", i7 );
+
+
+   //
+   unsigned  int  i2 = 0x004E4E4E;
+   char *p3 = (char *)&i2;
+   dprintf (1, "*p3 = %s \n", p3 );
+
+   //
+   unsigned  int  i3 = 0x4D4E4E4E;
+   char *p4 = (char *)&i3;
+   printf ("%c \n" , p4);
+
+   //
+   char neptun[2] = { 0x10, 0x12 };
+   char *p_p1 = neptun;
+   char *p_p2 = &neptun[0];
+   char *p_p3 = &neptun[1];
+   printf ("p_p1 = %p, p_p2 = %p, p_p3 = %p\n", p_p1, p_p2, p_p3);
+   printf ("*p_p1 = %hX, *p_p2 = %hX *p_p3 = %hX \n", *p_p1, *p_p2, *p_p3);
+   
+   //
+   int ii_1[3] = { 0xAABBCCDD, 0xEEEEEEE, 0XFFFFFFFF};
+   int *p_ii = &ii_1[1];
+   *p_ii = 0xBBBBAAAA;
+   printf ("ii_1[1] = %X \n", ii_1[1] );
+   printf ("ii_1[0] = %X, ii_1[1] = %X, ii_1[2] = %X,\n", ii_1[0], ii_1[1], ii_1[2] );
+   
+   
+   
 }
 
 
