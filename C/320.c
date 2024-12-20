@@ -151,8 +151,12 @@ int main() {
    printf ("ii_1[1] = %X \n", ii_1[1] );
    printf ("ii_1[0] = %X, ii_1[1] = %X, ii_1[2] = %X,\n", ii_1[0], ii_1[1], ii_1[2] );
    
-   
-   
+   //
+   int a43 = 0x1111110A;
+   char *p43 = (char *)&a43;
+   printf ("*p32 = %hhX \n", *p43 );
+
+
 }
 
 
