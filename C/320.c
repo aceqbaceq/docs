@@ -156,6 +156,13 @@ int main() {
    char *p43 = (char *)&a43;
    printf ("*p32 = %hhX \n", *p43 );
 
+  //
+  printf("--------\n");
+  char vasya44[] = "123456789";
+  char *p44 = vasya44;
+  printf("%c \n\n", *p44);
+  printf("%s \n", p44);
+  printf("%c \n", *(p44+1) );
 
 }
 
