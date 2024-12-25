@@ -1,6 +1,7 @@
 #define _POSIX_C_SOURCE  200809L
 #include <sys/socket.h>
 #include <stdio.h>
+#include <string.h>
 
 
 int main() {
@@ -163,7 +164,90 @@ int main() {
   printf("%c \n\n", *p44);
   printf("%s \n", p44);
   printf("%c \n", *(p44+1) );
+  int i12 = *(p44+3);
+  
+  
+  // 
+  char vasya3[10];
+  // vasya3[] = "123" ; // так не прокатит
+  vasya3[0] = 'a';
+  vasya3[1] = 'b';
+  vasya3[2] = 'c';
+  char *p48 = vasya3;
+  //*p48 = "123";   // так не прокатит 
+  
 
+
+  //
+  char *t1 = "12345";
+  printf ("*t1 = %s \n", t1);
+
+  //
+  char vasya6[10];
+  strcpy(vasya6, "abcdefgh");
+
+
+
+  // задаем новый структ
+  struct Person {
+  char name[50];
+  int citiNo;
+  unsigned char badge;
+  };
+
+
+  struct Person person1;   // создаю person1 под этим структом
+    person1.citiNo = 0x1234;  // инициализирую поля структа
+    person1.badge = 'A';
+    strcpy(person1.name, "Gogy");
+  printf("person1.name = %s \n");
+  char *p57 = person1.name;
+  char *p58 = &person1.name[2];
+  printf("*p57 = %c, *p58 = %c \n", *p57, *p58 );
+  
+
+ // 
+      int vasya50[10];
+      int *p49 = vasya50;
+      int (*p50)[10] = &vasya50;
+      //int (**p51) = &vasya50;
+      printf("p49 = %p, p50 = %p \n", p49, p50  );
+
+
+ //
+    int arr[5] = {10, 20, 30, 40, 50};  // массив из 5 элементов
+//    int (*p62)[5] = &arr;  // p1 - указатель на массив из 5 элементов
+//    int (*p63)[5] = &p62;
+   
+
+
+
+    //
+    int vasya_1[50];  // Массив из 50 элементов типа int
+    int* p1_1 = &(vasya_1[1]);
+    int (*p1_2)[50] = &vasya_1;
+
+
+
+ // 
+  int a12 = 0x10;
+  int *p_12 = (int *)a12;
+  printf ("&a12 = %p, p_12 = %p \n", &a12, p_12);
+ 
+ 
+ //
+ //char *p51[] = {"vasya", "petya", "klava"};
+ //char *p52 = &p51;
+
+ // 
+ char *p53[10];
+
+ //
+ char vasya12[10];
+ strcpy(vasya12, "123456789");
+ 
+ 
+ 
 }
 
 

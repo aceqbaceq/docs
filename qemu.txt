@@ -96,3 +96,8 @@ qemu-system-x86_64  -S  -name cont3 -uuid 702d8a50-3777-4184-b584-6be05fa3754f -
 
  $ qemu-system-x86_64 -name manj3   -m 678M  -boot d    -drive file=hda.img,media=disk,if=virtio,format=qcow2,file.locking=off  -cpu host -enable-kvm    -smp 2 -M pc-q35-2.11     -device virtio-balloon            -device qxl-vga,id=video0,vgamem_mb=16,xres=1800,yres=950    -display gtk  -netdev tap,id=mynet0,ifname=tap1,script=no,downscript=no  -device virtio-net-pci,netdev=mynet0,mac=ba:ec:24:5c:80:3a  -netdev tap,id=mynet1,ifname=tap3,script=no,downscript=no   -device virtio-net-pci,netdev=mynet1,mac=ba:ec:24:5c:80:2a
 
+===
+финальная точка
+
+qemu-system-x86_64 -name manj3   -m 678M  -boot d    -drive file=hda.img,media=disk,if=virtio,format=qcow2,file.locking=off  -cpu host -enable-kvm    -smp 2   -M q35     -device virtio-balloon            -device qxl-vga,id=video0,vgamem_mb=16,xres=1800,yres=950    -display none  -netdev tap,id=mynet0,ifname=tap1,script=no,downscript=no  -device virtio-net-pci,netdev=mynet0,mac=ba:ec:24:5c:80:3a 
+
