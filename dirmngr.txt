@@ -26,3 +26,85 @@ Dirmngr is a server for managing and downloading certificate revocation lists (C
 
 		--http-proxy host[:port]
 
+
+
+как это сделать на практике:
+нужно создать вот эту папку
+
+   # mkdir  "/etc/systemd/system/dirmngr@etc-pacman.d-gnupg.service.d"
+
+название папки супер важная хуйня.  в ней вот эта часть "dirmngr@etc-pacman.d-gnupg" это точное
+имя сервиса. а вот эта хуйня это обязательная доп хрень ".service.d" которая явлется признаком
+что это у нас будеьь drop-in
+
+далее в это папке нужно создать файл. его имя нихуя неважно.
+вот такой контент должен быть в файле
+
+
+
+# cat dirmngr.conf 
+[Unit]
+Description=GnuPG network certificate management daemon for %f
+Documentation=man:dirmngr(8)
+Requires=dirmngr@%i.socket
+
+[Service]
+ExecStart=
+ExecStart=/usr/bin/dirmngr --http-proxy  172.16.10.11:2080   --homedir %f --supervised
+
+
+здесь я хочу обратить внимание на вот эту строку
+
+	ExecStart=
+
+она сообщает systemd чтобы он положил хуй на такую же строчку в основном конфинурационном
+файле (который лежит вот тут /usr/lib/systemd/system/dirmngr@.service)
+если эту пустую строчку не вставить в наш drop-in то при перезагрзке сервиса он нас пошлет
+нахуй и напишет в статусе что у нас наш дроп-ин содержит ошибку. потому что у нас будет
+получаться что у нас два раза execstart есть. 
+
+теперь перегражаем системд
+
+	# systemctl daemon-reload
+
+теперь перегружаем сам сервис
+
+	# systemctl restart dirmngr@etc-pacman.d-gnupg.service
+
+
+теперь проверяем  статус
+
+# systemctl status  dirmngr@etc-pacman.d-gnupg.service
+● dirmngr@etc-pacman.d-gnupg.service - GnuPG network certificate management daemon for /etc/pacman.d/gnupg
+     Loaded: loaded (/usr/lib/systemd/system/dirmngr@.service; static)
+    Drop-In: /etc/systemd/system/dirmngr@etc-pacman.d-gnupg.service.d
+             └─dirmngr.conf
+     Active: active (running) since Thu 2024-12-26 06:42:15 MSK; 7min ago
+ Invocation: c4b1fc6180624886ba39a7d81030cb88
+TriggeredBy: ● dirmngr@etc-pacman.d-gnupg.socket
+       Docs: man:dirmngr(8)
+             man:dirmngr(8)
+   Main PID: 133424 (dirmngr)
+      Tasks: 1 (limit: 18808)
+     Memory: 11M (peak: 13M)
+        CPU: 61ms
+     CGroup: /system.slice/system-dirmngr.slice/dirmngr@etc-pacman.d-gnupg.service
+             └─133424 /usr/bin/dirmngr --http-proxy 172.16.10.11:2080 --homedir /etc/pacman.d/gnupg --supervised
+
+
+если все окей то будет вот это
+  
+  Active: active (running)
+
+а вот тут указан путь к дроп-ин
+
+    Drop-In: /etc/systemd/system/dirmngr@etc-pacman.d-gnupg.service.d
+             └─dirmngr.conf
+
+
+спрашивается а нахуй нужен этот дроп-ин ? потому что я обновил систему и мой основной
+конфиг файл и потер мою кастомную настройку потому то  я исоздал дропин. чтобы 
+больше незаниматья этой хунйней.
+
+
+
