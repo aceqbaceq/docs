@@ -36,6 +36,10 @@ int main() {
  free (qq);
 
 
+  printf ("%i \n", sizeof(sa_family_t) );
+  
+  printf ("%i \n", sizeof(struct sockaddr) );
+
 
 };
 
