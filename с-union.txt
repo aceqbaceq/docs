@@ -1,0 +1,143 @@
+| union
+
+
+есть такая хрень как union
+
+
+  union vasya {
+           void     *ptr;
+           int       fd;
+           uint32_t  u32;
+           uint64_t  u64;
+       };
+
+
+есть большая разница между struct и union.
+если мы юзаем структ 
+
+  struct vasya {
+           void     *ptr;
+           int       fd;
+           uint32_t  u32;
+           uint64_t  u64;
+       };
+
+то это случай когда у нас куча перенных собрана в одном месте. и мы к каждой перменной
+может иметь доступ.
+
+юнион это нечто другое
+
+
+  union vasya {
+           void     *ptr;
+           int       fd;
+           uint32_t  u32;
+           uint64_t  u64;
+       };
+
+
+это когда я могу внутри юниона сохранить только один из указанных типов. одну из указанных
+переменных. размер юниона в памяти равен размеру маскисмльного по размеру элемента внутри
+этого юниона. 
+
+щас я попроще возьму юнионм для примера
+
+   union vasya {
+            void *p;
+            int a;
+            char b;
+   } 
+
+вот код
+
+
+   union vasya {
+            void *p;
+            int a;
+            char b;
+   };
+
+
+    printf("union vasya SIZE = %i \n", sizeof(union vasya)  );
+
+
+вот увидим на экране
+union vasya SIZE = 8
+
+так как у нас char это 1 байт. а int это 4 байта. а поинтер (64бит цпу) это 8 байт то в итоге
+юнион будет в памяти его тело иметь размер 8 байт.
+
+посмотрим тогда для примера посмотрим на эту хрень
+
+
+    struct epoll_event {
+           uint32_t      events;  /* Epoll events */
+           epoll_data_t  data;    /* User data variable */
+       };
+
+эту структ. у него второе поле это юион на самом деле
+потому что 
+
+       union epoll_data {
+           void     *ptr;
+           int       fd;
+           uint32_t  u32;
+           uint64_t  u64;
+       };
+
+       typedef union epoll_data  epoll_data_t;
+
+тогда посмотрим размер у поля uint32_t и у структа целиком
+
+
+  printf("uint32_t SIZE = %i \n", sizeof(uint32_t)  );
+  printf("epoll_event SIZE = %i \n", sizeof(struct epoll_event)  );
+
+смотрим на экране
+uint32_t SIZE = 4 
+epoll_event SIZE = 12 
+
+итак поулчаеется что в структе
+
+    struct epoll_event {
+           uint32_t      events;  /* Epoll events */
+           epoll_data_t  data;    /* User data variable */
+       };
+
+первое поле это 4 байта.
+а весь структ это 12 байт. значит второе поле это 8 байт
+значит вот эта штука 
+
+       union epoll_data {
+           void     *ptr;
+           int       fd;
+           uint32_t  u32;
+           uint64_t  u64;
+       };
+
+
+это 8 байт.
+ну и логично потому что поинтер это 8 байт. и также uint64_t это тоже 8 байт.
+
+теперь на счет того как присвоить занчение этому юниону.
+
+
+
+   union vasya {
+            void *p;
+            int a;
+            char b;
+   };
+
+
+   union vasya u1;
+   
+   int a = 10;
+   u1.p = &a;
+   u1.a = 10;
+   u1.b = 0x10;
+
+
+поледние 3 строки это то как можно в юнион совать данные. 
+когда мы заносим в юнион значение то предыдущее значение исчезает из юниона.
+
