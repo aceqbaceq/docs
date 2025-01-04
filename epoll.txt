@@ -240,11 +240,93 @@ epfd - это  унас дескриптор еполл инстанса. (по 
 поинтера и узнать расширеуннную инфомрацию по тот дескриптор котоырй я совал в ядро.
 и получается теперь когда я узнать номер дескриптора на которой чтото прилетело. то 
 я могу с этим дескриптором уже делать какието полезные дела. 
-   
+
+теперь я дам пример программы
+
+$ cat 359.c
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/epoll.h>
+#include <errno.h>
+#include <stdio.h>
 
 
-вот пример программы
 
+
+
+
+
+
+int main() {
+
+    
+
+int epfd, epfd2 ;
+
+
+
+    // Создаем epoll инстанс
+    epfd = epoll_create1(0);
+    if (epfd == -1) {
+        perror("epoll_create1");
+        exit(EXIT_FAILURE);
+    }
+
+
+    // Создаем epoll инстанс
+    epfd2 = epoll_create1(0);
+    if (epfd2 == -1) {
+        perror("epoll_create1");
+        exit(EXIT_FAILURE);
+    }
+
+    sleep(60);
+
+   close(epfd);
+   close(epfd2);
+
+
+};
+
+
+в ней я создаю два еполл инстанса. 
+НО! ОГРОМНЫЙ ПРИКОЛ!
+с точки зрения proc и fdinfo оба дескрпторра выглядяит так как бутоо они указывают 
+НА ОДИН И ТОТ ЖЕ ИНСТАНС ЕПОЛЛ ОБЬЕКТ В ЯДРЕ! ЭТО ПИЗДЕЦ
+
+$ lsof -Pnp $(pidof 359.exe) | grep -E "FD|event"
+COMMAND    PID   USER  FD      TYPE DEVICE SIZE/OFF      NODE NAME
+359.exe 952065 noroot   3u  a_inode   0,16        0      1090 [eventpoll]
+359.exe 952065 noroot   4u  a_inode   0,16        0      1090 [eventpoll]
+
+  $ cat /proc/$(pidof 359.exe)/fdinfo/3
+pos:    0
+flags:  02
+mnt_id: 17
+ino:    1090
+
+  $ cat /proc/$(pidof 359.exe)/fdinfo/4
+pos:    0
+flags:  02
+mnt_id: 17
+ino:    1090
+
+свойства декрипторо 3 и 4 АБСОЛЮТНО ОДИНАКОВЫЕ! 
+это нас приводит к тому что если я смотрю на дескрипторы epoll в proc то я не смогу
+никогда и никак понять эти два декрптора они укаызывают на два разных еполл инстанса
+или на один и тот же еполл инстанс в ядре. 
+а эт супер важно если у нас ест два процесса и у каждгого есть дескриптор который вдеет не 
+еполл. и мы должны понять это два арахных еполл инстаса или он один и тот же. 
+например такая задача есть когда мы смотрим на процессы nginx. 
+так вот получается - мы это понять не можем! с точки зрения fdinfo якобы это один и тот же обьект
+в ядре. а на самом делео получяается хуй знает.
+
+
+
+
+
+теперь  пример программы
+она пока неоченьсложная
 
 
 
@@ -711,5 +793,603 @@ int main() {
     close(epfd);
     return 0;
 }
+
+
+
+
+
+А ТЕПЕРЬ пример самой сложной программы с epoll
+
+ ' ჳ  $ cat 358.c
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <sys/wait.h>
+#include <sys/epoll.h>
+#include <stdio.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <semaphore.h>
+#define MAX_EVENTS 3
+
+
+// Глобальная переменная для хранения pid дочернего процесса
+pid_t child_pid = -1;
+int epfd = -1;  // Глобальная переменная для epoll-дескриптора
+sem_t *sem;
+
+
+
+int is_fd_valid(int fd) {
+    // Проверяем, является ли дескриптор файла валидным
+    if (fcntl(fd, F_GETFD) == -1) {
+        if (errno == EBADF) {
+            // Дескриптор не существует или недействителен
+            return 0;  // Дескриптор не существует
+        } else {
+            // Произошла другая ошибка
+            perror("fcntl");
+            return -1;  // Ошибка при проверке
+        }
+    }
+    // Дескриптор существует
+    return 1;
+}
+
+
+
+void handle_sigint(int sig) {
+
+    const char *message = "Получен сигнал SIGINT. Завершаем работу...\n";
+    write(STDOUT_FILENO, message, strlen(message));  // Используем write вместо printf
+
+    // Завершаем дочерний процесс, если он существует
+    if (  (child_pid > 0)  &&  (getpid() != child_pid)  ){
+        kill(child_pid, SIGINT);
+        waitpid(child_pid, NULL, 0);  // Ожидаем завершения дочернего процесса
+    }
+
+    const char *message1 = "закрываем epfd...\n";
+    write(STDOUT_FILENO, message1, strlen(message1));  // Используем write вместо printf
+
+    // Закрываем epoll-дескриптор, если он открыт
+    if (epfd != -1) {
+        close(epfd);
+    }
+
+
+    // Закрываем семафор
+        sem_close(sem);
+        sem_unlink("/my_semaphore"); // Удаляем семафор
+
+
+    exit(0);  // Завершить процесс с кодом успеха
+
+}
+
+
+
+
+
+
+void make_socket_non_blocking(int fd) {
+    int flags = fcntl(fd, F_GETFL, 0);
+    if (flags == -1) {
+        perror("fcntl F_GETFL");
+        exit(EXIT_FAILURE);
+    }
+
+    if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1) {
+        perror("fcntl F_SETFL");
+        exit(EXIT_FAILURE);
+    }
+}
+
+
+
+
+void handle_client(int z)
+{
+    char buf[8192];
+    char *lastpos;
+
+    while (1) {
+        ssize_t n  = recv(z, buf, sizeof(buf), 0);
+        if (n > 0) {
+            // Данные успешно прочитаны
+            dprintf(z, "pid = %i | ", getpid());
+            lastpos = strchr(buf, '\n');
+            send(z, buf, lastpos+1-buf, 0);
+        }  else if (n == 0) {
+             // Другая сторона закрыла соединение
+             printf("Соединение закрыто другой стороной.\n");
+             if (epoll_ctl(epfd, EPOLL_CTL_DEL, z, NULL) == -1) {
+             perror("epoll_ctl: EPOLL_CTL_DEL");
+             exit(EXIT_FAILURE);
+             };
+             if (is_fd_valid(z) == 1) {
+                close(z);
+              } else {
+                  printf("Дескриптор %d уже закрыт.\n", z);
+              }
+             break;
+        } else {
+            // Ошибка
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                // Данных нет (это нормально для неблокирующего сокета)
+                break;
+            } else {
+                // Ошибка соединения
+                perror("Ошибка в recv");
+            if (epoll_ctl(epfd, EPOLL_CTL_DEL, z, NULL) == -1) {
+            perror("epoll_ctl: EPOLL_CTL_DEL");
+            exit(EXIT_FAILURE);
+            };
+             if (is_fd_valid(z) == 1) {
+                close(z);
+              } else {
+                  printf("Дескриптор %d уже закрыт.\n", z);
+              }
+            break;
+            }
+        }
+    } // while END
+
+
+}  // function END
+
+
+
+
+
+
+
+int main() {
+
+    
+    // Устанавливаем обработчик для SIGINT
+    struct sigaction sa;
+    sa.sa_handler = handle_sigint;  // Функция-обработчик
+    sigemptyset(&sa.sa_mask);       // Не блокируем другие сигналы
+    sa.sa_flags = 0;                // Без дополнительных флагов
+
+    if (sigaction(SIGINT, &sa, NULL) == -1) {
+        perror("Не удалось установить обработчик SIGINT");
+        exit(EXIT_FAILURE);
+    }
+
+
+
+  // Создаем POSIX семафор с именем "/my_semaphore", инициализируем значением 1
+    sem = sem_open("/my_semaphore", O_CREAT | O_EXCL, 0644, 1);
+    if (sem == SEM_FAILED) {
+        perror("Не удалось создать семафор");
+        exit(EXIT_FAILURE);
+    }
+    
+    
+
+
+    int s;
+    int c;
+    int reuseaddr = 1;
+    struct sockaddr_in addr;
+    socklen_t addr_len;
+
+    s = socket(AF_INET, SOCK_STREAM, 0);
+    if ( s < 0 ){
+        perror("не удалось создать сокет");
+    };
+    setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &reuseaddr, sizeof(reuseaddr));
+
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(8080);
+    addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    addr_len = sizeof(addr);
+
+    if ( bind(s, (struct sockaddr *)&addr, sizeof(addr)) < 0  ){
+         perror("не удалось сделать bind");
+    };
+    
+    listen(s, 5);
+
+
+
+
+
+
+        child_pid = fork(); // клонируемся
+        if (child_pid == -1) {
+            exit(1);
+        } 
+
+
+
+
+
+    // Создаем epoll инстанс
+    epfd = epoll_create1(0);
+    if (epfd == -1) {
+        perror("epoll_create1");
+        exit(EXIT_FAILURE);
+    }
+
+
+    // Создаем две переменные одну для сования дескриптороа в ядро
+    // а вторую для получения ответа из ядра
+    struct epoll_event event;
+    struct epoll_event events[MAX_EVENTS];
+
+
+    // Добавляем дескриптор сокета  в еполл инстанс  плюс  EPOLLIN 
+    event.events = EPOLLIN | EPOLLET;
+    event.data.fd = s;  // Файл
+    if (epoll_ctl(epfd, EPOLL_CTL_ADD, s, &event) == -1) {
+        perror("epoll_ctl: file_fd - EPOLLIN");
+        exit(EXIT_FAILURE);
+    }
+
+
+
+
+        while (1) {
+            int n = epoll_wait(epfd, events, MAX_EVENTS, -1);  // Блокируемся на события
+            if (n < 0) {
+             if (errno == EINTR) {
+                // Если вызов был прерван сигналом, просто продолжаем цикл
+                continue;
+                };
+            perror("epoll_wait");
+            exit(EXIT_FAILURE);
+            }
+
+
+            printf("я в цикле после epoll_wait , pid = %i, n = %i\n", getpid(), n);
+            for (int k = 0; k < n; k++) {
+            if (  (events[k].data.fd == s) && (events[k].events & EPOLLIN)   ){
+                   printf("я в цикле после epoll_wait pid = %i, дескриптор = %i\n", getpid(), s);
+
+
+                   if (sem_trywait(sem) == 0) {
+                   // Семафор захвачен успешно
+                   printf("Процесс %d захватил семафор\n", getpid());
+
+                    c = accept(s, (struct sockaddr *)&addr, &(addr_len) );
+                    if (c == -1) {
+                        perror("Ошибка при принятии соединения");
+                        continue; // Продолжить цикл, если произошла ошибка
+                        } 
+                    event.events = EPOLLIN | EPOLLET;
+                    event.data.fd = c;  // Файл
+                    if (epoll_ctl(epfd, EPOLL_CTL_ADD, c, &event) == -1) {
+                          perror("epoll_ctl: file_fd - EPOLLIN");
+                          exit(EXIT_FAILURE);
+                    }
+                    make_socket_non_blocking(c);
+                    handle_client(c);
+
+        printf("Процесс %d завершил работу и освободил семафор\n", getpid());
+        sem_post(sem); // Освобождаем семафор
+
+    } else if (errno == EAGAIN) {
+        // Семафор занят
+        printf("Процесс %d не смог захватить семафор (занят)\n", getpid());
+        break;
+    } else {
+        // Ошибка при попытке захватить семафор
+        perror("Ошибка при захвате семафора");
+        break;
+    }
+
+
+
+                }; //if END
+               
+  
+                if (  (events[k].data.fd != s) && (events[k].events & EPOLLIN)   ) {
+                     printf("я  цикле после epoll_wait pid = %i, дескриптор  = %i\n", getpid(), events[k].data.fd);
+                     int result = is_fd_valid(events[k].data.fd);
+                       if (result == 1) {
+                           printf("pid = %i, Дескриптор %d существует.\n", getpid(), events[k].data.fd);
+                           handle_client(events[k].data.fd);
+                          } else if (result == 0) {
+                            printf("pid = %i, Дескриптор %d не существует.\n", getpid(), events[k].data.fd);
+                            break;
+                          } else {
+                                printf("Произошла ошибка при проверке дескриптора %d.\n", events[k].data.fd);
+                                break;
+                          }
+
+
+                };  //if END
+
+
+
+
+            }; //for END
+
+
+
+    }; //while END
+                
+
+           // зарвыаем еполл инстанс
+             if (is_fd_valid(epfd) == 1) {
+                close(epfd);
+              } else {
+                  printf("Дескриптор %d уже закрыт.\n", epfd);
+              }
+      
+            // закрываем сокет
+             if (is_fd_valid(s) == 1) {
+                close(s);
+              } else {
+                  printf("Дескриптор %d уже закрыт.\n", s);
+              }
+
+    // Закрываем семафор
+        sem_close(sem);
+        sem_unlink("/my_semaphore"); // Удаляем семафор
+            
+        if (child_pid==0){
+           printf ("чайлд программа успешно закончила работу \n");
+
+        };
+        
+
+        if (child_pid > 0) {
+            waitpid(child_pid, NULL, 0);
+           printf ("парент программа успешно закончила работу \n");
+
+        }
+
+
+};
+
+
+ $ ./358.exe
+
+теперь мы атакуем эту программы с другого терминала
+
+ $  while(:); do echo "123" |  nc -q1 localhost 8080 ; done 
+pid = 953513 | 123
+pid = 953514 | 123
+pid = 953513 | 123
+pid = 953514 | 123
+pid = 953514 | 123
+pid = 953514 | 123
+pid = 953514 | 123
+^C
+
+
+при этом на терминале программы мы увидим
+ $ ./358.exe
+я в цикле после epoll_wait , pid = 953513, n = 1
+я в цикле после epoll_wait pid = 953513, дескриптор = 3
+Процесс 953513 захватил семафор
+я в цикле после epoll_wait , pid = 953514, n = 1
+я в цикле после epoll_wait pid = 953514, дескриптор = 3
+Процесс 953514 не смог захватить семафор (занят)
+Соединение закрыто другой стороной.
+Процесс 953513 завершил работу и освободил семафор
+я в цикле после epoll_wait , pid = 953514, n = 1
+я в цикле после epoll_wait pid = 953514, дескриптор = 3
+Процесс 953514 захватил семафор
+я в цикле после epoll_wait , pid = 953513, n = 1
+я в цикле после epoll_wait pid = 953513, дескриптор = 3
+Процесс 953513 не смог захватить семафор (занят)
+Соединение закрыто другой стороной.
+Процесс 953514 завершил работу и освободил семафор
+я в цикле после epoll_wait , pid = 953513, n = 1
+я в цикле после epoll_wait pid = 953513, дескриптор = 3
+я в цикле после epoll_wait , pid = 953514, n = 1
+Процесс 953513 захватил семафор
+я в цикле после epoll_wait pid = 953514, дескриптор = 3
+Процесс 953514 не смог захватить семафор (занят)
+Соединение закрыто другой стороной.
+Процесс 953513 завершил работу и освободил семафор
+я в цикле после epoll_wait , pid = 953514, n = 1
+я в цикле после epoll_wait , pid = 953513, n = 1
+я в цикле после epoll_wait pid = 953514, дескриптор = 3
+я в цикле после epoll_wait pid = 953513, дескриптор = 3
+Процесс 953514 захватил семафор
+Процесс 953513 не смог захватить семафор (занят)
+Соединение закрыто другой стороной.
+Процесс 953514 завершил работу и освободил семафор
+я в цикле после epoll_wait , pid = 953514, n = 1
+я в цикле после epoll_wait , pid = 953513, n = 1
+я в цикле после epoll_wait pid = 953514, дескриптор = 3
+я в цикле после epoll_wait pid = 953513, дескриптор = 3
+Процесс 953514 захватил семафор
+Процесс 953513 не смог захватить семафор (занят)
+Соединение закрыто другой стороной.
+Процесс 953514 завершил работу и освободил семафор
+я в цикле после epoll_wait , pid = 953514, n = 1
+я в цикле после epoll_wait , pid = 953513, n = 1
+я в цикле после epoll_wait pid = 953514, дескриптор = 3
+я в цикле после epoll_wait pid = 953513, дескриптор = 3
+Процесс 953514 захватил семафор
+Процесс 953513 не смог захватить семафор (занят)
+Соединение закрыто другой стороной.
+Процесс 953514 завершил работу и освободил семафор
+я в цикле после epoll_wait , pid = 953514, n = 1
+я в цикле после epoll_wait , pid = 953513, n = 1
+я в цикле после epoll_wait pid = 953514, дескриптор = 3
+я в цикле после epoll_wait pid = 953513, дескриптор = 3
+Процесс 953514 захватил семафор
+Процесс 953513 не смог захватить семафор (занят)
+Соединение закрыто другой стороной.
+Процесс 953514 завершил работу и освободил семафор
+^CПолучен сигнал SIGINT. Завершаем работу...
+закрываем epfd...
+Получен сигнал SIGINT. Завершаем работу...
+закрываем epfd...
+
+
+
+щас я расскажу все моменты связанные с программой. 
+она ракскрыла дохоена всего важного про то как все устроено .
+поехали
+
+
+
+int main() {
+
+    
+    // Устанавливаем обработчик для SIGINT
+    struct sigaction sa;
+    sa.sa_handler = handle_sigint;  // Функция-обработчик
+    sigemptyset(&sa.sa_mask);       // Не блокируем другие сигналы
+    sa.sa_flags = 0;                // Без дополнительных флагов
+
+    if (sigaction(SIGINT, &sa, NULL) == -1) {
+        perror("Не удалось установить обработчик SIGINT");
+        exit(EXIT_FAILURE);
+    }
+
+
+
+этот кусок нам устанавливает кастомный хендлер обработки SIGINT который происхдоит 
+если мы тыкаем Ctrl+C 
+причем если у нас в терминале работает несколко процессов то как сказал ии сигнал SIGINT 
+будет послан всем процессам привязанным к этому терминалу.
+забегая вперед скажу что у нас будет два процесса. а каждый процесс у нас это независимая
+сущность так что данный хендлер будет обрабаыаться обоими процессами самтостельно и отельно
+
+далее второй кусок который отвечает за хендлер обработкчика сигнала SIGINT
+
+
+void handle_sigint(int sig) {
+
+    const char *message = "Получен сигнал SIGINT. Завершаем работу...\n";
+    write(STDOUT_FILENO, message, strlen(message));  // Используем write вместо printf
+
+    // Завершаем дочерний процесс, если он существует
+    if (  (child_pid > 0)  &&  (getpid() != child_pid)  ){
+        kill(child_pid, SIGINT);
+        waitpid(child_pid, NULL, 0);  // Ожидаем завершения дочернего процесса
+    }
+
+    const char *message1 = "закрываем epfd...\n";
+    write(STDOUT_FILENO, message1, strlen(message1));  // Используем write вместо printf
+
+    // Закрываем epoll-дескриптор, если он открыт
+    if (epfd != -1) {
+        close(epfd);
+    }
+
+    // Закрываем семафор
+        sem_close(sem);
+        sem_unlink("/my_semaphore"); // Удаляем семафор
+
+
+    exit(0);  // Завершить процесс с кодом успеха
+
+}
+
+
+
+мы что в нем делаем. 
+мы определяем где мы щас в  дочернем процессе или парент процессе. если в парент
+процессе то мы шлем в дочерйний процесс SIGINT. ждем когда дочь подохнет. и управление
+вернетя обратно к нам. далее мы закрываем файл дескриторы. и что важно мы завершаем работу
+процесса. этот хендлер будет выполенен как на дочке так и на паренте. с той лишь разницей
+что если это парен процесс то он еще пошлет дочке сигнал SIGINT. 
+возникает вопрос - если мы жмем Ctrl+C то ядро SIGINT шлет каким процессам? 
+во первых вот дказательство что сигнал шлет именно ядро а не кто другой
+если скажем у нас есть в терминале баш с pid=956881
+то я могу отследить какие сигналы прилетают к нему
+
+$ sudo strace -e trace=signal -p 956881 2>&1 | grep -- "---"
+--- SIGINT {si_signo=SIGINT, si_code=SI_KERNEL} ---
+
+так вот видно что источкник отправки сигнала именно ядро si_code=SI_KERNEL а некакойто
+юзер процес.
+
+теперь вопрос - вот у нас есть куча процессов кторые все имеют открытмм утсроство терминал.
+мы жмем Ctr+C - то каким процссами ядро пошлет SIGINT?
+ОТВЕТ - дело в том что процессы для ядра обьединяются например по признаку PGID - группа
+процессов. (не путать с группой юзеров).  так вот процессы которые имеют откртым данный
+терминал они все сидят в разных группа процессов. так вот средит этих групп есть одна
+группа особая - она отмечается спец признаком что она явлется непросто группой процесов
+а   FOREGROUND PROCESS GROUP .  а все остальыне группы прцессов автоматом явлаются 
+backckgrund process groups. фореграунд группа для терминала может быть только одна.
+так вот когда мы тыакеаем Ctrl+C то ядро шлет SIGINT все проецссам которвые входят в состав
+foreground process group. как нам через ps понять для даного терминала какие процессы
+на нем сият. в какие процесс группы они разделаются. и какая группа средит этих групп
+является форграуенд? вот эта волшеная формула
+
+
+ $  ps -eo pid,pgid,tpgid,tty,cmd | grep -E "PID|pts/1 " | grep -v grep
+    PID    PGID   TPGID TT       CMD
+ 956881  956881  960041 pts/1    /bin/bash -rcfile .bashrc
+ 960041  960041  960041 pts/1    ./358.exe
+ 960042  960041  960041 pts/1    ./358.exe
+
+
+
+значит PGID - это номер группы процессов куда входит данный процесс.
+TPGID - это штука покаызывает какой PGID является FOREGROUND PROCESS GROUP. 
+тоесть получается что на терминале у нас всего две группы процессов
+
+    PGID
+    956881
+    960041
+
+и среди этих двух привлигиорванной явлется
+    TPGID
+    960041
+
+надо подчеркуть что TPGID это всегда штука которая явлется одной из членов PGID
+такого неможет быть что у нас TPGID такой что его нету в списке PGID
+тогда мы теперь выбрраем проецссы у которых PGID=TPGID=960041
+
+    PID    PGID   TPGID TT       CMD
+ 960041  960041  960041 pts/1    ./358.exe
+ 960042  960041  960041 pts/1    ./358.exe
+
+
+вот именно этим двум процессам и будет направлен со стороны ядра SIGINT!
+а так как баш входит в другую группу
+
+    PID    PGID   TPGID TT       CMD
+ 956881  956881  960041 pts/1    /bin/bash -rcfile .bashrc
+
+
+то ему этот сигнал направлен не будет!
+
+вот такая вот разгадка о том - каки процессам которые закерплены за терминалом у нас ядро
+напоалвяет SIGINT при нажатти Ctrl+C. это далеко не все прцоессы!
+
+исходя из того что я увидел. у нас полуатся два процесса нашей программы они будут входит
+в одну форегрунунд группу 
+
+    PID    PGID   TPGID TT       CMD
+ 960041  960041  960041 pts/1    ./358.exe
+ 960042  960041  960041 pts/1    ./358.exe
+
+
+и поэтому пои идее вот этот кусок кода излишний в хендлере
+
+
+    // Завершаем дочерний процесс, если он существует
+    if (  (child_pid > 0)  &&  (getpid() != child_pid)  ){
+        kill(child_pid, SIGINT);
+        waitpid(child_pid, NULL, 0);  // Ожидаем завершения дочернего процесса
+    }
+
+потому что ядро так и так при нажаиии на ctrl+c пошлет сигнал и паренту и дочерней проге.
+правда дургое дело если мы пошлем sigint рукамми через командуню строку на парент. 
+тогда только благодаря этому куску он еще за компнию прибьет и чайлда. 
+
+это  явсего навсего только пока разобрал обработчик ctrl+C 
+
+двигаем дальше по коду.
+
+
+
 
 ----

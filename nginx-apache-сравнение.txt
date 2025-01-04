@@ -1,0 +1,26 @@
+| nginx
+| apache
+
+закнчил на том что анализирую работу жинкс . 
+вот трейс
+
+
+epoll_wait(8, [{events=EPOLLIN, data={u32=1071583248, u64=139767897329680}}], 512, -1) = 1
+accept4(5, {sa_family=AF_INET, sin_port=htons(43292), sin_addr=inet_addr("127.0.0.1")}, [112 => 16], SOCK_NONBLOCK) = 6
+epoll_ctl(8, EPOLL_CTL_ADD, 6, {events=EPOLLIN|EPOLLRDHUP|EPOLLET, data={u32=1071583728, u64=139767897330160}}) = 0
+epoll_wait(8, [{events=EPOLLIN, data={u32=1071583728, u64=139767897330160}}], 512, 60000) = 1
+recvfrom(6, "GET / HTTP/1.1\nHost: localhost\n\n", 1024, 0, NULL, NULL) = 32
+newfstatat(AT_FDCWD, "/var/www/html/", {st_mode=S_IFDIR|0755, st_size=4096, ...}, 0) = 0
+newfstatat(AT_FDCWD, "/var/www/html/", {st_mode=S_IFDIR|0755, st_size=4096, ...}, 0) = 0
+newfstatat(AT_FDCWD, "/var/www/html/index.html", {st_mode=S_IFREG|0644, st_size=615, ...}, 0) = 0
+newfstatat(AT_FDCWD, "/var/www/html/index.html", {st_mode=S_IFREG|0644, st_size=615, ...}, 0) = 0
+openat(AT_FDCWD, "/var/www/html/index.html", O_RDONLY|O_NONBLOCK) = 10
+newfstatat(10, "", {st_mode=S_IFREG|0644, st_size=615, ...}, AT_EMPTY_PATH) = 0
+setsockopt(6, SOL_TCP, TCP_CORK, [1], 4) = 0
+writev(6, [{iov_base="HTTP/1.1 200 OK\r\nServer: nginx/1"..., iov_len=327}], 1) = 327
+sendfile(6, 10, [0] => [615], 615)      = 615
+write(4, "127.0.0.1 - - [01/Jan/2025:18:15"..., 76) = 76
+close(10)                               = 0
+setsockopt(6, SOL_TCP, TCP_CORK, [0], 4) = 0
+epoll_wait(8, [], 512, 75000)           = 0
+close(6)                                = 0
