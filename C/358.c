@@ -10,6 +10,8 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <semaphore.h>
+#include <sys/sem.h>
+#include <sys/ipc.h>
 #define MAX_EVENTS 3
 
 
@@ -17,6 +19,7 @@
 pid_t child_pid = -1;
 int epfd = -1;  // Глобальная переменная для epoll-дескриптора
 sem_t *sem;
+pid_t s = -1; // перемннная для сокета
 
 
 
@@ -67,6 +70,9 @@ void handle_sigint(int sig) {
         sem_unlink("/my_semaphore"); // Удаляем семафор
 
 
+    // закрыаем сокет
+    close(s);
+    
     exit(0);  // Завершить процесс с кодом успеха
 
 }
@@ -104,6 +110,19 @@ void handle_client(int z)
             dprintf(z, "pid = %i | ", getpid());
             lastpos = strchr(buf, '\n');
             send(z, buf, lastpos+1-buf, 0);
+            
+             if (epoll_ctl(epfd, EPOLL_CTL_DEL, z, NULL) == -1) {
+             perror("epoll_ctl: EPOLL_CTL_DEL");
+             exit(EXIT_FAILURE);
+             };
+             if (is_fd_valid(z) == 1) {
+                close(z);
+              } else {
+                  printf("Дескриптор %d уже закрыт.\n", z);
+              }
+             break;
+
+            
         }  else if (n == 0) {
              // Другая сторона закрыла соединение
              printf("Соединение закрыто другой стороной.\n");
@@ -165,16 +184,43 @@ int main() {
 
 
   // Создаем POSIX семафор с именем "/my_semaphore", инициализируем значением 1
-    sem = sem_open("/my_semaphore", O_CREAT | O_EXCL, 0644, 1);
-    if (sem == SEM_FAILED) {
-        perror("Не удалось создать семафор");
-        exit(EXIT_FAILURE);
+   key_t key = 0x512f140a;
+
+    
+   int semid = semget(key, 0, 0);  // Мы не собираемся создавать новый, только проверяем существующий
+    if (semid == -1) {
+        if (errno == ENOENT) {
+            // Семафор с таким ключом не существует
+            //printf("Semaphore does not exist.\n");
+
+        } else {
+            // Ошибка при вызове semget (например, проблема с правами доступа)
+            perror("semget");
+        }
+    } else {
+        // Семафор с таким ключом существует
+        printf("Semaphore exists with ID: %d\n", semid);
+        // Удаляем семафор
+       if (semctl(semid, 0, IPC_RMID) == -1) {
+        perror("semctl");
+        return 1;
+    }  
     }
+
+
+            sem = sem_open("/my_semaphore", O_CREAT | O_EXCL, 0644, 1);
+               if (sem == SEM_FAILED) {
+                  perror("Не удалось создать семафор");
+                  exit(EXIT_FAILURE);
+            }
+
+
+
     
     
 
 
-    int s;
+
     int c;
     int reuseaddr = 1;
     struct sockaddr_in addr;
@@ -184,11 +230,13 @@ int main() {
     if ( s < 0 ){
         perror("не удалось создать сокет");
     };
-    setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &reuseaddr, sizeof(reuseaddr));
+    //setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &reuseaddr, sizeof(reuseaddr));
 
     addr.sin_family = AF_INET;
     addr.sin_port = htons(8080);
     addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+//    addr.sin_addr.s_addr = INADDR_ANY;
+
     addr_len = sizeof(addr);
 
     if ( bind(s, (struct sockaddr *)&addr, sizeof(addr)) < 0  ){
