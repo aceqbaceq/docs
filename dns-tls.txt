@@ -10857,6 +10857,9 @@ https://metebalci.com/blog/a-short-practical-tutorial-of-dig-dns-and-dnssec/
 https://serverfault.com/questions/1060543/dns-forwarder-vs-dns-resolver
 https://discourse.pi-hole.net/t/can-dig-show-recursive-vs-forwarding-nameserver/59510
 https://blog.apnic.net/2018/08/20/dnssec-and-dns-over-tls/
+https://liet.me/2020/12/09/dns-resolution-through-http-proxy/
+https://www.cloudflare.com/learning/dns/glossary/primary-secondary-dns/
+
 
 
 
@@ -10941,6 +10944,7 @@ https://unix.stackexchange.com/questions/431870/clarifying-four-modes-of-handlin
 
 
 BIND
+https://www.digitalocean.com/community/tutorials/how-to-configure-bind-as-a-private-network-dns-server-on-ubuntu-14-04
 https://www.digitalocean.com/community/tutorials/how-to-configure-bind-as-a-private-network-dns-server-on-ubuntu-14-04
 
 
