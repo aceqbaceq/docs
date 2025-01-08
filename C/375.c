@@ -33,12 +33,13 @@ int main() {
 
     printf("UDP Server running.\n");
 
+
     char buffer[MSGSIZE];
     memset(buffer, 0, sizeof(buffer));
     ssize_t rv;
 
 for (int j=0; j<2; j++){
-    if (   (rv = recv(sockfd, &buffer, sizeof(buffer)-1, MSG_TRUNC|MSG_WAITALL))  < 0  ){
+    if (   (rv = recv(sockfd, &buffer, sizeof(buffer-1), MSG_TRUNC|MSG_WAITALL))  < 0  ){
          perror("recv error");
     };
     buffer[MSGSIZE-1] = 0x00;

@@ -116,6 +116,7 @@ void handle_client(int z)
              exit(EXIT_FAILURE);
              };
              if (is_fd_valid(z) == 1) {
+                printf("закрываю tcp содеинение с этой стороны\n");
                 close(z);
               } else {
                   printf("Дескриптор %d уже закрыт.\n", z);
@@ -230,7 +231,7 @@ int main() {
     if ( s < 0 ){
         perror("не удалось создать сокет");
     };
-    //setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &reuseaddr, sizeof(reuseaddr));
+    setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &reuseaddr, sizeof(reuseaddr));
 
     addr.sin_family = AF_INET;
     addr.sin_port = htons(8080);
@@ -296,15 +297,15 @@ int main() {
     	    }
 
 
-            printf("я в цикле после epoll_wait , pid = %i, n = %i\n", getpid(), n);
+            //printf("я в цикле после epoll_wait , pid = %i, n = %i\n", getpid(), n);
     	    for (int k = 0; k < n; k++) {
         	if (  (events[k].data.fd == s) && (events[k].events & EPOLLIN)   ){
-                   printf("я в цикле после epoll_wait pid = %i, дескриптор = %i\n", getpid(), s);
+                   //printf("я в цикле после epoll_wait pid = %i, дескриптор = %i\n", getpid(), s);
 
 
                    if (sem_trywait(sem) == 0) {
                    // Семафор захвачен успешно
-                   printf("Процесс %d захватил семафор\n", getpid());
+                   //printf("Процесс %d захватил семафор\n", getpid());
 
             	    c = accept(s, (struct sockaddr *)&addr, &(addr_len) );
             	    if (c == -1) {
@@ -320,12 +321,12 @@ int main() {
             	    make_socket_non_blocking(c);
                     handle_client(c);
 
-        printf("Процесс %d завершил работу и освободил семафор\n", getpid());
+        //printf("Процесс %d завершил работу и освободил семафор\n", getpid());
         sem_post(sem); // Освобождаем семафор
 
     } else if (errno == EAGAIN) {
         // Семафор занят
-        printf("Процесс %d не смог захватить семафор (занят)\n", getpid());
+        //printf("Процесс %d не смог захватить семафор (занят)\n", getpid());
         break;
     } else {
         // Ошибка при попытке захватить семафор
