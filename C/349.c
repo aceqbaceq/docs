@@ -6,6 +6,7 @@ int main() {
 
     printf("sizeof uint64_t = %i \n", sizeof(uint64_t));
 
+
     int efd = eventfd(0, 0);  // Создание eventfd с начальным значением 0
     if (efd == -1) {
         perror("eventfd failed");
@@ -14,6 +15,8 @@ int main() {
     printf("Eventfd descriptor: %d\n", efd);
     printf("пауза 20с \n");
     sleep(20);
+
+    fork();
     
 
 

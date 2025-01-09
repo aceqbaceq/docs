@@ -62,6 +62,9 @@ September 1981
 
                       TCP Connection State Diagram
 
+есть еще картинка про состояния
+
+  https://www.geeksforgeeks.org/tcp-connection-termination/
 
 ее пока ненужно пытаться понять. к ней можно потом вернуться позже
 

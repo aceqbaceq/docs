@@ -1,0 +1,45 @@
+| accept
+
+по поводу это фнкции. 
+
+ее ситнксисис
+
+ int accept(int socket, struct sockaddr *restrict address,
+           socklen_t *restrict address_len);
+
+
+вот как обычно это выглядит во программе
+
+    setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &reuseaddr, sizeof(reuseaddr));
+
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(9090);
+    addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    addr_len = sizeof(addr);
+
+    if ( bind(s, (struct sockaddr *)&addr, sizeof(addr)) < 0  ){
+         perror("не удалось сделать bind");
+    };
+
+    listen(s, 5);
+
+    c = accept(s, (struct sockaddr *)&addr, &(addr_len) );
+
+
+так вот я к чему. какой физ смысл второго аргумента?  а смысл его такой что в этот структ
+ядро нам запишет IP адрес и порт удаленного ремо пира который к нам постучался в этом 
+конекте! а почему то думал что через этот структ accept зачем то читает IP + port 
+нашего локального компа. а это совершенно не так. вот пример стрейс
+
+
+accept4(5, {sa_family=AF_INET, sin_port=htons(46518), sin_addr=inet_addr("127.0.0.1")}, [112 => 16], SOCK_NONBLOCK) = 7
+
+так вот вот эта штука она показывает что в данном конекте к нам потучал удаленнй пир
+который имеет IP=127.0.0.1 и его порт 46518
+и эти параметры будет записаны в указанный нами структ addr !
+таким образом кстати получается что эти данные перезапишут те даныне которые там лежали
+до этого а именно , перед тем как вызыать bind я туда записал  ip=127.0.0.1 и порт 9090.
+так вот эти данные будут перезаписаны! вот такой смысла второго аргумента у accept()
+
+
+
