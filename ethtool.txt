@@ -42,46 +42,23 @@ tx-checksumming: on
 
 если [fixed] это значит что данную фичу нельзя помнеть толесть ее карта не поддеживает.
 
-а вот уже на эзернет карточке можно постмреть число каналов у карты
 
-$ sudo ethtool --show-channels enp0s3
-[sudo] password for noroot: 
-Channel parameters for enp0s3:
-Pre-set maximums:
-RX:		n/a
-TX:		n/a
-Other:		n/a
-Combined:	1
-Current hardware settings:
-RX:		n/a
-TX:		n/a
-Other:		n/a
-Combined:	1
+далее есть вот такая инфо о карточке
 
-насколкьо я понимаю первая часть
-показывает как это есть в железке
-Pre-set maximums:
-RX:		n/a
-TX:		n/a
-Other:		n/a
-Combined:	1
+	$ sudo ethtool -g enp0s3
+	Ring parameters for enp0s3:
+	Pre-set maximums:
+	RX:		256
+	TX:		256
+	Current hardware settings:
+	RX:		256
+	TX:		256
 
-а вторая часть как это используется по факту
-Current hardware settings:
-RX:		n/a
-TX:		n/a
-Other:		n/a
-Combined:	1
-
-
-
-
-как я понимаю каждый канал это rx\tx канал или чтото типа того. типа это как бутто у нас 
-железная сет карта разбивается на множество вирт сет карт
-
+что это такое. 
 
 
 ссылки
 https://www.baeldung.com/linux/tcp-offload-disable
+
 
 
