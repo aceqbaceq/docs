@@ -1,0 +1,12 @@
+| bash 
+| job
+| bash job
+
+что за дирктива &
+она при запуске команды он создает процесс который баш помещает в 
+
+	background process group
+
+об foreground process group и background process group ищи отдельно
+
+ 
