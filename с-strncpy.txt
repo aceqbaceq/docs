@@ -1,0 +1,226 @@
+| strncpy 
+
+есть memcpy 
+она позволяет тупо скопировать N байт из source в dest
+
+ 	mempcy(dest, source, N);
+
+при этом это твоя отвесвтенность в том что может быть memcpy залезет в тот адрес
+памяти в который залезать нельзя.
+
+так вот есть похожая фнуция
+
+	strncpy (dest, source, N); 
+
+она тоже делает копирование. но в чем же разница. 
+разница вот в чем. memcpy тупо копирует байты. никакой сложной хрени.
+а вот strncpy рабтает вот как - он берет очередной байт и проверяет равен он 0x00 или нет.
+если нет то он его копирует. далее он проверяет у нас скопировано N байт или нет. если нет
+то он берет следующий байт и если прошлый байт был 0x00 то он уже не читает чему равен 
+очередной байт в исодном месте он тупо копирует 0х00 байт. покказываю
+
+
+ source = 0x31 0x00 0x31
+
+я говорю скопируй 3 байта.  тогда вот что будет в dest
+
+dest = 0x31 0x00 0x00
+
+тоесть по факту у нас в dest записано 3 байта но. на втором байте он обнаружил в source 0-байт.
+тогда он перестал читать какие байты сидят в source и в dest тупо пишет 0x00 байты.
+
+вот програма
+
+
+ $ cat 387.c
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+
+int main(int argc, char **argv) {
+
+    if(argc!=2){
+	printf("error: нужен ровно один аргумент\n");
+        return 1;
+    } 
+
+    int len = atoi(argv[1]);
+    if(len <1){
+	printf("error: аргумент должен быть  цифра >0\n");
+        return 1;
+    }
+
+
+    char source[4] = { '1', '1', 0x00, '1'  };
+    printf("source = ");
+    for (int i=0; i<4 ;i++){
+        printf("0x%hhX ", source[i]);
+
+    }
+    printf("\n");
+
+
+    char *dest = malloc (len);
+    memset(dest, 0x32, len);
+    printf("dest =   ");
+    for (int i=0; i<len ;i++){
+        printf("0x%hhX ", dest[i]);
+
+    }
+    printf("\n");
+
+
+    printf("make strncpy\n");
+    strncpy(dest, source, len);
+
+    printf("dest =   ");
+    for (int i=0; i<len ;i++){
+        printf("0x%hhX ", dest[i]);
+
+    }
+    printf("\n");
+
+
+
+
+return 0;
+}
+
+
+
+вот ее работа
+
+  $ ./387.exe 2
+source = 0x31 0x31 0x0 0x31  <=== откуда копируем
+dest =   0x32 0x32   <== вот это куда копируем и чему равен исходный dest
+make strncpy
+dest =   0x31 0x31   <== вот это после того как над ним поработал strncpy
+
+
+соотвсвтенно мы задали скопировать 2 байта из source в dest. поэтому 0x31 0x31 пееркочевал
+из source в dest
+
+
+
+  $ ./387.exe 3
+source = 0x31 0x31 0x0 0x31 
+dest =   0x32 0x32 0x32 
+make strncpy
+dest =   0x31 0x31 0x0 
+
+
+здесь 3 байта перекочевало из source в dest
+
+
+ $ ./387.exe 4
+source = 0x31 0x31 0x0 0x31 
+dest =   0x32 0x32 0x32 0x32 
+make strncpy
+dest =   0x31 0x31 0x0 0x0 
+
+
+здесь самое интересное. мы скопировали 3 байта и strncpy обнаружил 0x00 
+это ему послужило сигналом что дальше ненужно смотерть что лежит в source а тупо записывать 
+0х00 байты в dest
+
+если  бы я копировал 4 байта с помощью memcpy то dest был бы равен
+dest = 0x31 0x31 0x0 0x31 
+
+
+на счет strcpy  - он коирует до тех пор пока не обнаружит 0x00 . его он тоже копирует. но
+после этого останаливает копирование. 
+
+а вот прмиер модииицифрованной прогарммы 382.c ее новая версия 388.c
+она юзает strncpy()
+
+
+  $ cat 388.c
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+
+int main(int argc, char **argv, char** envp){
+
+    char success = 0x0;
+    char *p_arg1;
+    char *p1;
+
+
+    if (argc !=2 ){
+      printf("ОШИБКА: нужен ровно один аргумент\n");
+      return 1;
+    } else {
+             p_arg1 = *(argv+1);
+      };
+
+
+
+    size_t len_arg1 = strlen(p_arg1);
+
+
+    int len_b1 = len_arg1+1;
+    char *b1 = malloc(len_b1);
+
+    memcpy(b1, p_arg1, len_arg1);
+    *(b1+(len_arg1) ) = '=';
+
+
+    char *temp = malloc(len_b1);
+    memset(temp,0x0, len_b1);
+
+
+    int i=0;
+    int j=0;
+    int ret1;
+    while( *(envp+i) != NULL ) {
+    
+        p1 = *(envp+i);
+        strncpy(temp, p1, len_b1);
+
+
+        if (strncmp(b1, temp, len_b1) == 0){
+            success = 0x1;
+            break;
+                    } 
+        else {
+                memset(temp,0x0, len_b1);
+                i++;
+
+                    } 
+
+
+
+                    }//END while;
+
+
+
+      if (success == 0x1){
+           printf("переменная '%s' найдена.\n%s\n",  argv[1], p1);
+      } else {
+           printf("переменная %s НЕ найдена \n", argv[1]);
+      }
+      
+
+
+
+      char *p3 = getenv(argv[1]);
+      if (p3 != NULL) {
+          printf ("я нашел эту же переменную через getenv(), вот она %s=%s  \n",    argv[1], p3);
+      }
+      else {
+          printf ("я НЕ нашел эту же переменную через getenv() \n");
+      
+      }
+
+
+
+
+      free(b1);
+      free(temp);
+      return 0;
+}
+
+
+
+
