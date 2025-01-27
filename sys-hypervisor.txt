@@ -1,0 +1,30 @@
+| /sys/hypervisor
+
+эта папка изначально была для того что если наш хост это виртуалка на базе
+гипервизора xen то он в эту папку представлял поелезную инфо.
+
+так вот елси виртуклка kvm то эта папка пустая
+
+
+как по другому определить что мы сидим на виртулке:
+
+1)
+	# systemd-detect-virt 
+	kvm
+
+
+2)
+	# grep -i hypervisor < /proc/cpuinfo 
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ss syscall nx pdpe1gb rdtscp lm constant_tsc arch_perfmon rep_good nopl xtopology cpuid tsc_known_freq pni pclmulqdq vmx ssse3 fma cx16 pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm abm 3dnowprefetch cpuid_fault invpcid_single ssbd ibrs ibpb stibp ibrs_enhanced tpr_shadow vnmi flexpriority ept vpid ept_ad fsgsbase tsc_adjust sgx bmi1 avx2 smep bmi2 erms invpcid mpx rdseed adx smap clflushopt xsaveopt xsavec xgetbv1 xsaves arat umip md_clear flush_l1d arch_capabilities
+
+
+3)
+	# dmesg | grep kvm
+[    0.000000] kvm-clock: Using msrs 4b564d01 and 4b564d00
+[    0.000001] kvm-clock: using sched offset of 6674976521 cycles
+[    0.000003] clocksource: kvm-clock: mask: 0xffffffffffffffff max_cycles: 0x1cd42e4dffb
+[    0.016167] kvm-guest: PV spinlocks disabled, single CPU
+[    0.155280] clocksource: Switched to clocksource kvm-clock
+[    1.699193] systemd[1]: Detected virtualization kvm.
+
+

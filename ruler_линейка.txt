@@ -1,0 +1,17 @@
+| ruler
+| линейка
+| cinnamon
+
+
+в манжаро cinnamon нет нихуя граф проги линейка на экране.
+
+ест пакет kruler который к kde отноится но нахуй мне kde себе ставить
+
+в итоге вот такой выход
+
+
+
+	# pacman -Sy xdotool
+    # while true; do xdotool getmouselocation; sleep 1; done
+
+  

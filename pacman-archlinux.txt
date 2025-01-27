@@ -142,6 +142,27 @@ $ pacman -Qo $(which resolvectl)
 
 # pacman -Syw
 
+| pamac
+
+оошибка
+
+Failed to read AUR data from /var/lib/pacman/sync/packages-meta-ext-v1.json.gz : Error opening file /var/lib/pacman/sync/packages-meta-ext-v1.json.gz: No such file or directory
+
+значит нужно обновить базу памака
+но если выход в инет идет через прокси то нужно задать парамтры прокси
+
+
+  $ export http_proxy="socks5h://172.16.10.11:2080"
+  $ export https_proxy="socks5h://172.16.10.11:2080"
+
+потом
+
+  # pamac upgrade --aur --force-refresh
+
+это должно решить проблму
+
+
+
 
 
 ссылки:
