@@ -1,0 +1,66 @@
+| rtkit-daemon
+| systemd
+| systemctl
+
+
+заваливает лог собщениями вида
+
+
+	lenovo rtkit-daemon[1670]: Supervising 12 threads of 9 processes of 1 users
+
+
+как это убрать.
+вот этоот сервис
+
+
+		/usr/lib/systemd/system/rtkit-daemon.service;
+
+
+нам надо изготовить drop-in 
+создаем папку
+
+   /usr/lib/systemd/system/rtkit-daemon.service.d
+
+в ее имени rtkit-daemon.service.d  первая часть  rtkit-daemon это имя сервиса
+а вторая часьт  .service.d это просто шаблон
+там создаем файл с любым именем напрмимер 
+
+   drop-in.conf
+
+его контент 
+
+   # cat drop-in.conf 
+   [Service]
+   LogLevelMax=0
+
+
+вместо 0 можно встваит и другое:
+    0 or emergency, (highest priority messages)
+    1 or alert,
+    2 or critical,
+    3 or error,
+    4 or warning,
+    5 or notice,
+    6 or info
+    7 or debuginfo (lowest priority messages)
+
+
+потом
+
+   # systemctl daemon-reload
+   # systemctl restart rtkit-daemon
+   # systemctl status rtkit-daemon
+   
+если дропин подкючился то мы увидим вот что 
+
+# systemctl status rtkit-daemon
+● rtkit-daemon.service - RealtimeKit Scheduling Policy Service
+     Loaded: loaded (/usr/lib/systemd/system/rtkit-daemon.service; disabled; preset: disabled)
+    Drop-In: /usr/lib/systemd/system/rtkit-daemon.service.d
+             └─drop-in.conf       <== ***
+
+
+
+взял тут
+https://unix.stackexchange.com/questions/684379/stop-rtkit-daemon-from-spamming-logs-with-supervising-x-threads-of-y-processes
+

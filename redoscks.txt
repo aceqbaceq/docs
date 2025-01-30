@@ -1,0 +1,593 @@
+| redsocks
+| socks
+
+для начала нужно обязательно сходить и прочитать вспомнить базис про iptables 
+это iptables-baza.txt
+
+здесь будет про redoscks как частный случай и и про socks протокол вообще
+нет времени описыать. ниже куски.
+как эта шарманка работает. redsocks это юзер сервис. если в него поступает сетевой
+поток1 то он его засасывает и на этом поток1 на нем заканчивается. а потом он создает 
+новый поток2 которым он стучит до прокси сервера через прокси протокол. и внутрь этого
+потока2 он инкапсулирует контент от потока1.
+
+
+              ------------\              -------------\
+программа-А   поток1       >   REDSOCKS  поток2        > прокси сервис
+              ------------/              -------------/
+
+
+таким образом если у нас есть программа-А которая лезет в сеть но выход в сеть у нас
+закрыт и в сеть мы можем ввыйти только через прокси сервис и программа-А неумеет говорить
+на языке прокси протокола то если мы завернем трафик на сервис редкоскс то он завернет 
+поток в прокси протокол и засунет его на внешний прокси сервис.
+
+возникает вопрос если наша программа-А леезет на гугл  то есть destip=1.2.3.4 port=443
+то каким макаром этот сет пакет попадет внутрь редсокс сервиса. ответ - через iptables
+у нас программа-А плюет в ядро пакет с destip=1.2.3.4 port=443  а ядро и iptables 
+применяют NAT для этого пакета , меняют у него destip и destport и заворачивают этот поток
+на редсокс сервис. 
+
+
+программа-А создает  пакет  который влетает в iptables
+    src_ip:port=192.168.10.10:5678      dest_ip:port=1.2.3.4:443        source интерф =wlp2s0
+
+
+теперь как путь (упрощенный) этого пакет выглядит с точки зрения обработки iptables
+
+
+---> wlp2s0 интрфейс ---> (NAT) таблица           (FILTER) таблица ---> lo интерфейс ---> REDSOCKS 
+                           OUTPUT цепь  ------>     OUTPUT цепь
+
+        
+iptables преобразует пакет в 
+    src_ip:port=192.168.10.10:5678      dest_ip:port=127.0.0.1:3838       source интерф =wlp2s0
+    dest интерфейс =lo
+
+у нас редсокс сервис сидит на 127.0.0.1:3838 и слушает.
+тоесть у нас пакет из потока1 влетает в одну таблицу, потом во вторую таблицу, потом в lo сет карту
+и оттуда в redocks процесс
+теость это я показал путь пакета от программы1 до программы REDSOCKS 
+
+
+              ------------\             
+программа-А   поток1       >   REDSOCKS 
+              ------------/             
+
+
+так вот  я создаю нужные правила в iptables для этой части пути пакета
+вот правила которые я добавляю в NAT table
+
+*nat
+
+:PREROUTING ACCEPT [29:3512]
+:INPUT ACCEPT [0:0]
+:OUTPUT ACCEPT [468:37214]
+:POSTROUTING ACCEPT [159:9596]
+:REDSOCKS -  [0:0]
+
+
+-A OUTPUT -p tcp --dport  80  -j REDSOCKS
+-A OUTPUT -p tcp --dport 443  -j REDSOCKS
+
+# redsocks кусок
+-A REDSOCKS -d 0.0.0.0/8 -j RETURN
+-A REDSOCKS -d 10.0.0.0/8 -j RETURN
+-A REDSOCKS -d 127.0.0.0/8 -j RETURN
+-A REDSOCKS -d 169.254.0.0/16 -j RETURN
+-A REDSOCKS -d 172.16.0.0/16 -j RETURN
+-A REDSOCKS -d 192.168.0.0/16 -j RETURN
+-A REDSOCKS -d 224.0.0.0/4 -j RETURN
+-A REDSOCKS -d 240.0.0.0/4 -j RETURN
+-A REDSOCKS  -p tcp --dport 443 -j LOG --log-prefix "[NAT REDSOCKS 443]"
+-A REDSOCKS -p tcp -j REDIRECT --to-ports 3838
+
+
+сразу поясню.
+этот кусок
+:PREROUTING ACCEPT [29:3512]
+:INPUT ACCEPT [0:0]
+:OUTPUT ACCEPT [468:37214]
+:POSTROUTING ACCEPT [159:9596]
+:REDSOCKS -  [0:0]
+он показывает какие цепочки есть в таблице NAT , так вот я сюда помимо деолфтовых цепочек
+я добавляю кастомную цепочку ":REDSOCKS"
+
+далее. сотвеосвтенно пакет из программы-А попадет в таблицу NAT ее цепочку OUTPUT
+
+-A OUTPUT -p tcp --dport  80  -j REDSOCKS
+-A OUTPUT -p tcp --dport 443  -j REDSOCKS
+
+и здесь этот пакет перенаправляется на обработку в цеопчку REDSOCKS в этой же таблице
+вот состав правил этой цеопчки
+
+-A REDSOCKS -d 0.0.0.0/8 -j RETURN
+-A REDSOCKS -d 10.0.0.0/8 -j RETURN
+-A REDSOCKS -d 127.0.0.0/8 -j RETURN
+-A REDSOCKS -d 169.254.0.0/16 -j RETURN
+-A REDSOCKS -d 172.16.0.0/16 -j RETURN
+-A REDSOCKS -d 192.168.0.0/16 -j RETURN
+-A REDSOCKS -d 224.0.0.0/4 -j RETURN
+-A REDSOCKS -d 240.0.0.0/4 -j RETURN
+-A REDSOCKS  -p tcp --dport 443 -j LOG --log-prefix "[NAT REDSOCKS 443]"
+-A REDSOCKS -p tcp -j REDIRECT --to-ports 3838
+
+здесь мы делает проверку. если у нас пакет летит на разнооразные локальные айпи адреса
+тоесть не винтернет то нам эти пакеты совать в редсокс сервис тоесть проксифицировать нет
+никакой нуджы потому что они и так долетят до цели без каких либо прокси. нам нужно проксифи
+цировать только пакты котоыре реально леятят в интернет. поэтом бОльшая часть правил
+это то что мы отфутболиваем пакеты и делаем им RETURN тоесть мы их убираем из цепочки REDSOCKS
+и возвращаем обратно в цепочку OUTPUT неменяя их и они просто летят дальше по дефолтовому
+сеетвому тракту. вот эти отфутболивающие исключающие из обработки правиал
+
+-A REDSOCKS -d 0.0.0.0/8 -j RETURN
+-A REDSOCKS -d 10.0.0.0/8 -j RETURN
+-A REDSOCKS -d 127.0.0.0/8 -j RETURN
+-A REDSOCKS -d 169.254.0.0/16 -j RETURN
+-A REDSOCKS -d 172.16.0.0/16 -j RETURN
+-A REDSOCKS -d 192.168.0.0/16 -j RETURN
+-A REDSOCKS -d 224.0.0.0/4 -j RETURN
+-A REDSOCKS -d 240.0.0.0/4 -j RETURN
+
+а вот уже два важных праивла
+так как мы сверзу отсеяли пакеты которые нелеття в интрнет то остались методом
+исключения пакеты которые летят именнов  интернет
+-A REDSOCKS  -p tcp --dport 443 -j LOG --log-prefix "[NAT REDSOCKS 443]"
+-A REDSOCKS -p tcp -j REDIRECT --to-ports 3838
+
+в первом правиле мы логируем такой пакет и он будет виден  в journalctl при этом
+вот эта штука "[NAT REDSOCKS 443]" это будет его виуазлальный идентфиикатор чтоб мы понимали
+к какой табиице и какой цепочке отноится эта лог линия. к соажлению длина этого индетфтикатора
+имеет ограничененную длину так что здесь мнного не напишешь
+а вторая линия уже делает дело. она заменяет у этого пакета dest port и как ни странно dest IP
+таким образом если пакет летел на 1.2.3.4:443 то теперь у него будет 127.0.0.1:3838
+выше я рисовал схему
+
+---> wlp2s0 интрфейс ---> (NAT) таблица           (FILTER) таблица ---> lo интерфейс ---> REDSOCKS 
+                           OUTPUT цепь  ------>     OUTPUT цепь
+
+
+так вот ее нужно уточнить. она на самом дееле вот такая
+
+---> wlp2s0 интрфейс ---> (NAT) таблица           (NAT) таблица ---> .... 
+                           OUTPUT цепь  ------>     REDSOCKS цепь
+
+
+тоесть у нас пакет будет проходить путь по такблице NAT нетолько через цепочку OUTPUT 
+но и через цепочку REDSOCKS которую мы сами создали
+
+после этого пакет покидает таблице NAT и влетает в таблицу FILTER в цепочку OUTPUT
+
+
+ ...>  (FILTER) таблица  
+           OUTPUT цепь  
+
+
+
+вот правила которые я добавляю в FILTER table в OUTPUT цепочку
+
+*filter
+:INPUT DROP [39:4773]
+:FORWARD DROP [0:0]
+:OUTPUT DROP [2603:186514]
+
+## REDSOCKS
+-A OUTPUT  -p tcp -m tcp -d 127.0.0.1 --dport 3838  -j LOG --log-prefix "[FILTER OUTPUT REDSOCKS]"
+-A OUTPUT  -p tcp -d 127.0.0.1 --dport 3838  -j ACCEPT
+
+
+в первой части показны цеопчки котоыре в таблице FILTER вообще есть,
+ну и правила которые я добавил в цеопчку OUTPUT,
+первое правило это я логирую пакет который проходит церез цепочку
+тоесть логирую пакет если у него dest port = 3838 и  dest ip =127.0.0.1
+еще раз почеркну что правило REDIRECT в таблице NAT нам поменяло нетолько порт но и айпи.
+вторым правилом я этот же пакет пропускаю дальше. я разрешаю ему идти дальше. 
+пакет покидает таблице FILTER и далее ядро его анализирует с через routing табллицу.
+видиит что dest int = lo и сует этот пакет  в lo интерфейс. а это значит что данный пакет
+в итоге попадает в ядре в сокет который относится к редсокс процессу. все пакет попал в сокет.
+процесс за этим следит. и он идет в этот сокет и засасывает этот пакет в свою память. все.
+пакет попал внутрь процесса редсокс
+тоесть пказвыаю тракт
+
+
+ ...>  (FILTER) таблица           ROUTING таблица            сетевой сокет         память redsocks
+           OUTPUT цепь   ------>                   ------->                ------->
+
+
+соотвесвтенно routing таблца она уже не явялется таблицей iptables поэтому путь пакета 
+именно внутри таблиц iptables заканчиывается на стадии FILTER таблица OUTPUT цепочка.
+на самом деле пакет на своем пути еще летит через некоторые таблицы и некотоыре цепочки , НО! - 
+я в них ничего неделаю поэтому они для нас прозрачные. я показалл только те таблица и те 
+цеопчки где мы с пакетом чтото делаем. а остальные не показал. 
+таким образом я щас покажу весь сетевой тракт через который летит пакет от программы-А 
+до процесса REDSOCKS
+
+
+программа-А сетевой сокет --->
+
+---> wlp2s0 интрфейс ---> (NAT) таблица           (NAT) таблица ---> .... 
+                           OUTPUT цепь  ------>     REDSOCKS цепь
+
+
+ ...>  (FILTER) таблица           ROUTING таблица            сетевой сокет         память redsocks
+           OUTPUT цепь   ------>                   ------->                ------->
+
+
+теперь я еще раз соберу все правила иптейблс на этот счет в одну кучу
+
+
+*nat
+
+:PREROUTING ACCEPT [29:3512]
+:INPUT ACCEPT [0:0]
+:OUTPUT ACCEPT [468:37214]
+:POSTROUTING ACCEPT [159:9596]
+:REDSOCKS -  [0:0]
+
+
+-A OUTPUT -p tcp --dport  80  -j REDSOCKS
+-A OUTPUT -p tcp --dport 443  -j REDSOCKS
+
+# redsocks кусок
+-A REDSOCKS -d 0.0.0.0/8 -j RETURN
+-A REDSOCKS -d 10.0.0.0/8 -j RETURN
+-A REDSOCKS -d 127.0.0.0/8 -j RETURN
+-A REDSOCKS -d 169.254.0.0/16 -j RETURN
+-A REDSOCKS -d 172.16.0.0/16 -j RETURN
+-A REDSOCKS -d 192.168.0.0/16 -j RETURN
+-A REDSOCKS -d 224.0.0.0/4 -j RETURN
+-A REDSOCKS -d 240.0.0.0/4 -j RETURN
+-A REDSOCKS  -p tcp --dport 443 -j LOG --log-prefix "[NAT REDSOCKS 443]"
+-A REDSOCKS -p tcp -j REDIRECT --to-ports 3838
+
+*filter
+:INPUT DROP [39:4773]
+:FORWARD DROP [0:0]
+:OUTPUT DROP [2603:186514]
+
+## REDSOCKS
+-A OUTPUT  -p tcp -m tcp -d 127.0.0.1 --dport 3838  -j LOG --log-prefix "[FILTER OUTPUT REDSOCKS]"
+-A OUTPUT  -p tcp -d 127.0.0.1 --dport 3838  -j ACCEPT
+
+
+
+
+теперь посмотрим на практике 
+я иницирую сетевой поток из программы-А тоесть из nc
+  $ nc -zv 1.2.3.4 443
+
+
+вот что я увижу влогах journalctl 
+
+[NAT REDSOCKS 443] REDIRECT IN= OUT=wlp2s0 SRC=192.168.21.1 DST=1.2.3.4 SPT=35186 DPT=443 SYN 
+[FILTER OUTPUT REDSOCKS]--> IN= OUT=wlp2s0 SRC=192.168.21.1 DST=127.0.0.1 SPT=35186 DPT=3838 SYN 
+
+значит мы пока что запрограмировали пролет пакета в одну сторону от программы-А до 
+сервиса редсокс. 
+здес мы видим путь пакета по времени по стадиям. какая стадия первая а каакая вторая.
+на первой стадии пакет пролетает через NAT таблицу и REDSOCKS ... и тут я понял что мне 
+для полноты картины нужно еще правило логирования добваит, мне надо в таллице NAT 
+в цепочку OUTPUT добавить правло логирования
+
+было
+-A OUTPUT -p tcp --dport  80  -j REDSOCKS
+-A OUTPUT -p tcp --dport 443  -j REDSOCKS
+
+
+
+стало
+-A OUTPUT -p tcp --dport  80  -j REDSOCKS
+-A OUTPUT  -p tcp --dport 443 -j LOG --log-prefix "[NAT OUTPUT 443]"  <== ***
+-A OUTPUT -p tcp --dport 443  -j REDSOCKS
+
+
+тепрь я показываю логи
+[NAT OUTPUT 443] IN= OUT=wlp2s0 SRC=192.168.21.1 DST=1.2.3.4 SPT=45904 DPT=443 SYN 
+[NAT REDSOCKS 443] IN= OUT=wlp2s0 SRC=192.168.21.1 DST=1.2.3.4 SPT=45904 DPT=443 SYN 
+[FILTER OUTPUT REDSOCKS] IN= OUT=wlp2s0 SRC=192.168.21.1 DST=127.0.0.1 SPT=45904 DPT=3838 SYN
+
+отсюда мы видим что пакет влетает в NAT table в OUTPUT цепочку, оттуда он направляется
+в NAT table REDSOCKS цепочку, оттуда он напралввятется в FILTER table OUTPUT цепочку,
+я соглсен что в логировании я применил несклоко путанную нотификацию тоесть в таблице  NAT
+я использую обозначение
+    [NAT OUTPUT 443]
+    [NAT REDSOCKS 443]
+
+тоесть я первым словом показываю в какой пакет щас талбице тоесть NAT
+вторым слоовом я покзываю в какой щас я цпочке тоесть OUTPUT либо REDSOCKS
+а в таблице FILTER я исполбзую
+
+    [FILTER OUTPUT REDSOCKS]
+
+здеьс я показаю что я в талице FILTER в цепочке OUTPUT и что это правило оно свзяано 
+с обработкой потока связанного с redsocks севрсиом.
+
+вобщем  я подкоректировал вид логов теперь вот так
+[NAT-OUTPUT 443:port] IN= OUT=wlp2s0 SRC=192.168.21.1 DST=1.2.3.4 SPT=52334 DPT=443 SYN 
+[NAT-REDSOCKS 443:port] IN= OUT=wlp2s0 SRC=192.168.21.1 DST=1.2.3.4 SPT=52334 DPT=443 SYN 
+[FILTER-OUTPUT REDSOCKS:rule]IN= OUT=wlp2s0 SRC=192.168.21.1 DST=127.0.0.1 SPT=52334 DPT=3838 SYN 
+
+вот теерь первые два слова это таблица и цепочка
+
+    FILTER-OUTPUT
+
+а третье слово это некая уточняющая информация
+таким оразом еще раз видно что пакет проходит через 
+
+
+приложение-А --->
+
+       NAT table           NAT table            FILTER table
+--->   OUTPUT     ----->   REDSOCKS    ----->   OUTPUT         --->
+
+
+ ---> redsocks
+
+
+таким образом пока что мы построили путь от приложения-А до сервиса редсокс в одну сторону
+
+
+
+
+| redsocks
+
+ставим из AUR
+
+# pamac install redsocks
+
+приколльно что pacman может показать 
+список файлов из AUR пакета
+
+# pacman -Ql redsocks
+redsocks /etc/
+redsocks /etc/conf.d/
+redsocks /etc/conf.d/redsocks
+redsocks /etc/iptables/
+redsocks /etc/iptables/redsocks.rules
+redsocks /etc/redsocks.conf
+redsocks /usr/
+redsocks /usr/bin/
+redsocks /usr/bin/redsocks
+redsocks /usr/lib/
+redsocks /usr/lib/systemd/
+redsocks /usr/lib/systemd/system/
+redsocks /usr/lib/systemd/system/redsocks.service
+redsocks /usr/lib/sysusers.d/
+redsocks /usr/lib/sysusers.d/redsocks.conf
+redsocks /usr/lib/tmpfiles.d/
+redsocks /usr/lib/tmpfiles.d/redsocks.conf
+redsocks /usr/share/
+redsocks /usr/share/doc/
+redsocks /usr/share/doc/redsocks/
+redsocks /usr/share/doc/redsocks/README
+redsocks /usr/share/doc/redsocks/redsocks.conf.example
+
+
+
+
+
+redosck + iptabels 
+
+поразительная вещь
+
+
+:REDSOCKS - [0:0]
+-A PREROUTING -p tcp -m tcp --dport 80 -j REDSOCKS
+-A PREROUTING -p tcp -m tcp --dport 443 -j REDSOCKS
+
+-A OUTPUT -p tcp -m tcp --dport 80 -j REDSOCKS
+-A OUTPUT -p tcp -m tcp --dport 443 -j REDSOCKS
+
+
+-A REDSOCKS -d 0.0.0.0/8 -j RETURN
+-A REDSOCKS -d 10.0.0.0/8 -j RETURN
+-A REDSOCKS -d 127.0.0.0/8 -j RETURN
+-A REDSOCKS -d 169.254.0.0/16 -j RETURN
+-A REDSOCKS -d 172.16.0.0/16 -j RETURN
+-A REDSOCKS -d 192.168.0.0/16 -j RETURN
+-A REDSOCKS -d 224.0.0.0/4 -j RETURN
+-A REDSOCKS -d 240.0.0.0/4 -j RETURN
+-A REDSOCKS -p tcp -j REDIRECT --to-ports 3838
+COMMIT
+
+
+конфиг
+
+[lenovo etc]# cat /etc/redsocks.conf 
+base {
+log_debug = off;
+ log_info = on;
+ log = "syslog:local7";
+ daemon = on;
+ redirector = iptables;
+
+}
+
+redsocks {
+    // Local IP listen to
+    local_ip = 0.0.0.0;
+    // Port to listen to
+    local_port = 3838;
+    // Remote proxy address
+    ip = 127.0.0.1;
+    port = 1080;
+    // Proxy type
+    type = socks4;
+    // Username to authorize on proxy server
+    // Do not disclose real IP
+    disclose_src = false;
+
+}
+
+
+
+
+
+что поражает . поражает как раоботает директива REDIRECT
+
+
+
+man iptables-extensions
+
+   REDIRECT
+       This target is only valid in the nat table, in the PREROUTING and OUTPUT chains, and user-defined chains which are only called from those chains.   It
+       redirects  the packet to the machine itself by changing the destination IP to the primary address of the incoming interface (locally-generated packets
+       are mapped to the localhost address, 127.0.0.1 for IPv4 and ::1 for IPv6, and packets arriving on interfaces that don't have an IP address  configured
+       are dropped).
+
+       --to-ports port[-port]
+              This  specifies  a  destination  port or range of ports to use: without this, the destination port is never altered.  This is only valid if the
+              rule also specifies one of the following protocols: tcp, udp, dccp or sctp.  For a single port, a service name as listed in  /etc/services  may
+              be used.
+
+
+по факту что я виже 
+если у меня изначлаьно пакет src ip = 192.168.211.1 ---> dst ip gmail.com  port 80
+
+ [PREROUTING REDSOCKS ] REDIRIN= OUT=wlp2s0 SRC=192.168.211.1 DST=104.21.54.91 LEN=60 TOS=0x00 PREC=0x00 TTL=64 ID=13907 DF PROTO=TCP SPT=36032 DPT=80 WINDOW=64240 RES=0x00 SYN URGP=0 
+
+
+для такого пакета как я понимаю -i интерфейс это lo но он его сука не пишет
+в логе. так вот модуль RWDIRECT он меняет DST_IP у пакета на примари IP от -i 
+картчоки . то есть у нас это lo картчока. и IP=127.0.0.1 поэтому 
+после прмиенеия правила  
+
+-A REDSOCKS -p tcp -j REDIRECT --to-ports 3838
+COMMIT
+
+у нас пакет будет иметь вид
+
+ OUTPUT-->   IN= OUT=wlp2s0 SRC=192.168.211.1 DST=127.0.0.1 LEN=60 TOS=0x00 PREC=0x00 TTL=64 ID=8212 DF PROTO=TCP SPT=57282 DPT=3838 WINDOW=64240 RES=0x00 SYN URGP=0 
+
+ путь от он прходит прцоесс-- NAT OUTPUT  --- FILTER OUTPUT --> FILTER INPUT
+
+  [FILTER INPUT ] INPUT REDSOCIN=lo OUT= MAC=00:00:00:00:00:00:00:00:00:00:00:00:08:00 SRC=192.168.211.1 DST=127.0.0.1 LEN=60 TOS=0x00 PREC=0x00 TTL=64 ID=40450 DF PROTO=TCP SPT=42956 DPT=3838 WINDOW=64240 RES=0x00 SYN URGP=0 
+
+как видно dest ip 127.0.0.1
+
+а если пакет летит из за br0. как src=172.16.10.11
+то обртно он будет взвращться на br0 и поэтому у него dest ip 
+меняется директивой редирект на 172.16.10.1
+
+[172.16.10.11:56814->104.21.54.91:80]: accepted
+[NAT PREROUTING REDSOCKS ] RIN=br0 OUT= PHYSIN=tap1 MAC=f6:72:b2:f6:dd:ce:ba:ec:24:5c:80:3a:08:00 SRC=172.16.10.11 DST=104.21.54.91 LEN=60 TOS=0x00 PREC=0x00 TTL=64 ID=53293 DF PROTO=TCP SPT=56814 DPT=80 WINDOW=64240 RES=0x00 SYN URGP=0 
+[FILTER INPUT ] INPUT REDSOCIN=br0 OUT= PHYSIN=tap1 MAC=f6:72:b2:f6:dd:ce:ba:ec:24:5c:80:3a:08:00 SRC=172.16.10.11 DST=172.16.10.1 LEN=60 TOS=0x00 PREC=0x00 TTL=64 ID=53293 DF PROTO=TCP SPT=56814 DPT=3838 WINDOW=64240 RES=0x00 SYN URGP=0 
+[FILTER INPUT ] INPUT REDSOCIN=br0 OUT= PHYSIN=tap1 MAC=f6:72:b2:f6:dd:ce:ba:ec:24:5c:80:3a:08:00 SRC=172.16.10.11 DST=172.16.10.1 LEN=52 TOS=0x00 PREC=0x00 TTL=64 ID=53294 DF PROTO=TCP SPT=56814 DPT=3838 WINDOW=502 RES=0x00 ACK URGP=0 
+[FILTER INPUT ] INPUT REDSOCIN=br0 OUT= PHYSIN=tap1 MAC=f6:72:b2:f6:dd:ce:ba:ec:24:5c:80:3a:08:00 SRC=172.16.10.11 DST=172.16.10.1 LEN=134 TOS=0x00 PREC=0x00 TTL=64 ID=53295 DF PROTO=TCP SPT=56814 DPT=3838 WINDOW=502 RES=0x00 ACK PSH URGP=0 
+[FILTER INPUT ] INPUT REDSOCIN=br0 OUT= PHYSIN=tap1 MAC=f6:72:b2:f6:dd:ce:ba:ec:24:5c:80:3a:08:00 SRC=172.16.10.11 DST=172.16.10.1 LEN=52 TOS=0x00 PREC=0x00 TTL=64 ID=53296 DF PROTO=TCP SPT=56814 DPT=3838 WINDOW=501 RES=0x00 ACK URGP=0 
+[FILTER INPUT ] INPUT REDSOCIN=br0 OUT= PHYSIN=tap1 MAC=f6:72:b2:f6:dd:ce:ba:ec:24:5c:80:3a:08:00 SRC=172.16.10.11 DST=172.16.10.1 LEN=52 TOS=0x00 PREC=0x00 TTL=64 ID=53297 DF PROTO=TCP SPT=56814 DPT=3838 WINDOW=501 RES=0x00 ACK FIN URGP=0 
+[172.16.10.11:56814->104.21.54.91:80]: connection closed
+[FILTER INPUT ] INPUT REDSOCIN=br0 OUT= PHYSIN=tap1 MAC=f6:72:b2:f6:dd:ce:ba:ec:24:5c:80:3a:08:00 SRC=172.16.10.11 DST=172.16.10.1 LEN=52 TOS=0x00 PREC=0x00 TTL=64 ID=0 DF PROTO=TCP SPT=56814 DPT=3838 WINDOW=501 RES=0x00 ACK URGP=0 
+
+тоесть меня попражает закон замены dest ip. 
+а второе что меня поражает это то что dest ip он меняет сам на тот который
+считает нужным. второе мы в явой форме указваываем порт который нам надо 
+тоже dest port поменять . получаетс вроде как у нас у пакета меняется dst ip
+и destport. и такой пакет суется в процесс redsocscsscscs. приёёожение котороое
+послало пакет ичего незнает про соксы хуцеусы и прочее.  так вот мне непонятно
+каким маккаро редс сокс поулчив паке с изменным dst ip и dest port узнает какиеон
+они были изначалньно и на овное этого она уже сама послывает новый пакет 
+на с исходными dst ip и dest port на сокс сервер. вот это для меня полная закагкадка
+как редскос получая затертый dst ip и dest port их узнает занововововов?!?!?!?!!?!?
+а так хоуезно. по факту работает - берем любое приложение tcp. котороеничое 
+незнает про соксы. направляет в редсокс. а он уже составляет запрос к сокс
+серверу. и полчетя охуенно. проожение которое понятие нимееет как пользоваться
+сокс серверовм в итоге получает ответ из интернета , ответ получен от сокс сврерраа!!!!
+
+на всякий случай полный iptables при котором редскоскс работает
+
+
+
+
+обрати внмиание как идет перенаправление на редсокс. 
+тоест порты 80, 443, 853 идут напавлятся на редсоскс. все осталгое идет нахуй
+
+говорю основаня схема какая - я весь трафик запретил.  а порты 80(HTTP),443(HTTPS), 853(DoTLS)
+разрешил на редсокс. редскос их перенаравиит на сокс сеервер который сделан на основе ssh.
+вот ттакая красота . тоесть даже приожения которые немеют работать через socs протокол (не 
+путать с сокетами) все равно будут нааправлены на socks sssh сервер. красота
+
+
+
+
+ссылки мало проработанные:
+https://man7.org/linux/man-pages/man8/iptables.8.html
+https://crosp.net/blog/administration/install-configure-redsocks-proxy-centos-linux/
+https://bbs.archlinux.org/viewtopic.php?id=287331
+https://github.com/darkk/redsocks/blob/master/redsocks.conf.example
+https://fale.io/blog/2024/04/30/forward-all-your-traffic-with-redsocks
+https://www.cyberciti.biz/faq/linux-port-redirection-with-iptables/
+https://ipset.netfilter.org/iptables-extensions.man.html
+https://github.com/faicker/ipt_httpredirect
+https://fale.io/blog/2024/04/30/forward-all-your-traffic-with-redsocks#:~:text=RedSocks%20is%20a%20tool%20for,traffic%20to%20the%20RedSocks%20socket.
+https://contabo.com/blog/linux-port-forwarding-with-iptables/#:~:text=iptables%20PREROUTING%20Chain%20Explained&text=In%20the%20context%20of%20port,to%20its%20original%20destination%20address.
+https://serverfault.com/questions/179200/difference-beetween-dnat-and-redirect-in-iptables
+https://serverfault.com/questions/859953/custom-chains-iptables-and-predefined
+https://www.frozentux.net/iptables-tutorial/chunkyhtml/c3965.html
+https://serverfault.com/questions/859953/custom-chains-iptables-and-predefined
+https://jimmysong.io/blog/understanding-iptables/
+https://askubuntu.com/questions/444729/redirect-port-80-to-8080-and-make-it-work-on-local-machine
+https://linkerd.io/2-edge/reference/iptables/
+https://serverfault.com/questions/859953/custom-chains-iptables-and-predefined
+https://medium.com/@jogarcia/breaking-the-proxy-walls-with-redsocks-in-linux-f4c1bfb6fb6a
+https://medium.com/@jogarcia/breaking-the-proxy-walls-with-redsocks-in-linux-f4c1bfb6fb6a
+https://superuser.com/questions/1401585/how-to-force-all-linux-apps-to-use-socks-proxy
+https://unix.stackexchange.com/questions/411551/force-an-applications-traffic-through-a-socks-proxy
+https://unix.stackexchange.com/questions/71429/redirect-all-non-local-traffic-to-a-socks-proxy
+https://unix.stackexchange.com/questions/501623/forward-all-traffic-to-a-socks5-proxy-port
+https://linux.die.net/man/8/tsocks
+https://wiki.archlinux.org/title/Proxy_server
+https://catonmat.net/linux-socks5-proxy
+https://unix.stackexchange.com/questions/38031/socks-proxy-without-ssh-command
+https://www.chromium.org/developers/design-documents/network-stack/socks-proxy/
+https://free-proxy-list.net/blog/chrome-socks-proxy-remote-dns
+https://serverfault.com/questions/1079188/iptables-nat-redirect
+https://www.cyberciti.biz/faq/linux-port-redirection-with-iptables/
+http://linux-ip.net/html/nat-dnat.html
+https://www.google.com/search?q=iptables+DNAT&newwindow=1&sca_esv=75a27d341fb77abe&sca_upv=1&ei=8vz1ZvazGvGI9u8Pm9vxMQ&ved=0ahUKEwj29KjX7-GIAxVxhP0HHZttPAYQ4dUDCA8&uact=5&oq=iptables+DNAT&gs_lp=Egxnd3Mtd2l6LXNlcnAiDWlwdGFibGVzIEROQVQyBRAAGIAEMgUQABiABDIFEAAYgAQyBRAAGIAEMgUQABiABDIFEAAYgAQyBRAAGIAEMgUQABiABDIFEAAYgAQyBRAAGIAESLcOUKEIWP0LcAF4AZABAJgBqgKgAdwHqgEFMC4xLjO4AQPIAQD4AQGYAgWgAocIwgIKEAAYsAMY1gQYR8ICDRAAGIAEGLADGEMYigXCAgoQABiABBhDGIoFmAMAiAYBkAYKkgcHMS4xLjIuMaAHsRQ&sclient=gws-wiz-serp
+https://www.cyberciti.biz/faq/linux-port-redirection-with-iptables/
+https://bbs.archlinux.org/viewtopic.php?id=287331
+https://github.com/darkk/redsocks/blob/master/redsocks.conf.example
+https://github.com/darkk/redsocks
+https://darkk.net.ru/redsocks/
+https://medium.com/@jogarcia/breaking-the-proxy-walls-with-redsocks-in-linux-f4c1bfb6fb6a
+
+export http_proxy=socks5h://localhost:9191
+export https_proxy=socks5h://localhost:9191
+
+
+что мне нпонятно с socks.
+по идее он получает IP/tcp пакет. берет из него пейлоад.
+меняет там src ip dst ip , и порты .  и посылает пакет на другой сервер.
+и все.
+однако я вижу вот что. браузер делает днс запрос якобы через DOH но зарос
+идет не через DOH он идет через резолвер хоста где сокс установлен.
+и идет через DOT по равилам хоста! что за нхуйня. как буттоо сок сервер 
+понимт что такое что такое днс хапорс???
+
+из тго что ест галка - напрвлять днс апрросы через сокс есть предпожоодение
+что браузер в явной форме просить сокс сервер сделать резовлинг днс запроса!!!!!
+
+ 
+https://serverfault.com/questions/1012579/how-is-a-proxy-able-to-decrypt-https-traffic-without-the-server-certificates
+https://stackoverflow.com/questions/47548608/ssl-socket-over-socks-proxy-is-client-server-data-encrypted
+https://danielmiessler.com/p/tcpdump/
+https://serverfault.com/questions/405822/how-do-i-use-socat-as-a-proxy-server
+https://askubuntu.com/questions/583797/how-to-set-a-proxy-for-terminal
+https://www.digitalocean.com/community/tutorials/how-to-route-web-traffic-securely-without-a-vpn-using-a-socks-tunnel
+https://github.com/jtripper/dns-tcp-socks-proxy
+https://stackoverflow.com/questions/77420690/how-does-socat-work-to-link-two-sockets-together-to-create-a-port-forwarded-conn
+https://stackoverflow.com/questions/17213799/simple-socket-forwarding-in-linux
+https://medium.com/@SaeedDev94/dns-resolution-with-socks-proxy-in-ubuntu-714cad49c283
+https://superuser.com/questions/1051530/dns-resolution-through-a-proxy
+https://medium.com/@SaeedDev94/dns-resolution-with-socks-proxy-in-ubuntu-714cad49c283
+https://github.com/curl/curl/issues/11458
+https://wiki.archlinux.org/title/Proxy_server
+https://www.privoxy.org/user-manual/quickstart.html
+https://superuser.com/questions/683503/way-to-do-dns-lookup-through-socks5-proxy-server
+https://superuser.com/questions/1675778/what-does-the-use-proxy-to-perform-dns-queries-socks-v5-only-option-in-pale
+https://stackoverflow.com/questions/33099569/how-does-sock-5-proxy-ing-of-dns-work-in-browsers
+https://www.inet.no/dante/doc/1.3.x/config/socks.html
+https://github.com/Jguer/yay/issues/795
+
+
