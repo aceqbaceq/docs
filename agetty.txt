@@ -1,0 +1,409 @@
+| agetty
+| login
+| ssh
+| motd
+| systemd
+| getty@tty
+
+в этом куске будет описано о том  как унас происходит логин в терминале.
+что такое агетти нахер он нужен. что такое прога login нахер она нужна.
+что такое файлы /etc/issue , /etc/os-release 
+будет описано как вырубить motd при входе на комп через tty и через ssh
+также бует описано при чем здесь systemd pid=1 и его сервисы getty@ttyN.service
+также будет изучено то - какой текст выводится на компе в терминале на экране ввода
+логина и пароля и как этот текст поменять
+
+
+
+значит я хотел малек описать что обеспечивает вход в линукс в текстовом режиме
+а потом позже ниже напишу как это происходит через ssh
+
+значит как это работает. как я понял но доказательств нет то что вот когда мы сидим
+в текстовом режиме то ядро оно же както "активирует" данный виртуальный терминал
+скажем  в юзер спейсе это устройство /dev/tty0 , это не само устройтво это такое шлюз 
+чтобы до него достучаться из юзеор сппейса. так вот  процесс с pid=1 тоесть systemd
+он каким то макаром следит за ситуацией когда ядро "активировало" данный терминал. 
+как он это делает непонятно. но точно известено что когда ядро "активировало" терминал
+тоест это происходит (если мы загрузились в текстом режиме ) при нажатии Alt+FN
+а если мы сидим в графиеском режиме то активация терминала N идет через Ctrl+Alt+FN
+то системд это замечает и оно запускает системд юнит (сервис) вот с таким называением
+
+	 getty@ttyN.service  
+
+
+тоесть если мы сидим за терминалом 1 то у нас системд заметит это и запустит
+
+	getty@tty1.service
+
+
+тоесть системд не заранее запускает кучу таких сервисов а толоько в тот момент когда 
+мы переключаемся в окно этого терминала. а если мы в это окно никогда не перключаемся
+например в окно терминала tty3 то сервис getty@tty3.service не будет запущен никогда.
+еще раз как системд замечеет что мы переклюились в оконо терминала tty3 хуй знает но 
+он как то это замечает.
+ 
+теперь надо сказать что юнита с именем  getty@tty1.service на диске нет! вместо этого
+есть юнит-щаблон как я их называю вот с таким именем 
+
+
+	getty@.service
+
+
+соотвтвенно он подходит для запуска целой кучи одниотипных сервисов в вида
+
+	getty@tty1.service
+	getty@tty2.service
+	getty@tty3.service
+	getty@tty4.service
+	getty@tty5.service
+	getty@ttyN.service
+
+вот как выгддяит статус любого такого сервиса
+
+
+
+  $ systemctl status getty@tty2.service
+● getty@tty2.service - Getty on tty2
+     Loaded: loaded (/usr/lib/systemd/system/getty@.service; disabled; preset: enabled)
+     Active: active (running) since Fri 2025-01-31 23:32:57 MSK; 1h 2min ago
+ Invocation: e7b23ca9e73a4b9ba62b360fac8c52a5
+       Docs: man:agetty(8)
+             man:systemd-getty-generator(8)
+             https://0pointer.de/blog/projects/serial-console.html
+   Main PID: 4058163 (agetty)
+      Tasks: 1 (limit: 18808)
+     Memory: 716K (peak: 2.2M)
+        CPU: 32ms
+     CGroup: /system.slice/system-getty.slice/getty@tty2.service
+             └─4058163 /sbin/agetty -o "-p -- \\u" --noclear - linux
+
+
+
+как видим в нем указано вот его тело
+
+	/usr/lib/systemd/system/getty@.service
+
+видно что стстуус у юнита дизейблд. тоест он стартует "вручную" а не автоматом прописан 
+при загрузке.
+
+кстати приконо что теперь в юниатхах указана документаация по юниту где ее искать
+
+       Docs: man:agetty(8)
+       man:systemd-getty-generator(8)
+       https://0pointer.de/blog/projects/serial-console.html
+
+
+так вот в теле этого юнита есть строчки с 
+кпри этом у нас в теле этого юнита есть выражения   с  %I  например
+
+
+		TTYPath=/dev/%I
+
+это дает то что  кода мы запускаем сервис в таком виде  	getty@tty1.service
+то в тело этого сервиса вместо %I подставляется "tty1" таким маккаром из этого юнита
+запускатся все эти сервисы.
+ксатти расказ как раз об шаблонах-юнитах и "%I" вот здесь
+
+	https://0pointer.de/blog/projects/instances.html
+
+там кстати написано что есть %I а есть %i
+разница между ними в том что %i точно подставит то что мы добавили в название сервиса
+при его старте но если в этом имени будут запрещенные символы например слеши то это приведет
+к ошибке поэтому есть более наворченная хрень это %I. для меня это неактулаьно но в статье
+есть прмиеры. там же написано что если мы хотим чтобы наши сервисы на основе шаблона системд
+стартовал автоматом то это можно вот как сделать напрмиер для нашего случая
+
+	# ln -s /lib/systemd/system/getty@.service /etc/systemd/system/getty.target.wants/getty@tty1.service
+
+якобы тогда сервис  getty@tty1.service будет грузится на автомате при старте а не он-деманд
+
+
+
+
+итак еще раз схема. - мы тыкаем кнопки и попдааем в экран терминала такотого типа tty2
+это событие както ловить сиистемд процесс pid=1 и он на это врунчуню запускает сервис
+
+
+	getty@tty2.service
+
+это сервис опирается на юнит-шаблон   getty@.service  в который вместо "%I" будет 
+подсталвен "tty2"
+
+вот пока помню статья про это дело
+
+	https://0pointer.de/blog/projects/serial-console.html
+
+там кусочек из нее надо читать "Virtual Terminals"
+
+так вот далее. по умолчанию системл среагирует на переклчение в терминалы tty1-tty6
+если мы хотим чтобы и при переключении в tty7-tty12 у нас тоже происходил запуск сервисов
+то нужно пойти в 
+
+	/etc/systemd/logind.conf
+
+и там исправить строчку
+
+	NAutoVTs=6 на NAutoVTs=12
+
+
+вот еще про этот аспект полезный пост
+
+	https://unix.stackexchange.com/questions/56531/how-to-get-fewer-ttys-with-systemd
+
+
+итак сервис стартанул. а что же он запускает.  смотрим  в тело юнита
+
+
+	ExecStart=-/sbin/agetty -o '-p -- \\u' --noclear - $TERM
+
+там еще есть полезные строки
+
+	StandardInput=tty
+	StandardOutput=tty
+	TTYPath=/dev/%I
+	TTYReset=yes
+	TTYVHangup=yes
+	TTYVTDisallocate=yes
+
+
+эти параметры отвечают на вопрос КАК этому процессу сообщается с каким терминалом ему надо 
+начать работать. по факту ему это несообщается а вот как оно происходит. systed pid=1 он себя
+клонирует и открыывает /dev/%I в fd/0 и в  fd/1  а потом он запускает execve(agetty)
+и таким макаром у нас agetty получает подкленным к себе терминал %I !!
+описание этих параметров:
+
+	StandardInput=tty
+	StandardOutput=tty
+
+оно укывзает что запускемый процесс нужно запустить так чтобы он  имел STDIN и STDOUT 
+смотрящие на tty файл.  какой имено файл указвыается вот тут
+
+	TTYPath=/dev/%I
+
+
+значение оставшихся трех строчек
+
+	TTYReset=yes
+	TTYVHangup=yes
+	TTYVTDisallocate=yes
+
+смотри в  
+
+	$ man systemd.exec
+
+в итоге зато стало понятно каким макаром програмируется к какому терминалу наш агетти
+должен быть подключен.
+
+вот какой итог мы увиим в списке прцоессов процесс
+
+	/sbin/agetty -o -p -- \u --noclear - linux	
+
+так как агетти запускается через системд то вот такой логично будет дерево процесов для него
+
+	systemd(1)---agetty(4038318)
+
+
+ИТАК ВОРОПРОС - что это за хрен agetty. как это связано с экраном термианала.
+читаю в man 
+
+	agetty opens a tty port, prompts for a login name and invokes the /bin/login command
+
+мне это и ИИ потвердил. значит что он делает. он берет терминал который к нему подключил 
+systemd и он делает на нем настройки! далее этот процесс ждет от юзера за термиалом что тот 
+потыкает кнопки и в агентти прилетит логин и пароль. а может быть он только логин ждет. 
+и агетти делает execve(/usr/bin/login) он его запускает и он ему передает логин который мы 
+ввели с терминала.  а прога логин уже занимается проверкой нашего пароля. то есть роль агетти
+в том чтобы произвести настройки терминала. что за настройки хрен знает (читай man agetty).
+так как агетти сделал execve() то у нас сам процесс осатется толко теперь внутри него 
+вращается бинарник login.
+эта прогармма провеярет наш пароль. если он неверный то она даст еще 2-5 попыток. если пароль 
+тухлый то эта программа себя грохает. но с точки зрения системд у нас грохается процесс 
+с агетти. а в его настройках юниат стоит строки
+
+	Restart=always
+	RestartSec=0
+
+поэтому как тлоко login себя грожает то системд перезапускает процесс и у нас снова на 
+сцеене появляется агетти. не совсем понятно поведение проги login потому что как только 
+мы ведвем логин то у нас агетти сдохнет а lgin опять запустится. ну и смысл было себя грохать?
+
+до того как мы ввели логин у нас агетти на экране рисует текстовую информацию. он ее
+беерет из файла /etc/issue , этот файл походу принадлежить этому агетти. о том как он с ним
+работает и какой формат внутри этого файла читайем в 
+
+	$ man agetty
+
+у меня этот файл выглядит вот так
+
+	 $ cat /etc/issue 
+	\S{ID} \m (\l)
+
+что это за хрени. в man agetty написано что в issue можно вписывать нетлько галимый статический
+текст но и переенные. перменные не баша а перменные самого агетти.
+вот эта хрень
+
+	\S
+
+означает что нужно прочитать из файла /etc/os-release
+вот его контент
+
+$ cat /etc/os-release 
+NAME="Manjaro Linux"
+PRETTY_NAME="Manjaro Linux"
+ID=manjaro
+ID_LIKE=arch
+BUILD_ID=rolling
+ANSI_COLOR="32;1;24;144;200"
+HOME_URL="https://manjaro.org/"
+DOCUMENTATION_URL="https://wiki.manjaro.org/"
+SUPPORT_URL="https://forum.manjaro.org/"
+BUG_REPORT_URL="https://docs.manjaro.org/reporting-bugs/"
+PRIVACY_POLICY_URL="https://manjaro.org/privacy-policy/"
+LOGO=manjarolinux
+
+
+так вот вот эта консуткрция 
+
+		\S{ID}
+
+означает что с этого файла нужно оотобразить на экране пеерменную ID
+тоесть вот это 
+
+	ID=manjaro
+
+далее вот это 
+
+	\m
+
+ознаачет что на экране нужно нарисаовать то что выдает uname -m
+
+вот это 
+
+	(\l)
+
+означает что на экране нужно нарсиваол скобочки ()
+а внутри них нужно нарисовать имя текущего терминала скажем tty2 тоесть на эаркне 
+будет (tty2)
+обо всем это нормально написано в  man agetty !
+таким образом агетти нам позволяет чтото выводить на экране до того как мы даже начали
+вводить логин!
+
+
+далее. кода мыввели логин то  у нас агетти делает exeve(login)
+настройки этой проги смотри в man login
+ее конфиг лежит здесь
+
+	 /etc/login.defs
+
+прикол  в том что если мы успешно ввели логин пароль то именно эта программа нам на экране
+может тоже вывести типа текст. напрмиер она может нам вывести motd (message of the day) 
+вот что об motd я вижу в мане
+
+
+
+motd(5)                                                  File Formats Manual                                                 motd(5)
+
+NAME
+       motd - message of the day
+
+DESCRIPTION
+       The  contents of /etc/motd are displayed by pam_motd(8) login(1) after a successful login but just before it executes the lo‐
+       gin shell.
+
+       The abbreviation "motd" stands for "message of the day", and this file has been traditionally used for exactly that  (it  re‐
+       quires much less disk space than mail to all users).
+
+       On Debian GNU/Linux, dynamic content configured at /etc/pam.d/login is also displayed by pam_exec.
+
+FILES
+       /etc/motd
+       /etc/pam.d/login
+
+SEE ALSO
+       login(1), issue(5) pam_motd(8)
+
+
+
+у меня такого файла нет. но это так называемый статический файл а еще бывает динамческий
+вот тут лежит
+
+	$ cat /run/motd.dynamic 
+	Linux debian12-c1 6.1.0-23-amd64 #1 SMP PREEMPT_DYNAMIC Debian 6.1.99-1 (2024-07-15) x86_64
+
+
+но motd это ЧТО показвыать. но покзываеть его или нет этим занимается login
+и его конфиг 
+
+	$ cat /etc/login.defs | grep -i motd
+    #MOTD_FILE
+
+
+я так понимаю если это разлочит то будет после ввода пароля на экране вылезать motd.
+
+также как указано есть и второе место которое влияет на login поведеие это 
+
+  /etc/pam.d/login
+
+и там есть вот такие строчки
+
+$ cat /etc/pam.d/login | grep motd
+# This includes a dynamically generated part from /run/motd.dynamic
+# and a static (admin-editable) part from /etc/motd.
+session    optional   pam_motd.so motd=/run/motd.dynamic
+session    optional   pam_motd.so noupdate
+
+
+если я не хочу чтобы никакой мусор motd рисовался на экране после ввода пароля
+то это все надо закометиирвать.
+
+
+
+НО! вся эта история началась с другооо. с того что я захожу на комп по ssh а мне в лицо
+постоянно вылезает этот MOTD.  чтобы избавить ся от motd привходе через ssh это надо 
+менять несколько в другом месте.
+во первых идем в файл 
+
+	$ cat /etc/ssh/sshd_config
+
+	PrintMotd no
+	PrintLastLog no
+	Banner none
+
+
+во первых вот эти две насторйки стоят по дефолту но они нихуя ни на что не влияют.
+они не помогут. это просто мусор
+	PrintMotd no
+	Banner none
+
+а вот эта настройка 
+
+	PrintLastLog no
+
+имеет полезное значение 
+она вырубит то что при входе не будет он нам писать когда и с какого IP был последний 
+прошлый заход. на сервере отключать это ненадо а вот на домашней виртулке мне этот мусор 
+ненужен.
+но мотд это не выключит. теперь идем в 
+
+$ cat /etc/pam.d/sshd | grep motd
+# This includes a dynamically generated part from /run/motd.dynamic
+# and a static (admin-editable) part from /etc/motd.
+session    optional     pam_motd.so  motd=/run/motd.dynamic
+session    optional     pam_motd.so noupdate
+
+и вот надо замоментиоовать эти две строки. 
+и теперь проклятый мотд исчезнетпри входе на комп по ssh
+но это я описал как исправить мотд по ссш если у меня есть рут доступ на этом
+сервере. а если я просто обычный юзер без рут прав входящий на сервер по ссш как
+в этом случае вырубить мотд. тоже можно смотри либо сюда
+
+	https://serverfault.com/questions/515604/ssh-client-option-to-suppress-server-banners
+
+либо через файл .hushfile он относится к проге login цитрую и из man login
+
+ If the file .hushlogin exists, then a "quiet" login is performed. This disables the checking of mail and the printing of the
+       last login time and message of the day. Otherwise, if /var/log/lastlog exists, the last login time is printed, and the current
+       login is recorded.
+
+этокакойто пиздец вся эта система нипель
+

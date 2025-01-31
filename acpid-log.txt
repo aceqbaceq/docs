@@ -1,0 +1,59 @@
+| acpid
+
+есть такая хуня. 
+смлтрим в логи и они засраны 
+
+
+
+янв 31 15:45:08 lenovo root[3998677]: ACPI group/action undefined: button/up / UP
+янв 31 15:45:11 lenovo root[3998683]: ACPI group/action undefined: button/down / DOWN
+янв 31 15:45:22 lenovo root[3998701]: ACPI group/action undefined: button/down / DOWN
+янв 31 15:45:24 lenovo root[3998707]: ACPI group/action undefined: button/down / DOWN
+янв 31 15:45:25 lenovo root[3998713]: ACPI group/action undefined: button/up / UP
+янв 31 15:45:26 lenovo root[3998715]: ACPI group/action undefined: button/left / LEFT
+янв 31 15:45:26 lenovo root[3998717]: ACPI group/action undefined: button/left / LEFT
+янв 31 15:45:37 lenovo root[3998736]: ACPI group/action undefined: button/down / DOWN
+янв 31 15:45:37 lenovo root[3998738]: ACPI group/action undefined: button/down / DOWN
+янв 31 15:45:38 lenovo root[3998742]: ACPI group/action undefined: button/left / LEFT
+янв 31 15:45:38 lenovo root[3998744]: ACPI group/action undefined: button/left / LEFT
+янв 31 15:45:40 lenovo root[3998748]: ACPI group/action undefined: button/up / UP
+
+
+есть такой сервис acpid 
+неясно нахуй он нужен но в частности он читает из ядра acpi события  и далее 
+он запускает скрипт 
+
+  
+  	/etc/acpi/handler.sh
+
+так вот надо создать вот такой файл
+
+	/etc/acpi/events/buttons
+
+
+
+ $ cat buttons 
+/etc/acpi/events/buttons
+
+event=button/(up|down|left|right|kpenter|volumeup|volumedown)
+action=<drop>
+
+
+в  нем мы указваем что на нажатие этих кнопок ненадо нихуя делаь в том числе
+засирать лог , сюда можно добаить любые кнопки инфо об них можно всегда увидеть в логе 
+то что выше, тоеть кога я захотел исключить конопку "вверх" то я нашел мусор об ней в логе
+
+
+	button/up
+
+и добавил  button/up в файл
+
+
+ТАКЖЕ! важно после изменения файл перезапустить сервис. я прверил процесс acpid неимеет 
+открытыми файлы из папки /etc/acpi/... но  практика покзаал что без перезагрузки сервиса
+новые настройки не вступят в силу
+
+
+
+
+
