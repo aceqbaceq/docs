@@ -1,0 +1,9 @@
+| monitor
+| brightness
+
+как руками поменяь яркость
+
+
+		/sys/class/backlight
+
+		

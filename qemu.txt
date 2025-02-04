@@ -101,3 +101,98 @@ qemu-system-x86_64  -S  -name cont3 -uuid 702d8a50-3777-4184-b584-6be05fa3754f -
 
 qemu-system-x86_64 -name manj3   -m 678M  -boot d    -drive file=hda.img,media=disk,if=virtio,format=qcow2,file.locking=off  -cpu host -enable-kvm    -smp 2   -M q35     -device virtio-balloon            -device qxl-vga,id=video0,vgamem_mb=16,xres=1800,yres=950    -display none  -netdev tap,id=mynet0,ifname=tap1,script=no,downscript=no  -device virtio-net-pci,netdev=mynet0,mac=ba:ec:24:5c:80:3a 
 
+
+==
+еще более финалная точка
+
+qemu-system-x86_64 -name manj2   -m 264M  -boot d    -drive file=hda.img,media=disk,if=virtio,format=qcow2,file.locking=off  -cpu host -enable-kvm    -smp 1   -M q35     -device virtio-balloon  -device VGA,vgamem_mb=4  -display none   -netdev tap,id=mynet2,ifname=tap2,script=no,downscript=no  -device virtio-net-pci,netdev=mynet2,mac=ba:ec:24:5c:80:4a 
+
+
+значит в чем прикол. прикол в виделкарте. дело в том что если по ссш ходит на вируалку
+то ненужна видеокарта с большим оьемаом видеопамяти потому что обьем видеопамяти нарпямую
+влияет на резмер оператвики который нужно выделить виртуалке. 
+так вот найтрока 
+
+    -display none
+
+она нихуя не влияет какая вирт видеокарта будет внутри вртуаоки. она тлоько влияет на то что
+будет покзан экран на мониооре илил нет. 
+так вот более простая настройка видокарты это 
+
+   -vga ...
+
+
+узнаем какие видеокарты доступны в этой настцроке 
+
+ $ qemu-system-x86_64 -vga help
+none                 no graphic card
+std                  standard VGA (default)
+cirrus               Cirrus VGA
+vmware               VMWare SVGA
+qxl                  QXL VGA
+virtio               Virtio VGA
+
+но это простая наттока для лохов.
+есь более гибки вариант через -device 
+эта настрока дает вомзожсность совать внутрь ВМ самые разные желекзки
+
+
+$ qemu-system-x86_64 -device  help | grep Display -A21 | grep PCI
+name "ati-vga", bus PCI
+name "bochs-display", bus PCI
+name "cirrus-vga", bus PCI, desc "Cirrus CLGD 54xx VGA"
+name "qxl", bus PCI, desc "Spice QXL GPU (secondary)"
+name "qxl-vga", bus PCI, desc "Spice QXL GPU (primary, vga compatible)"
+name "secondary-vga", bus PCI
+name "VGA", bus PCI
+name "vhost-user-gpu-pci", bus PCI
+name "vhost-user-vga", bus PCI
+name "virtio-gpu-gl-pci", bus PCI, alias "virtio-gpu-gl"
+name "virtio-gpu-pci", bus PCI, alias "virtio-gpu"
+name "virtio-vga", bus PCI
+name "virtio-vga-gl", bus PCI
+name "vmware-svga", bus PCI
+
+далее можно посмтреть опции настройки каждого конкретногого девайса из списка
+для этого берем имя драйвера  и вот так делаем
+
+  -device NAME,help
+
+напрмиер берем драйер VGA
+
+$ qemu-system-x86_64 -device VGA,help | grep vgamem
+  vgamem_mb=<uint32>     -  (default: 16)
+
+
+так вот в итоге запускаем видеокарту вот так
+
+  
+    -device VGA,vgamem_mb=4  -display none
+
+теперь смотрим внутри вртулки
+
+$ lspci  | grep VGA
+00:02.0 VGA compatible controller: Device 1234:1111 (rev 02)
+
+$ lspci -v -s 00:02.0 
+00:02.0 VGA compatible controller: Device 1234:1111 (rev 02) (prog-if 00 [VGA controller])
+  Subsystem: Red Hat, Inc. Device 1100
+  Flags: bus master, fast devsel, latency 0
+  Memory at fe400000 (32-bit, prefetchable) [size=4M]      <<******
+  Memory at febd0000 (32-bit, non-prefetchable) [size=4K]  <<*******
+  Expansion ROM at 000c0000 [disabled] [size=128K]
+  Kernel driver in use: bochs-drm
+  Kernel modules: bochs
+
+
+из вывода видно что видоекарта жрет в памяти всего 4МБ.
+насолько я понимаю ниже этой цифры нихуя не уменшит память.
+другие драйверы не дают даже до такой цифры оуптсться.
+но в итоге даже такая штука позоовлет снизит размер видокарты с 128МБ до 4МБ
+что суесвтеннно эококноить память под виртуалку
+
+
+еще такой прикол почмуто если я вствалял     -device VGA,vgamem_mb=4  -display none
+в конце строки с qemu то у меня перставалвал работать сетвая карта. а если я пихаю
+это в середину строкаи с qemu то нормал. загадка
+

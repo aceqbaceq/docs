@@ -1,0 +1,8 @@
+| systemd
+| cgroup
+
+
+  $ systemd-cgtop
+
+ полезнаяха
+ 

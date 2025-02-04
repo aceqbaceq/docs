@@ -1,0 +1,172 @@
+| docker
+| docker rootless
+| rootless
+
+
+как его поставить.
+
+инструкция
+
+	https://docs.docker.com/engine/security/rootless/#prerequisites
+
+
+там все хороошо написано. 
+нужно отколючит докер сервис тот который классический. который подрут работает.
+потом надо поставить кое какие пакеты и sysctl немного подменить.
+а потом нужно скачать запустить скрипт под правами обычнггого юзера
+
+	https://get.docker.com/rootless
+
+вот стауст его запуска
+
+$ ./rootless 
+# Installing stable version 27.5.1
+# Executing docker rootless install script, commit: 6557921
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100 72.6M  100 72.6M    0     0  1409k      0  0:00:52  0:00:52 --:--:-- 3083k
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100 20.0M  100 20.0M    0     0  2039k      0  0:00:10  0:00:10 --:--:-- 2934k
++ PATH=/home/noroot/bin:/home/noroot/perl5/bin:/home/noroot/perl5/bin:/home/noroot/.gcloud-bin/bin:/home/noroot/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/bin/site_perl:/usr/bin/vendor_perl:/usr/bin/core_perl:/var/lib/snapd/snap/bin:/var/lib/snapd/snap/bin/:/var/lib/snapd/snap/bin/
++ /home/noroot/bin/dockerd-rootless-setuptool.sh install
+[INFO] Creating /home/noroot/.config/systemd/user/docker.service
+[INFO] starting systemd service docker.service
++ systemctl --user start docker.service
++ sleep 3
++ systemctl --user --no-pager --full status docker.service
+● docker.service - Docker Application Container Engine (Rootless)
+     Loaded: loaded (/home/noroot/.config/systemd/user/docker.service; disabled; preset: enabled)
+     Active: active (running) since Sun 2025-02-02 21:44:09 MSK; 3s ago
+ Invocation: 4bdbb501482841a580e21faa2f1848ae
+       Docs: https://docs.docker.com/go/rootless/
+   Main PID: 73782 (rootlesskit)
+      Tasks: 50
+     Memory: 42.8M (peak: 44.2M)
+        CPU: 1.086s
+     CGroup: /user.slice/user-1000.slice/user@1000.service/app.slice/docker.service
+             ├─73782 rootlesskit --state-dir=/run/user/1000/dockerd-rootless --net=vpnkit --mtu=1500 --slirp4netns-sandbox=auto --slirp4netns-seccomp=auto --disable-host-loopback --port-driver=builtin --copy-up=/etc --copy-up=/run --propagation=rslave /home/noroot/bin/dockerd-rootless.sh
+             ├─73789 /proc/self/exe --state-dir=/run/user/1000/dockerd-rootless --net=vpnkit --mtu=1500 --slirp4netns-sandbox=auto --slirp4netns-seccomp=auto --disable-host-loopback --port-driver=builtin --copy-up=/etc --copy-up=/run --propagation=rslave /home/noroot/bin/dockerd-rootless.sh
+             ├─73805 vpnkit --ethernet /run/user/1000/dockerd-rootless/vpnkit-ethernet.sock --mtu 1500 --host-ip 0.0.0.0
+             ├─73825 dockerd
+             └─73847 containerd --config /run/user/1000/docker/containerd/containerd.toml
+
+фев 02 21:44:09 lenovo dockerd-rootless.sh[73825]: time="2025-02-02T21:44:09.444047111+03:00" level=warning msg="WARNING: No io.weight support"
+фев 02 21:44:09 lenovo dockerd-rootless.sh[73825]: time="2025-02-02T21:44:09.444068563+03:00" level=warning msg="WARNING: No io.weight (per device) support"
+фев 02 21:44:09 lenovo dockerd-rootless.sh[73825]: time="2025-02-02T21:44:09.444081250+03:00" level=warning msg="WARNING: No io.max (rbps) support"
+фев 02 21:44:09 lenovo dockerd-rootless.sh[73825]: time="2025-02-02T21:44:09.444094232+03:00" level=warning msg="WARNING: No io.max (wbps) support"
+фев 02 21:44:09 lenovo dockerd-rootless.sh[73825]: time="2025-02-02T21:44:09.444116018+03:00" level=warning msg="WARNING: No io.max (riops) support"
+фев 02 21:44:09 lenovo dockerd-rootless.sh[73825]: time="2025-02-02T21:44:09.444130257+03:00" level=warning msg="WARNING: No io.max (wiops) support"
+фев 02 21:44:09 lenovo dockerd-rootless.sh[73825]: time="2025-02-02T21:44:09.444177773+03:00" level=info msg="Docker daemon" commit=4c9b3b0 containerd-snapshotter=false storage-driver=overlay2 version=27.5.1
+фев 02 21:44:09 lenovo dockerd-rootless.sh[73825]: time="2025-02-02T21:44:09.444485388+03:00" level=info msg="Daemon has completed initialization"
+фев 02 21:44:09 lenovo dockerd-rootless.sh[73825]: time="2025-02-02T21:44:09.528904106+03:00" level=info msg="API listen on /run/user/1000/docker.sock"
+фев 02 21:44:09 lenovo systemd[1181]: Started Docker Application Container Engine (Rootless).
++ DOCKER_HOST=unix:///run/user/1000/docker.sock
++ /home/noroot/bin/docker version
+Client:
+ Version:           27.5.1
+ API version:       1.47
+ Go version:        go1.22.11
+ Git commit:        9f9e405
+ Built:             Wed Jan 22 13:40:02 2025
+ OS/Arch:           linux/amd64
+ Context:           default
+
+Server: Docker Engine - Community
+ Engine:
+  Version:          27.5.1
+  API version:      1.47 (minimum version 1.24)
+  Go version:       go1.22.11
+  Git commit:       4c9b3b0
+  Built:            Wed Jan 22 13:41:24 2025
+  OS/Arch:          linux/amd64
+  Experimental:     false
+ containerd:
+  Version:          v1.7.25
+  GitCommit:        bcc810d6b9066471b0b6fa75f557a15a1cbf31bb
+ runc:
+  Version:          1.2.4
+  GitCommit:        v1.2.4-0-g6c52b3f
+ docker-init:
+  Version:          0.19.0
+  GitCommit:        de40ad0
+ rootlesskit:
+  Version:          2.3.2
+  ApiVersion:       1.1.1
+  NetworkDriver:    vpnkit
+  PortDriver:       builtin
+  StateDir:         /run/user/1000/dockerd-rootless
+ vpnkit:
+  Version:          7f0eff0dd99b576c5474de53b4454a157c642834
++ systemctl --user enable docker.service
+Created symlink '/home/noroot/.config/systemd/user/default.target.wants/docker.service' → '/home/noroot/.config/systemd/user/docker.service'.
+[INFO] Installed docker.service successfully.
+[INFO] To control docker.service, run: `systemctl --user (start|stop|restart) docker.service`
+[INFO] To run docker.service on system startup, run: `sudo loginctl enable-linger noroot`
+
+[INFO] Creating CLI context "rootless"
+Successfully created context "rootless"
+[INFO] Using CLI context "rootless"
+Current context is now "rootless"
+
+[INFO] Make sure the following environment variable(s) are set (or add them to ~/.bashrc):
+export PATH=/home/noroot/bin:$PATH
+
+[INFO] Some applications may require the following environment variable too:
+export DOCKER_HOST=unix:///run/user/1000/docker.sock
+
+
+в нем все полезно распиано
+
+что он делает. он скачиывает бинарнкики докера и кладетих в ~/bin
+и он устаналиывает системю юнит в 
+
+	/home/noroot/.config/systemd/user
+
+и запускает его
+
+
+$ systemctl --user  status  docker
+● docker.service - Docker Application Container Engine (Rootless)
+     Loaded: loaded (/home/noroot/.config/systemd/user/docker.service; enabled; preset: enabled)
+     Active: active (running) since Sun 2025-02-02 21:44:09 MSK; 19min ago
+ Invocation: 4bdbb501482841a580e21faa2f1848ae
+       Docs: https://docs.docker.com/go/rootless/
+   Main PID: 73782 (rootlesskit)
+      Tasks: 68
+     Memory: 183.5M (peak: 218.5M)
+        CPU: 22.652s
+     CGroup: /user.slice/user-1000.slice/user@1000.service/app.slice/docker.service
+             ├─73782 rootlesskit --state-dir=/run/user/1000/dockerd-rootless --net=vpnkit --mtu=1500 --slirp4netns-sandbox=auto --slirp>
+             ├─73789 /proc/self/exe --state-dir=/run/user/1000/dockerd-rootless --net=vpnkit --mtu=1500 --slirp4netns-sandbox=auto --sl>
+             ├─73805 vpnkit --ethernet /run/user/1000/dockerd-rootless/vpnkit-ethernet.sock --mtu 1500 --host-ip 0.0.0.0
+             ├─73825 dockerd
+             ├─73847 containerd --config /run/user/1000/docker/containerd/containerd.toml
+
+
+
+есть важная шняга. 
+вот у нас есть докер клиент. он конкетится к серверу. так вот 
+если у нас на компе есть два сервера один скажем который рабтает как рут системд юнит
+а второй как юзер системд юнит то докер клиент позволяет выбирать к какому серверру подключабся.
+это называется сменить контекст. выглядит это так
+
+$ sudo docker context ls
+NAME        DESCRIPTION                               DOCKER ENDPOINT               ERROR
+default *   Current DOCKER_HOST based configuration   unix:///var/run/docker.sock   
+rootless    ,,,                                       unix:///run/user/1000/docker.sock
+
+один из сокетов отноcится к одному а второй к другому.
+преключаемся вот так
+
+
+$ sudo docker context set rootless
+$ sudo docker context set default
+
+
+
+
+гтооотово
+
+
+

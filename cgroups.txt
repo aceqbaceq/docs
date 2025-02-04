@@ -245,3 +245,19 @@ Transient: yes
 мая 03 12:44:27 lenovo systemd[1]: Started Daily apt upgrade and clean activities.
 
 
+| cgroup
+
+удобняха.
+вот мы узнаем цгрупу у процесса
+
+   $ cat /proc/pid/cgroup
+
+
+а потом идем в 
+
+   /sys/fs/cgroup
+
+
+и там смотрим всякую статистику по этому процессу. что там с цпу что с памятью.
+удобно
+

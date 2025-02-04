@@ -47,3 +47,72 @@ tap0acf1587  TX 82.64MiB      RX 2.47MiB       wlp2s0       TX 1.40GiB       RX 
 tapd849074c  TX 83.76MiB      RX 1.68MiB                                       
 
 
+а вот еще
+
+Bootup: Mon Dec 23 22:41:12 2024   Load average: 2.87 3.36 3.20 4/3883 37753   
+
+user  :      2w 2d 08:25:40.78   9.7%  page in :        403127634              
+nice  :            00:01:32.34   0.0%  page out:        433423643              
+system:         6d 17:57:06.36   4.0%  page act:          3881548              
+IOwait:            20:22:18.14   0.5%  page dea:                0              
+hw irq:            19:52:16.19   0.5%  page flt:       6993660608              
+sw irq:            10:37:46.30   0.3%  swap in :         18072076              
+idle  :     20w 3d 08:42:30.85  84.9%  swap out:         27189649              
+uptime:   1m 1w 2d 18:24:11.63         context :      14465343333              
+
+irq   1:    3961415  1-edge i8042        irq 133:         44  0-edge mei_me    
+irq   8:          0  8-edge rtc0         irq 134:         76  0-edge nvme0q0   
+irq   9:      18024  9-fasteoi acpi      irq 135:      42588  1-edge nvme0q1   
+irq  14:          0  14-fasteoi INT34B   irq 136:      43581  2-edge nvme0q2   
+irq  16:  196893047  16-fasteoi idma64   irq 137:      40055  3-edge nvme0q3   
+irq  20:          0  20-fasteoi idma64   irq 138:      43771  4-edge nvme0q4   
+irq 110:    6430093  110-fasteoi ELAN0   irq 139:      32767  5-edge nvme0q5   
+irq 120:          0  0-edge PCIe PME     irq 140:      45749  6-edge nvme0q6   
+irq 121:          0  0-edge PCIe PME     irq 141:      31756  7-edge nvme0q7   
+irq 122:          0  0-edge PCIe PME     irq 142:  551454614  0-edge i915      
+irq 123:          0  0-edge PCIe PME     irq 143:      40410  8-edge nvme0q8   
+irq 124:          0  0-edge ahci[0000:   irq 144:       1222  0-edge snd_hda_in
+irq 125:    7540033  0-edge xhci_hcd     irq 145:   19616557  0-edge ath10k_pci
+
+
+br0         TX 58.67GiB      RX 57.15GiB      tap2        TX 2.02MiB       RX 1.13MiB      
+docker0     TX 0.00B         RX 0.00B         tap3        TX 1.41MiB       RX 417.97KiB    
+lo          TX 906.42MiB     RX 906.42MiB     tap4        TX 0.00B         RX 0.00B        
+tap0        TX 0.00B         RX 0.00B         wlp2s0      TX 1.81GiB       RX 22.77GiB     
+tap1        TX 58.72GiB      RX 57.64GiB                                       
+
+значит кто у нас чемпипон по генерации интераптов
+
+irq   1:    3961415  1-edge i8042      
+это контролллер клвы. потмуо что 8042 это контроллер клавы
+
+irq  16:  196893047  16-fasteoi idma64 
+это незнаю че.
+
+irq 125:    7540033  0-edge xhci_hcd
+это usb тость мышка
+
+
+irq 142:  551454614  0-edge i915
+это видокарта
+
+ 0 ꚽ  $ lspci -v -s 00:02.0
+00:02.0 VGA compatible controller: Intel Corporation WhiskeyLake-U GT2 [UHD Graphics 620] (rev 02) (prog-if 00 [VGA controller])
+	Subsystem: Lenovo Device 3f0e
+	Flags: bus master, fast devsel, latency 0, IRQ 142
+	Memory at a0000000 (64-bit, non-prefetchable) [size=16M]
+	Memory at 90000000 (64-bit, prefetchable) [size=256M]
+	I/O ports at 4000 [size=64]
+	Expansion ROM at 000c0000 [virtual] [disabled] [size=128K]
+	Capabilities: <access denied>
+	Kernel driver in use: i915
+	Kernel modules: i915
+
+вот видно что i915 драйвер
+
+правднепонятно а поему она генеирует интерапты. 
+
+
+ irq 145:   19616557  0-edge ath10k_pci
+это вай фай сет карта
+
