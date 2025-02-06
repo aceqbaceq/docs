@@ -1581,3 +1581,114 @@ RFKILL_HW_BLOCK_REASON=0x0
 
 но хрен знает чтот здес что значит
 
+| wpa_supplicant
+| p2p-dev-wlp2s0 
+
+значит если мы посмотрим на сетевые устройства в NetworkManager
+то мы увидим вот такую хуйню
+
+	# nmcli device stat
+DEVICE             TYPE      STATE                   CONNECTION 
+p2p-dev-wlp2s0     wifi-p2p  disconnected            --         
+
+
+что это за девайс такой? 
+дело вот  в чем. 
+во первых networkmanager он сам wifi картой не рулит. он это делает через 
+запуск сервиса wpa_supplicant
+
+это прям в манжаро такой пакет
+
+	$ pacman -Q | grep wpa
+	wpa_supplicant 2:2.11-2
+
+так вот если его остановить то сразу вай фай конект пропадет.
+
+вот эти логи постоянно влогах 
+
+ $ journalctl -f -u wpa_supplicant
+wpa_supplicant[657673]: wlp2s0: CTRL-EVENT-REGDOM-BEACON-HINT before freq=5180 max_tx_power=3000 no_ir=1
+wpa_supplicant[657673]: wlp2s0: CTRL-EVENT-REGDOM-BEACON-HINT after freq=5180 max_tx_power=3000
+wpa_supplicant[657673]: wlp2s0: SME: Trying to authenticate with 06:7f:c6:b9:18:cd (SSID=' iphone' freq=5180 MHz)
+wpa_supplicant[657673]: wlp2s0: Trying to associate with 06:7f:c6:b9:18:cd (SSID=' iphone' freq=5180 MHz)
+
+это как раз срет wpa_supplicant сервис.
+
+о нем можно почитать в 
+	
+	$ man wpa_supplicant
+
+так вот эта хрень она управляет драйвером от вай фай карты или типа того.
+так вот  вай фай карточки они помимо классиечского режима точки доступа могут еще работать
+в режиме WIFI-DIRECT. есть такая хуйня. такой стандарт.  он якобы позволяет двум вай фай
+телефонам или картам связаться друг с другом без точки доступа и файлами обменяться. 
+так вот наш wpa_supplicant он при старте вай фай  активруирует эту хуйню.
+как ее дезактивировать. потому что удалять это сетевое устйство через nmcli бесполезно 
+выдаст ошибку.  удалить этот девайс можно вот как
+
+создаем файл
+
+	# cat /etc/wpa_supplicant/wpa_supplicant.conf 
+	p2p_disabled=1
+
+потом идем и создаем drop-in файл
+	# pwd
+	/lib/systemd/system/wpa_supplicant.service.d
+
+	# cat config.conf 
+[Service]
+
+ExecStart=
+ExecStart=/usr/bin/wpa_supplicant   -u -s -O /run/wpa_supplicant      -Dnl80211 -iwlp2s0 -c/etc/wpa_supplicant/wpa_supplicant.conf
+
+самая важня хрень вот эта -c/etc/wpa_supplicant/wpa_supplicant.conf
+мы через нее засталяем сервис при старте считать конфиг
+
+  # systemctl daemon-reload
+  # systemctl restart wpa_supplicant
+
+если дроп-ин подцепился мы увидим строчку со звездочкой
+
+# systemctl status wpa_supplicant
+● wpa_supplicant.service - WPA supplicant
+     Loaded: loaded (/usr/lib/systemd/system/wpa_supplicant.service; disabled; preset: disabled)
+    Drop-In: /usr/lib/systemd/system/wpa_supplicant.service.d
+             └─config.conf  <*****
+
+
+
+все  ебала "p2p-dev-wlp2s0" должно исчезнуть 
+тоесть запускаем
+
+	# nmcli device stat
+	DEVICE             TYPE      STATE                   CONNECTION 
+	p2p-dev-wlp2s0     wifi-p2p  disconnected            --            <<<******
+
+и этот девайc должен исчезнуть. его должно не быть.
+
+
+
+кстати можно останвоить этот сервис и посмтреть его   в консолтном режиме
+
+ # /usr/bin/wpa_supplicant   -d -Dnl80211 -iwlp2s0 -c/etc/wpa_supplicant/wpa_supplicant.conf
+
+на экране будет куча полезной детальнй инфо . все из за ключа -d (debug)
+кстати там будет написано что якобы P2_P режим по прежнему включен. но нет. его уже не будет.
+но сам уровень дебага радует.
+
+
+вот типа описание этого wpa_supplicant
+	
+	https://w1.fi/cgit/hostap/plain/wpa_supplicant/wpa_supplicant.conf
+
+вот тоже описание 
+
+	https://wiki.archlinux.org/title/Wpa_supplicant
+
+
+но оттуда ничего вобщем то нам ненао. поочему - потому что эотим сервисом управляет NetworkManager
+
+так что через wpa_supplicant  нам  добавила очередную новую хуйню при работе с вай фай.
+
+АПДЕЙТ - после пары перезагрузок этот интфрейс опять появился в nmcli dev сука
+так что метод частично рабочий

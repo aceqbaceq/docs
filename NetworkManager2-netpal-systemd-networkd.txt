@@ -24,15 +24,18 @@ nmcli
 
 первый вариант создать бридж херовый потому что он неназначает ip адрес бриджу.
 и если я его назначу руками то он после перезагрузки невыживет я так думаю
-nmcli connection add ifname br0 type bridge con-name br0
+
+    nmcli connection add ifname br0 type bridge con-name br0
 
 второй вариант создать бридж более клевый
 несмущайся что создаеется якобы коннект типа а как же создать вначале утсройство
 вместе с коннектом автоматом создастся и устройство
-nmcli connection add  con-name br0    ifname br0 type bridge  ip4 172.20.0.1/24 autoconnect yes
+
+    nmcli connection add  con-name br0    ifname br0 type bridge  ip4 172.20.0.1/24 autoconnect yes
 
 теперт создаю tap0 
-nmcli connection  add  ifname tap0 type tun    con-name tap0  mode tap owner 12175
+    nmcli connection  add  ifname tap0 type tun    con-name tap0  mode tap owner 12175
+
 где 12175 это id юзера который будет владеть устройством
 
 
