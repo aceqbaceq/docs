@@ -1,0 +1,21 @@
+| proxy
+| apt
+
+как затствит апт вытй в инет чрез прокси через переменную окружения
+
+
+export http_proxy="http://172.16.10.11:2080"
+export https_proxy="https://172.16.10.11:2080"
+
+после этого споокойно можно запускать
+
+# apt-get ....
+
+
+а вот так можно сделать навсегда
+
+# cat /etc/apt/apt.conf.d/71proxy 
+Acquire::http::Proxy "http://172.16.10.11:2080/";
+Acquire::https::Proxy "https://172.16.10.11:2080/";
+
+
