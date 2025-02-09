@@ -1,0 +1,21 @@
+| iptables docker
+| docker iptables
+| docker
+
+
+как сделать так чтобы докер не лез со своими правилами в iptables 
+и в ip6tables на компе 
+
+
+# cat /etc/docker/daemon.json 
+{
+  "iptables": false,
+  "ip6tables": false,
+  "ip-masq": false,
+}
+
+
+замечу отеьно что нужно указывать и для iptabeles и для ip6tables
+иначе в одно месте дырку закроем а в другом оставим 
+и при перезагрузке докер сервиса он нам нагадит в иптейблс
+
