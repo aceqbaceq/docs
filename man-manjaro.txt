@@ -1,0 +1,16 @@
+| manjaro man
+| aech man
+
+в манжаро маны просто уебанские. реально. обрезанная хуйня бесполезная.
+чтобы поставит нормальные маны
+
+
+    # pacman -Sy dpkg
+	$ wget http://ftp.debian.org/debian/pool/main/m/manpages/manpages_6.03-2_all.deb
+	# dpkg -i manpages_6.03-2_all.deb
+
+обнволяем базу манов
+
+    # mandb
+
+ 

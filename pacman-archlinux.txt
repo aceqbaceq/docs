@@ -48,6 +48,10 @@ usr/share/kbd/keymaps/i386/qwerty/bashkir.map.gz is owned by core/kbd 2.6.4-1
 # pacman -Si qemu-img
 или вот так
 # pacman -Qo qemu-img
+или вот так
+# pacman -Sl  | awk '{print $2}' | grep man
+
+
 
 а вот как искать по имени файла пакет в AUR
 # pamac search  tunctl
