@@ -664,6 +664,35 @@ u_str ESTAB 0      0                                 * 23612            * 23613 
 то что в него прилетело. 
 
 
+кстати файл /dev/kmsg он открыт конечно же и отслеживается у sj
+
+  # lsof /dev/kmsg 2>/dev/null
+COMMAND       PID USER FD   TYPE DEVICE SIZE/OFF NODE NAME
+systemd         1 root 3w   CHR   1,11      0t0   10 /dev/kmsg
+systemd-j     388 root 6w   CHR   1,11      0t0   10 /dev/kmsg
+systemd-j     388 root 8u   CHR   1,11      0t0   10 /dev/kmsg
+
+видно что он открыт процессом pid=1 тоесть systemd но это похер
+и самое главное что он открыт процессом sj и через него он отслежиывает 
+изменеия в кернел логе и запмсывает это уже на диск. поэтому у нас journalctl
+может показать лог ядра
+
+# journalctl -k | head -n1
+дек 23 22:41:21 lenovo kernel: Linux version 6.11.11-1-MANJARO (linux611@manjaro) (gcc (GCC) 14.2.1 20240910, GNU ld (GNU Binutils) 2.43.0) #1 SMP PREEMPT_DYNAMIC Thu, 05 Dec 2024 16:26:44 +0000
+
+поэтому нам возможно в приницпе dmesg нахер ненужен. хаха
+
+
+а проверим открыт ли второй файл достпа к кернел логу
+  
+  # lsof /proc/kmsg 2>/dev/null
+  пусто
+
+получается нет. не открыт. никого он не интерсует. поэтому что это считается
+более старйы метод просмотра лога ядра. поэтому ивдимо он идет на херрен
+
+
+
 еще раз скажу что посмтреть куда щас указвает системная консоль можно через
 
  	$ cat /sys/class/tty/console/active 
