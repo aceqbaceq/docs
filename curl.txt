@@ -26,3 +26,23 @@ curl --socks5-hostname proxy.example.com http://www.example.com/
 
 
 опция чтобы сохрарить скачанный файл -O
+
+
+| curl 
+| curl   malformed HTTP request
+
+это значит что я неверно задал перменную 
+
+
+   https_proxy="http://IP:port"
+
+
+так вот ошибка изза того что ты указал 
+
+
+   https_proxy="httpS://IP:port"
+
+
+вот эта буква S она там ненужна. потому что эта S 
+заставляет обращаться на сам прокси по TLS а нам это 
+нахер ненадо.

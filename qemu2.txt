@@ -1,0 +1,496 @@
+| qemu
+| console
+| terminal
+| term
+| font
+
+
+щас я опишу пиздатый момент про кему, коносль 
+линукса и шрифты там, и граб и перенаправление
+на COM порт.
+
+
+ # qemu-system-x86_64 -name deb3 -m 264M -boot d -drive file=hda.img,media=disk,if=virtio,format=qcow2,file.locking=on -cpu host -enable-kvm -smp 1 -M q35 -device virtio-balloon -device VGA,vgamem_mb=12,xres=1800,yres=950 -display sdl -netdev tap,id=mynet1,ifname=tap3,script=no,downscript=no -device virtio-net-pci,netdev=mynet1,mac=ba:ec:24:5c:80:33 -serial /dev/tty
+
+
+
+для начала комент про важные опции
+
+-device VGA,vgamem_mb=12,xres=1800,yres=950 -display sdl
+
+
+эта хрень описвает какую видеокарту кему должен 
+сэмулировать внутри себя. (внутри своего процесса)
+
+VGA  означает драйвер видеокарты. щас покажу как
+узнать какие еще видеокрты кему может эмулировать
+и какие опции есть у каждой такой карты
+
+
+# qemu-system-x86_64 -device help | grep "Display" -A21
+Display devices:
+name "ati-vga", bus PCI
+name "bochs-display", bus PCI
+name "cirrus-vga", bus PCI, desc "Cirrus CLGD 54xx VGA"
+name "isa-cirrus-vga", bus ISA
+name "isa-vga", bus ISA
+name "qxl", bus PCI, desc "Spice QXL GPU (secondary)"
+name "qxl-vga", bus PCI, desc "Spice QXL GPU (primary, vga compatible)"
+name "ramfb", bus System, desc "ram framebuffer standalone device"
+name "secondary-vga", bus PCI
+name "VGA", bus PCI
+name "vhost-user-gpu", bus virtio-bus
+name "vhost-user-gpu-pci", bus PCI
+name "vhost-user-vga", bus PCI
+name "virtio-gpu-device", bus virtio-bus
+name "virtio-gpu-gl-device", bus virtio-bus
+name "virtio-gpu-gl-pci", bus PCI, alias "virtio-gpu-gl"
+name "virtio-gpu-pci", bus PCI, alias "virtio-gpu"
+name "virtio-vga", bus PCI
+name "virtio-vga-gl", bus PCI
+name "vmware-svga", bus PCI
+
+
+выбираем VGA и мотрим какие опции он имеет
+
+$ qemu-system-x86_64 -device VGA,help
+VGA options:
+...
+  vgamem_mb=<uint32>     -  (default: 16)
+  xres=<uint32>          -  (default: 0)
+  yres=<uint32>          -  (default: 0)
+
+вот это три параметра котоыре нам реально полезны
+итак
+
+-device VGA,vgamem_mb=12,xres=1800,yres=950 -display sdl
+
+
+vgamem_mb=12  это сколько МБ памяти будет иметь 
+видеокарта внутри ВМ. проверть можно вот так
+
+# lspci -s 00:02.0 -v
+00:02.0 VGA compatible controller: Device 1234:1111 (rev 02) (prog-if 00 [VGA controller])
+	Subsystem: Red Hat, Inc. Device 1100
+	Flags: fast devsel
+	Memory at fd000000 (32-bit, prefetchable) [size=16M]
+	Memory at febd0000 (32-bit, non-prefetchable) [size=4K]
+	Expansion ROM at 000c0000 [disabled] [size=128K]
+	Kernel driver in use: bochs-drm
+	Kernel modules: bochs
+
+
+вот мы видим строку
+	Memory at fd000000 (32-bit, prefetchable) [size=16M]
+
+тоесть карта реально имеет 16МБ памяти.
+почему не 12МБ как я задал. потому что драйвер 
+карты позволеяет задавать с шагом 8МБ тоесть 8,16,24,32
+итп.
+
+размер видео карты важен. во первых чем больше памяти
+под видкокрту тем больше МБ нужно выделить на хосте
+этой вирталке. второй аспект - если карта мелкая 
+то даже в текстовом режиме линукс не сможет иметь
+большое разрешение экрана. 
+
+
+xres=1800,yres=950    это задает какой размер на экране
+"монитора" будет иметь наш запущенный линукс. 
+монитор - это то окно которое появляется на экране
+когда мы стартуем виртуалку  . по дефолту это 
+уебищный 640х480 с которым неавожмно иметь дело.
+когда линукс уже загрузится уже разрешение хуй 
+поменяешь. поэтому именно эта настройка влиеяет 
+на то какой размер "экрана" будет после загрузки
+линукса. фишка в том что чтобы заданный размер 
+успешно "запустился" нужно чтобы обьем видеопамяти
+который мы задаем vgamem_mb=12 был достаочно
+большой. поэтому если после загрузки линукса
+размер "экрана" мелкий то нужно прибавит размер
+видеопамяти. нужнвй размер экрана должен сам собой
+устанвоится после загрузки линукса . причем это 
+раотает уже в текстовом режиме. графика ненужна. 
+
+но это мы задали пока что праметры видокарты.
+теперь нужно актвировать "экран"
+
+	-display sdl
+
+тоесть эта хрень аактивирует "экран монитора"
+а если мы нехоим никакого монитоора то 
+
+	-display none
+
+еслинам ненужен экран монитора то тогда можно
+урезать видеопамяь и сделат вот так
+
+	-device VGA,vgamem_mb=4 -display none
+
+
+итак мы на данный момент получили экран монитора
+с большим красивым разрешением 1800х950
+то есть размер окна большое и удобное
+
+далее опция
+
+	-serial /dev/tty
+
+что она делает. она создат внутри вм сериалный порт 
+/dev/ttyS0 и пробрасыает этот порт к нам на хост
+на устройство на нашем хосте /dev/tty где 
+/dev/tty это на самом деле текущий терминал для на
+шего процесса. тоеть ест /dev/tty это указтель на
+текущий терминал /dev/pts/73
+как узнать имя сериал порта внутри вм
+	# dmesg | grep tty
+[    1.773314] 00:03: ttyS0 at I/O 0x3f8 (irq = 4, base_baud = 115200) is a 16550A
+
+
+
+спраивается а нахрен нам это нужно. а мы щас
+заставим линукс  писать вывод нетлько на "видеокарту"
+но и в сериал порт. и прнимать данные нетолько 
+с клавы но и из сериал порта. это нам даст то что 
+у меня на терминале уже на моем хосте будет то 
+что на экране виртуалки. и нажатия кнопок на терми
+нале на моем хосте будет улетать на вирталку.
+идем на виртуалку в 
+
+		/etc/default/grub
+
+
+GRUB_CMDLINE_LINUX="console=tty1 console=ttyS0,115200n8"
+
+	
+	# update-grub
+
+
+перегружаемся. и вот мы уже видим консоль линукса
+прям в нашем терминалне на хосте а нетолько в 
+графическом ээкране.
+привходе эта падла печаатет мусор  (motd)
+надо этот мусор выключить
+для этго нужно закоменить две строки
+
+   # cat /etc/pam.d/login | grep motd
+#session    optional   pam_motd.so motd=/run/motd.dynamic
+#session    optional   pam_motd.so noupdate
+
+победа
+
+
+теперь надо вот что сделать. надо застваить
+чтобы граб свое меню тоже направил на сериал порт!
+для этого добалявем в 
+
+   /etc/default/grub
+
+GRUB_TERMINAL="console serial"
+GRUB_SERIAL_COMMAND="serial --unit=0 --speed=115200 --word=8 --parity=no --stop=1"
+
+про граб я это нашел тут 
+https://askubuntu.com/questions/924913/how-to-get-to-the-grub-menu-at-boot-time-using-serial-console
+
+
+
+далее нужно сделать вот что. у каждого терминала
+есть параметр сколько строк и столбцов.
+так вот по дефлту в терминале который через сериал
+порт мало столбцов. это надо исправить. также нужно
+сделать чтобы у нас терминал стал цветным. чтобы
+mc был в цвете.
+для этого добавляем
+
+	 # /root/.bashrc
+
+if [ $(tty) == "/dev/ttyS0" -o  $(tty) == "/dev/pts/0"  ]; then stty rows 32 columns 136; fi
+export TERM=konsole-256color
+export COLORTERM=truecolor
+
+теперь у нас mc будет цветной! и у нас число 
+колонок 136 и число строк 32
+
+спрашивается  а почему я вставил с условием
+if [ $(tty) == "/dev/ttyS0" -o  $(tty) == "/dev/pts/0"  ]; then stty rows 32 columns 136; fi
+
+а дело в том что нам нужно чтобы эта хрень срабаты
+вала только если мы сидим втерминале через сериал 
+порт. потому что для терминаа который чреез графич
+окно там другой набор этих параметров.
+
+ксатти как узнать сколько строк и колонок есть 
+на нашем терминале прям щас
+
+# stty -a
+speed 115200 baud; rows 32; columns 136; line = 0;
+
+
+далее
+в чем разница консоли когда она выводится
+на tty1 и когда на  ttyS0
+дело в том что когда на tty1 (граф экран) то сам
+терминал эмулирует ядро. а когда на ttyS0 то само 
+ядро терминал не предоставляет. оно нам дает всего
+навсего штекер сериал порт ttyS0 а сам терминал
+обеспечиыается уже софтом нашего хоста. поэтому 
+на терминале чреез ttyS0 у нас уже работают руские
+буквы. а на tty1 их нет. займемся и активруем их.
+еще сделаем так чтобы шрифт был большой.
+модифицируем два файла
+
+
+	# cat /etc/default/console-setup
+# Consult the console-setup(5) manual page.
+
+ACTIVE_CONSOLES="/dev/tty[1-6]"
+CHARMAP="UTF-8"
+
+CODESET="FullCyrSlav"
+FONTFACE="Terminus"
+FONTSIZE="12x24"
+
+VIDEOMODE=
+
+#FONT='FullCyrSlav-Terminus24x12.psf.gz'
+
+
+
+
+	# cat /etc/default/keyboard
+# Consult the keyboard(5) manual page.
+
+XKBMODEL="pc105"
+XKBLAYOUT="us,ru"
+XKBVARIANT=","
+XKBOPTIONS="grp:ctrl_shift_toggle"
+BACKSPACE="guess"
+
+
+теперь применяем их
+
+  # setupcon
+
+
+если все прошло успешно то  у нас мгновенно 
+размер букв должен стать больше и через Ctrl+Shift
+начаь работать переключение на руские буквы.
+
+теперь наконц таки tty1 консолт стала реально 
+удобно рабочей. и букв крупные. и руские бквы ест.
+и экран большой. и вторая консоль через ttyS0
+
+поговорим о хренях в конфигах что я написал выше
+
+
+	# cat /etc/default/console-setup
+# Consult the console-setup(5) manual page.
+
+ACTIVE_CONSOLES="/dev/tty[1-6]"
+CHARMAP="UTF-8"
+
+CODESET="FullCyrSlav"
+FONTFACE="Terminus"
+FONTSIZE="12x24"
+
+VIDEOMODE=
+
+#FONT='FullCyrSlav-Terminus24x12.psf.gz'
+
+
+в целом о них написано в 
+
+	# man console-setup 
+
+
+что вот это такое
+	CHARMAP="UTF-8"
+хрен знает 
+
+теперь на счет вот этого блока
+	CODESET="FullCyrSlav"
+	FONTFACE="Terminus"
+	FONTSIZE="12x24"
+
+это на самом деле разбитое на три части зашированное
+имя файла в котором лежит шрифт. консолльные шрифты
+лежат в папке 
+
+	/usr/share/consolefonts
+
+или 
+
+	/usr/share/fonts/misc
+
+признак это наличие файлов вида   *.pcf.gz
+
+так вот пример имени файла
+
+
+	FullCyrSlav-TerminusBold14.psf.gz
+
+так вот первая часть имени файла
+	
+
+	FullCyrSlav
+
+
+кодируется в конфиге через 
+
+	CODESET="FullCyrSlav"
+
+
+вторая часть в имени файла кодируется через 
+
+	FONTFACE="Terminus"
+
+или как в данном случае 
+
+	FONTFACE="TerminusBold"
+
+третья часть имени кодируется через 
+
+	FONTSIZE="14"
+
+тоесть мы укаывзаем эти три хрени
+
+
+	CODESET="FullCyrSlav"
+	FONTFACE="TerminusBold"
+	FONTSIZE="14"
+
+и ос собирает эти три хрени в имя файла 
+
+	FullCyrSlav-TerminusBold14.pcf.gz
+
+и ищет этот файл в папке c с этими шрифтами.
+вместо этой ебалы можно укзаать имя файла без 
+всякой ебалы просто в прямом виде - в виде конечного
+имени файла сука
+
+
+    FONT='FullCyrSlav-Terminus24x12.psf.gz'
+
+
+разберем второй файл
+
+	# cat /etc/default/keyboard
+# Consult the keyboard(5) manual page.
+
+XKBMODEL="pc105"
+XKBLAYOUT="us,ru"
+XKBVARIANT=","
+XKBOPTIONS="grp:ctrl_shift_toggle"
+BACKSPACE="guess"
+
+
+вот эта штука
+	XKBOPTIONS="grp:ctrl_shift_toggle"
+
+она настрвает переключалку раскладок
+осталное хрен знает
+
+
+о настройках в этих файлах читай тут
+
+  # man setup-console
+  # man keyboard
+
+
+теперь - как посмтреть как будет выглядеть на экране
+тот или иной шрифт  - ответ эти долбоебы несоздали
+утилиту для этого. выход есть . корявый. 
+есть утилита 
+
+
+  # setfont /usr/share/consolefont/Lat2-Terminus22x11.psf.gz
+
+
+она нам сразу переключит шрифт на экране.
+после этого можно посмреть все смиволы этого 
+шрифта через 
+
+   # showconsolefont
+
+когда примерно прикинули какой шрифт нам
+подходит. например для меня идельный шрифт это 
+FullCyrSlav-Terminus24x12.psf.gz то настала 
+пора применять его посерьезному.
+создаем копии файлов 
+
+  
+  # cp /etc/default/console-setup /etc/default/console-setup.ru
+
+  # cp /etc/default/keyboard /etc/default/keyboard.ru
+  
+далее модифицируем эти файлы.
+далее можно тестово попробовать применить новые
+настройки на консоль через 
+
+ # setupcon ru
+
+если чтот подйет нетак то просто перегружаем комп
+и все. 
+
+если все ок. то копируем *.ru в исодные файлы 
+и накатыаем через setupcon
+
+
+далее
+вот здесь 
+	https://unix.stackexchange.com/questions/197340/setting-custom-baud-rate-on-console
+я нашел то что не смотря на то что tty1 формально имеет парметр baud
+
+$ stty -a
+speed 38400 baud;  
+
+но в случае tty1 полську это виртальная хрень 
+а не реалная железка то как пишет автор эта настройка
+нихуя не влияет на то как быстро у нас скроллинг 
+работает в tty1. можнодаже этот параметр менять туда
+обратно . пофиг
+
+
+можно менять размер граф экрана в консоли
+через fbset но если мы это пытаемся делать внутри 
+кему 
+
+   # fbset ....
+
+то чаще всего будем получать ошибку
+
+FBIOPUT_VSCREENINFO: invalid argument
+
+решение - неиспльзвать эту утулиту. вместе нее
+юзать 
+
+
+-device VGA,vgamem_mb=12,xres=1800,yres=950 -display sdl
+
+
+тоест вот эту штуку юзать xres=1800,yres=950
+она и позволяет задать размер экрана
+
+
+ДАЛЕЕ. 
+вся эта шарманка что я выше описал работала
+раньше. А ЩАС в манжаро\арче консолю ее шритфами
+управляет теперь тоже SYSTEMD
+а точнее ее юнит
+
+
+	systemd-vconsole-setup.service
+
+
+и она завязан на 
+
+	 $ man vconsole.conf
+
+но конкретно щас времени разбираться с этой 
+штукой нет!
+
+надо уитывать очень важный момент - если неправильно
+законфигурирровать косоль хоть через старую систему
+хтт через новую и будет пиздец. поэтоу  с этой
+хренью надо быть акуратным. 
+

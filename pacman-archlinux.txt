@@ -183,6 +183,24 @@ Failed to read AUR data from /var/lib/pacman/sync/packages-meta-ext-v1.json.gz :
 другая история. поэтмоу только редсокс. об редсокс есть отдельный документ redsocks.txt
 
 
+|  lock
+
+если вижу ошибку
+
+error: failed to synchronize all databases (unable to lock database)
+
+то это из за этого 
+
+openat(AT_FDCWD, "/var/lib/pacman/db.lck", O_WRONLY|O_CREAT|O_EXCL|O_CLOEXEC, 000) = -1 EEXIST (File exists)
+
+случается вот когда - запутил ты пакман а потом
+Ctrl+C
+потом повторно запустил а в ответ ругань.
+прчиина - лок файл. 
+решение - нужно подождать скунд 10 
+файл исчезнет. и пакаман заработает.сука
+
+
 
 
 ссылки:

@@ -1,0 +1,3 @@
+| bridge
+
+sudo ip -c link set tap5 nomaster

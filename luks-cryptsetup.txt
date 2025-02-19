@@ -12,6 +12,7 @@ $ sudo cryptsetup -y -v --type luks2 luksFormat ./redmi9.luks
 
 
 $ sudo cryptsetup luksOpen  ./redmi9.luks  redmi9
+(!!) EBANNIII SHUT!! VTOROI PARAMETER ETO NE PAPKA SUKA! ETO BUDUSHEE IMYA V /DEV/MAPPER/REDMI9 (!!!)
 	при этом создается устройство в /dev/mapper
 (!!) ВАЖНО! здесь есть тривальный но рально ебанутый момент. ВНАЧАЛЕ нужно будет 
 ввести судо пароль! а уже тлоко потом пароль от лукса! а то я блядь тыкаю и не понимаю

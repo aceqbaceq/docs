@@ -1,0 +1,56 @@
+| systemd
+| unit
+
+
+как  создать unit 
+
+	$ cat /etc/systemd/system/super.service 
+
+[Unit]
+Description=SUPER service
+
+[Service]
+Type=simple
+User=noroot
+Group=noroot
+WorkingDirectory=/FOLDER1/
+ExecStart=/FOLDER1/file1  --config /FOLDER1/2.cfg  run
+Restart=on-abort
+
+
+[Install]
+WantedBy=multi-user.target
+
+
+
+  # systemctl daemon-reload
+  # systemctl start  super
+  # systemctl status super
+  # systemctl enable super
+
+
+значит это старт бинарника под юзеро noroot
+но не когда он вошел на комп а просто автономно.
+в чем пизда - я пока не понял как можно укзаать
+папку отдельно чтобы при запуске бинарника не укзыать
+путь к папке поэтому везде дебилоилно указан полный
+путь и к бинарнику и к конфигу. 
+опция "WorkingDirectory=" как то нихуя не рабоает
+
+вот эта опция
+  
+   Type=simple
+
+она дает то что мы запукаем бинарник который себя
+не форкает. поэтому такой тип.
+
+
+P.S. 
+я посмтрео что дает 
+  WorkingDirectory=/FOLDER1/
+
+она дает то что у процесса котоырй будет запущен
+будет CWD (current woring directory) выставлен в 
+/FOLDER1/ , но!  c точкти зрения заполнения юнита
+путь к бинарнику нужно укзыать все равно абсолютный!
+

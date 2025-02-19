@@ -43,3 +43,17 @@
 по дефолту в нем нет файла /etc/sysctl.conf
 его надо создвать самому руками
 
+
+
+| sysctl 
+| arch
+
+https://archlinux.org/news/deprecation-of-etcsysctlconf/
+
+есть такая хрень что уже 10 лет назад
+системд уже не читает /etc/sysctl.conf !
+поэтому его нужно переместить  в папку 
+
+
+  /etc/sysctl.d/
+

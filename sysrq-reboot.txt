@@ -1,0 +1,52 @@
+| reboot
+| init
+| magic
+| sysrq
+| restore
+| repait
+| passwd
+| password
+
+есть такой момент. вот мы загрузились скажем
+в реэиме однопользовательском в линуксе
+через 
+
+  ... init=/usr/bin/sh
+
+
+для того чтобы сбросить пароль нужно перемонтировать
+корень в rw режиме иначе passwd нам напишет ошибку
+
+ 		Authentication token manipulation error
+
+
+пеермотруем вот так
+
+		# mount -o rw,remount /
+
+так вот когда пароль срошен нужно перезагрузить 
+комп. как это сделать. деол в том что щас 
+команда 
+
+   # reboot 
+   # halt -p
+   # poweroff
+
+это все на самом деле симлинки на systemctl 
+а это в свою очеередь кллиент для обращения к
+"серверу" systemd который в однопользовательском
+режиме незапущен! поэтому перегрузить комп так
+не получится. а что делать?
+на помощь приходит SysRq
+
+	https://unix.stackexchange.com/questions/487238/how-to-poweroff-when-theres-no-systemd-init-e-g-using-init-bin-bash
+
+	https://www.kernel.org/doc/html/v4.10/admin-guide/sysrq.html
+
+итого
+
+	# echo s > /proc/sysrq-trigger	
+	# echo b > /proc/sysrq-trigger	
+
+
+так вот вопрос а как перезагрузиться

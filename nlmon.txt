@@ -1,0 +1,46 @@
+| nlmon
+
+эта такая вирт сет карточка
+
+modprobe nlmon  # Включить nlmon
+ip link add nlmon0 type nlmon
+ip link set nlmon0 up
+tcpdump -i nlmon0 -nn
+
+
+через которую можно видеть netlink события
+но честно говорря мало что полезного можно там найти.
+как все это смотреть 
+снимаем трафик
+
+	# tcpdump -i nlmon0 -w nlmsg.pcap
+
+дефшифруем его
+
+  # apt-get install tshark
+
+ # tshark -r ./nlmsg.pcap -T text -V | grep -E "Netlink message header|Error code"
+Running as user "root" and group "root". This could be dangerous.
+    Netlink message header (type: Get network interface info)
+    Netlink message header (type: Create network interface)
+    Netlink message header (type: Create network interface)
+    Netlink message header (type: Create network interface)
+    Netlink message header (type: End of a dump)
+    Netlink message header (type: Get IP address)
+    Netlink message header (type: Add IP address)
+    Netlink message header (type: Add IP address)
+    Netlink message header (type: Add IP address)
+    Netlink message header (type: Add IP address)
+    Netlink message header (type: End of a dump)
+    Netlink message header (type: 0x0401)
+    Netlink message header (type: Error)
+    Error code: Success (0)
+    Netlink message header (type: 0x0401)
+    Netlink message header (type: 0x0401)
+    Netlink message header (type: Error)
+    Error code: Success (0)
+    Netlink message header (type: 0x0401)
+    Netlink message header (type: 0x0401)
+    Netlink message header (type: Error)
+    Error code: Operation not permitted (-EPERM) (-1)
+    Netlink message header (type: 0x0401)

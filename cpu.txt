@@ -914,7 +914,7 @@ analyzing CPU 0:
 
 
 
-так вот конфиг pupower я ненашел  в убунте.
+так вот конфиг cpupower я ненашел  в убунте.
 тогда я нашел как засунуть его запуск в systemd вот здесь 
 		https://sleeplessbeastie.eu/2015/11/09/how-to-set-cpu-governor-at-boot/
 
@@ -928,6 +928,30 @@ Type=oneshot
 ExecStart=/usr/bin/cpupower -c all frequency-set --governor powersave  -d 400MHz -u 1000MHz
 [Install]
 WantedBy=multi-user.target
+
+(!!)ВАЖНО(!!) в итоге эта служба чтото нихуя
+при загрузке несрабатывает. ее приходится руками
+пеерезапускать после загрузки. но я нашел 
+файл 
+
+    /etc/default/cpupower
+
+этот файл принадлежит пакету cpupower
+я полагаю он считывается при загрузке
+в итоге  я в него вставил контент
+
+
+  # cat /etc/default/cpupower  | grep -v '#'
+
+  governor='powersave'
+
+  min_freq="400MHz"
+  max_freq="800MHz"
+
+
+я надеюсь наконец то что при загрузке компа
+будет выставляться нужная частота! в мане от cpupower
+нет никакой инфо об этом файле
 
 
 # systemctl daemon-reload
