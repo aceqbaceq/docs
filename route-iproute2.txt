@@ -1,0 +1,14 @@
+| route
+| iproute2
+
+нельзя вставить два маршурта в одну сеть через 
+разные карты но с одинаковой метрикой
+
+вот так не полуичится
+172.16.70.0/24 dev enp0s4 scope link metric 100 
+172.16.70.0/24 dev enp0s3 scope link metric 100 
+
+толко вот так
+172.16.70.0/24 dev enp0s4 scope link metric 100 
+172.16.70.0/24 dev enp0s3 scope link metric 200 
+

@@ -371,6 +371,37 @@ VIDEOMODE=
 
     FONT='FullCyrSlav-Terminus24x12.psf.gz'
 
+UPDATE. я прверил к сожалению эта сука все таки
+неработает нормально только с ключом FONT
+все таки нужно заполнять вот эти три поля
+
+ CODESET="FullCyrSlav"
+ FONTFACE="Terminus"
+ FONTSIZE="24x12"
+
+иначе получается вот что. если натраваить
+
+  # setupcon
+
+то шрифт меняется. но при перезагрузке нихрена
+не подхывает. поэтому нужно заполнять эти три
+поля заполнение одного поля FONT недотатчно.
+итого надо чтобы вся хуйня выглядела так
+
+		# cat /etc/default/console-setup 
+# CONFIGURATION FILE FOR SETUPCON
+# Consult the console-setup(5) manual page.
+ACTIVE_CONSOLES="/dev/tty[1-6]"
+CHARMAP="UTF-8"
+CODESET="FullCyrSlav"
+FONTFACE="Terminus"
+FONTSIZE="12x24"
+VIDEOMODE=
+#FONT='FullCyrSlav-Terminus24x12.psf.gz'
+
+
+
+
 
 разберем второй файл
 

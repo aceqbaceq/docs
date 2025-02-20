@@ -1,0 +1,12 @@
+| debian
+| ipv6
+
+как выключить ipv6
+
+net.ipv6.conf.tun0.disable_ipv6 = 1
+
+или 
+
+ # echo  1 > /proc/sys/net/ipv6/conf/enp0s3/disable_ipv6
+
+ 

@@ -1,0 +1,18 @@
+| nmcli 
+| tap
+| bridge
+
+
+как создать tap5 порт без входа в состав бриджа.
+тоесть просто автономный порт tap5
+
+ # nmcli conn add type tun mode tap  owner 1000 group 1000 ifname tap5  con-name tap5 autoconnect yes save yes ipv4.method disabled ipv6.method disabled
+
+
+как создать tap2 порт и плюс всатвить его 
+в составе бриджа br0
+
+ # nmcli connection add con-name "tap2"    type tun   mode tap   ifname "tap2" ipv4.method disabled ipv6.method disabled  owner 1000   autoconnect yes  master br0
+
+все эти настройки сохранятся и после перезагрузки
+
