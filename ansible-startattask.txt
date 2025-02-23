@@ -1,0 +1,7 @@
+| ansible
+| task
+| continue
+
+
+ansible-playbook playbook.yml --start-at-task="install packages"
+

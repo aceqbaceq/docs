@@ -99,6 +99,16 @@ This extra process makes it possible to, for example, suspend and resume the com
 
 и прочий пиздец.
 
+| nopass
+
+
+чтоб пароь не спрашивал
+
+
+%sudo  ALL=(root) NOPASSWD: ALL
+
+
+
 ссылки которые нужно отработатьы:
 
 		https://superuser.com/questions/859701/why-does-sudo-fork-before-executing-the-process	

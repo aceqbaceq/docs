@@ -2,10 +2,17 @@ kubespray
 
 новый материал
 
+| установка на виртуалки
+если я буду ставить куб на виртуалки через 
+ansible по ssh то  мотай вниз на "| kubespray на виртуалки" 
+
+
+
+
 
 | предвариельные требования к хостам
 
-- минималный обьем оперативки на мастере чтобы кубспрей нахер не послал это 1500MB
+- минималный обьем оперативки на мастере чтобы кубспрей нахер не послал это 1500MB (UPDATE на данный момент виртуалка должна иметь порядка 1900МБ)
 minimal_master_memory_mb параметр в kubespray
 
 - если ставим к8 внутрь lxd контейнеров то на самом головном хосте 
@@ -390,18 +397,32 @@ resource "virtualbox_vm" "node" {
 
 
 ====
-далее. 
+| kubespray на виртуалки
+
+
 рассмотрим установку k8 через kubespray когда виртуалки 
-руками раскатаны через vagrant.
+руками раскатаны через vagrant. на самом деле
+вирталки необязатеьно могут созданы через вагрант
+это могут быть любые виртуалки например через qemu
 
 
 
 скачиваем с гита кубспрей.
 $ git clone https://github.com/kubernetes-sigs/kubespray.git
 
-ставим ансибль как прописано в kubespray-ansible.txt
+если выход в инет идет через прокси то 
+$ https_proxy="http://172.16.10.11:2080" git clone https://github.com/kubernetes-sigs/kubespray.git
 
-ставим вагрант. конфиг для виртуалок берем из файла kubespray-Vagrantfile.txt
+
+ставим ансибль как прописано в ansible-setup.txt
+
+
+ставим вагрант или другую хрень которая будет
+запускать виртуалки. нужно две вирталки. одна 
+под контроть панель вторая дата нода. памяти нужно
+минмиум 1900МБ и 2 ядра иначе устанвока пошлет 
+потом нахер.
+конфиг для виртуалок берем из файла kubespray-Vagrantfile.txt
 в нем прописано четыре виртуалки
 kmaster2	| 100.0.0.3
 kmaster2	| 100.0.0.4	
@@ -418,10 +439,28 @@ kworker3	| 100.0.0.10
 будет использовать уже как дата ноды куба. как это поменять как задать кубспрею сколько 
 нод использовать под контрол плейн а сколько под дата ноды пока непонятно. так что 
 если хотим иметь хотя бы одну дата ноду то надо создавать минимум три виртуалки.
-
+UPDATE: на данынй момент такой проблемы нет. можно
+легко и четко указать на какие ноды мы хотим
+поставит контрол плейн а на какие дата ноды
 
 запускаем виртуалки
 $ vagrant up
+
+если виртуалки запуккаются через qemu  то можно
+вот так
+
+$ qemu-system-x86_64 -name kub01 -m 1224M -boot d -drive file=hda.img,media=disk,if=virtio,format=qcow2,file.locking=on -cpu host -enable-kvm -smp 2 -M q35 -device virtio-balloon -device VGA,vgamem_mb=12,xres=1800,yres=950 -display sdl -netdev tap,id=mynet1,ifname=tap9,script=no,downscript=no -device virtio-net-pci,netdev=mynet1,mac=ba:ec:24:5c:80:80 -serial /dev/tty
+
+детали  я обьяснять не буду. читай qemu*.txt файлы
+ксати прочти этот маленткий файл qemu-monitor.txt
+пригодится
+
+
+виртуалки запустили. надо минимум одна виртуалка
+но если я хочу поизучать оверлейную сеть как она
+устроена то нужно две вирталки. одна будет 
+обеспечивать контрол плейн  а вторая дата нода.
+
 
 убеждаемся что мы можем зайти на все эти виртуалки по ключу ~/.vagrant.d/insecure_private_key
 чтобы понимать что ансибль тоже туда сможет зайти
@@ -429,12 +468,35 @@ $ ssh -l vagrant -i ~/.vagrant.d/insecure_private_key 100.0.0.3
 $ ssh -l vagrant -i ~/.vagrant.d/insecure_private_key 100.0.0.4
 $ ssh -l vagrant -i ~/.vagrant.d/insecure_private_key 100.0.0.9
 $ ssh -l vagrant -i ~/.vagrant.d/insecure_private_key 100.0.0.10
+UPDATE: в случае если вииртуалки запущены через
+qemu то  прям с баша проверить
+что мы можем зайти на все виртуалки по ssh  под
+акаунтом того ssh юзера под которым мы будем стучать
+на вирталки через ansible . важно два момента
+недолжен спрашиваться пароль и также на виртуалке
+должно без спроса пароля запускаться sudo bash
+так как ансибль будет при установаке повышать свои
+права на вм до рута и спрос пароля нам при этом
+ненужен. 
+для этого создает файл 
+
+  # cat /etc/sudoers.d/01 
+    %sudo  ALL=(ALL) NOPASSWD: ALL
+
 
 
 идем в папку с кубспреем
 и копируем вспомогательные файлы инвентаря из сэмпла
 
 $ cp -rfp inventory/sample inventory/mycluster
+
+
+РАНЬШЕ НАДО БЫЛО для генерации инвентарая делат
+вот ЭТО >>>>>>>
+                 <<<<<<<<<<<<<<<<<<<<<<<<
+               <<<<<<<<<<<<<<<<<<<<<<<<<<
+              <<<<<<<<<<<<<<<<<<<<<<<<<<<
+
 
 но самого файла инвентаря hosts.yml там еще нет.
 нам надо его создать 
@@ -545,17 +607,76 @@ all:
         kube_node:
     calico_rr:
       hosts: {}
+                 <<<<<<<<<<<<<<<<<<<<<<<<
+               <<<<<<<<<<<<<<<<<<<<<<<<<<
+              <<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+теперь это ничего делать ненадо. 
+идем в 
+ 
+   inventory/mycluster/inventory.ini
+
+
+и в каждой сеции пропиваем какой хост или 
+хосты там будут . у мен в итоге вот так
+
+
+[kube_control_plane]
+kub2-01 
+
+[etcd:children]
+kube_control_plane
+
+[kube_node]
+kub2-02 
+
+в этмо файле можно писать либо IP либо хостнеймы
+главное чтобы по ними мог ssh достучаться до 
+хоста. 
+один хост в контрол панели и один в дата ноде
+
+
+далее если питон (ансибль) должен на наших вирталках должны ходить в инет через прокси то идем в файл
+
+    inventory/mycluster/group_vars/all/all.yml
+
+и там сверху добавляем
+
+proxy_env:
+   https_proxy: http://172.16.10.11:2080
+
+
+длаее по дефолту кубспрей ставит куб с оверлейным
+драйвером CALICO а я хочу чтобы был FANNEL
+поэтому идем в 
+
+  inventory/mycluster/group_vars/k8s_cluster/k8s-cluster.yml
+
+и там ишем и менем
+было
+  
+  kube_network_plugin: calico
+
+стало
+
+  kube_network_plugin: flannel
 
 
 далее заходим в наш установленный ансибль через venv
-$ source ~/python3/ansible/env/bin/activate
+$ source ~.venv/python3/ansible/env/bin/activate
 
 запускаем ансибль плейбук cluster.yml на установку куба на виртуалках
 
+(встаром вариенте)
 (env)$ ansible-playbook -i inventory/mycluster/hosts.yml --become --become-user=root cluster.yml
+
+(вновом варенанте)
+(env)$ ansible-playbook -i inventory/mycluster/inventory.ini  --become --become-user=root cluster.yml
+
 
 все процесс пошел.
 примерно через 20 минут мы получим установленный куб
+НА  99% УСТАНОВКА УЖЕ ЗАКОНЧЕНА!
 
 
 далее.
@@ -578,7 +699,16 @@ $ scp -i ~/.vagrant.d/insecure_private_key    vagrant@100.0.0.3:/etc/kubernetes/
 
 меняем обратно на мастере пермишнсы на 600
 
+итого нужно с компа где контрол панель взять 
+из файл /etc/kubernetes/admin.conf 
+и пертащить его к себе на хост в 
+
+  ~/.kube/config
+
+
 $ ssh -l vagrant -i ~/.vagrant.d/insecure_private_key 100.0.0.3 'sudo chmod 600 /etc/kubernetes/admin.conf'
+
+
 
 далее надо малек подкоретировать ~/.kube/config
 заменить в нем строки вида
@@ -613,7 +743,57 @@ node2   Ready    control-plane,master   18h   v1.22.5
 node3   Ready    <none>                 18h   v1.22.5
 node4   Ready    <none>                 18h   v1.22.5
 
+
+далее нужно поствить kubectl пакет на комп
+и 
+ 
+  $ kubectl get nodes
+
+теперь вопрос а если у нас несколько куб кластеров
+как на них ходить. а вот так
+
+
+ $ kubectl --kubeconfig=./conf2 get nodes
+
+подсовыывай им разные сертификаты и порядок
+
+КОНЕЦ!!
+УСТАНОВКА ЗАКОНЧЕНА!!
+
+(:!) PS полезные команды сразу как поставили куб
+
+во первых вот как запускать виртлку с контрол
+панелью. здесь подобрана мин размер памяти 
+и цпу при котором оно успешно стартует
+
+qemu-system-x86_64 -name kub02-01 -m 1224M -boot d -drive file=hda.img,media=disk,if=virtio,format=qcow2,file.locking=on -cpu host -enable-kvm -smp 1 -M q35 -device virtio-balloon -device VGA,vgamem_mb=8 -display none -netdev tap,id=mynet1,ifname=tap14,script=no,downscript=no -device virtio-net-pci,netdev=mynet1,mac=ba:ec:24:5c:40:01 -serial /dev/tty ; reset
+
+
+тоже самое для дата ноды
+
+qemu-system-x86_64 -name kub02-02 -m 990M -boot d -drive file=hda.img,media=disk,if=virtio,format=qcow2,file.locking=on -cpu host -enable-kvm -smp 1 -M q35 -device virtio-balloon -device VGA,vgamem_mb=8 -display none -netdev tap,id=mynet1,ifname=tap15,script=no,downscript=no -device virtio-net-pci,netdev=mynet1,mac=ba:ec:24:5c:40:02 -serial /dev/tty; reset
+
+
+синктаскисис если у нас несколко кластеров 
+куба тоесть несколько ключей доступа
+
+$ kubectl --kubeconfig=/home/noroot/.kube/conf2  get nodes
+
+а это как гасить ноды предт тем как их вырубать
+
+$ kubectl --kubeconfig=/home/noroot/.kube/conf2   drain kub2-01  --ignore-daemonsets
+
+$ kubectl --kubeconfig=/home/noroot/.kube/conf2   drain kub2-02  --ignore-daemonsets
+
+теперт можно выключаь нооду
+
+ssh ...
+poweroff
+
+
 ====
+далее всякие уже бонусо апгрейды
+
 следущий этап. апгрейдим предыдущий этап.
 делаем тоже самое что делали на предыдущем этапе - тоесть 
 разворот куба через кубспрей на вагранте но апгреженный вариант тоесть 

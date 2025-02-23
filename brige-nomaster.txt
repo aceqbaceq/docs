@@ -1,0 +1,10 @@
+| ip link brige master
+| bridge
+| master 
+| nomaster
+
+как убрать порт из бриджа
+
+#  ip link set tap11.2 nomaster
+
+
