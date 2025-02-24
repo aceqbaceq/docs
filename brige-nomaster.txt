@@ -7,4 +7,21 @@
 
 #  ip link set tap11.2 nomaster
 
+в чем ксатти пиздец. что нельзя убрать порт
+из состава бриджа средствами nmcli
+
+  # nmcli conn mod  tap11 nomaster <== ошибка
+
+  # nmcli conn mod  tap11  connection.controller "--"
+это прокытает. но этого мало 
+нужно еще занулять
+  # nmcli conn mod  tap11  connection.port-type "--"
+а тут шлет нахуй.
+поэтому выход тлоько один - удалить конеккшн
+и пересоздать заново
+  
+  # nmcli conn del tap11
+  # nmcli conn add tap11 .....
+
+  
 

@@ -1,0 +1,58 @@
+| br_netfilter
+
+что дает этот модуль.
+для легаси иптбейлс этот модуль дает то что 
+кога у нас пакет влетел в ядро из бридж L2 порта
+или из бридж L3 порта (br0) тоесть мы влетели
+в код ebtables то без этого модуля пакет обаратывается
+толко цепочками ebtables а если этот модуль
+загрузить то в обработку подключаются (в извращенной
+форме ) цепочки от iptables (тоесть цеопчки обработки
+потока с точки зрения L3 храектиристик)
+
+
+вот разница в логах \в цепочках
+
+С МОДУЛЕМ
+
+[RAW OUTPUT icmp] IN= OUT=vethP1 SRC=172.16.110.1 DST=172.16.110.24 (iptables)
+[NAT-OUTPUT icmp] IN= OUT=vethP1 SRC=172.16.110.1 DST=172.16.110.24 (iptables)
+[FILTER-OUTPUT icmp] IN= OUT=vethP1 SRC=172.16.110.1 DST=172.16.110.24 (iptables)
+[NAT-POSTROUTING icmp] IN= OUT=vethP1 SRC=172.16.110.1 DST=172.16.110.24 (iptables)
+
+[broute BR] IN=vethP2 OUT= MAC source = 3e:74:88:c7:89:a5 MAC dest = ba:ec:24:5c:00:04 proto = 0x0800 (ebtables)
+[nat PRE] IN=vethP2 OUT= MAC source = 3e:74:88:c7:89:a5 MAC dest = ba:ec:24:5c:00:04 proto = 0x0800 (ebtables)
+
+[RAW PREROUTING icmp] IN=br0 OUT= PHYSIN=vethP2 MAC=ba:ec:24:5c:00:04:3e:74:88:c7:89:a5:08:00 SRC=172.16.110.1 DST=172.16.110.24 LEN=84 TOS=0x00 PREC=0x00 TTL=64 ID=51097 DF PROTO=ICMP TYPE=8 CODE=0 ID=121 SEQ=1 (iptables)
+
+[filter FORWARD] IN=vethP2 OUT=tap8 MAC source = 3e:74:88:c7:89:a5 MAC dest = ba:ec:24:5c:00:04 proto = 0x0800  (ebtables)
+
+[FILTER-FORWARD p:icmp] IN=br0 OUT=br0 PHYSIN=vethP2 PHYSOUT=tap8 MAC=ba:ec:24:5c:00:04:3e:74:88:c7:89:a5:08:00 SRC=172.16.110.1 DST=172.16.110.24  (iptables)
+
+[nat POST] IN= OUT=tap8 MAC source = 3e:74:88:c7:89:a5 MAC dest = ba:ec:24:5c:00:04 proto = 0x0800 (ebtables)
+
+
+
+БЕЗ МОДУЛЯ
+
+[RAW OUTPUT icmp] IN= OUT=vethP1 SRC=172.16.110.1 DST=172.16.110.24 (iptables)
+
+[NAT-OUTPUT icmp] IN= OUT=vethP1 SRC=172.16.110.1 DST=172.16.110.24 (iptables)
+
+[FILTER-OUTPUT icmp] IN= OUT=vethP1 SRC=172.16.110.1 DST=172.16.110.24 (iptables)
+
+[NAT-POSTROUTING icmp] IN= OUT=vethP1 SRC=172.16.110.1 DST=172.16.110.24 (iptables)
+
+[broute BR] IN=vethP2 OUT= MAC source = 3e:74:88:c7:89:a5 MAC dest = ba:ec:24:5c:00:04 proto = 0x0800  (ebtables)
+
+[nat PRE] IN=vethP2 OUT= MAC source = 3e:74:88:c7:89:a5 MAC dest = ba:ec:24:5c:00:04 proto = 0x0800  (ebtables)
+
+[filter FORWARD] IN=vethP2 OUT=tap8 MAC source = 3e:74:88:c7:89:a5 MAC dest = ba:ec:24:5c:00:04 proto = 0x0800 (ebtables)
+
+
+[nat POST] IN= OUT=tap8 MAC source = 3e:74:88:c7:89:a5 MAC dest = ba:ec:24:5c:00:04 proto = 0x0800 (ebtables)
+
+
+как видно когда модуля нет у нас цепочки ебтейблс
+(когда пакет оказался внутри бриджа) неразбавлены цепочками иптбейлс
+

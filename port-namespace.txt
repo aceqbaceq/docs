@@ -1,0 +1,8 @@
+| namepspace
+
+как перестить порт вдргой неймспейс
+
+
+   # ip link set dev vethN2 netns ns02
+
+   
