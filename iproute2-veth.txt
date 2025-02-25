@@ -10,3 +10,222 @@
 как создать два вефа и один из них сунуть
 в бридж а второму дать ип адрес.
 
+засунуть вилан в порт
+
+# bridge vlan add  vid 2  dev vethP5  pvid untagged  master
+
+
+значит  я сделал вот такую схему
+
+
+                            | bridge br3 |
+vethP4(172.16.80.100/24) --- vethP5
+                             tap14 --- VM(172.16.80.12)
+
+
+
+я делаю пинг
+# ping -4 -c1     172.16.80.12
+
+но чтобы он заработал ядро должно понять какой SRC_IP
+и какой out интерфейс нужно использовать
+
+добавляю руками мрашрут
+# ip -c r add 172.16.80.0/24 dev vethP4 proto kernel scope link src 172.16.80.100 metric 300
+
+он дает то что для дест_ип=172.16.80.12 ядро 
+находит в таблице маршрутиацзии правло выше
+и понимает для себя что  нужно в пакете использовать
+спц_ип=172.16.80.100   и пихать этот пакет в
+выходной интфрейс  vethP4
+
+итак мало назначит карте ип адрес. для того чтобы
+связь зараоботала нужно добавит маршрут. из него
+ядро узнает в какую карту нужно совать пакет
+и какой срц ип подставлять в пакет. ведь когда 
+я запускаю пинг ping -4 -c1     172.16.80.12 то 
+яказываю только дест_ип  а этой  информации мало 
+для создания сетевого пакета.
+
+
+еслипосмтрет на маршрут 
+
+# ip -c r add 172.16.80.0/24 dev vethP4 proto kernel scope link src 172.16.80.100 metric 300
+
+то можно замеетить метрику. а зачем она нужна
+ адело в том что у меня уже есть маршрут для этой
+ сети и мне нужно мой маршрут сделать более
+ привлигированным
+
+172.16.80.0/24 dev vethP4 proto kernel scope link src 172.16.80.100 metric 300 
+172.16.80.0/24 dev bondV2.2 proto kernel scope link src 172.16.80.1 metric 400 
+
+тода именно мой маршрут будет использован ядром
+при пинге.
+
+еще нужно в иптбейлс доавбитьт правиало
+
+-A OUTPUT  -d 172.16.80.0/24  -o veth+  -j ACCEPT
+
+
+теперь все готово :
+    ип адрес на карте
+    маршрут 
+    приавло в иптбейлс
+
+
+запускаем пинг
+# ping -4 -c1     172.16.80.12
+
+теперь самое вкусное логи иптейлс\ебтейблс
+
+
+[RAW OUTPUT icmp] IN= OUT=vethP4
+[NAT-OUTPUT icmp] IN= OUT=vethP4
+[FILTER-OUTPUT icmp] IN= OUT=vethP4
+[NAT-POSTROUTING icmp] IN= OUT=vethP4 
+
+[broute BR] IN=vethP5 OUT= 
+[nat PRE] IN=vethP5 OUT= 
+[filter FORWARD] IN=vethP5 OUT=tap14
+[nat POST] IN= OUT=tap14
+
+
+верхняя часть это логи иптбелс а нижняя часть это
+логи ебтейблс
+виден сетевой тракт пролета пакета
+
+  vethP4-vethP5-tap14
+
+все как по нотам
+
+более всего инетерсно какие цеопчки проходит 
+пакет в ебтейблс
+
+[broute BR] - [nat PRE] - [filter FORWARD] -
+ -[nat POST] 
+
+в целом все совпдаатет с теорией
+
+
+еще раз напомню  сетевую схему
+
+                            | bridge br3      |
+vethP4(172.16.80.100/24) --- vethP5
+                             tap14 --- VM
+                                        (172.16.80.12)
+
+
+теперь я пробую чуть более апгрейженную систему
+я выделяю из vethP4 вилан  
+
+
+vethP4.2(172.16.80.100/24)
+  \
+   \                        | bridge br3      |
+    \-------------vethP4 --- vethP5
+                             tap14 --- VM
+                                        (172.16.80.12)
+
+
+тоесть я буду в vethP5 пулять тегированный вилан
+трафик
+
+добавляю vethP5 порт в тегированный vlan=2
+
+
+ # bridge vlan add  vid 2  dev vethP5    master
+ # 
+ # bridge vlan show dev vethP5
+port              vlan-id  
+vethP5            2
+ # 
+
+теперь наш порт vethP5  готов и принимать тегированный
+трафик и отправлять тегированный трафик
+
+# ip -c a del 172.16.80.100/24    dev  vethP4
+
+# ip  link add link vethP4 name vethP4.2 type vlan id 2 
+
+# ip -c a a 172.16.80.100/24 scope link dev vethP4.2  noprefixroute
+
+
+# ip -c link set vethP4.2 up
+
+
+# ip -c a sh dev vethP4
+371: vethP4@vethP5:
+  пусто
+
+
+# ip -c a sh dev vethP4.2
+372: vethP4.2@vethP4: 
+    inet 172.16.80.100/24 scope link noprefixroute vethP4.2
+
+
+восстаналивааю маршрут
+# ip -c r add 172.16.80.0/24 dev vethP4.2 proto kernel scope link src 172.16.80.100 metric 300
+
+
+172.16.80.0/24 dev vethP4.2 proto kernel scope link src 172.16.80.100 metric 300 
+172.16.80.0/24 dev bondV2.2 proto kernel scope link src 172.16.80.1 metric 400 
+
+
+итак я имею привилигированный мршрут через vethP4.2 который ведет в дест сеть 172.16.80.0\24
+
+
+по идее схема собрана и сборе
+
+
+vethP4.2(172.16.80.100/24)
+  \
+   \                        | bridge br3      |
+    \-------------vethP4 --- vethP5
+                             tap14 --- VM
+                                        (172.16.80.12)
+
+
+запускаю пинг
+ # ping -4 -c1     172.16.80.12
+
+и смотрю логи *тейблс
+
+# journalctl -f  | grep -oP '\[[^\]]+\].*?IN=\S*.*?OUT=\S*'
+
+
+[RAW OUTPUT icmp] IN= OUT=vethP4.2
+[NAT-OUTPUT icmp] IN= OUT=vethP4.2
+[FILTER-OUTPUT icmp] IN= OUT=vethP4.2
+[NAT-POSTROUTING icmp] IN= OUT=vethP4.2
+
+[filter FORWARD] IN=vethP5 OUT=tap14
+[nat POST] IN= OUT=tap14
+
+
+так вот что мне тут непонятно это почему 
+мы до того как ввели вилан порт  имели лог 
+ебтейлс
+
+
+[broute BR] IN=vethP5 OUT= 
+[nat PRE] IN=vethP5 OUT= 
+[filter FORWARD] IN=vethP5 OUT=tap14
+[nat POST] IN= OUT=tap14
+
+
+а когда добавии вилан порт то 
+
+[filter FORWARD] IN=vethP5 OUT=tap14
+[nat POST] IN= OUT=tap14
+
+
+тоесть у нас почемуто куда то исчез  PREROUTE
+( оба [broute BR] [nat PRE]  принадлежат
+одному хуку )
+хук в ядре в области ебтейблс
+
+
+И Я НАШЕЛ ОТВЕТ - читай ethernetFrame-vlan-ebtables.txt
+
+

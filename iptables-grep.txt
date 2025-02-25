@@ -1,0 +1,7 @@
+| iptables log grep
+
+# journalctl -f  | grep -oP '\[[^\]]+\].*?IN=\S*.*?OUT=\S*'
+
+[RAW OUTPUT icmp] IN= OUT=vethP4.2
+[NAT-OUTPUT icmp] IN= OUT=vethP4.2
+[FILTER-OUTPUT icmp] IN= OUT=vethP4.2
