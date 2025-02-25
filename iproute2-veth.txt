@@ -1,0 +1,12 @@
+| veth
+
+
+# ip -c l add vethP1  type veth peer vethP2
+# ip -c l set vethP2 master br0
+# ip -c a a 172.16.110.1/24 dev vethP1
+# ip -c l set vethP1 up
+# ip -c l set vethP2 up
+
+как создать два вефа и один из них сунуть
+в бридж а второму дать ип адрес.
+
