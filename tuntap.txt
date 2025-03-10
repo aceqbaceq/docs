@@ -1,0 +1,16 @@
+| tun 
+| tap 
+| tuntap 
+
+
+почеуму то создать tun\tap нельзя через 
+
+  # ip -c link ...
+
+
+а можно толко так
+
+	# ip tuntap add dev tap_br5-1  mode tap  user 1000 group 1000
+
+	# ip -c l set tap_br5-1 master br5
+

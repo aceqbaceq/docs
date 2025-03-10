@@ -1,0 +1,42 @@
+| wifi
+
+из давяленных режимов в которых может работать
+карточка
+
+$ iw list | grep "Supported interface modes" -A10
+	Supported interface modes:
+		 * IBSS
+		 * managed
+		 * AP
+		 * monitor
+		 * mesh point
+		 * P2P-client
+		 * P2P-GO
+		 * P2P-device
+
+
+у меня на втором вирт интфрейсе удалось 
+устанвить только 
+
+# ip link set wlan0 down   (погасти нужно обязательно
+иначе комады ниже выддуат ошибки!)
+# iw dev wlan0 set type ibss
+# iw dev wlan0 set type monitor
+# iw dev wlan0 set type managed
+# iw dev wlan0 set type ap
+
+послений пример это пиздец. если я напишу
+
+iw dev wlan0 set type AP
+
+то пшлттнажуй
+ а если вот так
+
+ iw dev wlan0 set type ap
+
+ то ок
+ суки
+ 
+
+
+

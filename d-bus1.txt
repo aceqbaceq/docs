@@ -1,0 +1,6 @@
+| d-bus
+
+
+ # dbus-monitor --system "destination='fi.w1.wpa_supplicant1'"
+
+

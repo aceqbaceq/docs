@@ -1,0 +1,37 @@
+| bridge-slave
+| bridge_slave
+
+если   я создаю новый nmcli конекшн то там есть тип конекшена равный bridge-slave так вот что это 
+за херня а это вот что 
+
+
+   bridge-slave (deprecated for ethernet with controller)
+
+тоесть если у меня уже есть в системе  живая эзернет карточка ( в nmcli dev ) то ее можно воткуть в состав
+бриджа. но ! лучше этим типа конекта не пользовться ибо он депрекейте а пользоваться типом конекта ethernet в котором
+указать что controller br0
+
+тоесть старая форма
+
+  # nmcli conn add   bridge-slave  ... ifname eth0 ...
+
+новая форма
+
+  # nmcli conn add   ethernet  ... ifname eth0    controller eth0 ...
+
+
+таким образом если я хочу созать новый tap интрфейс который я хочу воткнуть в bridge то 
+нужно юзать вот так
+
+
+# nmcli conn add      type tun      ifname tap1       con-name tap1      autoconnect yes       save yes   controller br0      mode tap    owner 1000      group 1000 
+
+проверяем
+# brctl show 
+bridge name	bridge id		STP enabled	interfaces
+br0		8000.f672b2f6ddce	yes		tap1
+
+
+тоесть я хочу сказать что тип конекта bridge-slave он служит для втыания в бридж только одного типа портов эзернет.
+для всех остальных портов этот тип конекта НЕПОДОХОДИТ!
+

@@ -1,0 +1,6 @@
+| bridge  vlan  del
+
+как удалить вилан из порта
+
+# bridge vlan   del dev  veth_br5_1   vid 1  pvid  untagged  master
+

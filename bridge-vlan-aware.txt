@@ -1,0 +1,27 @@
+| bridge
+| vlan aware
+| aware
+
+прикол рабоьы с бриджом в том что
+часть настроек нужно делать из утилиты
+
+
+
+  # bridge ...
+
+а часть из 
+
+  # ip link ...
+
+
+вот как перерключить бриж чтобы он начал
+филтровать поток на базе VLAN (стал vlan aware 
+бриджом)
+
+# ip link set br5  type bridge vlan_filtering 1
+
+и как убрать нетегированный vlan 1 в который он добавляет каждый порт
+
+# ip link set br5  type bridge vlan_default_pvid 0
+
+

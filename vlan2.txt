@@ -1,0 +1,4 @@
+| vlan 
+
+# ip link add  link  br5  name br5.2 type vlan  id 2
+

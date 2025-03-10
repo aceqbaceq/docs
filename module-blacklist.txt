@@ -1,0 +1,15 @@
+| module blacklist
+
+вот я хочу убрать модуль из автозагрузки
+
+$ cat /etc/modprobe.d/blacklist.conf 
+blacklist   pcspkr
+blacklist   bluetooth
+blacklist   r8169
+
+важен нетолько контент файла
+но и НАЗВАНИЕ ФАЙЛА! он обязан иметь расширение
+
+   .conf
+
+   

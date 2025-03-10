@@ -1,15 +1,21 @@
 | pacman
 
+
+| search
+
+как узнать какому пакету принадлжеит файл
+
+    # pacman -Qo /lib/udev/rules.d/90-vconsole.rules
+
+
+
+| print
+
 как распечатть список устаровленных пактов
 
 
   $ pacman -Q
   
-
-
-
-
-
 
 
 | pacman

@@ -1,0 +1,16 @@
+| bridge 
+| bridge_slave
+| bond_slave
+| iproute2
+| ip link
+
+вот такие команды
+
+	# ip -c l sh type bond_slave
+
+ 	# ip -c l sh type bridge_slave
+
+они показывают те сет карточки (порты)
+которые являются картами входящими в состав 
+бриджа либо бонда
+
