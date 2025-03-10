@@ -717,9 +717,259 @@ console=tty0
 наделе же это не так. вобщем ебала.
 
 
+а теперь еще вот такое рассмотрим. рассмотрим
+udev правило 
+
+
+$ cat /lib/udev/rules.d/90-console-setup.rules 
+ACTION=="add", SUBSYSTEM=="vtconsole", KERNEL=="vtcon*", RUN+="/etc/console-setup/cached_setup_font.sh"
+
+ACTION=="add", SUBSYSTEM=="vc", KERNEL=="vcs[1-9]|vcs[1-9][0-9]", TEST=="/run/console-setup/font-loaded", RUN+="/etc/console-setup/cached_setup_terminal.sh %k"
+
+
+это правило из пакета console-setup-linux
+
+
+рассмотрим первое правило
+
+ACTION=="add", SUBSYSTEM=="vtconsole", KERNEL=="vtcon*", RUN+="/etc/console-setup/cached_setup_font.sh"
+
+
+и расмотрим указанный скрипт
+
+$ cat /etc/console-setup/cached_setup_font.sh
+#!/bin/sh
+
+setfont '/usr/share/consolefonts/FullCyrSlav-Terminus24x12.psf.gz' 
+
+if ls /dev/fb* >/dev/null 2>/dev/null; then
+    for i in /dev/vcs[0-9]*; do
+        { :
+            setfont '/usr/share/consolefonts/FullCyrSlav-Terminus24x12.psf.gz' 
+        } < /dev/tty${i#/dev/vcs} > /dev/tty${i#/dev/vcs}
+    done
+fi
+
+mkdir -p /run/console-setup
+> /run/console-setup/font-loaded
+for i in /dev/vcs[0-9]*; do
+    { :
+printf '\033%%G' 
+    } < /dev/tty${i#/dev/vcs} > /dev/tty${i#/dev/vcs}
+done
+
+
+значит как рабтает это правило. если у нас возникает
+обьект /sys/class/vtconsole/vt* (где каждый обьект
+это драйвер который умеет выводит графику на экран 
+терминала) то запускается скрипт. его первая строка
+
+setfont '/usr/share/consolefonts/FullCyrSlav-Terminus24x12.psf.gz' 
+
+
+она ничего сделать не сможет потому что эта прога
+она проверяет прикрплен ли процесс к терминалу. 
+если нет то пошел нахер.
+слудущий кусок
+
+if ls /dev/fb* >/dev/null 2>/dev/null; then
+    for i in /dev/vcs[0-9]*; do
+        { :
+            setfont '/usr/share/consolefonts/FullCyrSlav-Terminus24x12.psf.gz' 
+        } < /dev/tty${i#/dev/vcs} > /dev/tty${i#/dev/vcs}
+    done
+fi
+
+он проверяет непустая ли папка /dev/fb
+и если да то он для всех терминалов /dev/ttyN
+создает процесс котоырй к этому терминалу прикрелпен
+и внутри этого процесса выполняет setfont 
+таким обраом в каждой консоли будет установен 
+заданный шрифт. название шрифта FullCyrSlav-Terminus24x12.psf.gz попадет в этот скрипт
+скорее всего когда мы один раз запустим команду setupcon она читает название шрифта из /etc/defaut/setup-con и впиывает его в этот скрипт.
+как только мы устанволи шрифт в каждой консоли
+тоесть вкажом терминале каждой консоли то 
+мы создаем файл который об этом сигнализирует
+
+mkdir -p /run/console-setup
+> /run/console-setup/font-loaded
+
+следущий этап
+for i in /dev/vcs[0-9]*; do
+    { :
+printf '\033%%G' 
+    } < /dev/tty${i#/dev/vcs} > /dev/tty${i#/dev/vcs}
+done
+
+это мы для каждого терминала каждой консоли
+преключаем драйвер tty для этго терминала в режим UTF-8 через управлябщие ESC  символы
+
+    $ printf '\033%%G' 
+
+дело в том что терминал или его драввер хер знает
+можно менять подкручивать его режимы через ioctl()
+а можно напрямую послав в /dev/ttyN управляющую
+последоватлеьность байтов.  вот эта последовательно
+
+\033%%G это \x1B%%G  она заставллет драйвер терминала
+прелкючтится в режим UTF-8 . а что это такое. это
+то что драйвер терминала ожидает и расмаривает поток
+байтов который в него влетает что это UTF-8 символы.
+вот что это значит! обо всех управлющий ESC сивполмах
+можно прочиать тут
+
+
+   $ man console_codes
+
+
+там ксати вот что написано
+If the console is in UTF-8 mode, then the incoming bytes are first assembled into 16-bit  Unicode
+codes.   Otherwise, each byte is transformed according to the current mapping table (which trans‐
+lates it to a Unicode value).  See the Character Sets section below for discussion
+In the normal case, the Unicode value is converted to a font index, and this is stored  in  video
+memory, so that the corresponding glyph (as found in video ROM) appears on the screen.  Note that
+the  use of Unicode (and the design of the PC hardware) allows us to use 512 different glyphs si‐
+multaneously.
+If the current Unicode value is a control character, or we are currently processing an escape se‐
+quence, the value will treated specially.  Instead of being turned into a font index and rendered
+as a glyph, it may trigger cursor movement or other control functions.   See  the  Linux  Console
+Controls section below for discussion.
+
+вот ряд управляющих символов (man console_codes)
+
+  ESC E = newline
+
+ESC это код ASCII 0x1B
+тогда
+  # printf '\x1BE' > /dev/tty1'
+
+следущая хрень
+ ESC ( B  = Select default (ISO/IEC 8859-1 mapping).
+или
+  # printf '\x1B(B' > /dev/tty1'
+
+
+
+тоесть драйвер терминала начинает воспримниать
+байтовыы поток как символы в кодировке ISO/IEC 8859-1
+
+ ESC % G  = UTF-8 encdoding 
+  # printf '\x1B%%G' > /dev/tty1'
+
+два раза % потому что это такой способ показать 
+терминалу что % это управляющий символ
+
+
+есть управляющий символ CSI=ESC[ это \x1B\x5B
+
+ СSA A = курсор вверх на 1 позицию
+  # printf '\x1B\x5BA' > /dev/tty1'
+
+
+в документе также написано что вообще то прописывать
+в программе нарямую эти коды не очень хорошо.
+типа они меняются от терминала к терминалу. есть
+база этих кодов от всех терминалов . база назвыается
+terminfo вхоит в состав пакета ncurses.
+база лежит  в папке 
+	/usr/share/terminfo/
+
+прставлет собой бинарнивые файлы.
+чтобы из не  прочитать в текстовом виде то 
+$ infocmp vt102
+#	Reconstructed via infocmp from file: /usr/share/terminfo/v/vt102
+vt102|DEC VT102,
+	am, mc5i, msgr, xenl, xon,
+	cols#80, it#8, lines#24, vt#3,
+	acsc=``aaffggjjkkllmmnnooppqqrrssttuuvvwwxxyyzz{{||}}~~,
+	bel=^G, blink=\E[5m$<2>, bold=\E[1m$<2>,
+	clear=\E[H\E[J$<50>, cr=\r, csr=\E[%i%p1%d;%p2%dr,
+
+вот эти загадочные хрени
+am, mc5i, msgr, xenl, xon, bold ...
+это разные умения термиала. например  bold это значит
+что мы ему преедаем приказ печатать в жирном виде
+текст. а то что после равно
+
+bold=\E[1m$<2>,
+
+это уже тот самый ESC управляющий поток который 
+нужно направит в /dev/tty1 чтобы он понял
+\E - это кодове обознчние ESC символа \x5B
+правда я не уверен за хвост $<2> по моему это просто
+мусор
+
+тоест чтобы начать печатать жирным нужно
+
+  # printf '\x1B[1m' > /dev/tty1'
+
+
+и далее весь текст будет только жирным идти
+а вот так текст будет красным
+
+  # printf '\x1B[31m' > /dev/tty1'
+
+а как узнать что все остлаьные штуки типа
+cr  csr означают. об этом написано в 
+
+   # man terminfo
+
+например csr значит
+change_scroll_region       csr       cs  change region to line #1 to line #2 (P)
+
+ксати вот прям по VT102 его таблица его ESC секвенс
+https://vt100.net/docs/vt102-ug/appendixc.html
+
+но они пишут что руками вставлять эти коды это 
+лошизм. есть утилита 
+
+   $ tput
+
+мы в нее вставляем что мы хотим получить. а она
+уже сама лазии в базу terminfo оттуда вытасивает
+нужный байты и сует в терминал. например мы 
+хтим сделать текси жирным тодга
+
+  $ tput bold
+
+  $ tput smacs  это использвать алтретрантивнвый 
+                набор символв или пвседоаграфика (G1)
+
+  $ tput smso  меняется цвет фона воуркуг буквы 
+               и цвет саомй буквы
+
+
+  $ tput sgr0   сбрсоить все атрибуты до дефлта
+
+длаее такой момент. tput когда мы его заускаем 
+он считвает чему равен TERM, в неей мы подскаыажем
+программам в каком терминале они работают. тогда
+tput делает зпрос к базе terminfo на оснвое этого 
+азвания. и уже потом сует в /dev/tty1 нужныебайты.
+так вот если TERM=vt102 то команда
+
+   $ tput setaf 10  
+
+котоаря устанвлиывает цвет ткста нихрена нерабтате.
+из ччего я делаю преопджение что VT102 был не цветной.
+а если  я выставляю TERM=konsole-256color тогда 
+соазу 
+
+   $ tput setaf 10  
+
+у нас будет цветной шрифт.
+
+поэтмоу непоянтно. если ядро эмуливрует VT102
+а он не цветной то почему если  я в него шлю 
+уравляющие коды от друого терминала tput setaf 10   то
+ядро их принимает и начинает рисовать все в цвете.
+бред.
+
+
+
+
 Итак я очень много дополнил как работает консоль
 и терминал. 
-
 
 А ТЕПЕРЬ - я хочу продолжить на счет консоли в современных дистрибубивах типа arch\manjaro где
 шрифт и настройки клавы  контролируются не через
