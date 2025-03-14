@@ -1,0 +1,30 @@
+| kbd
+| console
+| terminal
+| loadkeys
+| dumpkeys
+| keymap
+
+
+# dumpkeys  -C /dev/tty3   > 02
+# loadkeys  ./02  </dev/tty3 >/dev/tty3
+unable to load compose definitions because some of them are too large
+
+не знаю почему проблема но 
+решение вот такое
+
+# dumpkeys  -C /dev/tty3  -k  > 02
+# loadkeys  ./02  </dev/tty3 >/dev/tty3
+
+собсвтенно в чем разница между dumpkeys и dumpkeys -k
+а она в том что во втором случае у нас из дампа
+исчезают строки с compose тоесть вот такие 
+строки
+
+compose 'C' '-' to 0x258c
+compose 'C' '/' to 0x251c
+compose 'C' '\'' to 0x2518
+compose 'C' '|' to 0x2518
+
+в чем их пробема х знает
+

@@ -1,0 +1,783 @@
+| console
+| terminal
+| ESC sequnce
+
+я написал о том как работает терминал(в очередной
+раз) и как и почему в нем может работаь или не
+работать ввод управляющих ESC sequence
+опубликовал вот тут
+
+	https://unix.stackexchange.com/questions/369845/why-i-cant-send-escape-sequences-from-keyboard-but-can-do-it-from-another-tty/792235#792235
+
+поехали!
+
+для начала вот картинка как устроен был настоящий
+железный терминал VT102 смотри vt102.png
+очень интересно. из этой картинки видно что сам тер
+минал можно было преключать в два режиме. 
+первый это режим LOCAL. я не знаю точно его детали
+но из картинки четко видно то что при этом режиме
+при нажатии на клаивтуру этот байт код улетал походу
+не в сеть а сразу на экран! 
+а вот если терминал работал в режиме ON-LINE то
+байт код нелуетает на экран! а улетал в сеть! 
+в tty драйвер в сист блоке линукса. и вот если tty 
+драйвер обратно прислылал в ответ байт то вот только
+тодга он попаал на экран! очень интересно!
+картинку взял вот отсюда
+
+https://unix.stackexchange.com/questions/518418/echoed-escape-sequences-doesnt-interpreted-in-linux-tty
+
+там же написано про то как раотали режимы
+
+LINE/LOCAL
+
+The LINE/LOCAL feature allows the operator to
+easily place the terminal in either an ON-LINE 
+or a LOCAL (off-line) condition. When the terminal 
+is on-line (ON-LINE indicator is lit) all characters 
+typed on the keyboard are sent directly to 
+the computer and messages from the computer 
+are displayed on the screen. In the LOCAL condition 
+(LOCAL indicator is lit), the terminal is 
+electrically disconnected from the computer; 
+messages are not sent to or received from 
+the computer; and characters typed on the 
+keyboard are echoed on the screen directly.
+
+я только не очень понимаю какой был смысл в режиме
+LOCAL. только если проверить что на терминале 
+чисто элеектирически работает клава и рабоает мо
+нитор. то есть чисто тестовый режим?
+
+я нашел это описание в мануале от VT100
+https://bitsavers.org/pdf/dec/terminal/vt100/EK-VT100-TM-003_VT100_Technical_Manual_Jul82.pdf
+и точно - на странице 2-15 указано в точности 
+об реиме LINE\LOCAL.
+как я понял режиме LINE это сокрадещннно ON-LINE
+это и есть рабочий режиме терминала. когда он 
+поключен к удаленному компу. а режим LOCAL это 
+сокращенно от OFF-LINE и точно как я понял он 
+отключен от компа и он нужен только для того чтобы
+можно было просто протестировать исправен ли терминал
+физичеки или нет. мы протыкиваем все кнопки и увидим
+на экране соответсювщие им символы.
+теперь все понятно.
+вобшем прикольный этот мануал от VT100 только его
+нет времени целиком читать! а жаль!
+в целом не удеажался и скачал этот мануал
+EK-VT100-TM-003_VT100_Technical_Manual_Jul82.pdf
+
+
+
+It seems that some details about how the terminal 
+'thing' works should be added."
+
+First of all let's talk how linux+terminal works.
+We exclude graphical mode and such things like xterm, gnome-terminal etc. 
+You use console terminals (tty1 tty2). Lets go 
+further, lets imagine we have real hardware terminal 
+connected to linux box. Believe me it males things more clear. So we have
+
+                     TERMINAL
+ ________           ____________
+ |       |         | =========  |
+ | linux |--->-----|-|display|  |
+ | box   |         | =========  |
+ |       |         | ---------  |
+ |       |----<----|-|keyboard| |
+ |       |         | ---------  |
+ |_______|         |____________|
+
+
+lets describe linux box with more details
+
+_______________________________________________
+|                                              |
+| [ user space  ]  [ kernel space   ]          |
+|                                              |
+|  bash   |--->----|driver tty| ----->---------|->-- terminal display   
+|  process|---<----|          | -----<---------|-<-- terminal keyboard
+|                                              | 
+|______________________________________________|
+
+
+ lets give some more details
+_______________________________________________
+|                                              |
+|       fd/0|                                  |
+|  bash fd/1| ----- /dev/tty1 ---  driver tty|-|-<--   
+|       fd/2|                                |-|->--
+|                                              |
+|______________________________________________|
+
+
+okay ill try to join alltogether
+                                                         ____________________
+                                                         |                  |
+                                                         | |==============| |     
+_______________________________________________          | | display      | |
+|                                              |         | |              | |
+|       fd/0|                                  |         | |              | |
+|  bash fd/1| ----- /dev/tty1 ---  driver tty|-|->-------|-|==============| |
+|       fd/2|                                | |         |                  |
+|                                            |-|-<-------|-|--------------| |
+|______________________________________________|         | | keyboard     | |
+                                                         | |              | |
+                                                         | |--------------| |
+                                                         |                  |
+                                                         |__________________|
+okay. we turn on terminal. and we press 'a' on the
+keyboard. what happens. the terminal sends immediately 
+byte code 0x61  via a wire to linux box. and it gets 
+into the kernel into TTY driver buffer
+
+
+                                                         ____________________
+                                                         |                  |
+                                                         | |==============| |     
+_______________________________________________          | | display      | |
+|                                              |         | |              | |
+|       fd/0|                                  |         | |              | |
+|  bash fd/1| ----- /dev/tty1 ---  driver tty|-|->-------|-|==============| |
+|       fd/2|                       (0x61)   | |         |                  |
+|                                            |-|-<--0x61-|-|--------------| |
+|______________________________________________|         | | keyboard     | |
+                                                         | | 'a           | |
+                                                         | |--------------| |
+                                                         |                  |
+                                                         |__________________|
+
+Here we have the first important point - we pressed
+the key but we will not see anything on the display.
+The display is empty now. 
+
+The next step - driver tty  might send back 0x61 to the
+terminal or might not. why? because it depends on 
+tty driver mode! we will talk about that later. 
+If tty driver sends back 0x61 then it gets into the
+terminal cpu and in the end into display and we will
+see at last 'a' on the display!
+
+
+
+
+                                                         ____________________
+                                                         |                  |
+                                                         | |==============| |     
+_______________________________________________          | | display      | |
+|                                              |         | | 'a'          | |
+|       fd/0|                                  |         | |              | |
+|  bash fd/1| ----- /dev/tty1 ---  driver tty|-|->-0x61--|-|==============| |
+|       fd/2|                       (0x61)   | |         |                  |
+|                                            |-|-<-------|-|--------------| |
+|______________________________________________|         | | keyboard     | |
+                                                         | | 'a'          | |
+                                                         | |--------------| |
+                                                         |                  |
+                                                         |__________________|
+
+If tty driver does not send back 0x61 the display will
+stay empty. However 0x61 is inside tty driver buffer
+at the same time. 
+
+The next step TTY driver might notify bash process
+that there is some data inside its buffer. And if
+bash process want it can read the data. However
+tty driver might not notify. And if bash process
+will try to read the data it will not get anything.
+Why? Because it depends on running mode of TTY driver.
+If TTy driver works in canonical mode it will 
+allow bash to read the data from buffer only when 
+the user press Enter button on the terminal and the
+terminal send to tty driver "carriage return" byte 
+code 0x0D , If the user presses buttons except Enter
+their byte codes gets inside TTY driver and stay 
+there. And bash does not get ANYTHING. Suppose
+user pressed 'a' 'b' 'c', the terminal send via 
+the wire 0x61 0x62 0x63 and they stuck inside TTY 
+driver
+
+
+
+
+
+
+                                                         ____________________
+                                                         |                  |
+                                                         | |==============| |     
+_______________________________________________  0x61    | | display      | |
+|                                              | 0x62    | | 'a''b''c'    | |
+|       fd/0|                                  | 0x63    | |              | |
+|  bash fd/1| ----- /dev/tty1 ---  driver tty|-|->-------|-|==============| |
+|       fd/2|                    (0x61 0x62 )| |         |                  |
+|                                   0x63     |-|---<-----|-|--------------| |
+|______________________________________________|         | | keyboard     | |
+                                                         | | 'a''b''c'    | |
+                                                         | |--------------| |
+                                                         |                  |
+                                                         |__________________|
+
+If tty driver works in "echo mode" it will send 
+back 0x61 0x62 0x63 to the terminal display.
+And we will see 'abc' on the display. 
+If tty driver does not work in "echo mode" the 
+display will stay empty! tty driver works in 
+canonical mode. So bash still  doesnt get anything!
+Finaly we press 'Enter' . The terminal sends 
+"carriage return" byte code 0x0D to linux box.
+it gets into tty driver. It will notify bash that
+something is in its buffer. bash finally read
+'abc\r' inside its memory. and tty driver 
+empty its buffer.
+
+
+
+
+
+
+                                                         ____________________
+                                                         |                  |
+                                                         | |==============| |     
+_______________________________________________          | | display      | |
+|                                              |         | | 'a''b''c'    | |
+|       fd/0|                                  |         | |              | |
+|  bash fd/1| ----- /dev/tty1 ---  driver tty|-|->-------|-|==============| |
+|       fd/2|                                | |         |                  |
+| (0x61 0x62)                                |-|---<-----|-|--------------| |
+| (0x62 0x0D)                                  |         | |              | |
+|______________________________________________|         | | keyboard     | |
+                                                         | | 'a''b''c'    | |
+                                                         | |--------------| |
+                                                         |                  |
+                                                         |__________________|
+If we have tty driver in "echo mode" then an import
+ant question arises - what does tty driver send back
+to the terminal display when it gets \CR (carriage
+return) from the terminal? Well it depends on 
+additional settings it has. it can send back original
+0x0D byte code. it can instead send back \LF (new
+line) 0X0A byte code, OR it even can send back 
+two symbols '^M' 0x5E 0x4D ! So what we see on the 
+display will depend on it! So the tricky part is
+that the terminal can send some byte code inside
+tty driver but it might send back something quite
+different to the terminal display and the display 
+will draw not what we type on the keyboard but will
+draw what byte code it gets from tty driver!
+Iw we press keys on the keyboard but tty driver does
+not send back anything to the display we will not
+see anything on the screen in spite of tty driver
+buffer actually receive some data from terminal.
+
+I have described canonical mode of tty driver
+up to this point. I mean how tty driver behave when
+it gets data from therminal with respect to deliver
+them to bash or not. Until tty driver gets 'carriage
+return' byte code it will collect all the keys inside
+its buffer and not to pass them to bash.
+In noncanonical mode tty driver immediately passes
+byte code to bash. We dont need to press "enter"
+on the keyboard. Actually it is not quite so in 
+all cases but i dont want to dive in this topic. 
+
+The very importnat points id like to say at this 
+point are these:
+   * if we press button on the keyboard the 
+      terminal will not draw anything on the 
+      screen. it will wait data from tty driver
+      from linux box
+   * if we press button , the terminal immediately
+     send byte code to linux box, however tty 
+     driver might or might not send back byte code
+   * tty driver send back byte code that might not
+     match with one it gets
+   * if tty driver gets some data it might pass
+     data further to the user process however 
+     it might not. it depends on mode. 
+
+
+Another important thing that makes things even worse
+is that - user process can change tty driver mode!
+For instance bash process does it all the time!
+When bash waits our keyboard input it set one 
+particular mode on tty driver. When we press Enter
+and bash is going to launch our command it changes
+tty driver mode! when our command finish and die and
+bash gets back to the terminal it changes tty driver
+mode again! Its totally crazy. it makes difficult
+to understand what does bash with output to the
+display and what does tty driver itself. When we 
+have real hardware terminal i suppose we can power
+it on and just have connection with tty driver 
+without any user process behind. Unfortunately 
+its not so easy to do that with linux console. 
+There is always some user process behind tty 
+driver. 
+
+Lets go furter - there is one more important thing
+- usually if we press some "usual" key on the keyboard
+and tty driver gets its byte code it send back to
+display on terminal exactly the same byte code. so
+if we press 'a' we will see exactly the same 'a'
+on the display. However if we press some "special"
+key on the keybard like ESC , then TTY driver when 
+it gets its byte code it will send back:
+   * exactly the same byte code
+   * two other symbols like "^N"
+   * some other one symbol
+
+It is the key point that is important to know.
+what tty driver send back depends on its settings
+(or mode). For instance if we press ESC that tty
+driver might send back  either or
+   * 0x1B
+   * ^[
+
+we will talk about that more later.
+
+
+Now id like to move further. What part on the picture
+is importnat if we want to change color on the 
+display on the terminal? What makes the influence?
+Inside original hardware terminal there is cpu and 
+firmware. From linux box inside the terminal via 
+a wire gets byte flow. That byte flow might contain
+byte-code of usual symbols like 'a'  'b' 'c'
+in this case terminal cpu draw this symbols on the
+screen, hower the important point is that - the flow
+can contain special byte-code that is not responsible
+for encoding any symbol but is responsible to 
+indicate for the terminal about text formatting
+details. for instance. if we put inside terminal
+
+  0x1B 0x5B 0x33 0x31 0x6D
+
+that is so called   ESC [ 31 m
+
+then cpu terminal will understand that we want it 
+uses RED color for the all next symbol printing.
+So it will draw all subsequent symbols with red 
+color. 
+
+Now! the important point - what conditions do 
+we need
+to met to make it work if we want set it via keyboard?
+We need the following - we start pressing 
+ESC  [ 3 1 m  on the keyboard, the terminal immediate
+ly sends their byte code to tty driver. Then 
+we need tty driver send back all the byte code 
+and it must do it without changing anything.
+so it must starting send back byte code. and
+it must send back exactly  
+
+  0x1B 0x5B 0x33 0x31 0x6D
+
+and nothing else. 
+
+If terminal gets   0x1B 0x5B 0x33 0x31 0x6D
+it will understand we want change text color to
+red and it will make it. 
+
+OKAY. Lets go to the practice.
+first of all to make things to work as easy
+as possible, lets open linux console
+
+  Ctrl-Alt-F2
+
+enter login and pass.
+we get in bash.
+lets find out bash process pid
+
+(tty2) $ echo $$   
+        1334489
+
+lets open another linux console tty3
+and STOP the bash
+
+(tty3) $ sudo kill -SIGSTOP 134489
+
+now bash will not interfere our experiments.
+you can switch to tty2 and start pressing buttons -
+nothing happens, it seems like terminal is freezed.
+it is not. its just bash makes things to look like
+they are not. lets switch to tty3  
+and set proper tty driver mode
+
+  (tt3) # stty  --file=/dev/tty2 echo -echoctl
+
+lets check if setttings are applyed properly
+ (tty3)# stty  --file=/dev/tty2 -a
+ ...
+ echo -echoctl ...
+
+thats all we need to check "echo" and "-echoctl"
+all is good.
+
+lets switch to tty2 and start pressing sequentally
+
+  ESC  [   3  1  m
+
+we dont event neeed to press "enter" in the end.
+now start pressing some usual keys "abc" and you'll
+see the text is red!
+
+OKAy. what we ve done  via
+
+  (tt3) # stty  --file=/dev/tty2 echo -echoctl
+
+we set for terminal tty2  and its tty driver proper
+mode , that is :
+we set "echo" it means "hey tty driver if you get
+smth from terminal send imeediately back byte code!"
+also we set "-echoctl"  , it means "hey tty driver!
+if you get from terminal some special key like ESC
+and etc then send back exactly the same byte code!
+do not change it in any shape or form!"
+if we miss "-echoctl" setting then tty driver when
+gets ESC 0x1B byte send back not original but 0x5E5B
+and this is not we neeed!  the terminal must
+get from tty driver exactly 
+
+  0x1B 0x5B 0x33 0x31 0x6D
+
+and if it gets instead
+
+  0x5E5B 0x5B 0x33 0x31 0x6D
+
+it will ruin the magic.
+
+Id like to emphasize that to make text get in red 
+we dont care if tty driver works in canonical
+or incanonical mode. because it influence how 
+data is deliverd from tty driver to bash, but 
+our care not about that, our care is how data
+is delivered from tty driver to the terminal back!
+
+
+Okay. lets go further. we can unfreeze bash now.
+lets switch to tty3
+
+(tty3) $ sudo kill -SIGCONT 134489
+
+swutch back to tty2 and look!
+bash immediately make some mess with tty driver
+and our text instantley get back to white color!
+yes this is the problem - bash changed tty driver
+mode all the time. but we are ready for it now.
+switch back to tty3 and enter
+
+  (tt3) # stty  --file=/dev/tty2 echo -echoctl
+
+switch to tty2  and press 
+
+  ESC  [   3  1  m
+
+as we did before. when you  type   ESC [ 31  there
+will be no any symbols on the screen but when you
+type  m it appears and it will be in red !
+so we changed text color even with working bash.
+if you continue to press buttons - all new symbols
+will be in red. but if you press Enter then bash
+changes tty driver mode back you the new text will
+be again in white.
+you can change again tty driver more
+
+  (tt3) # stty  --file=/dev/tty2 echo -echoctl
+
+press
+
+  ESC  [   3  1  m
+
+get red m and play with that as much as you want.
+
+the usefull link about stty settings like echo,
+echoctl, canonical etc
+   https://www.man7.org/linux/man-pages/man3/termios.3.html
+
+
+OKAY. Lets dive into  original question of the topic.
+lets open tty2 and launch 
+
+   # sleep 1000
+
+as it was done in the topic.
+okay. lets open another console and check tty 
+driver mode for terminal tty2
+
+# stty  --file=/dev/tty2  -a
+...
+echo echoctl ...
+
+we see that we have "echo" and it is exactly 
+what we need. however  the next setting "echoctl"
+is NOT what we need. this is the key of the problem.
+when we have "echoctl" it means it is activated
+and it means that if we press ESC button on the
+keyboard , then terminal send 0x1B to the tty driver
+but it will send back not 0x1B (and this is the 
+problem!) it will send back '^[' that is 0x5E5B
+So our terminal does not get PROPER byte-code
+sequence. it needs to get
+
+  0x1B 0x5B 0x33 0x31 0x6D
+
+but it will get
+
+  0x5E5B 0x5B 0x33 0x31 0x6D
+
+obviuously that it is not proper byte-code thats
+why it doesnt work.
+
+Hope it helps.
+
+
+дале по рукски добавлю.
+
+
+вот у нас есть вот такая схема
+
+    linux сист блок            terminal
+_______________________       ___________
+|                      |      |          | 
+| bash --- tty driver -|-->---|-display  |
+|                      |--<---|-keyboard | 
+|                      |      |          |
+|                      |      |__________|
+|______________________|       
+
+
+прикол в том что если жму на клаву то данные
+сразу улетают в из терминала в линкс бокс. а на 
+дисплей оно никак при этом не улетает.
+если из tty driver из линукс бокса прилетит обратно
+в темринал байт то оно попадает в дисплей и рисуется
+на экране.
+так вот в чем прикол tty драйвера в том что если 
+в него чтото влетает тонефакт что он это сразу
+передаст в баш. 
+в канончиеском режиме драйвер будет ждать нажатия
+кнопку enter. и только тогда пошлет их в баш.
+если режим неканнчиекий то тут похитрее. добавляется
+два доп параметра 
+
+    min
+    time
+
+
+если min=5 то пока в буфер не влетит 5 символов
+то драйвер не будет передавать байты в баш
+а если влетит (накопится) то драйвер не ждет нажатия 
+enter а передаст в баш. time  определяет таймер
+и драйвер передаст в баш данные либо если в буфер 
+влетело 5 символов либо исчерпался таймер.
+в целом там есть моменты и заморочки и об этом можно
+отлично реально прочитать в 
+
+  $ man termios
+
+ищи по слову TIME
+
+в общем я что хочу сказать - в зависимости от 
+настрок драйвера (которые можно провверить или 
+имзенить через # stty ) то драйвер tty он может 
+задерживать символы (котоыре в него влетели) которые
+в него влетели из терминала и не передавать в баш
+и также если в него влетели символы из терминала
+то он может либо при этом в ответ обратно отправлять
+байты уже в терминал либо не отправлять. это называется включен ли режим echo либо он выключен.
+при этом еще важный момент. если влетает обычный
+символ в tty драйвер  то он в ответ без проблем 
+на терминал отправляет такой же симовол. а вот если
+в tty дра1вер влетел код спец кнопки например
+кнопки ESC то обратно tty драйвер может отравить 
+либо точно такойже байт либо отправит два совешенно
+других символа а именно 
+   
+     ^N
+
+напрмимер вмето ESC обратно будет отправлен 
+
+   ^[
+
+так делается потому что ядру нужно както информирвать
+нас о том что мы нажали Спецкнопку. так как символа
+для кнопки ESC нет. спрашиыается а как ядро выбирает
+второй символ после ^ . ответ вот как. открываем
+таблицу ASCII. 
+там все символы расписаны в два столбца. так вот
+если у меня слева указан спецкнопка то смотрит
+какой символ стоит в этой же строке только справа
+в  этой же строке но вдругом стобце. вот это иест
+например 
+
+Oct   Dec   Hex   Char                        Oct   Dec   Hex   Char
+────────────────────────────────────────────────────────────────────────
+000   0     00    NUL '\0' (null character)   100   64    40    @
+001   1     01    SOH (start of heading)      101   65    41    A
+002   2     02    STX (start of text)         102   66    42    B
+003   3     03    ETX (end of text)           103   67    43    C
+...
+033   27    1B    ESC (escape)                133   91    5B    [
+
+вот я вижу ESC = 1B и смотрим какой символ и 
+код справа это [ = 5B
+
+значит tty драйвер обратно отошлет
+
+    ^[
+
+
+поведение это настрваиется через echoctrl
+если я сделаю
+   
+   # stty --file=/dev/tty1 echoctrl
+
+то при нажатии ESC tty дра1вер обратно отошлет ^[
+а если сделаю
+
+   # stty --file=/dev/tty1 -echoctrl
+
+то при нажаиии ESC tty дравер обратно отошлет
+в точности тоже что и прилетело тоесть 0x1B
+
+
+в целом я просто по рукски еще раз описал точто
+выше описал на американском.
+
+так вот чтобы мы могли с клавы ввести управлябщую
+послоедовательность то нужно на терминале выставить
+опции
+
+   # stty --file=/dev/tty1 echo -echoctrl
+
+
+далее у меня возник вопрос а какой байткод посылает
+терминал в tty драйвер если я нажиммаю Enter кнопку
+я сделал вот так. 
+запускаем терминал. стопим в нем баш чтобы он не
+мешал. чтобы мы имели дело только с теминалом и 
+tty дра1вером этго терминалаю 
+
+   # kill -SIGSTOP 12231
+
+далее нужно на терминале выставить вот такие опции
+
+   # stty --file=/dev/tty2 echo  -inlcr -icrnl echoctl
+
+об значении ключей можно найти в 
+
+   $ man termios
+
+в частности 
+
+-inlcr = отклчает трансляцию NL в CR
+-icrnl = отлюачает трансляцию CR в NL
+
+это значит что если в tty дравер прилетит NL либо CR
+то в обратку tty драйвер отошлет в точности что 
+прелтело.  а не другой символ. 
+
+echoctl = это дтает то что если в титиай драйвер
+прилетит спец кнопка то он обртано в терминал
+отошлет вместо ее байт кода двойоной симолв
+
+если влетит NL то он отошлет ^J
+если влетит CR то он отошлет ^M
+
+спрашиватся зачем мне это надо . а яхочу пнять какой
+байт код прилетает в титииай дрйавер ядра от термина
+ла если я на теринале жму кнопку Enter. это 
+либо байт код NL либо байт код CR
+и вот я запутил. далее я иду  в терминал и жму
+кнопку Enter и вижу на жкране
+
+  ^M
+
+это значит что терминал шлет CR !!! я узнал!
+
+а что такое CR  = carriage return . это символ
+который если прислать на терминал то он ему укзывает
+что нужно курсов(каретку) переместить вначало строку
+при этом сама строка несдвигается вниз. это 
+забавно ведь по своей сути enter должен по идее
+поорждать два симввола CR+LF где LF он же NL 
+он же LINE FEED он же NEW LINE. то есть это символ
+что нужно лист бумаги (или экран) прокркутит вверх
+на одну строку. 
+
+в чем разница между LF\NL и CR
+если в терминал из компа прилетит CR то это сигнал
+для дисплея что нужно передвинуть кусрор в начало
+строк. а если из ядра прилетит LF\NL то это сигнал
+для дисплея прокрутить экран на одну строку вверх.
+верхня строка исчезает а снизу пояялется пустая
+строка. позиция курсора при этом не меняется. 
+
+если вот такое послать из ядра  в терминал
+
+ $ printf '\x0A\x0A\x0A\x0A\x0A' > /dev/pts/37
+
+то у меня терминал прокрутит лист бумаги(экран)
+на 5 строк вверх. 
+
+
+далее
+я прочитал  у ИИ такой прикол. Если я сижу на тер
+минале и нажимаю кнопки 
+
+       Ctrl+'кнопка'
+
+то железо терминала видит такое нажатие от клавы
+и железо делает инетересный финт. железко берет 
+байт код кнопки и делает битовый AND с 0x1F и то 
+что получится уже шлет по проводу в линукс бокс
+в tty driver. например  жмем  на клаве
+
+    Ctrl+m 
+
+байто код 'm'= 0x6D 
+теперь делаем AND
+
+AND
+     6D = 0110 1101 
+     1F = 0001 1111
+   ------------------
+          0000 1101
+      тоесть 
+           0x0D 
+      тоесть получаем CR (carriage return)
+
+
+таким макаром что делает эта операция она "гасит"
+выключает старшие 3 бита у байта который кодирует
+символ. если псомтреть в таблицу ASCII то последний
+символ имеет код 7F он имеет вид
+
+  7F = 0111 1111
+
+тоесть все смиволый таблицы ASCII они укладываются
+в 7-битный вид. значит AND 0x1F приводит к тому
+что терминал берет исходный 7-битный символ и гасит у него старшие два бита. вот какой смысл. и уже
+этот новый 7-битный символ шлет в tty driver. 
+c точки зрения математики получается вот как берется
+символ в табице и ему ставится в соосвттие новый
+символ код котрго получается путем того что мы 
+из исходного кода отнимаем число 96
+напрмиер смивол 'm'= 109 . отнимаем из него 96 
+получаем 13 это 0x0D это CR (carriage return)
+
+
+  0010 1101    
+  0001 1111
+  0001 1111
+
+  Х001 0011
+     1   3
+
+  0110 0011=32
+  0001 1111=1F
+  -------------
+  0000 0011=03
+
+
