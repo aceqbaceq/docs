@@ -1,0 +1,32 @@
+| git proxy
+
+
+как рабоатет git. 
+если он рабоатает по ssh ссылке то он 
+тупо взывает ssh клиент.  а тот лезет в ~/.ssh/config
+файл.
+если там прописано что вот такое
+
+
+HOST github.com
+    HOSTNAME github.com
+    IdentityFile ~/.ssh/id_ed25519
+    user git
+    ProxyCommand nc  -X 5 -x 172.16.10.11:2080 %h %p
+    FingerprintHash sha256  
+    HostKeyAlgorithms ssh-ed25519
+    ForwardAgent yes
+
+
+
+то ssh клиент лезет на гитхаб через прокси срервер
+а до прокси сервера он добиратеся через nc
+
+таким образом связка
+
+
+ git --- ssh --- nc  --- прокси сервер --- --инет ---
+
+ --- github.com
+
+ 

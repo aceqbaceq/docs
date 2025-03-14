@@ -1,0 +1,7 @@
+| wget proxy
+
+как его затсвить раотать чрез прокси.
+просто он ищет ENV VAR
+
+$ https_proxy=http://1.1.2.3:2080   https://wer.com/1.txt
+
