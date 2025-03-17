@@ -1,0 +1,484 @@
+| terminal
+| tty driver
+| console
+
+ответил на вопрос на понмание как рбоатет терминал
+в линуксе
+
+https://stackoverflow.com/questions/23958647/backspace-cant-be-detected-in-linux-terminal-kr-1-10-exercize/79510588#79510588
+
+
+
+кстати там два примра программ на СИ
+
+одна простая
+
+#include <stdio.h>
+
+int main()
+{
+    int c;
+
+    while ((c = getchar()) != EOF) {
+        if (c == '\t')
+            printf("\\t");
+        else if (c == '\b')
+            printf("\\b");
+        else if (c == '\\')
+            printf("\\\\");
+        else
+            printf("%c", c);
+    }
+}
+
+
+
+вторая сложнее
+#include <termios.h>
+#include <unistd.h>
+
+int mygetch(void)
+{
+
+
+ struct termios oldt,
+    newt;
+    int ch;
+    tcgetattr( STDIN_FILENO, &oldt );
+    newt = oldt;
+    newt.c_lflag &= ~( ICANON | ECHO );
+    tcsetattr( STDIN_FILENO, TCSANOW, &newt );
+    ch = getchar();
+    tcsetattr( STDIN_FILENO, TCSANOW, &oldt );
+    return ch;
+}
+
+
+
+
+вся эта тема окаалась такая закоываристая и интереная
+что я помещу здась то что я ответил там
+
+
+
+
+
+For whom who are interested:
+
+PART1
+
+let our C program is a.out
+
+suppose we use linux console terminal tty2
+
+here is the simplified schema
+
+a.out ----- tty driver ------ terminal(keyboard,display)  
+  
+
+when we launch a.out we usually do that via bash. bash before launch new binary changes the settings of tty driver like so "+icanon +echo +echoctl"
+
+After you launch a.out you can check by yourself:
+
+# stty --file=/dev/tty2  -a
+icanon echo  echoctl   
+
+and our proram a.out does not change that. What do we have? When we type BACKSPACE key on the keyboard - the terminal sends byte code 0x08 to tty driver. tty driver has the setting "icanon" , it means it works in canonical mode. it means it does NOT pass anything further from its buffer until it gets "carriage return" byte code from terminal keyboard (that is until user hits Enter key). It means when you press BACKSPACE your program does NOT get ANYTHING it just sleeps(S-state). At the same time, when you press the key you'll see
+
+^H
+
+on the screen. Why is that? As tty driver also has the settings "echo echoctl" , they mean that if tty driver gets smth from terminal it must answer back to the terminal , however it will not answer the same byte code it gets. As 0x08 is not byte code of usual printable symbol. It is byte code of control symbol. It will answer back with two quite different symbols
+
+ ^H  
+
+The terminal gets them and print them on the screen. The point is - "^H" was not sent by our program, it was sent by tty driver.
+
+At the moment as i said C program still dont get anything. But if you hit Enter - then it finally gets BACKSPACE byte code, and it will send '\b' to STDOUT, it goes to tty driver and it passes it to terminal, and terminal will print it.
+
+So one more time, you launch the program via bash, bash changes tty driver settings, you hit BACKSPACE,
+
+tty driver catches that but does not passes it to a.out , at the same time tty driver answers back to the terminal with "^H" symbols, the terminal prints them. Then If you dont hit Enter then nothing happens. But If you hit Enter then "Enter byte code" arrives at tty driver and it will finally passes BACKSPACE+ENTER to a.out
+
+a.out prints '\b' to stdout, it goes to tty driver. it passes it to terminal. the terminal prints '\b'
+
+PART2
+
+I have created C program that is the mixture of both C programs listed above ( to make all more clear)
+
+#include <stdio.h>
+#include <termios.h>
+#include <unistd.h>
+
+int main() {
+
+
+    struct termios oldt, newt;
+
+    // Get current tty driver settings
+    tcgetattr(STDIN_FILENO, &oldt);
+    newt = oldt;
+
+    // Turn off  ICANON, ECHO и ECHOCTL
+    newt.c_lflag &= ~(ICANON | ECHO | ECHOCTL);
+
+    // Apply new settings to tty driver
+    tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+
+
+
+
+    int c;
+
+    printf ("Press 'any key' to print on the display (or Ctrl+D to end the program)\n");
+
+    
+    while ((c = getchar()) != 0x04) {
+        if (c == '\t')
+            printf("\\t");
+        else if (c == '\b')
+            printf("\\b");
+        else if (c == '\\')
+            printf("\\\\");
+        else
+            printf("%c", c);
+    }
+
+
+
+    // restore old settings to tty driver
+    tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+
+    printf("\nBye-Bye!\n");
+
+    return 0;
+
+
+
+
+}
+
+
+
+It starts and chnages tty driver mode so that :
+
+  -echo 
+
+  -echoctl
+
+  -canonical 
+
+now we dont need to press "BACKSPACE"+"Enter" to make tty driver pass keys to a.out
+
+When we press "BACKSPACE" tty driver passes it to a.out immediately ,
+
+and we get the behavior that we intuitively expect.
+
+There is one more interesting point. It is the line
+
+    while ((c = getchar()) != 0x04) {
+
+We dont use EOF anymore. Why? Thats why - getchar() it is just glibc function, when it starts actually it launches read() syscall. It gets to sleep. When we press "Ctrl+D" its byte code 0x04 gets inside tty driver(kernel code), if it works in canonical mode it says to another kernel code to wake read() and return to userpspace with return code not equal 0x04 but to equal ZERO, getchar() analyzes it and return to us EOF.(EOF is actually -1 thats it)
+
+Thats why we used EOF in the first C program (in the topic).
+
+However if we press Ctrl+d and byte code gets to tty driver and it works in noncanonical mode, then it says to kernel code to wake read() with return code equals NON_ZERO, to be specific 0x04 , getchar analyzes read() return code 0x04 and return to us 0x04
+
+Thats why if we press Ctrl+D getchar() returns to us EOF if tty driver works in canoical mode, and returns 0x04 if tty driver works in non-canonical mode.
+
+
+
+
+я рапишу по руски еще раз.
+огромный прикол про строчку
+
+    while ((c = getchar()) != 0x04) {
+
+о том почему тут не написано вот так
+
+    while ((c = getchar()) != EOF) {
+
+
+
+так вот 
+getchar() это всего навсего обертка над 
+сисколом read() тоест мы запускаем
+
+c = getchar()
+
+и по факту у нас запускетс сисколлл read()
+и он засыпает 
+
+
+далее когда я тыкаю ctrl+d то его байт код 0х04
+прилетает в tty driver то смотрит в каком режиме
+он работает. если это канонический режим
+то тогда (а он ведь кусок кода ядра) он сообщает
+другой части ядра которая заведуе спящим read() 
+о том что его нужно разбудить и чтобы он вернул
+в юзер спейс тость в нушу функцию getchar() код
+возарата неравный 0х04 НЕТ! он говорит чтобы
+read() врнул код возврата 0! это легко можно
+отловаиь на практике через strace 
+
+  $ sudo strace -xx -p $(pidof 425.exe)
+read(0, "", 1024)     = 0
+
+тогда getchar код анализиурет код возврата
+и уже  в нашу прогу возвращает код возврата 
+равный EOF (что по сути макрос равный -1)
+
+а если у нас все тоже самое но tty driver работает
+в неканичнском режиме то когда прилетает байт 0x04
+то он говорит тому куску ядра который завуедтует
+спящим read() чтобы он верулся в ююзер спейс
+с кодом возврата 0х04 !!!! getchar() анаизирует
+этот код возврата и вовращает уже в нашу прогу
+0х04 !!!!
+
+вот как работае либо не работает эта хрень EOF
+внутри ядра и внутри glibc фнукций! 
+так как наша прога устаналивет режим работы tty драйвер в НЕканинсечкий режим то наш getchar()
+врнете нам 0х04 !! а не EOF!! имено пэтому 
+мы ловим этт Crl+D через строку
+
+
+
+    while ((c = getchar()) != 0x04) {
+
+
+дебильно вот что. чиаю man read
+
+RETURN VALUE
+       On success, the number of bytes read is returned (zero indicates end of file), and the file posi‐
+       tion is advanced by this number.  It is not an error if this number is smaller than the number of
+       bytes requested; this may happen for example because fewer bytes are actually available right now
+       (maybe because we were close to end-of-file, or because we are reading from a  pipe,  or  from  a
+       terminal), or because read() was interrupted by a signal.  See also NOTES.
+
+       On  error,  -1 is returned, and errno is set to indicate the error.  In this case, it is left un‐
+       specified whether the file position (if any) changes.
+
+
+если достинунт конец файла End Of File то ядро 
+возращает через read()=0 и возращает -1 только
+еси произошло ОШИБКА! а енд оф файл это не 
+ошика сточки зрения яра ! так вот я ниху не понимаю
+зачем glibc фнукции итипа getchar() возвращает
+в своем коде врзврата не ноль а -1 !!!!! НАХУЯ ОНИ
+поменяли оригиналрый код возврата?!?!?!
+я нашел что в глбиц EOF =1-1
+
+
+$ cat /usr/include/stdio.h | grep EOF -A10 -B10
+/* The value returned by fgetc and similar functions to indicate the
+   end of the file.  */
+#define EOF (-1)
+
+получается вот какой бред. ядро нам возращает 0 
+в read() что взоможно толуо случае елси ядро
+дошло до конца файла. но глибц мняет код возврата
+и делает его -1 что с точки зрения ядра если бы
+рид это вернул это уже индикатор ошибки.
+зачем глибц менет на -1 я не понимю. почем не ноль. 
+хуй знает.
+
+ОХРЕНЕТТ!!!  я наконце то узнал поднгтотую с 
+этим загадоочным EOF!!!!
+
+
+
+
+
+потом еще дописал вот этот кусок 
+про еще одну штуку
+
+
+
+Round 3
+
+There is one more notable thing. In the program above we turned OFF canonical mode in tty drvier.
+
+However If we keep canonical mode enabled then the following happens -- we press a key on the keyboard, keyboard generated byte code and send it to tty driver , it usually save byte-code in its buffer and not send it to user program until special "new line" byte code arrives. Usually it is 0x0A. In this case tty driver saves 0x0A in the buffer and wake read() syscall of our user space program. The very interesting thing -what is the key that generates 0x0A ? Do you think it 'Enter' ? NO. It is Ctrl+J
+
+If you press 'Enter' it generates 0x0D
+
+Thats why by default tty driver has additional setting icrnl
+
+$ stty -a
+...
+icrnl
+
+When you press 'Enter' terminal generates 0x0D, it gets in tty driver , tty drvier replaces it to 0x0A ,
+
+then "new line" event happens ! tty driver adds 0x0D to the buffer and wakes up read()
+
+Moreover if tty driver has settings echo -echoctl it also sends back to the terminal 0x0A and terminal scrolls the cursor -1 line down on the display and put it in the beginning of the line!
+
+I want to say that our keyboard generates 0x0D and tty driver gets 0x0D but after that tty driver sends back 0x0A and also saves in the buffer 0x0A !
+
+   TERMINAL                           LINUX box
+_____________________________    ________________________________________________
+                            |    |                                               |
+display  -------------------|----|--|                                            | 
+                            |    |  |==0x0D===> tty driver ------------ (buffer) |                                                         | -- ->--0x0D---   tty driver
+                            |    |  |                                   (empty)  |
+keyboard  ---- 0x0D -->-----|----|--|                                            |
+                            |    |                                               |
+____________________________|    |_______________________________________________|
+
+   TERMINAL                           LINUX box
+_____________________________    ________________________________________________
+                            |    |                                               | 
+display  ---------<--0x0A---|----|--|                                            | 
+                            |    |  |<=0x0A==== tty driver ----0x0A---> (buffer) |                                                         | -- ->--0x0D---   tty driver
+                            |    |  |                                    (0x0A)  |
+keyboard  ------------------|----|--|                                            |
+                            |    |                                               |
+____________________________|    |_______________________________________________|
+
+(terminal is a piece of code inside the core, however imagine it is real hardware
+device)
+
+Also I want to say that if we press sequentially
+'q' 'r' 's' 't' 'Enter' on the keybard then our user application gets 0x71  0x72 0x73 0x74 0x0A
+The main point is our application will get 0x0A
+
+However if we press 'q' 'r' 's' 't' 'Ctrl+D' there will be some difference. there is some setting inside tty driver about 'Ctrl+D'
+
+eof = ^D; 
+
+If tty driver gets 0x04 (Ctrl+D) it does not save 0x04 in the buffer but also wakes up read(), so our application will get only '0x71 0x72 0x73 0x74'
+So, some byte codes generated by our terminal (via the keyboard) will be visible to our user application, while others will not. They dissolve inside tty driver.
+
+
+
+значит смысл этого куска в чем.
+если у нас какнончиеский режиме. 
+то прилетающие от терминала байты ттай драйвер
+непеедает в юзер приложение а собирает в своем
+буфере и ждет когда с терминала прилетит 
+волшебный байт который является "new line" байтом 
+(так называемым"признаком новой строки" )
+по дефолту этот байт это 0x0A
+причем в настройках tty этого признака не видно.
+тоесть stty -a нам ничего не покажет. более 
+там будет написано 
+
+eol = <undef>; eol2 = <undef>;
+
+
+что якобы и вовсе нет такого волщегбного байта.
+но он есть. более того если сюда чтото всунуть
+
+ # stty --file=/dev/pts/10 eol 0xNN
+
+то это бдует дополнтельный байт признак но он 
+никак не полвияет на байт 0x0A он так и останется
+тоже таким байтом признаком.
+так вот в этом случае  tty driver запиывает этот 
+0x0A байт в буфер. и далее будит спящий read()
+который был запущен нашим юзер приожоением. 
+и этот read() копирует содержимое буфера из ядра
+в область памяти юзер приложения вместе с байтом 0x0A
+
+сразу возникает вопрос - а какая кнопка на клаве
+генерирует этот 0x0A 
+может ты думаеш это Enter ? нет нихуя. хехе
+это Ctrl+J  
+а что же генерирует Enter ? он генриурет 0x0D
+а далее в tty driver есть костыль. вот эта 
+настрока
+
+  # stty -a
+  icrnl
+
+если в ттай дарйвер придетает 0x0D то она его меняет
+на 0x0A налету!!! и вслдествие этого у ттай драйвера
+наступает событие "new line" а дальше я описал 
+как выше.  тоесть если в какнончиеском режиме выключ
+ить настроку -icrnl   то тыкать на Enter станет 
+бесполезно. ( что кассется баш то он когда принимает
+кнопки от нас то он высталвяет ттай драйвер режим
+некакнонический и все кнопки проваливаются сразу
+в баш и он их обрабатывает сам без поомощи tty драйвера .хехе)
+
+а что же с монитором? что будет если на него послать
+0x0D или 0x0A?
+если 0x0D прилетате на монитор то он курсор двигает
+в начало строки без скроллинга вниз.
+а если прилетает 0x0A то он двигает курсор в начало
+строки И скроллит экран на одну строку вниз. 
+
+есть еще одна волшебная комбиация это Ctrl+D
+она есть в настройках ттай драйвера
+
+eof = ^D;
+
+если нажать Ctrl+D то клава гененирует 0x04
+если такое прилетате в ттай драйвер то он НЕ запиывает
+этот 0x04 в буфер. но он также будит read()
+поэмоу 0х04 в юзер приложение не попадает.
+
+если протыкать на клаве комбиацнии 
+
++---------+---------+-------------------+
+|  Hex    |  Char   |   Ctrl-Combination|
++---------+---------+-------------------+
+|  0x00   |   NULL  |     Ctrl-@        |
+|  0x01   |   SOH   |     Ctrl-A        |
+|  0x02   |   STX   |     Ctrl-B        |
+|  0x03   |   ETX   |     Ctrl-C        |
+|  0x04   |   EOT   |     Ctrl-D        |
+|  0x05   |   ENQ   |     Ctrl-E        |
+|  0x06   |   ACK   |     Ctrl-F        |
+|  0x07   |   BEL   |     Ctrl-G        |
+|  0x08   |   BS    |     Ctrl-H        |
+|  0x09   |   TAB   |     Ctrl-I        |
+|  0x0A   |   LF    |     Ctrl-J        |
+|  0x0B   |   VT    |     Ctrl-K        |
+|  0x0C   |   FF    |     Ctrl-L        |
+|  0x0D   |   CR    |     Ctrl-M        |
+|  0x0E   |   SO    |     Ctrl-N        |
+|  0x0F   |   SI    |     Ctrl-O        |
+|  0x10   |   DLE   |     Ctrl-P        |
+|  0x11   |   DC1   |     Ctrl-Q        |
+|  0x12   |   DC2   |     Ctrl-R        |
+|  0x13   |   DC3   |     Ctrl-S        |
+|  0x14   |   DC4   |     Ctrl-T        |
+|  0x15   |   NAK   |     Ctrl-U        |
+|  0x16   |   SYN   |     Ctrl-V        |
+|  0x17   |   ETB   |     Ctrl-W        |
+|  0x18   |   CAN   |     Ctrl-X        |
+|  0x19   |   EM    |     Ctrl-Y        |
+|  0x1A   |   SUB   |     Ctrl-Z        |
+|  0x1B   |   ESC   |     Ctrl-[        |
+|  0x1C   |   FS    |     Ctrl-\        |
+|  0x1D   |   GS    |     Ctrl-]        |
+|  0x1E   |   RS    |     Ctrl-^        |
+|  0x1F   |   US    |     Ctrl-_        |
++---------+---------+-------------------+
+
+
+
+то можно с нее удобно гененировать 
+упрлвябщий символы диапазона 00-1F
+онивсе работают кроме тех которые указаны 
+как особые в натроках ттай драйвера
+
+intr = ^C; quit = ^\; erase = ^?; kill = ^U; eof = ^D; 
+start = ^Q; stop = ^S; susp = ^Z; rprnt = ^R; werase = ^W; lnext = ^V; discard = ^O; 
+
+то при нажатии на эти ттай драйвер делает особые
+дейсвтия.
+
+и вот эта уменя еще не сработала
+|  0x1F   |   US    |     Ctrl-_        |
+
+
+если комбинация Ctrl+N не является особой
+то ее байт код успешно запимывается ттай драйвером
+в буфер. и попадает потом в юзер приложение!
+
+
+
+

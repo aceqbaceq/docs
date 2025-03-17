@@ -1,0 +1,16 @@
+| xterm background
+
+черный фон белый шрифт
+
+xterm -bg black -fg white
+
+еще вот так
+Add to ~/.Xdefaults:
+
+xterm*background: black
+xterm*foreground: white
+
+
+но не прояверял
+
+https://bbs.archlinux.org/viewtopic.php?id=78677

@@ -1,0 +1,7 @@
+
+| stackoverflow
+
+как убрать левую панель left pane
+
+https://meta.stackoverflow.com/questions/369106/how-do-i-hide-the-left-navigation-sidebar
+
