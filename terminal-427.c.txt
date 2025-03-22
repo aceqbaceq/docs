@@ -1,0 +1,64 @@
+| terminal
+| 427.c
+
+
+эта программа если хочется узнаь какие кейсимы (байты)
+прилетают в юзер прогармму при нажатии разных
+кнопок на клаве термимнала. (всякие там Ctrl+n
+например кнопки что они дают какие байт коды)
+
+
+
+
+
+$ cat 427.c
+#include <fcntl.h>
+#include <stdio.h>
+#include <unistd.h>
+
+int main (){
+
+  char *p1="/tmp/2.txt";
+
+  int fd = open(p1, O_WRONLY|O_TRUNC|O_CREAT, 0666);
+  if ( fd < 0 ){
+       perror ("open() error");
+       return 1;
+     }
+
+  int fd2;
+  char c[10];
+  while(1){
+     fd2 = read(0, &c, sizeof(c));
+       if ( fd2 < 0 ){
+           perror ("read() error");
+           return 1;
+           }
+     write(fd, &c, fd2);
+
+  }
+
+  close (fd2);
+  close (fd);
+
+
+return 0;
+
+}
+
+
+
+запускаем программу. 
+потом еще нужно покрутить терминал в котором
+она рабоатет чреез terminal-prepare.txt
+
+далее тыканем кнпоки напрмиер Ctrl+L
+
+и смотрим в файле /tmp/2.txt какие байты у нас 
+при этом прилетают из tty driver в нашу
+юзер программу.
+
+смотрим через 
+
+ $ od -t x1  < /tmp/2.txt
+
