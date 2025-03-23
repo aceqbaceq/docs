@@ -3,20 +3,24 @@
 #include <unistd.h>
 #include <termios.h>
 #include <sys/ioctl.h>
-
+#include <stdlib.h>
 
 int main (){
 
 
-    int fd;
+    int fd=0;
     struct termios term, term_cpy;
 
+/*
     // Открываем текущий терминал 
     fd = open("/dev/tty", O_RDWR);
     if (fd == -1) {
         perror("Error opening terminal");
         return 1;
     }
+*/
+
+
 
     // Получаем текущие параметры терминала
     if (tcgetattr(fd, &term) == -1) {
@@ -29,8 +33,9 @@ int main (){
     term_cpy=term;
    
     // Выключаем канонический режим (если он был выключен)
-    term.c_lflag |= ~ICANON;
-//     term.c_lflag |= ICANON;
+    term.c_lflag &= ~ICANON;  // Отключаем ICANON
+    //term.c_lflag &= ~ISIG;  // Отключаем ISIG
+    //term.c_lflag |= ICANON;
 
     // Применяем изменения к терминалу
     if (tcsetattr(fd, TCSANOW, &term) == -1) {
@@ -41,6 +46,8 @@ int main (){
 
 
 
+
+   system("stty -a");
 
 
   int fd2;
@@ -56,12 +63,14 @@ int main (){
            return 0;
            }
 
+/*
        if ( fd2 ==  0x3 ){
            perror ("\nя получил Ctrl+C!");
            // восстанавливаю настройки термиала
            tcsetattr(fd, TCSANOW, &term_cpy);
            return 0;
            }
+*/
 
 
 
