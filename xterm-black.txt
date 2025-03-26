@@ -1,0 +1,6 @@
+| xterm black
+
+как его запустить с черным фоном и белым шрифтом
+
+
+xterm -bg black -fg white
