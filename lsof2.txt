@@ -1,0 +1,43 @@
+| lsof
+
+
+в выводе в свойтвах десктриптора указано u
+что за хрень
+
+
+COMMAND    PID   USER  FD   TYPE  DEVICE SIZE/OFF      NODE NAME
+bash    618945 noroot cwd    DIR   254,0       44 940073909 /home/noroot/temp/30
+bash    618945 noroot rtd    DIR   254,0      250       128 /
+bash    618945 noroot txt    REG   254,0  1116976 805306515 /usr/bin/bash
+bash    618945 noroot mem    REG   254,0  3067632 676824248 /usr/lib/locale/locale-archive
+bash    618945 noroot mem    REG   254,0   453896     46386 /usr/lib/libncursesw.so.6.5
+bash    618945 noroot mem    REG   254,0  2014520     56305 /usr/lib/libc.so.6
+bash    618945 noroot mem    REG   254,0   343064   1745490 /usr/lib/libreadline.so.8.2
+bash    618945 noroot mem    REG   254,0    27010 268617657 /usr/lib/gconv/gconv-modules.cache
+bash    618945 noroot mem    REG   254,0   226904     46502 /usr/lib/ld-linux-x86-64.so.2
+bash    618945 noroot   0u   CHR 136,194      0t0       197 /dev/pts/194
+bash    618945 noroot   1u   CHR 136,194      0t0       197 /dev/pts/194
+bash    618945 noroot   2u   CHR 136,194      0t0       197 /dev/pts/194
+
+
+тоесть что за 1u?????
+
+оказыется
+
+
+Возможные значения в FD (File Descriptor):
+
+    r — открыт только для чтения (read-only).
+
+    w — открыт только для записи (write-only).
+
+    u — открыт и для чтения, и для записи (read/write).
+
+    - — дескриптор неизвестного типа.
+
+    a — открыт в аппенд-режиме (дозапись в конец файла).
+
+    t — открыт в режиме текстового файла.
+
+    space (пробел) — означает неизвестный режим.
+

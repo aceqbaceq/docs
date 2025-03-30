@@ -1,0 +1,379 @@
+| bash 
+| find
+
+
+попался такой вопрос
+
+
+Что делает следующая команда в Bash: find /var/log -name "*.log" -exec rm {} +?
+
+
+
+вначале я никак нуихуя не мог понять что дает '?'
+в конце? окзываетя ничего! этот '?' неотносится к 
+к самой команде find он относится просто вопросу!
+тоесть
+
+
+Что делает следующая команда в Bash?
+   find /var/log -name "*.log" -exec rm {} +
+
+суки
+
+теперь по сущесвту
+
+вот эта опция -exec она реально заебыает своей
+непонятсностью. 
+но щас я думаю вот так
+
+во первых что эта опция делает в целом.
+ -exec делает то что если find нашел очредной файл
+или папку то он заопминает его имя\путь и запускает
+команду указанную в exec и в ту команду можно подста
+вить имя надйенного файла.
+так вот есть две формы запуска exec
+
+  -exec command ;
+
+или лучше вот так записать
+
+ -exec command ';'
+
+
+и есть вторая форма 
+
+  -exec command '{}' '+'
+
+
+итого 
+
+  -exec command ';'
+
+
+  -exec command '{}' '+'
+
+
+что это за загодочные хрени  и зачем кавычки.
+ОКАЫВЗЕТСЯ!
+рассморим 
+
+
+  -exec command ';'
+
+
+скажем это будет вот такое
+
+
+ $ find / -type f -name "*.txt"    -exec echo '{}' ';'
+
+
+так вот как это все работает. 
+во первых когда мы запускаем эту команду в баше
+то он анализирует эту всю строку и ищет в ней
+спец символы которые баш должен развернуть заменить
+на чтото другое (так назыавемый баш глоббинг).
+именно из за этого мы вот эти штуки 
+
+   '{}' ';'
+
+мы их заключаем в кавычки. чтобы защитить эти символы
+от того что баш начнет их считать своими спец символ
+ами параметрами глоббинга. чтобы он их оставил в покое
+и чтобы он когда будет делать execve() то он в него
+поставил эти штуки в точности как мы это указали в
+командной строке!
+
+просто пример. почему нужно ';' взять в кавычки. 
+потому что для самого баша символ кавычки явялтся
+спецсимволом. и для баша он означает то что мы  в
+одной строке хотим описать сразу несколько команд!
+и мы их для баша разделяем через ; 
+напрмиер 
+
+
+   $ echo "123"  ; echo "345"
+
+и баш понимает что надо запустит две команды.
+так вот если мы хотим чтобы кавычка нерассматривалась
+как спецсимвол баща а как аргумент команды то мы
+должны его для баша заключит в одинкрные кавычки
+
+вот показываю разницу
+
+ $ echo "123" ;
+ 123
+
+ $ echo "123" ';'
+ 123 ;
+
+
+в первом случае баш считает что ; это его 
+спецсимвол. и поэтому он его не рассатривает как 
+аргумент команды echo  поэтому по факту он запустит
+команду echo вот так
+
+    $ echo "123"
+
+а вов втором случае мы обьяснили баш что ; это
+не спецсимвол для баща а это просто символ который
+аругумент для echo и он запускает команду эхо 
+вот так
+
+
+ $ echo "123" ";"
+ 123 ;
+
+
+вот это можно докаательно увидеть через strace
+
+$ strace -e execve echo "123" ;
+execve("/usr/bin/echo", ["echo", "123"], 0x7ffd260f03b8 /* 58 vars */) = 0
+
+
+$ strace -e execve echo "123" ';'
+execve("/usr/bin/echo", ["echo", "123", ";"], 0x7ffcf7be9050 /* 58 vars */) = 0
+
+теперь стало понятно.
+
+так вот когда мы берем команду
+
+ $ find / -type f -name "*.txt"    -exec echo '{}' ';'
+
+то используя 
+
+  '{}' ';'
+
+мы обьясняем башу что  символы  {}  и ; это не спец
+символы баша а это агумеенты команды find.
+
+и вот  я щас докажу что он баш понимает
+
+
+ $ strace -e execve find /home/noroot/temp/01 -type f -name "*.txt"    -exec echo '{}' ';'
+
+execve("/usr/bin/find", ["find", "/home/noroot/temp/01", "-type", "f", "-name", "*.txt", "-exec", "echo", "{}", ";"], 0x7ffcb8dc62d8 /* 58 vars */) = 0
+
+
+тоеть мы видим вот с каким агументами запускается find
+
+
+["find", "/home/noroot/temp/01", "-type", "f", "-name", "*.txt", "-exec", "echo", "{}", ";"]
+
+и при его запуске вот его массив аргументов
+
+"/home/noroot/temp/01"
+"-type"
+"f" 
+"-name"
+"*.txt"
+"-exec"
+"echo"
+"{}"
+";"
+
+
+далее еще возникает вопрос берем вот этот кусок
+
+  -exec echo '{}' ';'
+
+и возникает вопрос
+а можно его заменить на 
+
+  -exec echo '{} ;'
+
+ответ = НЕТ!
+
+
+вот при такой форме
+
+ -exec echo '{}' ';'
+
+у нас будет запущен echo с ДВУМЯ ПАРАМЕТРАМИ
+
+а при такой форме
+
+ -exec echo '{} ;'
+
+
+то эхо будет запущен с ОДНИМ ПАРАМЕТРОМ.
+
+для команды эхо это мало важно. но для других
+команд это может быть ОЧЕНЬ ВАЖНО! напрмиер
+
+  -exec ls  '-1a'  ';'
+
+при такой форме у нас find запустит команду 
+
+  ls -1a
+
+с одним аргументом (с точки зрения execve() )
+
+а вот в этой форме 
+
+  -exec ls  '-1' 'a'  ';'
+
+
+у нас find запустит через execve() вот так
+
+   ls -1  a
+
+и конечно это будет совсем другое это будет ошибка!
+потому что тут у нас два аргумента. и второй это
+якобы имя папки.
+
+у нас символ '{}' это символ для find что при запуске
+команды которая указана в -exec он должен подставит
+в это место имя найденного файла.
+тоесть скажем вот так
+
+find / ....    -exec stat  '{}'  ';'
+
+
+приведет к тому что вот файн нашел файл /1.txt
+тогда он создает процесс новый и там
+запускает через execve() вот такую комнду
+
+  stat    "/tmp/1.txt"  
+
+для find символ ; означает то что в этом месте
+заканчивается массив аргументов с которым он должен
+запустить команду stat тоесть
+
+
+
+find / .... -exec stat  '{}' 'arg2'  'arg3' 'arg4' ';'
+
+
+тоесть нашел файнд файл /tmp/1.txt 
+тогда он создает процесс и в нем запусккаеет 
+
+exevve() с таким массивом аругментов
+
+stat  "/tmp/1.txt"  "arg2"  "arg3" "arg4" 
+
+и когда файнд доходит до ; то он понимает что масив
+аргументов запуска stat закончился.
+
+
+потому нелзя вместе лепить вот так
+
+
+find / .... -exec stat  '{}' 'arg2'  'arg3' 'arg4;'
+
+это совсем другой смысл. смысл такой что 
+у stat один из аргументов "arg;"  при этом файнд
+не увидит признака где конце масссива аргументов
+для stat и пошлет нахер.
+
+вот зачем нужен милион одинакрных кавычек (чтобы 
+обьяснить баш что все что внутри этих кавычек это
+не спецсимволы баш) а это поле аргументов для запуска
+find.  
+
+вот что значит {} это показатель для файнд 
+что сюда надо будет вставить имя найденного файла
+
+вот что значит ; это признак для файнд конца массива
+аргументов той комнды которая указана для запуска
+в ключе -exec 
+
+и вот для каждого наденноо файла будет зауущена
+укаанная команда.
+
+УФФФФФ
+
+есть и другая форма для запуска -exec
+
+
+  -exec command {} +
+
+
+тоесть 
+
+   -exec  command '{}'  '+'
+
+здесь ; уже ненужна тоесть файнд ее не требует.
+вместо нее стоит + он обьясянет где конце массива
+аргументов для exec
+прмиер 
+
+
+   -exec  echo "123" "456" "789"  '{}'  '+'
+
+прчием когда у нас форма {} + 
+то файнд треубет что бы знак {} стоял в самом
+конце преед плюсом. и знак {} можно юзать только
+один раз. 
+и тогда файнд вот что делает. он находит файлу. 
+и он их собирает в кучу и уже с этой кучей он
+запускает то что указано в -exec
+тоесть если он найдет /tmp/1.txt 
+/tmp/2.txt
+/tmp/3.txt
+то он всего один раз запустит вот такую комнду
+
+ echo "123" "456" "789"  /tmp/1.txt /tmp/2.txt /tmp/3.txt
+
+
+тоесть в случае выше он для кажбго файла запустит
+отельную команду
+а с этими ключами он запустит комнду один раз
+и в ней он соеберет в кучу все надйенные файлы.
+
+
+ну едиснвтенное то что если он найдет милион
+файлов то он не будет весь милион пихать за раз
+это невзомжно . оганчиение видимо у exevve() на число
+аргументов. но он их туда напахивает в каком то 
+большом количестве.
+
+вот в чем разница межу
+
+  -exec command '{}' ';'
+  -exec command '{}' '+'
+
+вот кусок мана
+
+       -exec command ;
+              Execute  command; true if 0 status is returned.  All following arguments to find are taken
+              to be arguments to the command until an argument consisting of ‘;'  is  encountered.   The
+              string  ‘{}'  is replaced by the current file name being processed everywhere it occurs in
+              the arguments to the command, not just in arguments where it is alone, as in some versions
+              of find.  Both of these constructions might need to be escaped (with a ‘\') or  quoted  to
+              protect  them  from  expansion by the shell.  See the EXAMPLES section for examples of the
+              use of the -exec option.  The specified command is run once for each  matched  file.   The
+              command  is  executed  in the starting directory.  There are unavoidable security problems
+              surrounding use of the -exec action; you should use the -execdir option instead.
+
+       -exec command {} +
+              This variant of the -exec action runs the specified command on the selected files, but the
+              command line is built by appending each selected file name at the end; the total number of
+              invocations of the command will be much less than the number of matched files.   The  com‐
+              mand line is built in much the same way that xargs builds its command lines.  Only one in‐
+              stance  of  ‘{}' is allowed within the command, and it must appear at the end, immediately
+              before the ‘+'; it needs to be escaped (with a ‘\') or quoted to protect it from interpre‐
+              tation by the shell.  The command is executed in the starting directory.  If  any  invoca‐
+              tion  with  the ‘+' form returns a non-zero value as exit status, then find returns a non-
+              zero exit status.  If find encounters an error, this  can  sometimes  cause  an  immediate
+              exit,  so  some  pending  commands  may  not be run at all.  For this reason -exec my-com‐
+              mand ... {} + -quit may not result in my-command actually  being  run.   This  variant  of
+
+
+а вот пример разницы.
+
+/home/noroot/.venv/ansible3
+ $ find /home/noroot/temp/04/ -type f -name "*"    -exec echo  '{}'  ';'
+
+/home/noroot/temp/04/ip.txt
+/home/noroot/temp/04/ip.bak
+/home/noroot/temp/04/ip.txt2
+/home/noroot/temp/04/ip3.txt
+/home/noroot/temp/04/temp.txt
+/home/noroot/temp/04/reload_iptables.sh
+
+ $ find /home/noroot/temp/04/ -type f -name "*"    -exec echo  '{}'  '+'
+
+/home/noroot/temp/04/ip.txt /home/noroot/temp/04/ip.bak /home/noroot/temp/04/ip.txt2 /home/noroot/temp/04/ip3.txt /home/noroot/temp/04/temp.txt /home/noroot/temp/04/reload_iptables.sh
+
+вот такой вот пиздец с этим bash+find
+
