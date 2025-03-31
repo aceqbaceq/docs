@@ -525,3 +525,9 @@ FBIOPUT_VSCREENINFO: invalid argument
 хтт через новую и будет пиздец. поэтоу  с этой
 хренью надо быть акуратным. 
 
+==============================================================
+
+ # qemu-system-x86_64 -name deb3 -m 264M -boot d -drive file=hda.img,media=disk,if=virtio,format=qcow2,file.locking=on -cpu host -enable-kvm -smp 1 -M q35 -device virtio-balloon -device VGA,vgamem_mb=12,xres=1800,yres=950 -display sdl -netdev tap,id=mynet1,ifname=tap3,script=no,downscript=no -device virtio-net-pci,netdev=mynet1,mac=ba:ec:24:5c:80:33 -serial /dev/tty
+
+
+================================================================
