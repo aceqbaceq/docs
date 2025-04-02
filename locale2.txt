@@ -1,0 +1,218 @@
+| locale
+
+я начал пытаться разораться с этой искусственно
+замагированнной штукой уже давно. 
+в файле  locale1.txt но там мало еще было понятно.
+
+
+и вот наконец стало более поняно что все это
+на практкие кокннетно значит!
+
+локлаь  C POSIX  они ниаккак не настрваиются
+они уже встроены кудато там в глибц намертво.
+даже не посмтреть какие правиал там есть!
+поэтому 
+
+
+locale -a 
+покжает вот это 
+
+$ locale -a
+C
+C.utf8
+en_US.utf8
+POSIX
+
+
+а 
+
+$ locale -a   -v
+locale: en_US.utf8      archive: /usr/lib/locale/locale-archive
+-------------------------------------------------------------------------------
+    title | English locale for the USA
+   source | Free Software Foundation, Inc.
+  address | https://www.gnu.org/software/libc/
+    email | bug-glibc-locales@gnu.org
+ language | American English
+territory | United States
+ revision | 1.0
+     date | 2000-06-24
+  codeset | UTF-8
+
+locale: C.utf8          directory: /usr/lib/locale/C.utf8
+-------------------------------------------------------------------------------
+    title | C locale
+    email | bug-glibc-locales@gnu.org
+ revision | 2.1
+     date | 2022-01-30
+  codeset | UTF-8
+
+
+тоесть мы не видим ни C ни POSIX 
+они видим встроены в libc.so.6
+
+это первй прикол!
+
+локали в бинакрном виде илежат в 
+
+/usr/lib/locale/locale-archive
+
+добавляетс они туда через 
+
+ $ localedef -f ISO-8859-8  -i yi_US  yi_US.iso-8859-8
+
+вот это -f ISO-8859-8  это /usr/share/i18n/charmaps/ISO-8859-8.gz
+
+
+вот это -i yi_US это /usr/share/i18n/locales/yi_US
+
+а вотэто  yi_US.iso-8859-8 уже интеереснее 
+читаю в man localdef 
+
+       The outputpath argument is interpreted as follows:
+
+       •  If outputpath contains a slash character ('/'), it is interpreted as the name of the directory
+          where the output definitions are to be stored.  In this case, there is a separate output  file
+          for each locale category (LC_TIME, LC_NUMERIC, and so on).
+
+       •  If  the  --no-archive option is used, outputpath is the name of a subdirectory in /usr/lib/lo‐
+          cale where per-category compiled files are placed.
+
+       •  Otherwise, outputpath is the name of a locale and the compiled locale data  is  added  to  the
+          archive  file  /usr/lib/locale/locale-archive.  A locale archive is a memory-mapped file which
+          contains all the system-provided locales; it is used by all localized programs when the  envi‐
+          ronment variable LOCPATH is not set.
+
+тоест в данном сулчае yi_US.iso-8859-8 это значит
+что выходной биарный кусок будет всунуть в /usr/lib/locale/locale-archive.
+и наколкьо я знаю сразу вроде как все пцроессы
+онволят у себя этот файл. или ядро както это делает...
+
+
+далее логкиа такая. мы зпускаем прогу.  и если она
+испольщует локаль то она окрывает файл 
+/usr/lib/locale/locale-archive
+и прям мапит его сбее в память. 
+и далее юзер прога использует те насйтоки котоыре
+там указаны в том обьеме как программа хочет.
+она может вобще инрировать эту локаль а может 
+ее полностью соблдюдать.
+что каается печати символов. щас утсроено вот как.
+мы внутри программы укзываем номер юникод поинта
+символ которого мы хотим напечатать. далее
+юзер прога шарится в файле локали и на оснвое
+него находит какой поток боайтов нужно сунуть
+на стдоут для этого код поинта на основе локали.
+когда я создаю локаль то я указываю чармап файл.
+
+-f ISO-8859-8
+
+а внутри он выглдяит вот так
+
+<U0000>     /x00         NULL (NUL)
+<U0001>     /x01         START OF HEADING (SOH)
+<U0002>     /x02         START OF TEXT (STX)
+<U0003>     /x03         END OF TEXT (ETX)
+<U0004>     /x04         END OF TRANSMISSION (EOT)
+
+тоесть слева указан юник код поинт.
+а далее указан тот поток байтов который как раз 
+таки ЮП должно сунуть на стдоут.
+таиким образом сделано старннно. у нас есть 
+юникод система которая каждый символ обоначает
+через юникод поинт. а далее у нас есть скжаем
+UTF-8, UTF-16, UTF-32 
+котоыре укзывают в какой поток байтов 
+генерировать для дланного юникод поинта.
+а они взяли юнкод поинты а потом для каждом чапмапе
+у нас указано как этот юникод поинт коенвертиоовать
+в поток байтов в данной кодировке.
+таким обармо смешали юникод с неюникодом.
+
+
+таиким образм если я пишу
+
+ env LC_TYPE=en_US.utf-8  printf '\x041f \n'
+
+то на выоде будем один поток байтов. 
+а если 
+
+ env LC_TYPE=С  printf '\x041f \n'
+
+то другой!
+
+кстати
+LC_TYPE=С
+после равно мы узакаывам имя локали.
+как узнать какие у нас есть. 
+вот так 
+
+locale -a
+$ locale -a
+C
+C.utf8
+en_US.utf8
+POSIX
+
+или 
+
+
+~$ locale -a -v | grep "locale:"
+locale: en_US.utf8      archive: /usr/lib/locale/locale-archive
+locale: C.utf8          directory: /usr/lib/locale/C.utf8
+
+но тут небудет локали C и POSIX
+
+значит сами  локали биарнарные лежат в 
+ usr/lib/locale/locale-archive
+либо в папке 
+/usr/lib/locale
+
+а в папке 
+/usr/share/i18n/locales
+лежат конфини котоыре моно поенять и на освное
+них уже создать или преоздать биараную локаль.
+и вот этот файл нарпимер 
+/usr/share/i18n/locales/C
+
+он отвечает за локаль 
+
+  C.utf-8 
+
+но ника кне за локлаь C  - она куда встроена  
+в либси шаред либрари!
+
+
+внунрурри конфа локаои 
+есть секция
+
+LC_CTYPE
+copy "i18n_ctype"
+
+translit_start
+include "translit_neutral";""
+default_missing <U003F>
+translit_end
+
+translit_start
+include "translit_combining";""
+translit_end
+
+END LC_CTYPE
+
+
+вот это файл i18n_ctype" в нем укзаны все 
+юникод поинты и в какие локали группы они 
+входят. (об  этом пото подрбннее)
+и по идее в этйо секции можно написаьт на какой
+юникод поинт меняьт тот который мы сунули в пргармму
+но его нет в локали. и он его должен заменить на 
+другой. ВОТ ЭТО НАДО НА ПРАКТИКЕ И ПРОВЕРИТЬ 
+КАК ЭТО СДЕЛАТЬ. <<<<<<<<<<<====!!!!
+
+прикоо еще в том что в итге этов се высирвется на 
+стдоут. так вот если этов файл по хер. а есл и 
+это на терминал то нужно чтбы теоминал подержвиаел
+эту же кодррвку!!! теость мы лимы ывысираем в CP1255
+то и термипал дожен ыть в этйо кодиррке настрен!
+как это уже другой вопрос!!

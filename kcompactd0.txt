@@ -1,0 +1,13 @@
+| kcompactd0
+
+
+постяонно он это запускает и жрет cpu
+как это отключить 
+
+ $ sudo sysctl -w vm.compact_unevictable_allowed=0
+vm.compact_unevictable_allowed = 0
+
+ $ sudo sysctl -w vm.compaction_proactiveness=0
+vm.compaction_proactiveness = 0
+
+

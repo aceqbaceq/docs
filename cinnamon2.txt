@@ -1,0 +1,8 @@
+| cinnamon
+
+как его налету перестартовать
+
+
+  $  killall -HUP cinnamon
+
+  
