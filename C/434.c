@@ -11,20 +11,29 @@ int main()
     int x;
 
 //    setlocale(LC_CTYPE,"en_US.UTF-8");
-     char *p_c1 = setlocale(LC_CTYPE,"C.utf-8");
+     char *p_c1 = setlocale(LC_CTYPE,"C2.iso88598");
      if (p_c1 == NULL ) {
       printf ("setlocale ERROR \n");
       return (1);
      }
      
     
-
+/*
     for(x=0;x<NUM;x++)
         putwchar(hello[x]);
     putwchar('\n');
+*/
 
-    putwchar(0x00A5);
+    putwchar(0x2016);
     putwchar('\n');
+
+    putwchar(0x00BE);
+    putwchar('\n');
+
+    putwchar(0x2018);
+    putwchar('\n');
+
+
 
     return(0);
 }

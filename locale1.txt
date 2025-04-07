@@ -1,15 +1,20 @@
-]$ LC_NUMERIC=de_DE.UTF-8  printf '%f\n' 1233.14
+$ LC_NUMERIC=de_DE.UTF-8  printf '%f\n' 1233.14
 bash: warning: setlocale: LC_NUMERIC: cannot change locale (de_DE.UTF-8)
 1233.140000
-[vasya@ thinkpad ]$ env LC_NUMERIC=de_DE.UTF-8  printf '%f\n' 1233.14
+
+$ env LC_NUMERIC=de_DE.UTF-8  printf '%f\n' 1233.14
 1233,140000
-[vasya@ thinkpad ]$ env LC_NUMERIC=C.UTF-8  printf '%f\n' 1233.14
+
+$ env LC_NUMERIC=C.UTF-8  printf '%f\n' 1233.14
 1233.140000
-[vasya@ thinkpad ]$ env LC_NUMERIC=de_DE.UTF-8  printf '%f\n' 1233.14
+
+$ env LC_NUMERIC=de_DE.UTF-8  printf '%f\n' 1233.14
 1233,140000
-[vasya@ thinkpad ]$ env LC_NUMERIC=en_US.UTF-8  printf '%f\n' 1233.14
+
+$ env LC_NUMERIC=en_US.UTF-8  printf '%f\n' 1233.14
 1233.140000
-[vasya@ thinkpad ]$ env LC_NUMERIC=ru_RU.UTF-8  printf '%f\n' 1233.14
+
+$ env LC_NUMERIC=ru_RU.UTF-8  printf '%f\n' 1233.14
 1233,140000
 
 

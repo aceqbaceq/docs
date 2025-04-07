@@ -216,3 +216,69 @@ END LC_CTYPE
 эту же кодррвку!!! теость мы лимы ывысираем в CP1255
 то и термипал дожен ыть в этйо кодиррке настрен!
 как это уже другой вопрос!!
+
+
+
+с точки зрения пеати получается вот та.к.
+мы в прогрмму суем юнико поинты а он их на оснвое
+локали и чармапа превращает в байты которые уже 
+сует на стдоут. некторце юникод поинты он может
+првщаат в руние бникод пинтонинты. например С локальь
+все руские буквы налету укнвеонтртит в англ аналоги.
+
+# localedef -f ISO-8859-8  -i C2  C2.iso88598
+# localedef -f ISO-8859-8  -i C2  /usr/lib/locale/C2.iso88598
+
+
+--
+ $ iconv -f UTF-8  -t ISO-8859-5  ./437.c > 438.c
+ $ gcc -o 438.exe 438.c -finput-charset=ISO-8859-5 -fwide-exec-charset=UTF-32LE
+ $ ./438.exe
+43 04 00 00 
+--
+
+в си 
+
+ ".........." это на самом дело закодрорванный
+ массив + 0х00 в конце
+
+".........."  = { , , , , ,, , 0x00    }
+элементы можно указать разными путями
+
+"abcdef"  = { 'a', 'b', 'c', 'd','e' ,'f', 0x00    }
+
+"abcdef"  = { 0x21, 0x22, 0x23, 0x24, 0x25 , 0x27, 0x00    }
+
+"abcdef" = "\u21\u22\u23\u24\u25\u26"
+
+"abcdef" = "\x21\x22\x23\x24\x25\x26"
+в этмо случае каждый \x это копилятор сичтет что 
+это отделный элмент массива. поэтому
+
+"a" = "\x21223232332"
+будет ошибка потому что ".." это счиатется char*
+тоесть каждый элемент размером 1 байт а это хекс
+число \x21223232332 блльше чем 1 байт
+
+аналогичная хрень для 
+
+L"......"  это счатется wchar_t *
+и для него 
+
+"a" = "\x00000021"
+
+байты внутри ассуоиирубтся с юникод поинтами
+на освное кодироваки по дефолту utf-8
+потмоу что  $ man gcc
+ -finput-charset=charset
+           Set the input character set, used for translation from the character set of the input file to
+           the source character set used by GCC.  If the locale does not specify, or GCC cannot get this
+           information  from  the  locale,  the  default is UTF-8.  This can be overridden by either the
+           locale or this command-line option.  Currently the command-line option  takes  precedence  if
+           there's  a  conflict.   charset can be any encoding supported by the system's "iconv" library
+           routine.
+
+
+ gcc -o 438.exe 438.c -finput-charset=ISO-8859-5 -fwide-exec-charset=UTF-32LE
+
+
