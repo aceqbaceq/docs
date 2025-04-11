@@ -1,0 +1,58 @@
+| iptables
+| nftables
+
+
+кейс. у меня на компе был выключен форвардинг
+
+ $ cat /etc/sysctl.conf 
+net.ipv4.ip_forward = 0
+
+
+поэтому с виртуалки которая сидит за вирт свичом тоесть за br0 L3 
+интерфейсом у меня пинги в сеть не идут.
+
+
+как это вынлядит с точки зрения логов
+пакет посутпает в nat-preroting
+
+фев 02 21:21:16 lenovo kernel: [NAT-PREROUTING icmp] IN=br0 OUT= MAC=f6:72:b2:f6:dd:ce:ba:ec:24:5c:80:3a:08:00 SRC=172.16.10.11 DST=108.177.14.102 LEN=84 TOS=0x00 PREC=0x00 TTL=64 ID=54785 DF PROTO=ICMP TYPE=8 CODE=0 ID=52430 SEQ=1 
+
+
+а далье он никуда не посутпаает. тоесть он в талицку FIETR не поступает.
+тоесть мы видим что записей из таблицуы FORWARD нет.
+видимо поттму что  у нас соглано схеме посое NAT-PREROUTING идет шаг routing-decision
+оесть ядро лезет в талиуц мрущррауизации. вот там и просиодходит затык
+также согласно схеме до шага NAT-PREORUTING у нас нет роутинг десижн шага поэтмуо 
+можно замтеить на шаге  NAT-PREORUTING  у нас OUT= пустой.тоесть как докатезтсетсово того что
+при трензиатном трафике до шага NAT-PREORUTING  у нас нет шага роутинг десижн.
+ 
+
+когда я имзенил 
+
+
+net.ipv4.ip_forward = 1
+
+systemcftl --system
+
+
+то все заработало
+
+туда
+фев 02 21:32:06 lenovo kernel: [NAT-PREROUTING icmp] IN=br0 OUT= MAC=f6:72:b2:f6:dd:ce:ba:ec:24:5c:80:3a:08:00 SRC=172.16.10.11 DST=8.8.8.8 LEN=84 TOS=0x00 PREC=0x00 TTL=64 ID=38090 DF PROTO=ICMP TYPE=8 CODE=0 ID=4980 SEQ=1 
+
+фев 02 21:32:06 lenovo kernel:  [FILTER-FORWARD p:icmp] IN=br0 OUT=wlp2s0 MAC=f6:72:b2:f6:dd:ce:ba:ec:24:5c:80:3a:08:00 SRC=172.16.10.11 DST=8.8.8.8 LEN=84 TOS=0x00 PREC=0x00 TTL=63 ID=38090 DF PROTO=ICMP TYPE=8 CODE=0 ID=4980 SEQ=1 
+
+фев 02 21:32:06 lenovo kernel: [NAT-POSTROUTING icmp] IN=br0 OUT=wlp2s0 MAC=f6:72:b2:f6:dd:ce:ba:ec:24:5c:80:3a:08:00 SRC=172.16.10.11 DST=8.8.8.8 LEN=84 TOS=0x00 PREC=0x00 TTL=63 ID=38090 DF PROTO=ICMP TYPE=8 CODE=0 ID=4980 SEQ=1 
+
+обратный
+фев 02 21:32:07 lenovo kernel:  [FILTER-FORWARD p:icmp] IN=wlp2s0 OUT=br0 MAC=80:30:49:b2:85:cf:06:7f:c6:b9:18:cd:08:00 SRC=8.8.8.8 DST=172.16.10.11 LEN=84 TOS=0x10 PREC=0x40 TTL=100 ID=0 PROTO=ICMP TYPE=0 CODE=0 ID=4980 SEQ=1 
+
+
+видно что так как между [NAT-PREROUTING icmp] и  [FILTER-FORWARD p:icmp] 
+у нас роутинг десжижн поэтому на шаге [FILTER-FORWARD p:icmp] унас уже есть сет картаочка
+в грфе OUT
+
+	 [FILTER-FORWARD p:icmp] IN=br0 OUT=wlp2s0
+
+
+	 

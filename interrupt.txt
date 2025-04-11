@@ -62,7 +62,11 @@ LOC:      34835       3043   Local timer interrupts
 
 
 
+https://tldp.org/HOWTO/Plug-and-Play-HOWTO-7.html
 
+https://www.kernel.org/doc/html/v5.3/x86/i386/IO-APIC.html
+https://leo.leung.xyz/wiki/Irqbalance
+https://superuser.com/questions/1838688/configure-properly-irqbalance-to-improve-the-network-traffic
 <=========== закчил здесь
 
 

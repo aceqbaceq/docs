@@ -1,0 +1,45 @@
+что такое +
+
+как програмирется смена ракскладки через ctrl+shift
+на примерер файла 06
+
+что превалирует провило для "любой шифт" или 
+правлоа "левый шифт"
+
+
+/etc/defalt/console-setuз это про настройки
+дисплеят терминала
+
+сэто про настройки клавы (как
+ее скакоды превращать в сикоды) терминала
+
+кемап файл пропмываетс в /usr/share/keymaps/i386/qwerty
+л
+
+в дебианае 
+вот эти отвчают за запуск setupcon
+# systemctl list-units --type=service | grep cons
+  console-setup.service              loaded active exited  Set console font and keymap
+  keyboard-setup.service             loaded active exited  Set the console keyboard layout
+
+
+еще
+непоняна хунйя
+ $ cat /etc/vconsole.conf 
+# Written by systemd-localed(8) or systemd-firstboot(KEYMAP=ruwin_ct_sh-UTF-8
+по идее та указано что right shift служит
+для смены раскадки.
+а уменя по факту ctrl+shift
+запустить dumplkeys и выяснить что за хуйня.
+
+
+(!!) надо прояснить AltGR_Lock он активрует в
+ядре AltGr событие или нет? тоже самое SHIFT_LOCK
+он атирует SHIft собтие или нет???
+
+(!!)еще выянсить если у мен есть праивло для Control
+и есть паривла для отделных левый контрол и правый
+контрол то какое правл будет в итоге превалировать?!?!?!?
+
+ 
+

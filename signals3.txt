@@ -1,0 +1,7 @@
+| signals
+
+
+https://stackoverflow.com/questions/5730975/difference-in-handling-of-signals-in-unix
+
+
+https://wiki.sei.cmu.edu/confluence/display/c/SIG00-C.+Mask+signals+handled+by+noninterruptible+signal+handlers

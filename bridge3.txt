@@ -1,0 +1,57 @@
+| bridge
+
+
+про свич в линуксе. команда brctl устаолерерала 
+вместо нее bridge
+
+	$ man bridge
+
+тут же дебилизм. кк ак посметь срисок брижей? ответ никак.
+толко чреез другу команду
+
+ M ì  $ ip link show type bridge
+9: br0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP mode DEFAULT group default qlen 1000
+    link/ether f6:72:b2:f6:dd:ce brd ff:ff:ff:ff:ff:ff
+10: docker0: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc noqueue state DOWN mode DEFAULT group default 
+    link/ether 02:42:a5:6e:95:26 brd ff:ff:ff:ff:ff:ff
+
+
+а посмтреть спсиок всех l2 портов то 
+
+ $ bridge link
+4: tap2: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 master br0 state disabled priority 32 cost 100 
+5: tap0: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 master br0 state disabled priority 32 cost 100 
+6: tap1: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 master br0 state forwarding priority 32 cost 100 
+7: tap3: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 master br0 state disabled priority 32 cost 100 
+8: tap4: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 master br0 state disabled priority 32 cost 100 
+
+
+постмреть спмсок fdb таблицу бриджа br0
+
+$  bridge fdb show   br br0   
+76:59:50:b8:63:ae dev tap2 vlan 1 master br0 permanent
+76:59:50:b8:63:ae dev tap2 master br0 permanent
+33:33:00:00:00:01 dev tap2 self permanent
+01:00:5e:00:00:01 dev tap2 self permanent
+8a:ac:e3:1a:d8:bd dev tap0 vlan 1 master br0 permanent
+8a:ac:e3:1a:d8:bd dev tap0 master br0 permanent
+33:33:00:00:00:01 dev tap0 self permanent
+01:00:5e:00:00:01 dev tap0 self permanent
+
+
+в физ свиче порты неимеют мак. но в линусе они имебиют маки
+
+ $ ip -c l sh
+4: tap2: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc fq_codel master br0 state DOWN mode DEFAULT group default qlen 1000
+    link/ether 76:59:50:b8:63:ae brd ff:ff:ff:ff:ff:ff
+5: tap0: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc fq_codel master br0 state DOWN mode DEFAULT group default qlen 1000
+    link/ether 8a:ac:e3:1a:d8:bd brd ff:ff:ff:ff:ff:ff
+6: tap1: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel master br0 state UP mode DEFAULT group default qlen 1000
+    link/ether 4e:1f:16:e8:f7:b1 brd ff:ff:ff:ff:ff:ff
+7: tap3: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc fq_codel master br0 state DOWN mode DEFAULT group default qlen 1000
+    link/ether ce:65:dc:c6:8e:e1 brd ff:ff:ff:ff:ff:ff
+8: tap4: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc fq_codel master br0 state DOWN mode DEFAULT group default qlen 1000
+    link/ether 0a:57:25:d3:1a:c2 brd ff:ff:ff:ff:ff:ff
+
+онако ИИ сказал что эти маки неисользубтся  в вирт свиче якобы
+

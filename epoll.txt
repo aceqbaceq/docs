@@ -2097,6 +2097,10 @@ void handle_client(int z)
 тема семафоров не раскрыта. читай о ней тут c-semaphore.txt
 
 
+links
 
+https://stackoverflow.com/questions/6437879/how-do-i-use-epollhup
+
+https://stackoverflow.com/questions/52976152/tcp-when-is-epollhup-generated
  
 ----

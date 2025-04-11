@@ -1,0 +1,58 @@
+===
+nmcli conn add      type wifi       ifname wlp2s0       con-name iphone      autoconnect yes       save yes        ssid iphone       mode infrastructure        wifi-sec.key-mgmt wpa-psk      802-11-wireless.mtu  1500      802-11-wireless.powersave 2       802-11-wireless.wake-on-wlan  ignore                 connection.down-on-poweroff  1        ipv4.dns "8.8.8.8,8.8.4.4"    ipv6.method ignore 
+
+
+nmcli conn up iphone
+
+он спросит пароль. готоово
+
+когда я пишу  type то это  ознаачает не тип конекта а  тип нижележшего порта! а ifname указвает имя порта. тоесть
+
+
+если у меня  картчоки
+# nmcli dev
+
+DEVICE            TYPE      STATE                   CONNECTION
+wlp2s0            wifi      connected               iphone
+wifi-ap0          wifi      disconnected            --
+
+
+и я хочу "запрогармирвать" картчоку wifi-ap0 
+то ее имя wifi-ap0 а ее тип это wifi 
+
+тогда я при создании коенекта буду писать
+
+ nmnci conn add  type wifi ifname wifi-ap0
+ 
+ 
+ну при крипол в том что для разных типов картчокек  у нас NM  по разному работате. лдя картоек вай фай я не могу просто
+взять и названить ей ип.   так не повчилится. она должна работать либо как  клиент тоетсь mode infrastructute либо как тчока доступа
+тоеть mode AP  (это прото чтобы дать ей ип а потом туда пролепить dhcp и hostpad так неполится!)
+
+
+
+nmci dev wifi show-pasword  ifname wlp2s0
+
+насиует пасваород в виде текста и в виде QR кода!!!
+
+
+===
+
+ксати спрвака по wpa_suplicant  в /usr/share/doc/wpa_sulicabt
+
+
+я понл важную вещь всякие левые сканы которе я видед в wpa_cli 
+
+<3>CTRL-EVENT-SCAN-STARTED 
+<3>CTRL-EVENT-SCAN-RESULTS 
+
+они были иза зтого что  картчка wlp2s0 была под управоением NM даже несмотря на то что я погасил конект!
+тоесть ее нужно было вывести из его упрлвния через 
+
+ nmcli device set wlp2s0 managed false
+
+
+nтам еще ируагань была что мол уже ктото зардял скану поэтмоу пошел нахер!
+это все обяьсняет теперь !
+
+

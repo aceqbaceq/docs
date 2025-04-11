@@ -4537,4 +4537,8 @@ https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt
 https://docs.nginx.com/nginx/admin-guide/load-balancer/using-proxy-protocol/
 https://en.wikipedia.org/wiki/SOCKS
 https://stackoverflow.com/questions/67463216/how-does-a-browser-know-if-a-site-supports-http-3
-
+https://askubuntu.com/questions/610745/unable-to-run-apt-get-with-proxy-even-after-setting-the-environment-variables
+https://wiki.nftables.org/wiki-nftables/index.php/Logging_traffic
+https://wiki.nftables.org/wiki-nftables/index.php/Quick_reference-nftables_in_10_minutes#List_ruleset
+https://www.kernel.org/doc/Documentation/networking/nf_conntrack-sysctl.rst
+https://home.regit.org/2014/02/nftables-and-netfilter-logging-framework/

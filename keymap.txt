@@ -1,0 +1,18 @@
+| keymap
+
+
+
+links:
+https://wiki.gentoo.org/wiki/Keyboard_layout_switching
+https://unix.stackexchange.com/questions/44453/how-to-define-a-compose-key-in-terminal-no-desktop-environment
+https://tldp.org/HOWTO/Keyboard-and-Console-HOWTO-15.html
+https://github.com/torvalds/linux/blob/master/drivers/tty/vt/defkeymap.map
+https://forums.gentoo.org/viewtopic-t-877283-start-0.html
+https://bbs.archlinux.org/viewtopic.php?id=184345
+https://tldp.org/HOWTO/Keyboard-and-Console-HOWTO-15.html
+https://superuser.com/questions/290115/how-to-change-console-keymap-in-linux
+https://manpages.debian.org/wheezy/console-tools/consolechars.8.en.html
+https://tldp.org/HOWTO/Keyboard-and-Console-HOWTO-5.html
+https://docs.oracle.com/cd/E86824_01/html/E54763/kbd-mode-1.html
+https://wiki.archlinux.org/title/Linux_console/Keyboard_configuration#Keymaps
+https://unix.stackexchange.com/questions/116629/how-do-keyboard-input-and-text-output-work

@@ -1,0 +1,6 @@
+| redsocks
+
+
+
+links:
+https://github.com/darkk/redsocks/blob/master/redsocks.conf.example

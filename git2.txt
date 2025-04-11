@@ -11,3 +11,11 @@
 это мега полезно еси  репозиторий имет дохернена веток и он очень тяжелый
 а нам нужна всего одна ветка.
 
+| proxy
+
+https://gist.github.com/evantoli/f8c23a37eb3558ab8765
+
+https://stackoverflow.com/questions/15227130/using-a-socks-proxy-with-git-for-the-http-transport
+https://nishabe.medium.com/working-with-git-while-behind-proxy-cb46eb8649db
+https://cms-sw.github.io/tutorial-proxy.html
+https://stackoverflow.com/questions/5860888/git-through-proxy

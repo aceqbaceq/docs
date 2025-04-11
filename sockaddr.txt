@@ -683,3 +683,45 @@ ESTAB   127.0.0.1:6789       127.0.0.1:8080     users:(("344.exe",pid=408661,fd=
 
 вот такая примерно фигня с sockaddr, sockaddr_in, sockaddr_in6 и bind() и connect()
 
+
+https://stackoverflow.com/questions/24817642/sockaddr-and-ipv6-address
+
+
+
+https://stackoverflow.com/questions/58702609/size-of-struct-sockaddr
+
+
+https://stackoverflow.com/questions/32596553/sockaddr-structure-sys-socket-h
+
+https://stackoverflow.com/questions/9102453/sockaddr-in-undeclared-identifier
+
+
+
+https://gist.github.com/inaz2/0e77c276a834ad8e3131
+
+
+https://gist.githubusercontent.com/inaz2/0e77c276a834ad8e3131/raw/e7e602c6c64e34572fab43014595a82f718fdae3/server.c
+
+
+
+
+https://gist.githubusercontent.com/inaz2/0e77c276a834ad8e3131/raw/e7e602c6c64e34572fab43014595a82f718fdae3/result.txt
+
+
+
+https://gist.githubusercontent.com/inaz2/0e77c276a834ad8e3131/raw/e7e602c6c64e34572fab43014595a82f718fdae3/client.c
+
+
+
+
+https://stackoverflow.com/questions/4160347/close-vs-shutdown-socket
+
+https://stackoverflow.com/questions/11461106/socketpair-in-c-unix
+
+
+
+https://superuser.com/questions/1267192/multiple-processes-listening-on-the-same-port-how-is-it-possible
+
+https://stackoverflow.com/questions/35168025/better-approach-for-having-two-or-more-threads-listening-on-same-port
+
+

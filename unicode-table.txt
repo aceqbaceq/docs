@@ -1,0 +1,16 @@
+| unicode
+| utf-8
+| utf-16
+| utf-32
+
+
+сайт где можно посмотреть символы и все 
+кодровки 
+
+utf-8
+utf-16
+utf-32
+
+
+https://www.compart.com/en/unicode/U+042E
+

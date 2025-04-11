@@ -421,3 +421,13 @@ Are you sure you want to continue connecting (yes/no)? ^C
 
 ура!
 
+
+https://unix.stackexchange.com/questions/36033/substituting-the-first-occurrence-of-a-pattern-in-a-line-for-all-the-lines-in-a
+
+
+
+https://superuser.com/questions/294112/howgreedy-is-sed-in-matching-patterns
+
+
+
+https://stackoverflow.com/questions/45259031/how-to-get-first-match-with-sed

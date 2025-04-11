@@ -1,0 +1,12 @@
+SO (LS1) 	Invokes G1 character set into GL. G1 is designated by a select-character-set (SCS) sequence.
+
+
+
+SO 	0/14 	N   (соглансо ман лин G1 )
+SI 	0/15 	O   ( соглвсно ман лин G0 )
+
+
+
+OCT   DEC   HEX
+016   14    0E    SO  (shift out) 
+017   15    0F    SI  (shift in)        

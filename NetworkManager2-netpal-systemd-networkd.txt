@@ -100,7 +100,7 @@ wg0             wireguard  unmanaged               --
 
 
 
-a# nmcli conn
+# nmcli conn
 NAME                        UUID                                  TYPE      DEVICE  
 iphone3                     c685858b-d5d4-447b-ad6a-c9fb8896e67c  wifi      wlp3s0  
 docker0                     5ff0492f-1921-4d8e-90ec-ccf2cc312c00  bridge    docker0 

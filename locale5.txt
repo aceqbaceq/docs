@@ -1,0 +1,7 @@
+| locale
+
+
+links:
+https://sourceware.org/glibc/wiki/Locales
+https://onet.com.vn/understanding-the-locales-on-debian-gnu-linux/
+https://stackoverflow.com/questions/65494406/why-does-wprintf-transliterate-russian-text-in-unicode-into-latin-on-linux

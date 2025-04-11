@@ -1,0 +1,202 @@
+| bond+alb
+
+
+# ip -c link add bond2 type bond mode 6
+# ip -c link add veth17 type veth help
+Usage: ip link <options> type veth [peer <options>]
+To get <options> type 'ip link add help'
+# ip -c link add veth17 type veth peer veth18
+# ip -c link add veth19 type veth peer veth20
+# ip link set veth18 master bond2
+# ip link set veth18 master br0
+# ip link set veth20 master br0
+# ip link set veth17 master bond2
+# ip link set veth19 master bond2
+# ip link set dev veth17  up 
+# ip link set dev veth19  up 
+# ip -c l sh dev bond2
+609: bond2: <BROADCAST,MULTICAST,MASTER> mtu 1500 qdisc noop state DOWN mode DEFAULT group default qlen 1000
+    link/ether d6:1f:54:d6:92:ea brd ff:ff:ff:ff:ff:ff
+# ip link set dev bond2  up 
+# ip -c l sh dev bond2
+609: bond2: <NO-CARRIER,BROADCAST,MULTICAST,MASTER,UP> mtu 1500 qdisc noqueue state DOWN mode DEFAULT group default qlen 1000
+    link/ether d6:1f:54:d6:92:ea brd ff:ff:ff:ff:ff:ff
+# ip -c l sh dev veth17
+611: veth17@veth18: <NO-CARRIER,BROADCAST,MULTICAST,SLAVE,UP,M-DOWN> mtu 1500 qdisc noqueue master bond2 state LOWERLAYERDOWN mode DEFAULT group default qlen 1000
+    link/ether d6:1f:54:d6:92:ea brd ff:ff:ff:ff:ff:ff
+# ip -c l sh master bond2
+611: veth17@veth18: <NO-CARRIER,BROADCAST,MULTICAST,SLAVE,UP,M-DOWN> mtu 1500 qdisc noqueue master bond2 state LOWERLAYERDOWN mode DEFAULT group default qlen 1000
+    link/ether d6:1f:54:d6:92:ea brd ff:ff:ff:ff:ff:ff
+613: veth19@veth20: <NO-CARRIER,BROADCAST,MULTICAST,SLAVE,UP,M-DOWN> mtu 1500 qdisc noqueue master bond2 state LOWERLAYERDOWN mode DEFAULT group default qlen 1000
+    link/ether c2:e8:83:ec:7e:78 brd ff:ff:ff:ff:ff:ff
+# 
+# bridge link master br0
+Command "master" is unknown, try "bridge link help".
+# bridge link sh master br0
+585: tap3: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 master br0 state forwarding priority 32 cost 100 
+586: tap0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 master br0 state forwarding priority 32 cost 100 
+587: tap1: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 master br0 state forwarding priority 32 cost 100 
+591: veth6@veth5: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 master br0 state forwarding priority 32 cost 2 
+593: veth8@veth7: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 master br0 state forwarding priority 32 cost 2 
+597: veth9@if596: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 master br0 state forwarding priority 32 cost 2 
+599: veth11@if598: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 master br0 state forwarding priority 32 cost 2 
+605: veth14@veth13: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 master br0 state forwarding priority 32 cost 2 
+607: veth16@veth15: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 master br0 state forwarding priority 32 cost 2 
+610: veth18@veth17: <BROADCAST,MULTICAST> mtu 1500 master br0 state disabled priority 32 cost 2 
+612: veth20@veth19: <BROADCAST,MULTICAST> mtu 1500 master br0 state disabled priority 32 cost 2 
+# ip link set dev veth18  up 
+# ip link set dev veth20  up 
+# bridge link sh master br0
+585: tap3: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 master br0 state forwarding priority 32 cost 100 
+586: tap0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 master br0 state forwarding priority 32 cost 100 
+587: tap1: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 master br0 state forwarding priority 32 cost 100 
+591: veth6@veth5: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 master br0 state forwarding priority 32 cost 2 
+593: veth8@veth7: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 master br0 state forwarding priority 32 cost 2 
+597: veth9@if596: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 master br0 state forwarding priority 32 cost 2 
+599: veth11@if598: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 master br0 state forwarding priority 32 cost 2 
+605: veth14@veth13: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 master br0 state forwarding priority 32 cost 2 
+607: veth16@veth15: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 master br0 state forwarding priority 32 cost 2 
+610: veth18@veth17: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 master br0 state listening priority 32 cost 2 
+612: veth20@veth19: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 master br0 state listening priority 32 cost 2 
+# 
+# 
+# ip -c l sh master bond2
+611: veth17@veth18: <BROADCAST,MULTICAST,SLAVE,UP,LOWER_UP> mtu 1500 qdisc noqueue master bond2 state UP mode DEFAULT group default qlen 1000
+    link/ether d6:1f:54:d6:92:ea brd ff:ff:ff:ff:ff:ff
+613: veth19@veth20: <BROADCAST,MULTICAST,SLAVE,UP,LOWER_UP> mtu 1500 qdisc noqueue master bond2 state UP mode DEFAULT group default qlen 1000
+    link/ether c2:e8:83:ec:7e:78 brd ff:ff:ff:ff:ff:ff
+# ip -c l sh dev bond2
+609: bond2: <BROADCAST,MULTICAST,MASTER,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP mode DEFAULT group default qlen 1000
+    link/ether d6:1f:54:d6:92:ea brd ff:ff:ff:ff:ff:ff
+# ip -c addr add 172.16.60.1/24 dev bond2
+# 
+# 
+# cat /proc/net/bonding/bond2
+Ethernet Channel Bonding Driver: v6.11.11-1-MANJARO
+
+Bonding Mode: adaptive load balancing
+Primary Slave: None
+Currently Active Slave: veth17
+MII Status: up
+MII Polling Interval (ms): 100
+Up Delay (ms): 0
+Down Delay (ms): 0
+Peer Notification Delay (ms): 0
+
+Slave Interface: veth17
+MII Status: up
+Speed: 10000 Mbps
+Duplex: full
+Link Failure Count: 0
+Permanent HW addr: d6:1f:54:d6:92:ea
+Slave queue ID: 0
+
+Slave Interface: veth19
+MII Status: up
+Speed: 10000 Mbps
+Duplex: full
+Link Failure Count: 0
+Permanent HW addr: c2:e8:83:ec:7e:78
+Slave queue ID: 0
+# 
+# ip -c l sh bond2
+609: bond2: <BROADCAST,MULTICAST,MASTER,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP mode DEFAULT group default qlen 1000
+    link/ether d6:1f:54:d6:92:ea brd ff:ff:ff:ff:ff:ff
+# 
+# ip -c l sh master bond2
+611: veth17@veth18: <BROADCAST,MULTICAST,SLAVE,UP,LOWER_UP> mtu 1500 qdisc noqueue master bond2 state UP mode DEFAULT group default qlen 1000
+    link/ether d6:1f:54:d6:92:ea brd ff:ff:ff:ff:ff:ff
+613: veth19@veth20: <BROADCAST,MULTICAST,SLAVE,UP,LOWER_UP> mtu 1500 qdisc noqueue master bond2 state UP mode DEFAULT group default qlen 1000
+    link/ether c2:e8:83:ec:7e:78 brd ff:ff:ff:ff:ff:ff
+# 
+
+
+
+видно что как и в случае tlb у нас bond интерфейс
+имеет мак одной из карточек
+
+bond2 d6:1f:54:d6:92:ea
+veth17 d6:1f:54:d6:92:ea
+veth19 c2:e8:83:ec:7e:78
+
+тестиурем
+ ip netns exec   ns03  ip -c addr add 172.16.60.10/24 dev veth10
+
+# ip netns exec   mynet2  ip -c addr add 172.16.60.11/24 dev veth12
+
+# ip netns exec   ns03  ping 172.16.60.1
+# ip netns exec   mynet2  ping 172.16.60.1
+
+смотрю что за трафик течет через каждую карту
+бонда
+
+смотрю трафик котоырй течет через veth17
+d6:1f:54:d6:92:ea > 42:50:6e:00:f1:9c,  172.16.60.1 > 172.16.60.10
+
+42:50:6e:00:f1:9c > d6:1f:54:d6:92:ea,  172.16.60.10 > 172.16.60.1
+
+
+смотрю трафик котоырй течет через veth19
+c2:e8:83:ec:7e:78 > e2:95:d8:7a:70:04, 172.16.60.1 > 172.16.60.11
+
+e2:95:d8:7a:70:04 > c2:e8:83:ec:7e:78, 172.16.60.11 > 172.16.60.1
+
+как видно трафик который течет чрез эти карты 
+выглядит обычно. нет никаких фокусов с мак адресом
+
+
+
+теперь смотрим трафик внутри  первой "виртуалки" 
+d6:1f:54:d6:92:ea > 42:50:6e:00:f1:9c, 172.16.60.1 > 172.16.60.10
+
+42:50:6e:00:f1:9c > d6:1f:54:d6:92:ea, 172.16.60.10 > 172.16.60.1
+
+
+
+теперь смотрим трафик внутри второй "вирулки"
+c2:e8:83:ec:7e:78 > e2:95:d8:7a:70:04, 172.16.60.1 > 172.16.60.11
+
+e2:95:d8:7a:70:04 > c2:e8:83:ec:7e:78, 172.16.60.11 > 172.16.60.1
+
+
+тким образом видно что трафик который влетел в 
+виртуалку с такого то интфрейса бонда будет обртано
+отправлен на тот же самый интфрейс
+тоесть трафик который влетел в первую врирталку
+прлетел в нее с veth17 и он будет оптравлен обратно
+на этот же инфтрейс 
+
+трафик который влетел во вторую вирталку приелет 
+с нее с veth19 и обратный тарафик будет послан 
+на этотже порт.
+
+таким образом этот блаанасер он позволяет и исходящий
+из него трафик распрелелделять по нескольким карточкам
+и возвращающийся в него трафик принимать по 
+нексолкьмим картчочкам. что круто.
+получается когда клиент с другим IP обращатся
+с arp запрос к нашму компу то он выдает однму
+клиенту один мак (от veth17 ) а другому клиенту
+выдает другой мак (от veth19) таким макаром
+он и доабвется рапаеливания. безсувлоно что рапралел
+иваение имеет место тлоько для разных клиентов.
+тоесть  срупут между одним клиентом и сервером
+будет идти только через одну картчку без свякого
+рапралеливания. тоест выигрыш идет при обработку
+несолкьих потомково от нексокьких клиентов.
+судя по этой статье
+
+https://www.kernel.org/doc/Documentation/networking/bonding.txt
+
+Adaptive load balancing: includes balance-tlb plus
+receive load balancing (rlb) for IPV4 traffic, and
+does not require any special switch support. 
+
+тоесть обратно распаллеливание имеет место
+тлоько если мы юзаем ipv4
+
+я проверил - один конект во времени неменяет
+своего тракта сетевого. он течет по одним и темже
+портам
+
+

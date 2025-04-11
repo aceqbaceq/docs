@@ -53,7 +53,10 @@ COMMIT
 
 
 из чего он состоит. 
-он состоит прежде всего из таблиц. в данном случае две таблицы filter и nat
+он состоит прежде всего из таблиц. каждая таблица преднаанчена для своих особых работ.
+в данном случае две таблицы filter и nat.  таблица filter предазанчена для фильтрования.
+тоеть если мы будем отрабывать пакеты то толкьо здесь. таблица nat предначазнаена не для
+фильоваия а для модицикации (если нужно )  IP и портов, только для этого.
 
 
 *filter
@@ -422,4 +425,62 @@ src_ip у пакета
 но все остьыне пакеты уже не будут протаскиваыться через таблицу NAT а кним автомтом будет
 пимеенно rule2 поэтому в логах мы невидим записей для всех остальных пакетов этого поткоа.
 толко для первого пакета из этоо потока
+
+вот еще про таблицу NAT
+вот ее дефолтовые цепочки
+:PREROUTING ACCEPT [29:3512]
+:INPUT ACCEPT [0:0]
+:OUTPUT ACCEPT [468:37214]
+:POSTROUTING ACCEPT [159:9596]
+
+так вот дело в том что внутри нее можно применять такие дейсвтия которые в других таблица 
+прмиенят нельзя. напрмиер действия SNAT/DNAT/MASQUERADE/REDIRECT 
+НО! тут важно еще сказать что эти спец дейсвтия можно делать не всех цеопочках внутри этой
+таблицы а только в нужно цепочке нужно действие!
+наприме действие SNAT оно заменяет SOURCE src_ip у пакета и\или src_port
+действие SNAT можно применять только в 
+
+
+
+
+-A REDSOCKS -d 240.0.0.0/4 -j RETURN
+-A REDSOCKS  -p tcp --dport 443 -j LOG --log-prefix "[NAT-REDSOCKS 443:port] "
+#-A REDSOCKS  -p tcp --dport 80 -j LOG --log-prefix "[NAT-REDSOCKS 80:port ] "
+-A REDSOCKS -p tcp -j REDIRECT --to-ports 3838
+#-A REDSOCKS -p tcp -j DNAT --to-destination  :3838
+-A REDSOCKS -j LOG --log-prefix "[NAT-REDSOCKS !FAIL!] "
+-A REDSOCKS -j RETURN
+
+
+#-A POSTROUTING -s 172.16.10.0/24 -o tun0 -j MASQUERADE
+-A POSTROUTING -s 172.16.10.0/24 -o wlp2s0 -j MASQUERADE
+#-A POSTROUTING -s 172.16.11.0/24 -p tcp -o wlp2s0 -j SNAT --to-source :4949
+
+
+
+
+	-A OUTPUT -p tcp -j SNAT --to 127.0.0.1:3838
+
+это приавило заменит source  ip и порт якобы с которого вылетел пакет. 
+можно также менять чтот одно или ип или порт
+
+	-A OUTPUT -p tcp -j SNAT --to 127.0.0.1
+
+	-A OUTPUT -p tcp -j SNAT --to-port 127.0.0.1:3838
+
+
+
+SNAT
+DNAT
+REDIRECT = DNAT (IP+PORT)
+
+
+-A REDSOCKS -p tcp -j REDIRECT --to-ports 3838
+
+как оно работает. оно меняет dest_port на 3838 и также в дополненеи к этому оно меняет
+dest_ip на 127.0.0.1 
+
+
+-A REDSOCKS  -p tcp --dport 443 -j LOG --log-prefix "[NAT REDSOCKS 443]"
+-A REDSOCKS -p tcp -j REDIRECT --to-ports 3838
 

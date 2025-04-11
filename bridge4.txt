@@ -1,0 +1,2141 @@
+| bridge
+| nmcli
+
+
+давай еще раз. 
+вот у меня есть деволтовыый сетевой неймспейс хоста.
+в нем создан бридж br0 (L3) и в этот бридж воткнут l2 tap0.
+
+я с хоста делаю пинг вируталки которая сидит на tap0
+за которым внутри вииртуалки сидит l3 сетевая карта с IP=172.16.10.11
+
+я делаю 
+# ping -4 -c1 172.16.10.11
+
+я запускаю тцпдамп. 
+соотсвтвтенно что я ожидаю. что ядро сунет пакет в br0 а оттуда в tap0 либо ядро сунет пакет сразу в tap0
+
+далее я вижу в тцп дамп что пакет влетает в br0 
+а оттуда он летит в tap0 
+
+вот этот тцп дамп
+я его запускаю без промиск моде. так что мы видим 
+толко пакеты которые реально пролетают через интерфейс
+
+(br0)
+tcpdump -n -p -i br0 icmp
+16:54:10.385772 IP 172.16.10.1 > 172.16.10.11: ICMP echo request, id 196, seq 1, length 64
+
+
+
+(tap0)
+tcpdump -n -p -i br0 icmp
+16:54:10.385835 IP 172.16.10.1 > 172.16.10.11: ICMP echo request, id 196, seq 1, length 64
+
+
+вот лог 
+[RAW OUTPUT icmp] IN= OUT=br0 SRC=172.16.10.1 DST=172.16.10.11 LEN=84 TOS=0x00 PREC=0x00 TTL=64 ID=47978 DF PROTO=ICMP TYPE=8 CODE=0 ID=197 SEQ=1 
+[NAT-OUTPUT icmp] IN= OUT=br0 SRC=172.16.10.1 DST=172.16.10.11 LEN=84 TOS=0x00 PREC=0x00 TTL=64 ID=47978 DF PROTO=ICMP TYPE=8 CODE=0 ID=197 SEQ=1 
+[FILTER-OUTPUT icmp] IN= OUT=br0 SRC=172.16.10.1 DST=172.16.10.11 LEN=84 TOS=0x00 PREC=0x00 TTL=64 ID=47978 DF PROTO=ICMP TYPE=8 CODE=0 ID=197 SEQ=1 
+[NAT-POSTROUTING icmp] IN= OUT=br0 SRC=172.16.10.1 DST=172.16.10.11 LEN=84 TOS=0x00 PREC=0x00 TTL=64 ID=47978 DF PROTO=ICMP TYPE=8 CODE=0 ID=197 SEQ=1 
+
+[EBTABLES FILTER OUTP ICMP]  IN= OUT=tap0 MAC source = f6:72:b2:f6:dd:ce MAC dest = ba:ec:24:5c:80:3a proto = 0x0800
+[EBTABLES NAT OUTPUT ICMP]  IN= OUT=tap0 MAC source = f6:72:b2:f6:dd:ce MAC dest = ba:ec:24:5c:80:3a proto = 0x0800
+[EBTABLES NAT POSTR ICMP]  IN= OUT=tap0 MAC source = f6:72:b2:f6:dd:ce MAC dest = ba:ec:24:5c:80:3a proto = 0x0800
+
+
+получается ядро не может или не хочет совать пакет сразу в l2 tap0 оно его сует в l3 br0 а уже оттуда он переходит (бриджится) на tap0.
+
+получается ядро сует пакеты от локальных приложений ненапрмямую в порт свича а через l3 порт. а далее код свича уже свичит этот пакет внутри этого свича между его портами. 
+
+получается что  ядро прежде всего сует пакет в l3 порт. а уже с него идет прееброс на l2 порт.
+получатся запись в логах иптейблс OUT=br0 покзывает куда реально из ядра будет сунут пакет в первую очередь.
+
+а запись в логах ebtables OUT=tap0 покзывает куда будет сунуть пакет внутри свича в конечном итоге.
+
+тоесть я бы сказал так что сточки зрения сетевого неймсейса хоста поты свича для него недоступны напрямую. он на них ходит через l3 порт свича. 
+и наоборот. если чтото влеьает в свич через его l2 порт то в сет стек хоста это влетает не сразу а только через проход порта br0 (L3)
+
+ я бы так нарисовал
+
+ядро ------  br0 ---- tap0
+
+
+осталось понять в этой схеме на каком этапе идет сование в сет карту и в какую
+
+[RAW OUTPUT icmp] IN= OUT=br0 SRC=172.16.10.1 DST=172.16.10.11 LEN=84 TOS=0x00 PREC=0x00 TTL=64 ID=47978 DF PROTO=ICMP TYPE=8 CODE=0 ID=197 SEQ=1 
+[NAT-OUTPUT icmp] IN= OUT=br0 SRC=172.16.10.1 DST=172.16.10.11 LEN=84 TOS=0x00 PREC=0x00 TTL=64 ID=47978 DF PROTO=ICMP TYPE=8 CODE=0 ID=197 SEQ=1 
+[FILTER-OUTPUT icmp] IN= OUT=br0 SRC=172.16.10.1 DST=172.16.10.11 LEN=84 TOS=0x00 PREC=0x00 TTL=64 ID=47978 DF PROTO=ICMP TYPE=8 CODE=0 ID=197 SEQ=1 
+[NAT-POSTROUTING icmp] IN= OUT=br0 SRC=172.16.10.1 DST=172.16.10.11 LEN=84 TOS=0x00 PREC=0x00 TTL=64 ID=47978 DF PROTO=ICMP TYPE=8 CODE=0 ID=197 SEQ=1 
+
+[EBTABLES FILTER OUTP ICMP]  IN= OUT=tap0 MAC source = f6:72:b2:f6:dd:ce MAC dest = ba:ec:24:5c:80:3a proto = 0x0800
+[EBTABLES NAT OUTPUT ICMP]  IN= OUT=tap0 MAC source = f6:72:b2:f6:dd:ce MAC dest = ba:ec:24:5c:80:3a proto = 0x0800
+[EBTABLES NAT POSTR ICMP]  IN= OUT=tap0 MAC source = f6:72:b2:f6:dd:ce MAC dest = ba:ec:24:5c:80:3a proto = 0x0800
+
+
+
+[RAW OUTPUT icmp] IN= OUT=br0 SRC=172.16.10.1 DST=172.16.10.11 LEN=84 TOS=0x00 PREC=0x00 TTL=64 ID=38927 DF PROTO=ICMP TYPE=8 CODE=0 ID=198 SEQ=1 
+[NAT-OUTPUT icmp] IN= OUT=br0 SRC=172.16.10.1 DST=172.16.10.11 LEN=84 TOS=0x00 PREC=0x00 TTL=64 ID=38927 DF PROTO=ICMP TYPE=8 CODE=0 ID=198 SEQ=1 
+[FILTER-OUTPUT icmp] IN= OUT=br0 SRC=172.16.10.1 DST=172.16.10.11 LEN=84 TOS=0x00 PREC=0x00 TTL=64 ID=38927 DF PROTO=ICMP TYPE=8 CODE=0 ID=198 SEQ=1 
+[NAT-POSTROUTING icmp] IN= OUT=br0 SRC=172.16.10.1 DST=172.16.10.11 LEN=84 TOS=0x00 PREC=0x00 TTL=64 ID=38927 DF PROTO=ICMP TYPE=8 CODE=0 ID=198 SEQ=1 
+
+[EBTABLES FILTER OUTP ICMP]  IN= OUT=tap0 MAC source = f6:72:b2:f6:dd:ce MAC dest = ba:ec:24:5c:80:3a proto = 0x0800
+[EBTABLES NAT OUTPUT ICMP]  IN= OUT=tap0 MAC source = f6:72:b2:f6:dd:ce MAC dest = ba:ec:24:5c:80:3a proto = 0x0800
+[EBTABLES NAT POSTR ICMP]  IN= OUT=tap0 MAC source = f6:72:b2:f6:dd:ce MAC dest = ba:ec:24:5c:80:3a proto = 0x0800
+
+===============
+
+Usage: nmcli connection add { ARGUMENTS | help }
+
+ARGUMENTS := COMMON_OPTIONS TYPE_SPECIFIC_OPTIONS PORT_OPTIONS IP_OPTIONS
+
+ COMMON_OPTIONS:
+                  type <type>
+                  [ifname <interface name> | "*"]
+                  [con-name <connection name>]
+                  [autoconnect yes|no]
+                  [save yes|no]
+                  [controller <controller (ifname, or connection UUID or name)>]
+                  [port-type <controller connection type>]
+
+
+
+nmcli connection add  type bridge   ifname br1  con-name bridge-br1  autoconnect yes  save yes 
+
+
+controller как   я понимаю мы указыаем ifname головного конекта. тоесть бриджа
+
+port-type это  bond, bridge, ovs-bridge, ovs-port, team, vrf 
+но как  я понимаю эта шняга указывается для конектов которые мы будем присоединять к бриджу.
+мы будем укзывать  port-type =  bridge
+
+двигаем дельше
+
+
+TYPE_SPECIFIC_OPTIONS
+
+    bridge:       [stp yes|no]
+                  [priority <num>]
+                  [forward-delay <2-30>]
+                  [hello-time <1-10>]
+                  [max-age <6-40>]
+                  [ageing-time <0-1000000>]
+                  [multicast-snooping yes|no]
+                  [mac <MAC address>]
+
+
+из этого я ничего задвать не буду
+
+двигаем дальше
+
+PORT_OPTIONS
+
+
+  PORT_OPTIONS:
+    bridge:       [priority <0-63>]
+                  [path-cost <1-65535>]
+                  [hairpin yes|no]
+
+    team:         [config <file>|<raw JSON data>]
+
+    bond:         [queue-id <0-65535>]
+
+
+ вставляю  hairpin yes|no это значит что фреймы обратно откуда он влетел в свич ненадо
+но это адо ставить не для брижа. а для его портов. так что пропуск
+
+ итого 
+ nmcli connection add  type bridge   ifname br1  con-name bridge-br1  autoconnect yes  save yes
+
+
+двиагаю дальше
+
+
+  IP_OPTIONS:
+                  [ip4 <IPv4 address>] [gw4 <IPv4 gateway>]
+                  [ip6 <IPv6 address>] [gw6 <IPv6 gateway>]
+
+
+тогда
+
+nmcli connection add  type bridge   ifname br1  con-name bridge-br1  autoconnect yes  save yes   ip4 172.17.10.0/24 gw4 none
+
+какой смысл укзывать gw4 я не понял
+
+
+в итоге
+
+ nmcli connection add  type bridge   ifname br1  con-name bridge-br1  autoconnect yes  save yes   ip4 172.17.10.0/24
+
+ # nmcli conn 
+NAME            UUID                                  TYPE       DEVICE  
+iphone          fc9c51de-4f06-4a96-a5e9-ba4640614a9e  wifi       wlp2s0  
+br0             e7ffc158-8bc4-49b8-b127-f00c50578750  bridge     br0     
+bridge-br1      733455b3-52f9-49f2-9567-8802b0b86880  bridge     br1      <*****
+tap0-->br0      46d9635e-fbe2-402f-8898-4c2859d757cc  tun        tap0    
+
+
+у нас появлется и новый девайс тоесть сет карточка
+
+]# nmcli device stat
+DEVICE             TYPE      STATE                                  CONNECTION 
+wlp2s0             wifi      connected                              iphone     
+br0                bridge    connected                              br0        
+br1                bridge    connected                              bridge-br1   <****
+tap0               tun       connected                              tap0-->br0 
+
+что касается конфигов то повялется один 
+
+# cat /etc/NetworkManager/system-connections/bridge-br1.nmconnection 
+[connection]
+id=bridge-br1
+uuid=733455b3-52f9-49f2-9567-8802b0b86880
+type=bridge
+interface-name=br1
+
+[ethernet]
+
+[bridge]
+
+[ipv4]
+address1=172.17.10.0/24
+method=manual
+
+[ipv6]
+addr-gen-mode=default
+method=auto
+
+[proxy]
+
+
+[lenovo noroot]# ip -c l show dev br1
+551: br1: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc noqueue state DOWN mode DEFAULT group default qlen 1000
+    link/ether de:02:cf:ef:f2:ba brd ff:ff:ff:ff:ff:ff
+[lenovo noroot]# 
+[lenovo noroot]# ip -c a show dev br1
+551: br1: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc noqueue state DOWN group default qlen 1000
+    link/ether de:02:cf:ef:f2:ba brd ff:ff:ff:ff:ff:ff
+    inet 172.17.10.0/24 brd 172.17.10.255 scope global noprefixroute br1
+       valid_lft forever preferred_lft forever
+
+
+как видим l2 порты которые мы будем втыкат в этот свич к сождению соаются отдельно.
+щас этим займеммся
+
+
+
+начнем
+
+Usage: nmcli connection add { ARGUMENTS | help }
+
+ARGUMENTS := COMMON_OPTIONS TYPE_SPECIFIC_OPTIONS PORT_OPTIONS IP_OPTIONS
+
+ COMMON_OPTIONS:
+                  type <type>
+                  [ifname <interface name> | "*"]
+                  [con-name <connection name>]
+                  [autoconnect yes|no]
+                  [save yes|no]
+                  [controller <controller (ifname, or connection UUID or name)>]
+                  [port-type <controller connection type>]
+
+
+nmcli connection  add
+ 
+type ethernet
+ifname tap5
+con-name tap5
+autoconnect yes
+save yes
+controller br1
+port-type bridge
+
+
+ TYPE_SPECIFIC_OPTIONS:
+    ethernet:     [mac <MAC address>]
+                  [cloned-mac <cloned MAC address>]
+                  [mtu <MTU>]
+
+из этого ничеого не встваляем
+
+
+PORT_OPTIONS
+
+
+  PORT_OPTIONS:
+    bridge:       [priority <0-63>]
+                  [path-cost <1-65535>]
+                  [hairpin yes|no]
+
+    team:         [config <file>|<raw JSON data>]
+
+    bond:         [queue-id <0-65535>]
+
+из этгого ставляем
+
+hairpin no
+
+
+тоесть
+
+nmcli connection  add
+ 
+type ethernet
+ifname tap5
+con-name tap5
+autoconnect yes
+save yes
+controller br1
+port-type bridge
+
+hairpin no
+
+
+
+  IP_OPTIONS:
+                  [ip4 <IPv4 address>] [gw4 <IPv4 gateway>]
+                  [ip6 <IPv6 address>] [gw6 <IPv6 gateway>]
+
+
+ipv4.address ""
+
+итого 
+
+
+nmcli connection  add  type ethernet   ifname tap5 con-name tap5 autoconnect yes save yes controller br1 port-type bridge hairpin no  ipv4.address ""
+
+ввожу
+# nmcli connection  add  type ethernet   ifname tap5 con-name tap5 autoconnect yes save yes controller br1 port-type bridge hairpin no  ipv4.address ""
+Error: invalid or not allowed setting 'ipv4': 'ipv4' not among [connection, 802-3-ethernet (ethernet), 802-1x, dcb, sriov, ethtool, bridge-port, link, match].
+
+ага
+
+# nmcli connection  add  type ethernet   ifname tap5 con-name tap5 autoconnect yes save yes controller br1 port-type bridge hairpin no  
+Connection 'tap5' (4439a70f-1718-4971-becb-4499137277c1) successfully added.
+
+ИТОГ - хуйня
+сет карточки tap5  итп несоздаются 
+
+
+$ nmcli connection  add  type tun  mode tap owner 1000 group 1000  ifname tap0 con-name "tap0-->br0" autoconnect yes save yes controller br1 port-type bridge hairpin no
+
+
+  tun:          mode tun|tap
+                  [owner <UID>]
+                  [group <GID>]
+                  [pi yes|no]
+                  [vnet-hdr yes|no]
+                  [multi-queue yes|no]
+
+
+
+
+nmcli connection  add  type tun  mode tap owner 1000 group 1000  ifname tap0 con-name "tap0-->br0" autoconnect yes save yes controller br0 port-type bridge hairpin no
+
+nmcli connection  add  type tun  mode tap owner 1000 group 1000  ifname tap1 con-name "tap1-->br0" autoconnect yes save yes controller br0 port-type bridge hairpin no
+
+nmcli connection  add  type tun  mode tap owner 1000 group 1000  ifname tap2 con-name "tap2-->br0" autoconnect yes save yes controller br0 port-type bridge hairpin no
+
+
+
+ $ nmcli conn 
+NAME        UUID                                  TYPE      DEVICE  
+br0         e7ffc158-8bc4-49b8-b127-f00c50578750  bridge    br0     
+tap0-->br0  1773f563-9658-49a4-b665-d83116b63af5  tun       tap0    ***
+tap1-->br0  7d38d3bf-8fb4-4125-8aef-39d3a3ae63fa  tun       tap1    ***
+tap2-->br0  f74f44f2-e380-4cfb-96d9-6f1a7d208d68  tun       tap2    ***
+
+что здесь важно отметиьт это то что у нас бридж br0 (а тчнее его l3 порт занимат отденый 
+конект. и что каждый l2 аорт воткнутый в бридж тоже занмиает отденый конект)
+этоже привелет к тому что у нас в /erc/NetweoManger/system-cinection/
+будет 4 файла. описать всесь бридж в одном файле не пуолчится.
+
+но почму то осле перезагрузки NetworkManager
+у меня в конектах tap0 рападатся на два конекта. один типа имеет в себе сет карту
+а второй нет. что за хуйня непонятно. хоотя все работает
+
+  $ nmcli conn 
+NAME            UUID                                  TYPE       DEVICE  
+br0             e7ffc158-8bc4-49b8-b127-f00c50578750  bridge     br0     
+tap1            cf277306-b5a4-47d9-b366-f2d8cb32de69  tun        tap1    
+tap3            8de65b92-0886-44ca-8eb4-1dbbf3a7b977  tun        tap3    
+tap0            ad6cef1d-9b44-47b2-97c9-8ada48fb5507  tun        tap0     ***
+tap0            a24244ea-b2a0-4221-974f-23abd0b8251a  tun        --       ***
+
+
+  $ nmcli dev
+DEVICE             TYPE      STATE                   CONNECTION 
+br0                bridge    connected               br0        
+tap0               tun       connected               tap0-->br0  ***
+tap1               tun       connected               tap1-->br0  ***
+tap2               tun       connected               tap2-->br0  ***
+
+ну а здсь понятно. список всех сет карт.
+*** - новые
+
+
+и здесь поле пререзагрузки сменяется 
+  $ nmcli dev
+DEVICE             TYPE      STATE                   CONNECTION 
+tap0               tun       connected (externally)  tap0       
+
+
+
+
+
+проверяем
+
+  $ bridge  link  show master br0
+576: tap0: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 master br0 state disabled  
+577: tap1: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 master br0 state disabled  
+578: tap2: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 master br0 state disabled 
+
+конифгини
+# cat /etc/NetworkManager/system-connections/br0.nmconnection 
+[connection]
+id=br0
+uuid=e7ffc158-8bc4-49b8-b127-f00c50578750
+type=bridge
+interface-name=br0
+
+[ethernet]
+
+[bridge]
+
+[ipv4]
+address1=172.16.10.1/24
+method=manual
+
+[ipv6]
+addr-gen-mode=default
+method=auto
+
+[proxy]
+
+
+# cat /etc/NetworkManager/system-connections/tap0--\>br0.nmconnection 
+[connection]
+id=tap0-->br0
+uuid=1773f563-9658-49a4-b665-d83116b63af5
+type=tun
+controller=br0
+interface-name=tap0
+port-type=bridge
+
+[tun]
+group=1000
+mode=2
+owner=1000
+
+[bridge-port]
+
+
+
+еще новый бридж
+
+
+
+" 㱀  $  nmcli connection  add  type tun  mode tap owner 1000 group 1000  ifname tap5 con-name "tap5-->br1" autoconnect yes save yes controller br1  port-type bridge hairpin no
+Connection 'tap5-->br1' (ff010b2c-7f73-44f0-84c3-eb690d145df9) successfully added.
+ & 泂  $ 
+ J 鄨  $  nmcli connection  add  type tun  mode tap owner 1000 group 1000  ifname tap4 con-name "tap4-->br1" autoconnect yes save yes controller br1  port-type bridge hairpin no
+
+
+это лиьмалая част настроек. отсальное можно длодпитить через conn modify
+и device modofy
+
+
+в итоге
+
+
+ $ nmcli conn
+NAME        UUID                                  TYPE      DEVICE  
+br0         e7ffc158-8bc4-49b8-b127-f00c50578750  bridge    br0     
+bridge-br1  733455b3-52f9-49f2-9567-8802b0b86880  bridge    br1     
+tap0-->br0  1773f563-9658-49a4-b665-d83116b63af5  tun       tap0    
+tap1-->br0  7d38d3bf-8fb4-4125-8aef-39d3a3ae63fa  tun       tap1    
+tap2-->br0  f74f44f2-e380-4cfb-96d9-6f1a7d208d68  tun       tap2    
+tap4-->br1  306c939a-6e72-4d19-bc29-f0c874b4a360  tun       tap4    
+tap5-->br1  ff010b2c-7f73-44f0-84c3-eb690d145df9  tun       tap5    
+
+
+ $ nmcli dev
+DEVICE             TYPE      STATE                   CONNECTION 
+br0                bridge    connected               br0        
+br1                bridge    connected               bridge-br1 
+tap0               tun       connected               tap0-->br0 
+tap1               tun       connected               tap1-->br0 
+tap2               tun       connected               tap2-->br0 
+tap4               tun       connected               tap4-->br1 
+tap5               tun       connected               tap5-->br1 
+
+
+ $ brctl show
+bridge name	bridge id		STP enabled	interfaces
+
+br0		8000.f672b2f6ddce	yes		tap0
+         							tap1
+		         					tap2
+
+br1		8000.de02cfeff2ba	yes		tap4
+				         			tap5
+
+
+создаю tun
+
+nmcli connection  add  type tun  mode tun owner 1000 group 1000  ifname tun0 con-name tun0 autoconnect yes save yes ip4 172.17.20.1/24
+
+
+
+
+    tun:          mode tun|tap
+                  [owner <UID>]
+                  [group <GID>]
+                  [pi yes|no]
+                  [vnet-hdr yes|no]
+                  [multi-queue yes|no]
+
+
+ $ ip -c l sh dev tun0
+583: tun0: <NO-CARRIER,POINTOPOINT,MULTICAST,NOARP,UP> mtu 1500 qdisc fq_codel state DOWN mode DEFAULT group default qlen 500
+    link/none 
+
+ $ ip -c a sh dev tun0
+583: tun0: <NO-CARRIER,POINTOPOINT,MULTICAST,NOARP,UP> mtu 1500 qdisc fq_codel state DOWN group default qlen 500
+    link/none 
+    inet 172.17.20.0/24 brd 172.17.20.255 scope global noprefixroute tun0
+       valid_lft forever preferred_lft forever
+    inet6 fe80::eec0:ceab:4268:c396/64 scope link noprefixroute 
+       valid_lft forever preferred_lft forever
+
+nmcli connection modify tun0 ipv6.method "disabled"
+
+только вчтобы в силу встпило нужно обзяталеьо перегрузть NEtworkmanager иначе нихуя не 
+подйтукейтсивует 
+
+  # systemctl restart NetworkManager
+
+
+  # ip -c a sh dev tun0
+583: tun0: <NO-CARRIER,POINTOPOINT,MULTICAST,NOARP,UP> mtu 1500 qdisc fq_codel state DOWN group default qlen 500
+    link/none 
+    inet 172.17.20.0/24 brd 172.17.20.255 scope global noprefixroute tun0
+       valid_lft forever preferred_lft forever
+
+
+
+
+далее
+
+ nmcli connection  add  type dummy    ifname dummy0 con-name dummy0 autoconnect yes save yes ip4 172.17.30.1/24
+
+
+
+==================
+nmcli 
+
+есть connections 
+а есть devices
+
+итак есть девайсы тоесть сетевые интерфейсы которые по идее создает не NetworkManager а ктото другой наверное
+например это делает udev. хотя всякие вирт сетевые интерфейсы можно создавать через NetworkManager
+(через nmcli) но как я понимаю это происходит в рамках создания connection . тоесть мы неможем
+просто создать device. мы сразу должны создавать connection и при его создании указать и новый
+виртуальный интерфейс  который мы хотим создать
+
+
+перед тем как переходит к конектам еще пара слов о девайсах 
+очень полезная комнда чтобы посмотреть все текущие свойства девайсов
+
+	 $ nmcli device show
+
+GENERAL.DEVICE:                         wlp2s0
+GENERAL.TYPE:                           wifi
+GENERAL.HWADDR:                         80:30:49:B2:85:CF
+GENERAL.MTU:                            1500
+GENERAL.STATE:                          100 (connected)
+GENERAL.CONNECTION:                     iphone
+GENERAL.CON-PATH:                       /org/freedesktop/NetworkManager/ActiveConnection/12
+IP4.ADDRESS[1]:                         192.168.62.1/24
+IP4.GATEWAY:                            192.168.62.177
+IP4.ROUTE[1]:                           dst = 192.168.62.0/24, nh = 0.0.0.0, mt = 600
+IP4.ROUTE[2]:                           dst = 0.0.0.0/0, nh = 192.168.62.177, mt = 600
+IP4.DNS[1]:                             8.8.8.8
+IP4.DNS[2]:                             8.8.4.4
+IP4.DNS[3]:                             192.168.62.177
+IP6.GATEWAY:                            --
+
+GENERAL.DEVICE:                         br0
+GENERAL.TYPE:                           bridge
+GENERAL.HWADDR:                         F6:72:B2:F6:DD:CE
+GENERAL.MTU:                            1500
+GENERAL.STATE:                          100 (connected)
+GENERAL.CONNECTION:                     br0
+
+
+вот вообще все что можно сделать через nmcli с девайсами
+
+ $ nmcli device help
+ Usage: nmcli device { COMMAND | help }
+
+COMMAND := { status | show | set | connect | reapply | modify | disconnect | delete | monitor | wifi | lldp }
+
+
+теперт переходдим к конектам
+
+а вот с конектом уже мможно много чего сделать
+
+ $ nmcli connect help
+Usage: nmcli connection { COMMAND | help }
+
+COMMAND := { show | up | down | add | modify | clone | edit | delete | monitor | reload | load | import | export }
+
+
+в частности его можно создат через "add"
+посмотрим какие параметры есть для этого add
+
+
+$ nmcli connect add help
+Usage: nmcli connection add { ARGUMENTS | help }
+
+ARGUMENTS := COMMON_OPTIONS TYPE_SPECIFIC_OPTIONS PORT_OPTIONS IP_OPTIONS [-- ([+|-]<setting>.<property> <value>)+]
+
+
+итак у нас ест общие опции  COMMON_OPTIONS
+далее есть опции TYPE_SPECIFIC_OPTIONS
+и далее ест опции  PORT_OPTIONS IP_OPTIONS
+
+
+первая часть опций  COMMON_OPTIONS
+в себя включает 
+
+ COMMON_OPTIONS:
+                  type <type>
+                  [ifname <interface name> | "*"]    (имя интерфейса)
+                  [con-name <connection name>]       ( имя конекта) 
+                  [autoconnect yes|no]               (тут все понятно)
+                  [save yes|no]                      ( тут все понятно)
+                  [controller <controller (ifname, or connection UUID or name)>]
+                  [port-type <controller connection type>]
+
+
+
+
+===================
+nmcli connection add type vlan con-name br3.2 ifname br3.2 dev br3 id 2
+=====
+| bridge
+
+
+есть такая хуйня когда я создаю бридж
+вилан эвейр то у него естьдеолфтовый вилан 1
+который он авттоамтом сует на каждый порт
+и получается вот так
+
+# bridge  -compressvlans  vlan show dev tap14 
+port              vlan-id  
+tap14             1 Egress Untagged
+                  2 PVID Egress Untagged
+
+где 1 это общебрижеывй порт который он сует 
+на каждоый порт
+а 2 это уже чисто портовая настройка
+
+так вот убрать этот 1 можно вот так
+
+nmcli conn mod br3 bridge.vlan-default-pvid 0
+
+далее чттбы насторки по виланам вступили в силу
+нужно обязателно погасить br3
+а потом еще нахуй руками понять тап14
+
+# nmcli con down   br3; nmcli conn up br3; nmcli conn up tap14;
+
+и полуачаем
+
+# bridge  -compressvlans  vlan show dev tap14 
+port              vlan-id  
+tap14             2 PVID Egress Untagged
+
+
+========================================
+
+теперь на счет вот этого 
+
+2 PVID Egress Untagged
+
+это оброзначение охуенно мислидинг
+в этой строке слова мало связаны друг с другом
+и в этом полная пиздец.
+
+	2 PVID
+
+означает что если влетает в порт нетегрированный 
+трафик то он внутри порта будет счтаться как 
+вилан 2. итак эта насрока касатся сука входящего
+трафика. 
+тееперт вот эотот куок
+
+2 Egress Untagged
+
+он онзначает что из этого порта можно высирать
+в сеть вилан 2 и кода это делть то снимать тег.
+тоест по хорошему надо было бы написать
+
+2 PVID + 2 Egress Untagged
+
+по русски говорят это vlan=2 нетегированный порт.
+но эти суки все запутали на пустом месте.
+
+заааается эта хуйня через 
+
+bridge-port.vlans 
+
+формат поля такой
+
+
+  $vid [pvid] [untagged] [, $vid [pvid] [untagged]]
+
+
+расмотрим пока вот эттот кусок
+	
+	$vid [pvid] [untagged]
+
+првая хуня это число. второе это слово
+третье это слово. может быьть вот так
+
+  2 
+  2 pvid
+  2 untagged
+  2 pvid untagged
+
+
+  2 - ознаает что это транковый порт. на нем 
+  разрещен вилан 2 тегировнный как на вход так
+  и на выход
+
+  2 pvid - означает что если на вход влетеле 
+  пает без тега то это счтать вилан 2.
+  при вылете пакет будет иметь вилан тег 2.
+
+  2 untagged - это означает что  исходящий трафик
+  высирать как вилан 2 но тег снять
+
+
+  2 pvid untagged  -  это значит что въодящий не
+  тегировный пакет считаь как вилан2внутри свича
+  и что из этго порта можно высирать вилан 2 
+  трафик и тег надо снять . то есть это класс
+  нетегировнный (access) порт вилан2
+
+в итоге если я хочу на компе входящий нетегированый
+пакет считаь как вилан 2. и обратно его тоже высираьт
+без тега плюс тегиорванынй вилан 3 то надо 
+сделть так
+
+ nmcli conn mod tap14 bridge-port.vlans "2 pvid untagged, 3"
+
+потом надо нахй перугрзуить весь свич!
+
+#  nmcli conn down br3; nmcli conn up br3; nmcli conn up tap14; nmcli conn up tap15; bridge vlan sh dev tap14
+
+port              vlan-id  
+tap14             2 PVID Egress Untagged
+                  3
+
+
+
+как удалить ип адрес
+ nmcli conn mod  br3  ipv4.addresses  ""  ipv4.method disabled
+
+сука
+
+
+наконц то я разьбела эту тему
+
+
+
+=====
+nmcli con del mybridge
+nmcli conn add type bridge con-name mybridge ifname mybridge bridge.stp no ipv4.method auto ipv6.method disabled bridge.vlan-filtering 1 bridge.vlan-default-pvid 1
+
+nmcli con delete ens2
+nmcli con add type bridge-slave con-name ens2 ifname ens2 master mybridge bridge-port.vlans "1 pvid,2-4094"
+
+===
+прикол в том что кему не умеет раобтаь с тегированным
+трафиком ему нужен тольок tap интфрейсф
+
+это похдодит
+$ ip -d -c l sh tap0
+tap0: 
+    link/ether 8a:ac:e3:1a:d8:bd brd ff: 
+    tun type tap pi off vnet_hdr on persist on user noroot group noroot 
+    bridge_slave state for...
+
+важно то что написано под слвовом link 
+
+		tun type tap
+
+это значит tap инфтреейс
+это пооддит
+еще видно что он водит в состави ближодджа
+
+    bridge_slave state for...
+
+но это уже неважно
+
+104: tap11.2@tap11: 
+    link/ether fa:7b:84:00:8d:f8 brd ff:ff:ff:ff:ff:ff 
+    vlan protocol 802.1Q ... 
+    bridge_slave state ...
+
+здесь тип инфтрейса это тип vlan
+(этот высирает из себя тегрованный L2 поток )
+это ему не подходит!
+
+НА САОМО ДЕЛЕ НАДО ПРОВЕРИТЬ - ЧТО ЗНАЧИТ ПОРТ VLAN
+тоест какой поток в него надо совать и какой поток
+вылетает из него в сеть. 
+
+
+          1              2 
+   сеть =====  tap11.2 ==== ядро 
+
+
+какоой трафик на чкстках  1 и 2 это тегиовный вилан 
+поток илинет? незнаю!
+
+
+два прта на ьриде  в унтеггерд ивилан 2
+вставил
+
+# bridge vlan  add vid 2 dev tap11 pvid untagged
+# bridge vlan  add vid 2 dev tap12 pvid untagged
+а еще надо и сам L3 порт br1  заснууть в вилан
+# bridge vlan add vid 2  dev br1  self
+
+
+ # bridge vlan show
+port              vlan-id  
+tap11             1 Egress Untagged
+                  2 PVID Egress Untagged
+tap12             1 Egress Untagged
+                  2 PVID Egress Untagged
+
+#  bridge vlan del vid 1 dev tap11
+#  bridge vlan del vid 1 dev tap12
+# bridge vlan  show
+port              vlan-id  
+tap11             2 PVID Egress Untagged
+tap12             2 PVID Egress Untagged
+
+одна хуйя ня это не сохранистя поле перзагуики!
+
+
+итог вот такой - нихуя фиььрреинг на уровне вилана
+сука не работает!
+
+
+==
+
+
+# nmcli conn add type  bridge   ifname br1  con-name br1
+
+
+# nmcli conn up br1
+
+
+# nmcli connection modify br1  bridge.vlan-filtering yes bridge.vlan-default-pvid 0
+
+
+
+# nmcli connection add   type tun  mode tap owner 1000 group 1000  ifname tap11  con-name tap11 autoconnect yes save yes ipv4.method disabled ipv6.method disabled
+
+# nmcli conn up tap11
+
+
+
+# nmcli connection add     type vlan    dev tap11   id 2     ifname tap11.2    con-name tap11.2   master br1
+
+# nmcli conn up tap11.2
+
+супер важно поднять вилан порт до этого момент
+он удбдует тупо невиден в btctl show
+
+добавляю второй порт
+nmcli connection add   type tun  mode tap owner 1000 group 1000  ifname tap12  con-name tap12 autoconnect yes save yes ipv4.method disabled ipv6.method disabled
+nmcli conn up tap11
+nmcli connection add     type vlan    dev tap12   id 2     ifname tap12.2    con-name tap12.2   master br1
+nmcli conn up tap12.2
+
+
+
+ nmcli conn mod br1 ipv4.method manual ipv4.address 172.16.80.1/24
+
+ nmcli conn down br1
+ nmcli conn up   br1
+
+
+есть прблема. если я выкл\вкл br1 то после этого
+отвалиывается tap13.2 и его нужно рбратно сука
+руками включать
+
+ nmcli conn up   tap13.2
+
+аеесли это не слделать то он сука даже не виден 
+в составе брдиджа хоотя он там есть
+
+ brctl show  master br1
+ показывает пусто 
+
+
+длаее стало понятно что кему он неумеет рабоать с
+портом типа влан . он умеет рабоать только с tap
+картой. тогда надо переделвать бридж
+
+
+создаем бридж через нмкли
+создаем два тап порта
+суем эти порты  в бридж
+через нмкли 
+
+
+
+===
+ip link add br0 type bridge
+# ip -c addr add   172.16.30.1/24  dev br0
+
+man ip-link
+
+ip link add veth1 type veth peer name veth2
+# ip link set veth1 master br0
+
+
+# ip netns add ns01
+# ip link set veth2 netns ns01
+
+ip netns exec ns01 ip -c l set lo up
+
+ip netns exec ns01  ip address  add 172.16.30.10/24  dev veth2
+
+
+# nft add table bridge bridge1
+
+# ip netns exec ns01  ip -c l set veth2 up
+
+
+
+# ip -c l set veth1 up
+
+# ip -c l set br0 up
+
+
+# nft add table bridge bridge1
+
+# nft 'add chain  bridge   bridge1  PREROUTING { type filter  hook prerouting priority 0; }'
+
+# nft 'add chain  bridge   bridge1  INPUT { type filter  hook input priority 0; }'
+
+
+# nft list table bridge bridge1
+table bridge bridge1 {
+	chain PREROUTING {
+		type filter hook prerouting priority 0; policy accept;
+	}
+}
+
+
+# nft ' add rule bridge bridge1 PREROUTING log prefix "BRIDGE: " group 0 '
+
+nft ' add rule bridge bridge1 INPUT log prefix "BRIDGE INPUT: "  '
+
+# nft list table bridge bridge1
+table bridge bridge1 {
+	chain PREROUTING {
+		type filter hook prerouting priority 0; policy accept;
+		log prefix "BRIDGE: " group 0
+	}
+}
+
+
+
+t# man nft
+root@debian12-c3:/home/noroot/temp/ipt# nft flush ruleset  bridge
+root@debian12-c3:/home/noroot/temp/ipt# nft -f ./nft
+nft   nft2  nft3  
+root@debian12-c3:/home/noroot/temp/ipt# nft -f ./nft3
+root@debian12-c3:/home/noroot/temp/ipt# 
+
+
+создаю чейн FORWARD
+nft 'add chain  bridge   bridge1  FORWARD { type filter  hook forward priority 0; }'
+
+добавляю правило логинга
+nft ' add rule bridge bridge1 FORWARD log prefix "BRIDGE FORWARD: "  '
+
+а это правило анализа трафика внутри свича на уровне L3
+как проверка работает ли такая штука или нет
+nft ' add rule bridge bridge1 FORWARD ip saddr 172.16.30.11 drop '
+
+
+# nft -a list table bridge bridge1 
+table bridge bridge1 { # handle 11
+	chain PREROUTING { # handle 1
+		type filter hook prerouting priority 0; policy accept;
+		log prefix "BRIDGE: " # handle 2
+		log prefix "BRIDGE-NFT: " group 124 # handle 3
+	}
+
+	chain FORWARD { # handle 7
+		type filter hook forward priority 0; policy accept;
+		log prefix "BRIDGE FORWARD: " # handle 11
+		ip saddr 172.16.30.11 drop # handle 12
+	}
+}
+
+
+в  итоге да работает. пинг неработает. 
+тоесть nftables ему ненужен модуль br_netfilter
+
+
+посмтреть номера правил (хендлы)
+
+# nft -a list table bridge bridge1 
+
+
+удлить приавало (дл яправки ) черех номер хендла
+ nft  delete rule bridge bridge1 FORWARD  handle 0
+
+удалить chain
+# nft delete  chain bridge  bridge1  FORWARD 
+
+
+# nft list table bridge bridge1 
+
+
+# nft -a list table bridge bridge1 
+table bridge bridge1 { # handle 11
+	chain PREROUTING { # handle 1
+		type filter hook prerouting priority 0; policy accept;
+		log prefix "BRIDGE: " # handle 2
+		log prefix "BRIDGE-NFT: " group 124 # handle 3
+	}
+
+	chain FORWARD { # handle 7
+		type filter hook forward priority 0; policy accept;
+		log prefix "BRIDGE FORWARD: " # handle 11
+	}
+}
+
+
+это лог кода между L2 портаами
+[  +4.552371] BRIDGE: IN=veth3 OUT= MAC=ba:a8:02:13:e0:db:6a:7d:79:4a:0d:3f:08:00 SRC=172.16.30.11 DST=172.16.30.10 LEN=84 TOS=0x00 PREC=0x00 TTL=64 ID=55533 DF PROTO=ICMP TYPE=8 CODE=0 ID=52733 SEQ=1 
+[  +0.005150] BRIDGE FORWARD: IN=veth3 OUT=veth1 MAC=ba:a8:02:13:e0:db:6a:7d:79:4a:0d:3f:08:00 SRC=172.16.30.11 DST=172.16.30.10 LEN=84 TOS=0x00 PREC=0x00 TTL=64 ID=55533 DF PROTO=ICMP TYPE=8 CODE=0 ID=52733 SEQ=1 
+[  +0.005206] BRIDGE: IN=veth1 OUT= MAC=6a:7d:79:4a:0d:3f:ba:a8:02:13:e0:db:08:00 SRC=172.16.30.10 DST=172.16.30.11 LEN=84 TOS=0x00 PREC=0x00 TTL=64 ID=56511 PROTO=ICMP TYPE=0 CODE=0 ID=52733 SEQ=1 
+[  +0.002142] BRIDGE FORWARD: IN=veth1 OUT=veth3 MAC=6a:7d:79:4a:0d:3f:ba:a8:02:13:e0:db:08:00 SRC=172.16.30.10 DST=172.16.30.11 LEN=84 TOS=0x00 PREC=0x00 TTL=64 ID=56511 PROTO=ICMP TYPE=0 CODE=0 ID=52733 SEQ=1 
+
+а это лог когда трафик идет на l3 br0 порт
+
+[  +5.068518] BRIDGE: IN=veth3 OUT= MAC=46:0a:5e:48:e7:95:6a:7d:79:4a:0d:3f:08:00 SRC=172.16.30.11 DST=172.16.30.1 LEN=84 TOS=0x00 PREC=0x00 TTL=64 ID=50609 DF PROTO=ICMP TYPE=8 CODE=0 ID=46033 SEQ=1 
+[  +0.106551] BRIDGE: IN=veth3 OUT= ARP HTYPE=1 PTYPE=0x0800 OPCODE=2 MACSRC=6a:7d:79:4a:0d:3f IPSRC=172.16.30.11 MACDST=46:0a:5e:48:e7:95 IPDST=172.16.30.1
+
+видно что нет нкиакого OUT= потому что для свича тарфик 
+из него не выходит. а уходит на LOCLPROCESS тоесть br0 l3 порт
+который счиевыми неявлется. 
+
+получается когда мы ммеем бридж то для нтфейбсл (ядра)
+трафик ходит между портами бриджа. l2 поратми. в моем случае
+это veth1 и veth3
+
+# bridge link show master br0
+6: veth1@if5: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 master br0 state forwarding priority 32 cost 2 
+8: veth3@if7: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 master br0 state forwarding priority 32 cost 2 
+
+
+тоесть еще раз. трафик влетеает в ядро чрез veth1 l2 порт.
+он попадает на bridge таббилицу. лог нарисует что 
+пакет влеетел в ядро из IN=veth1
+далее если паккет надо сунуть в другой l2  порт то 
+надо снуть праивило в бридж таблицу. и она напишет в лог
+что OUT=veth3 . таким образом ядро при работе со свичом
+фикрсуирет с какого порта ппакет влетел в какой порт пакет
+вылетел. это все будет в логе. правло лога нао снууть в 
+bridge таблицы. потому что проессинг пакетов внутри бриджа
+идет в нтфтейблс нвутри бридж таблиц. 
+так как у veth1 есть вторйо конец. но он лежит в другом
+сет неймсейсе а сет стек ядра работает на уровне отделных
+сет неймсейсов. и нфттебйейллс част часть сетесвого стека
+рабоатет тоже на уровне сет неймсейса. поэтму! мы в логе
+нашего сет нейспейса никогда не увидим что пакет на самом
+деле начал свой путь не с veth1 а с veth3 который сидит
+в другом сет неймееспйесе
+
+   бридж
+[-----------]
+наш сет          другой сет 
+нейспейс         нейспейс
+дефолт            ns01 
+   veth1 ---|--- veth3
+
+
+
+поэтому если я очу увидеть в логе что пакет влетел в veth3
+то это надо настраить нфтбейлс в том другом сет неймсейсе
+наконец то я увидел L2 порты  в том числе и в IN= и в OUT=
+но это толкьо касется логинга в кернел лог через модуль nf_log_bridge
+
+если пакет из свича вылетает в br0 l3 то  таблица bridge 
+рпиавло в ней это непокажет. 
+точнее правило из таблицы бридж  покажет вот такое
+
+
+[  +5.068518] BRIDGE: IN=veth3 OUT= MAC=46:0a:5e:48:e7:95:6a:7d:79:4a:0d:3f:08:00 SRC=172.16.30.11 DST=172.16.30.1 LEN=84 TOS=0x00 PREC=0x00 TTL=64 ID=50609 DF PROTO=ICMP TYPE=8 CODE=0 ID=46033 SEQ=1 
+
+тоеесть пакет находится внутри свича но якобы куда его
+совать неясно. по аналогии с иптейблс это всегда оначет что
+пакет предназначен для local process. а внашем случае
+это значит что пакет суется в br0
+тоест с точки зрения правил логинга внутри бридж таблицы
+мы никогда не увидим OUT=br0 мы толкьо увидим OUT= пусто
+а дальше пакет нужно лоавить уже в ip таблице на влете.
+и будет вот такое правло 
+
+table ip filter {
+	chain INPUT {
+		type filter hook input priority filter; policy accept;
+		meta l4proto icmp counter packets 41 bytes 3664 log prefix "NFLOG icmp" group 0
+	}
+
+и такой лог
+
+Feb 15 06:14:45 debian12-c3 NFLOG icmp IN=br0 OUT= MAC=46:0a:5e:48:e7:95:6a:7d:79:4a:0d:3f:08:00 SRC=172.16.30.11 DST=172.16.30.1 LEN=84 TOS=00 PREC=0x00 TTL=64 ID=57897 DF PROTO=ICMP TYPE=8 CODE=0 ID=16480 SEQ=1 MARK=0x0 
+
+
+итак еще раз схема
+у меня есть железная схема
+
+
+
+
+         свич
+    ________________
+    |               |
+   =br0        veth3=-----------=veth4
+    |_______________|
+
+
+
+ [--------------------] [-------------]
+    дефолт неймспйес        ns01 
+                            неймспейс
+
+
+у нас есть в нашем сет нейсмейсе свич. у него два порта br0
+который l3 и порт veth3 который l2
+
+у нас второй конец от пары вефов тоесть veth4 лежит 
+в другом сет неймспейсе ns01
+
+у меня пакет влетает в veth4 потом летит в vet3 и потом летит
+в br0  и там заканыаеывает свою жизнь. хочется понять
+увидит ли ядро весь этот путь пакета на уровне в какой порт
+пакет влетел и как он потом черз порты путещесвтовал.
+и где это в нфтейблс нужно правла вставлять логирования чтобы
+это увидеть.
+
+так вот влет в veth4 чтобы мы это увидели это вот от чего
+зависит. у нас разные сет неймспесы отличаются тем что в кэ
+дом из них свой наор сет карточек. своя таблица маршуттизации.
+свои sysctl правиала сетевые. свои таблицы nftables.
+теперь про логи в другом сет нейсесе. так вот чтобы увидеть
+влет в veth4 нам надо пойти в тот сет нейспйес ns01 и там 
+вствить в нужную таблицу лог правило. тепер вопрос - а где 
+в  итоге эту лог запись искать. журнал то событий у нас на компе
+один на все сет неймпйсы! однако тут засада. журнала два.
+один кернел журнал. второй это jourbnald журнал. но влюом
+случае эти два журнала они работаю на все сет не1смейсы.
+однако что касетя кернел журнала то в него запись нфтлейблс
+событий просихозящих в сет нефмесйсах отличных от дейолтого
+по дефолту запрешена! тоесть я правлоа в ns01 nftables обавлвю
+для логрования в кернел лог. но там будет пусто! есть
+в сисцтл хоста настройка all_nets котоаря разершит. и 
+толкьтогда запись поиявится в кернел логе! только тодга!
+что кется юзер лог журнала то jouarnled в пролете. 
+нам нужнкен отделный сервис ulod котоыйр нужно запустить 
+в том сет нейсмейсе! тогда он поймает влет в veth3
+итак влет в veth4 мы поймали.
+
+далее нужно итти в сет неймпейс дефолтовый. и добавлять
+правлов в bridge таблицу.
+
+
+# nft list table bridge bridge1
+table bridge bridge1 {
+	chain PREROUTING {
+		type filter hook prerouting priority 0; policy accept;
+		log prefix "BRIDGE: "
+		log prefix "BRIDGE-NFT: " group 124
+	}
+
+	chain FORWARD {
+		type filter hook forward priority 0; policy accept;
+		log prefix "BRIDGE FORWARD: "
+	}
+
+	chain INPUT {
+		type filter hook input priority 0; policy accept;
+		log prefix "BRIDGE INPUT: "
+	}
+}
+
+
+
+эти праивла нам дадут в кернел лог записи о том как пакет
+влетел в veth3 
+
+[Feb15 06:36] BRIDGE: IN=veth3 OUT= MAC=46:0a:5e:48:e7:95:6a:7d:79:4a:0d:3f:08:00 SRC=172.16.30.11 DST=172.16.30.1 LEN=84 TOS=0x00 PREC=0x00 TTL=64 ID=55551 DF PROTO=ICMP TYPE=8 CODE=0 ID=41000 SEQ=1 
+
+[  +0.005573] BRIDGE INPUT: IN=veth3 OUT= MAC=46:0a:5e:48:e7:95:6a:7d:79:4a:0d:3f:08:00 SRC=172.16.30.11 DST=172.16.30.1 LEN=84 TOS=0x00 PREC=0x00 TTL=64 ID=55551 DF PROTO=ICMP TYPE=8 CODE=0 ID=41000 SEQ=1 
+
+показано что вылет идет якобы в пустотму OUT=пусто
+но это просто леддеиимзм логгера. вылет идет в br0
+так как он l3 то поэтмоу и пусто в OUT=
+
+
+иатк пусть -->veth4--veth3 пойман. вылет в br0 пойман 
+но в неявном виде
+
+осталос поймать влет в br0
+для этого идем в тублицу ip и там одавбялем праввило
+
+ nft list table ip filter
+table ip filter {
+	chain INPUT {
+		type filter hook input priority filter; policy accept;
+		meta l4proto icmp counter packets 47 bytes 4168 log prefix "NFLOG icmp" group 0
+	}
+
+
+и тгда в логах ядра увидим
+
+NFLOG icmp IN=br0 OUT= MAC=46:0a:5e:48:e7:95:6a:7d:79:4a:0d:3f:08:00 SRC=172.16.30.11 DST=172.16.30.1 LEN=84 TOS=00 PREC=0x00 TTL=64 ID=776 DF PROTO=ICMP TYPE=8 CODE=0 ID=30209 SEQ=1 MARK=0x0
+
+таким образом мы проследили путь пакета через все сет 
+инфтрейсы. и я показал в какие места в нфттейлс нужно 
+вствлять праивла. и как выгллядят логи от этих праваил
+
+
+таким макаром я пощупал что такое свич для линукса.
+и вефы тоже я пошупал.
+
+получается страная система вродебы у нас свич в линуксе
+тоесть он принмиает решение куда пихать пакет на освное 
+мак адреса! но! при это при желании можно трафик проанализиро
+вать и например заблокирвать на освное L3(ip)  парамтров
+поткоа. или поменять ка я понимаю ip адреса в пакете. мак
+адерса неизментся а ip изменстя. вот такая странаня получается
+сетевая коробка у нас. вродеи свич. а вродеи какаято еще
+IP менбщая хрень.
+
+ 
+
+а если я хочу увидеть 
+
+
+$ cat /proc/net/netfilter/nf_log  | grep 7
+ 7 nf_log_bridge (nf_log_bridge,nfnetlink_log)
+
+
+
+
+
+в итоге = хуйня. вот с чем.  из nft я делаю логи из бриджа
+так вот в сислог (через моуль nf_log_bridge) логи выглядат 
+коректно тоеть виден L2 порт а через нелинк систему модуль nfnetlink_log уже пизда. он рисуе чтоб якобы трафик идет 
+через L3 порт !
+
+получетс что полноенный логинг тлоько в syslog а в ulog логинг
+хуня для бридж траифкикиа
+
+
+===
+текущие итоги.
+моя схема
+
+ ping
+---->   
+                           | bridge
+bond.vlan - bond - veth1 - veth2 
+                           tap14 - VM
+
+
+мне удалось поймать весь сетевой тракт от bond.vlan 
+до tap14 и туда и обратно.
+теперь осталось это расписать. а именно пояснить
+правила потому что  с ними были трудности
+
+
+следущий этап пустить пинг из бонда он должен 
+влететь в один свич. а потом по аплинку переле
+теть в другой свич и уже в ВМ. нужно поймать
+этот тракт в логах
+реузлтат - в целом я логах поймал этот полет
+пакета
+                     | bridge
+ bond.vlan-bond-veth-veth
+                     veth --
+                            |
+                            |
+                     veth --       
+                     tapN -VM
+
+
+
+далее нужно вот еще проверить - если  я возму
+свич br0 и вытяну из него vlan
+
+
+           |  bridge
+  br0.2 -- br0 ---- ...
+
+
+то мой вопрос при этом br0 порт превращается в сви
+чевый порт или он останется L3 портом?
+я разведал этот случай
+
+[RAW OUTPUT icmp] IN= OUT=br5.2 SRC=172.16.130.1 DST=172.16.130.10
+[NAT-OUTPUT icmp] IN= OUT=br5.2 SRC=172.16.130.1 DST=172.16.130.10
+[FILTER-OUTPUT icmp] IN= OUT=br5.2 SRC=172.16.130.1 DST=172.16.130.10
+[NAT-POSTROUTING icmp] IN= OUT=br5.2 SRC=172.16.130.1 DST=172.16.130.10
+[filter OUTPUT noVLAN icmp] IN= OUT=veth_br5_1
+[nat OUTPUT noVLAN icmp] IN= OUT=veth_br5_1
+[nat POST noVLAN icmp] IN= OUT=veth_br5_1
+
+с точки зрения ядра br5 остатется L3 портом.
+но еще в чем прикол br5.2 по мнению ядра является
+тем же самым "бриджевым устройством" что и br5
+https://wiki.nftables.org/wiki-nftables/index.php/Netfilter_hooks
+
+поэтому когда ядро пихает пакет в br5.2
+то сразу идет на обработку в ебтейблс в "output hook"
+
+
+
+
+или вот еще идея. сделать два бриджа. и каждый его
+brN вставить в состав бонда. но все таки так
+делать нандо. почему  потому что убрать порт
+из бонда невозможно. поэтмоу если я br0 всвтавил
+в бонд то убрать его оттуда невоможно. и тода
+нужно удалять свич целиком. поэтмоу лучше L3 
+порт у брилжа вобще не трогать
+
+===========
+
+
+
+
+---------------------------------------------------
+       /|\---------->|    сеть(ядро другой кусок)
+--------|------------|----------------------------
+        |            |
+veth1 tx|           \|/ rx veth2
+              
+       /|\           |
+        |           \|/
+        |              ядро 
+  ядро                 bridge code
+       /|\             ebtables
+        |               
+        |             
+        |
+      сокет
+       /|\
+--------|-------------------------------
+        |
+   приложение   
+
+===================
+важные мысли после устнвоки баридажа
+
+
+1
+
+рабоатт толко вот такая странная схема
+
+  ??       tagged           untagged  
+ VLAN2     VLAN2            VLAN2
+  (IP)                                (IP)
+  br4.2 -- br4 --- свич --- tap14 -- enp0s3
+
+
+ваначале самое простое. на tap14 мы насрваиеи 
+aceess port . это пнятно
+
+а вот с br4 сложнее.
+на самом br4 мы насриваем его как транковый порт 
+с тегировнными виланаами 2,3...
+
+а далее добавлябтся субкарты которое тоже виланы
+получается странно
+
+vlan2        
+br4.2= --- \  
+                  vlan2,3
+            ----  =br4
+vlan3     
+br4.3= --- /
+
+
+
+и уже на субпортах задаются ип адреса.
+
+непонятно какой тип порта являются субкарты.
+тоест br4 это трановый порт . это ясно.
+но вот непонятно какой тип порта br4.2 и  br4.3
+нужно проверить на схеме
+ 
+прога1-em0- em0.1 -- сеть--- em1.1 --- em1.1 --прога2
+
+тоест ккакой трафик потечет по сети. тегрованный или
+нет. в самое приложение втекает нетегировнный трафик
+соркей всег траифик тегиованный и это значит что
+порт br4.2 тоже тегиорвный
+
+итак странну схему я зафикисроваол
+
+
+2 второй момент. если я хочу связат два свича 
+то это надо делать через veth провод ( это понятно)
+и через L2 порты свичей а не черз l2+l3
+
+              ________ ядро_______________
+             |                            |
+            br0                          br1
+             |                            |
+kub1-tap1=|.....|=veth0 --------=veth1|.....|=tap4-kub3
+kub2-tap2=|     |                     |     |=tap5
+ db1-tap3=|     |                     |     |=tap6
+                     
+
+ДЛАЕЕ  ниже все схемы часитично неверныы. 
+потому что нужно соединить br0 и br1 в 
+единый интфрейс тока не знаю какого типа 
+
+                   NN0
+                    |
+                 br0  br1
+
+
+а уже из него вырезать тегиорванные порты
+NN0.2 NN0.3
+и ими дать ип адреса. которые будет адресами
+гейтвееев для виртуаллок. 
+чтобы у нас  виртуалки сидящие слева и сиправа 
+когда им нужно полуит доступ  к вм в другом
+вилане деали это через L3 роутинг через гейтвей
+и при этмом чтобы ядро юзало то br0 а то br1 для
+симетрии. а если так не делать то тогда ужно 
+вырбирать както один bp  двух портов чтобы из него
+вырезать два brN.2 brN.3 инфтреса дать им ип
+котоыре будут заться как гейтвеи. заводить 
+на обоих br эти тегорваныне порты нет смысла!
+
+
+схема вот такая
+
+
+                                       _______
+     bond0.2          veth1 ---- veth3=|   br1=   
+            -----bond0            tap1=|     |
+     bond0.3          veth2    --veth6=|_____|
+                        |      |
+                        |      |
+                        |      |       _______
+                        |      --veth5=|   br2=
+                        |         tap2=|      |
+                        -------- veth4=|______|
+
+
+я  не трогаю  br1 br2 они нахер невсрались тут
+
+              ТО ЧТО НИЖЕ ПЕРЕДЕЛАТЬ!
+
+                   карта виланов и портов
+
+              ________ ядро______________
+              |                         |
+            trunk2,3                 trunk2,3  
+             |                          |
+            trunk2,3                 trunk2,3 |                           |
+    vlan2=|.....|=trunk2,3---=trunk2,3|.....|=vlan2
+    vlan2=|     |                     |     |=vlan3
+    vlan3=|     |                     |     |=vlan3
+
+
+
+так вот с поммлшью L2 портов и виланов
+мы можем обьединить порты на РАЗНЫХ свичах
+в единый локльный домен. чрез который виртулки
+могут друг с другом иметь прямой конект (тоесть без
+гейтвея) . правда и без виланов оно бы так работало
+у нас тогда будет один бльольшой вилан1 домен.
+
+свичи через brN порты свзяыват друг с другом ненужно
+потому что тогда связь вм на одном свиче с вм
+на друогом свиче будет итти через роутинг. а это
+отстой.
+
+
+хочу обратиь не верную чсть картины
+
+
+              ________ ядро______________
+              |                         |
+         br0.2  br0.3              br1.2  br1.3  
+             \   /                   \     / 
+             br0                       br1  
+              |                         |
+      tap1=|.....|=veth0 -------- =veth1|.....|=tap4
+
+
+здесь  veth0 veth1 br0 br1 это транковые порты
+а br0.2  br0.3   br1.2  br1.3 это  тегированные порты
+tap1 tap4 это акцесс порты
+
+свичи ненужно сеодинять через br0 и br1 порты 
+так как они L3. и связь между свичами будет
+итти тда через роутинг.
+а через транкове порты будет итти чеез свичинг.
+и только если у нас вм сдящая  в однмо виолан
+заходчет досутаться до вм стдящей в другом вилан 
+причем неважно на одном они свичеи ли на разных
+вот тода будет итти связь через br* порты через 
+роутинг
+
+
+
+тогда полется что на карта br0.2  br1.2 будетут 
+ип с одной l3 сети 
+аналогично для br0.3  br1.3
+
+
+         ________ ядро______________
+        |                         |
+172.16.10.1  172.16.10.2      172.16.20.1   172.16.20.2  
+
+
+
+br0.2=172.16.10.1                  br1.2=172.16.10.2 
+br0.3=172.16.20.1                  br1.3=172.16.20.2
+
+
+и тогда на вм которые сидят 
+
+
+про vlan
+если мы отим прогоонять чрез L2+L3 физ порт вилан 
+трафик то для линукса этот порт станвится  транковым
+и вирутально он создает доп порты которые становистя
+тегированными
+
+   
+       транковый           теговый 
+       физ порт            суб порт
+         br0      ----     br0.2
+        vlan 2             vlan2
+        vlan 3
+                    \
+                     \  теговый 
+                        суб порт
+                         br0.3
+                         vlan3
+
+
+            _____________ 
+            |           |
+    ~~~~~~ =br0    br0.2= ~~~~~
+            |      br0.3= ~~~~~
+            |___________|
+             
+
+слева в свич влетает трафик из тегированных
+пакетов с вла2 влан3 фреймами
+
+справ вылетает два потока тоже стегиорвным 
+трафиком . в кажом толко свой суб поток с влан2
+и влан3
+
+
+
+                     _____________ 
+223232323            |           |
+              ~~~~~~ =br0    br0.2= ~~~~~ 2222222
+                     |       br0.3= ~~~~~ 3333333
+                     |___________|
+             
+
+цифрами я покаал фреймы с виланами
+слева смешаннй трафик
+справа разделенный
+
+соотвсвтенно это все L2 порты. котоыре раоюлтают
+на прицнипах свичинга. а уже за правыми портами
+уже стоит софт который обрабает поток уже на увровне 
+L3
+
+
+         L2 обработка              L3 обрабокта
+|                                |                 |
+|                                |                 |
+|   _____________                |                 |
+|   |           |                |                 |
+|   =br0    br0.2= ~~~~~ 2222222 | ~~ обработка L3 |
+|   |       br0.3= ~~~~~ 3333333 | ~~ обработка L3 |
+|   |___________|                |                 |
+|                                |                 |
+|                                |                 |
+
+
+
+про br1 порт в составе бриджа. вначале нам нужно
+превратить его  в L2 транковый порт
+
+
+
+
+простые карточки tap4 tap5 на компе  аалогиччны
+обычным физ картам на компе котоыре смотрят в сеть.
+поэтмоу фрейм котоыре приетает на комп в этот
+порт прекрщает на ней свою жизнь и далше никужа
+не свичиится. он встрывается. достется  L3 контент 
+и далее он роутиится!
+
+tun тоже самое. только исолпуется в случае точка
+точка поэому в нее можно пихать сразу ип пакет 
+не облкая его в эхернете фрейм.
+
+
+    комп2
+     |
+    tun1
+     |
+~~~~~|~~~~~~~~~~~~~~~~~~~
+    сеть 
+~~~~~|~~~~~~~~~~~~~~~~~~~~
+    tun0
+     |
+    комп1
+
+псольку в канале связи между tun0  и никого другого
+нет то можно в канал пихать просто ип пакет
+ненуеен ъзернет пакет. потому что получатель 
+всгда один. 
+
+=================
+# bridge vlan add  vid 2  dev br4  pvid untagged self
+# bridge vlan add  vid 3  dev br4  pvid untagged self
+
+если я я обалвяю вилан на br* интфреайс(L2+l3) то 
+яукаываю в конце self  
+а еслия доабвляю вилан на свичевый порт (L2 only)
+то обавляю в онце master (это прдумано очень дебильно)
+
+
+это ошибка
+реултат
+br4               2 Egress Untagged
+                  3 PVID Egress Untagged
+
+
+удаляем
+[lenovo docs]#  bridge vlan del   vid 2  dev br4   self
+[lenovo docs]#  bridge vlan del   vid 3  dev br4   self
+
+
+правлный вариан
+ # bridge vlan add  vid 2  dev br4   self
+ # bridge vlan add  vid 3  dev br4   self
+ # 
+ # bridge vlan sh 
+port              vlan-id  
+br4               2
+                  3
+
+=================================================
+!!!!!
+
+тепрь надо запроамирвать br4 через nmcli 
+
+nmcli conn add     type bridge     stp yes     ifname br3        con-name br3       autoconnect yes     save yes       ipv4.method  disabled     ipv6.method  ignore 
+
+ативруиу  влан эвейр
+nmcli connection modify br4  bridge.vlan-filtering 1  bridge.vlan-default-pvid 0
+
+
+
+
+добавляб  тегированные виланы на br4 L2+L3 порт
+суперажная команда!
+# nmcli conn mod br4 bridge.vlans "2, 3"
+
+
+создаю тапы
+
+ # nmcli conn add     type tun   mode tap    owner 1000    group 1000     ifname tap17        con-name tap17       autoconnect yes     save yes       ipv4.method  disabled     ipv6.method  ignore  
+
+ # nmcli conn add     type tun   mode tap    owner 1000    group 1000     ifname tap18        con-name tap18       autoconnect yes     save yes       ipv4.method  disabled     ipv6.method  ignore  
+
+ # nmcli conn add     type tun   mode tap    owner 1000    group 1000     ifname tap19       con-name tap19       autoconnect yes     save yes       ipv4.method  disabled     ipv6.method  ignore  
+
+
+добавляю порты в состав бриджа br3
+ # nmcli conn mod tap17  master br3
+ # nmcli conn mod tap18  master br3
+ # nmcli conn mod tap19  master br3
+
+
+
+
+
+добавлю l2 only порты в нетегированные виланы
+ # nmcli conn mod tap17 bridge-port.vlans "2 pvid untagged"
+ # nmcli conn mod tap18 bridge-port.vlans "2 pvid untagged"
+ # nmcli conn mod tap19 bridge-port.vlans "3 pvid untagged"
+
+
+делаю порты на бридже автостартующими
+
+ # nmcli  con mod br4 connection.autoconnect-slaves 1  connection.autoconnect-ports 1
+
+  # nmcli  con mod tap14  connection.autoconnect-slaves 1  connection.autoconnect-ports 1
+ # nmcli  con mod tap15  connection.autoconnect-slaves 1  connection.autoconnect-ports 1
+ # nmcli  con mod tap16  connection.autoconnect-slaves 1  connection.autoconnect-ports 1
+ # 
+
+
+
+чтоб настроки на свиче вструпили в силу делаю 
+довн ап для br4
+
+ nmcli conn down br4
+  nmcli conn up br4
+
+
+роверяю рзультат
+
+ # bridge vlan sh
+port              vlan-id  
+br4               2
+                  3
+tap14             2 PVID Egress Untagged
+tap15             2 PVID Egress Untagged
+tap16             3 PVID Egress Untagged
+
+
+сработало!
+
+нжуно мфииврат порты чтобы после вывлючение
+и включения L3 порта свича br4 у нас все соатлыне порты автмоатом тоже понимались
+
+
+
+теперь нужно к br4 прикрутить  L3 субопорты
+
+ # nmcli con add type vlan con-name br4.2  ifname br4.2  dev br4 id 2  ipv4.method manual ipv4.address ipv6.method ignore 172.16.80.1/24
+ 
+ 
+ # nmcli con add type vlan con-name br4.3  ifname br4.3  dev br4 id 3  ipv4.method manual ipv4.address ipv6.method ignore 172.16.90.1/24
+
+а это вариант если я хочу brN.P собрать в BOND
+
+ # nmcli con add type vlan con-name br3.2  ifname br3.2  dev br3 id 2  ipv4.method disabled ipv6.method ignore 
+ 
+ # nmcli con add type vlan con-name br3.3  ifname br3.3  dev br3 id 3  ipv4.method disabled ipv6.method ignore 
+
+
+ # nmcli  con mod br4.2  connection.autoconnect-slaves 1  connection.autoconnect-ports 1
+ # nmcli  con mod br4.3  connection.autoconnect-slaves 1  connection.autoconnect-ports 1
+ # 
+
+важное долполение
+ # nmcli conn up br3.2
+ # nmcli conn up br3.3
+
+
+
+
+
+ # ip -c a sh br4.2 | grep -E '@|inet'
+233: br4.2@br4: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc noqueue state LOWERLAYERDOWN group default qlen 1000
+    inet 172.16.80.1/24 brd 172.16.80.255 scope global noprefixroute br4.2
+ # ip -c a sh br4.3 | grep -E '@|inet'
+234: br4.3@br4: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc noqueue state LOWERLAYERDOWN group default qlen 1000
+    inet 172.16.90.1/24 brd 172.16.90.255 scope global noprefixroute br4.3
+
+
+
+правд все равно проблема. после того как я гашу
+свич и потом подгимаю
+
+  nmcli conn down br4
+  nmcli conn up   br4
+
+то его l3 субинтфрейсы br4.2 br4.3(тегированные порты)
+аввтоматом не поднмиаюстя. тоесть еще нужно
+руками ввоодть
+
+  nmcli conn up   br4.2
+  nmcli conn up   br4.3
+
+
+
+==============================
+это лишнее
+так тут кусок не про nmcli  
+а кусок про iproute2 
+тоесть настроки которые не будут сохранены 
+после перзагурузки
+
+ip  link add link DEVICE name NAME type vlan [ protocol VLAN_PROTO ] id VLANID [ reorder_hdr { on | off } ] [ gvrp { on |
+off } ] [ mvrp { on | off } ] [ loose_binding { on | off } ] [ bridge_binding { on | off } ] [ ingress-qos-map QOS-MAP  ]
+[ egress-qos-map QOS-MAP ]
+
+
+
+# ip -c l add link  br4  name br4.2  type vlan id 2
+
+# ip -c add add 172.16.80.1/24 dev br4.2 
+# ip -c add add 172.16.90.1/24 dev br4.3 
+===========================
+
+итог
+VLANS+ports
+
+ # bridge vlan sh 
+port              vlan-id  
+br4               2
+                  3
+tap14             2 PVID Egress Untagged
+tap15             2 PVID Egress Untagged
+tap16             3 PVID Egress Untagged
+
+IP:
+ # 
+ # ip -c a sh dev br4.2
+221: br4.2@br4: 
+    inet 172.16.80.1/24 scope global br4.2
+
+ # ip -c a sh dev br4.3
+222: br4.3@br4: 
+    inet 172.16.90.1/24 scope global br4.3
+
+
+tagged      trunk           access 
+ port       port            port
+  (IP)                                (IP)
+  br4.2 -- br4 --- свич --- tap14 -- enp0s3
+  br4.3 ---/
+
+
+заработало
+
+важная мысль. когда мы суем вилан 2 и вилан 3
+на br4 мы его прверщаем в транковый порт.
+а когда создаем субинтфрейсы br4.2 br4.3 типа вилан
+то мы создаем тегированные порты
+а tap14  это акцесс порт
+вот таакая сехма раооты с виланами у линукса
+
+
+кстати вот это поле
+
+bridge.vlans:                           2, 3
+
+есть только у L3 порта в составе бриджа.
+тот который в него встроен. в обычном l3 порту
+такого поля нет. это именно то поле которое делает
+L3 порта бриджа транковым(именно встроенного л3 порта а не 
+л3 порт вставленный в бридж ибо такой порт станет
+сразу чисто л2) 
+
+но это еше не конец
+
+щас у меня вот такая схема
+
+
+  br4.2 ---- br4 = свич tap15=
+  br4.3 ----/           tap16=
+                        tap17=
+
+где 
+br4.2 br4.3 это tagged порты
+br4  это транковый порт
+tapN это акцесс порты
+
+так вотя  хочу создать два бриджа и соединить 
+теггед порты в бонд интерйейс
+
+
+         ip1           /---------br4 = свич tap14=
+        bond0.2        |                    tap15=
+              \        |                    tap16=
+                bond0 <|        
+         ip2  /        |              
+        bond0.3        \---------br3 = свич tap17=
+                                            tap18=
+                                            tap19=
+
+
+ # nmcli conn add     type  bond    mode active-backup    ifname bondV2      con-name bondV2   autoconnect yes   save yes  ipv4.method disabled ipv6.method ignore 
+
+чтобы все сраотало ОБЯЗАТЕЛЬНО НУЖНО погасить
+и сам бонд интфрейс и порты которые мы будем в него
+втыкать. это 100% об этом пишет ip link утилита
+
+# nmcli conn down bondV2
+# nmcli conn down br3
+# nmcli conn down br4
+
+вот только теерь нчинвем втыкать порты в бонд
+
+# nmcli conn mod  br3   controller bondV2
+# nmcli conn mod  br4   controller bondV2
+
+тперь все обратно поднимаем
+
+# nmcli conn up br3
+# nmcli conn up br4
+# nmcli conn up bondV2
+
+
+после этой команды в свойствах этих портов будет
+
+connection.controller:                  bondV2
+connection.master:                      bondV2
+connection.slave-type:                  bond
+connection.port-type:                   bond
+
+
+проверяем
+
+ # ip -c l sh master bondV2
+295: br3: 
+296: br4: 
+
+
+мы получили трнаковый порт bondV2
+теперь из него вычленяем потоки с отеными виланами
+
+ # nmcli con add type vlan con-name bondV2.2  ifname bondV2.2   dev bondV2  id 2  ipv4.method manual ipv4.address 172.16.80.1/24 ipv6.method ignore
+ # 
+ # nmcli conn up bondV2.2
+ # 
+ # 
+ # nmcli con add type vlan con-name bondV2.3  ifname bondV2.3   dev bondV2  id 3  ipv4.method manual ipv4.address 172.16.90.1/24 ipv6.method ignore
+ # 
+ # nmcli conn up bondV2.3
+
+
+ # ip -c a sh bondV2.2
+303: bondV2.2@bondV2: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc noqueue state LOWERLAYERDOWN group default qlen 1000
+    link/ether 36:c3:31:53:da:98 brd ff:ff:ff:ff:ff:ff
+    inet 172.16.80.1/24 brd 172.16.80.255 scope global noprefixroute bondV2.2
+       valid_lft forever preferred_lft forever
+ # ip -c a sh bondV2.3
+304: bondV2.3@bondV2: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc noqueue state LOWERLAYERDOWN group default qlen 1000
+    link/ether 36:c3:31:53:da:98 brd ff:ff:ff:ff:ff:ff
+    inet 172.16.90.1/24 brd 172.16.90.255 scope global noprefixroute bondV2.3
+       valid_lft forever preferred_lft forever
+
+
+
+
+-- # nmcli conn add type veth  ifname veth3-1  con-name veth3-1  autoconnect yes save yes  ipv4.method disable ipv6.method ignore                peer veth3-2
+Connection 'veth3-1' (f58482c2-3cb4-4417-92db-9a2710bfc20b) successfully added.
+ # nmcli conn add type veth  ifname veth3-2  con-name veth3-2  autoconnect yes save yes  ipv4.method disable ipv6.method ignore                peer veth3-1
+Connection 'veth3-2' (414dce1d-304f-440d-88c1-a170eb316bf2) successfully added.
+ # 
+ # nmcli conn add type veth  ifname veth4-1  con-name veth4-1  autoconnect yes save yes  ipv4.method disable ipv6.method ignore                peer veth4-2
+Connection 'veth4-1' (e5ced3fc-c5af-4d0a-8ad1-baee4d42ef71) successfully added.
+ # 
+ # nmcli conn add type veth  ifname veth4-2  con-name veth4-2  autoconnect yes save yes  ipv4.method disable ipv6.method ignore                peer veth4-1
+Connection 'veth4-2' (a7f2e5ed-a627-4e21-b353-bc926793e0e0) successfully added.
+
+
+закончил на том что  через вефы  обьеднили два свича.
+и над в кадый свич воткнуть по вефу. а второй конец
+в бонд. а br3 и br4 вытащить из бонда
+
+In nmcli, to unset the list set the value to "". To set an empty list, set it to " ". Currently, an unset list has the same meaning as an empty list. That might change in the fu
+
+пролбема в том что конект от мастера хуй отвяжшь!
+тольк удаляь и пересоздвать сука
+
+================
+
+nmcli con add ifname br-123 type bridge con-name br-123
+nmcli con modify br-123 ipv4.method disabled ipv6.method ignore
+nmcli con up br-123
+
+Create the VLAN on existing bridge (assuming br0 already exists) and attach to the new bridge (br-123).
+1
+2
+3
+	
+nmcli con add type vlan con-name br0.123 ifname br0.123 dev br0 id 123
+
+nmcli con up br0.123
+============
+iptables рабтает с L3 портами. для него L2 порт невдмтмые позрачные.
+
+при этом tap это L2 порт tun это L3
+
+это занчит что бридж 
+
+
+ |          бридж           |
+
+ br0(L3) ===|  tap0 (L2)       врутаткал
+             | tap1 (L2) ---| enp0s3(L3) |
+            |  tap2 (L2)
+
+
+
+для iptables заканываитается на br0 а пролет через tap1 хоть даже этот сет 
+инетрфейс лежит в неймспейсе моего оста для iptanles уже прозрачен! тоест он 
+его сует в br0 а дальше уже код иптебйлос за пакетом не следит. его дивгает другой код
+ядра
+
+
+еще прикол brctl это стараая команда. на мусор вместо нее bridge
+
+$ bridge -c -d link  show dev tap0
+5: tap0: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 master br0 state disabled priority 32 cost 100 
+    hairpin off guard off root_block off fastleave off learning on flood on mcast_flood on bcast_flood on mcast_router 1 mcast_to_unicast off neigh_suppress off neigh_vlan_suppress off vlan_tunnel off isolated off locked off mab off mcast_n_groups 0 mcast_max_groups 0 
+
+
+  $ man bridge
+
+
+
+вот еще прикол
+
+  $ stat $(which  iptables-save )
+  File: /usr/bin/iptables-save -> xtables-legacy-multi
+
+
+вот у меня есть br0 интейрфейс и я пингул машину за этим инфтерйсом. получаю вот такйо тракт
+
+ТУДА
+[NAT-OUTPUT icmp] IN= OUT=br0 SRC=172.16.10.1 DST=172.16.10.11 PROTO=ICMP TYPE=8 
+[FILTER-OUTPUT icmp] IN= OUT=br0 SRC=172.16.10.1 DST=172.16.10.11 PROTO=ICMP TYPE=8 
+[NAT-POSTROUTING icmp] IN= OUT=br0 SRC=172.16.10.1 DST=172.16.10.11 PROTO=ICMP TYPE=8
+
+ОБРАТНО
+[FILTER-INPUT icmp] IN=br0 OUT= SRC=172.16.10.11 DST=172.16.10.1 PROTO=ICMP TYPE=0
+
+запись в коннтркт таблице
+icmp     1 1 src=172.16.10.1 dst=172.16.10.11 type=8 code=0 id=28 src=172.16.10.11 dst=172.16.10.1 type=0 code=0 id=28 mark=0 use=1
+
+
+получаем тракт туда
+
+	[NAT-OUTPUT] - [FILTER-OUTPUT] - [NAT-POSTROUTING]
+
+тракт оратно 
+
+	[FILTER-INPUT]
+
+
+
+юзаю вот эту карипнику
+
+	https://stuffphilwrites.com/wp-content/uploads/2024/05/FW-IDS-iptables-Flowchart-v2024-05-22.png
+
+на самом деле тракт подлинне
+
+ТУДА
+
+	сокет --- таблица маршутиацзии --- [NAT-OUTPUT(DNAT)] --- таблица маршутиацзии --- 
+ 	                      ---[FILTER-OUTPUT] --- [NAT-POSTROUTING(SNAT)] --- сет карта
+
+
+я пометил (DNAT) либо (SNAT) то дейсвтие которое можено сделать в этой цеопчеу
+
+что нтересно
+так как унас при вылете из сокета сращу таблица маршутиации поэтому при влете в NAT-OUTPUT
+у нас уже известен выходная сет карта что и вдно в логе
+                            **
+	[NAT-OUTPUT icmp] IN= OUT=br0 .... 
+
+
+что интересно соласно кртикнке если у анс выходоной интерфейс LO то стадия  [NAT-POSTROUTING]
+будет остуствать
+
+
+ОБРВТНО
+
+сет карта --- [FILTER-INPUT]
+
+
+тоесть для обратного потока все стадии пропускаются кроме одной. это интерсно
+
+
+
+а вот это наборот. я из вртуалки котоаря сидит за br0 пингую наш комп и его br0
+
+ТУДА
+[NAT-PREROUTING icmp] IN=br0 OUT= SRC=172.16.10.11 DST=172.16.10.1 PROTO=ICMP TYPE=8 
+[FILTER-INPUT icmp] IN=br0 OUT= SRC=172.16.10.11 DST=172.16.10.1 PROTO=ICMP TYPE=8 
+[NAT-INPUT icmp] IN=br0 OUT= SRC=172.16.10.11 DST=172.16.10.1 PROTO=ICMP TYPE=8 
+ОРТАТНО
+[FILTER-OUTPUT icmp] IN= OUT=br0 SRC=172.16.10.1 DST=172.16.10.11 PROTO=ICMP
+
+или 
+ТУД
+ сет карта --- [NAT-PREROUTING(DNAT)] -- маршутизация -- [FILTER-INPUT] --- [NAT-INPUT(SNAT)] -
+
+                                                                                    ---- сокет
+
+ОБРАТНО
+     сет ккта --- [FILTER-OUTPUT] -- сокет 
+
+
+
+остается описать случай что и где пробрвазоваь  и как оно леитит на redsocks
+
+===========
+links:
+https://wiki.linuxfoundation.org/networking/bridge
+https://serverfault.com/questions/1113612/how-to-connect-veth-interfaces-to-bridge-slave-ports
+https://unix.stackexchange.com/questions/696582/bonding-with-vlan-and-bridge-on-debian-11
+https://unix.stackexchange.com/questions/264547/how-bridge-works-on-top-of-bond-interface
+https://unix.stackexchange.com/questions/530540/how-remove-an-interface-from-bridge
+https://blog.christophersmart.com/2021/07/18/how-to-create-vlan-trunks-and-access-ports-for-vms-on-linux-bridges-using-networkmanager-and-have-them-talk/
+https://linux-blog.anracom.com/tag/vlan-aware-bridge/
+https://unix.stackexchange.com/questions/349034/kernel-module-for-net-bridge-bridge-nf-call-iptables
+https://intelligentsysadmin.wordpress.com/2023/01/24/bridged-vlans-with-networkmanager/
+https://unix.stackexchange.com/questions/484644/what-are-self-and-master-options-for-in-bridge-vlan-add
+https://docs.bisdn.de/network_configuration/vlan_bridging.html
+https://unix.stackexchange.com/questions/769448/how-to-create-a-linux-vlan-aware-bridge-with-ingress-packets-untagged-and-egress
+https://serverfault.com/questions/1140948/unable-to-create-a-linux-bridge-with-a-vlan-interface-on-fedora
+https://serverfault.com/questions/1151468/vlan-on-top-of-vlan-aware-bridge-possible-and-how
+https://unix.stackexchange.com/questions/783629/how-to-create-a-persistent-vlan-aware-bridge-on-rhel-based-system-i-e-with-net
+https://networkengineering.stackexchange.com/questions/24404/vlan-0-1-and-4095-are-reserved-what-are-they-reserved-for
+https://serverfault.com/questions/1151468/vlan-on-top-of-vlan-aware-bridge-possible-and-how
+https://serverfault.com/questions/1140948/unable-to-create-a-linux-bridge-with-a-vlan-interface-on-fedora
+https://superuser.com/questions/1833519/how-can-i-get-a-vlan-interface-in-a-linux-bridge
+https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/7/html/networking_guide/sec-vlan_on_bond_and_bridge_using_ip_commands#sec-VLAN_on_Bond_and_Bridge_Using_ip_Commands
+https://www.kernel.org/doc/Documentation/networking/bonding.txt
+https://documentation.suse.com/smart/network/pdf/network-bond-managing-devices_en.pdf
+https://www.loadbalancer.org/blog/what-is-networking-bonding-and-what-might-you-use-it-for/
+https://developers.redhat.com/blog/2018/10/22/introduction-to-linux-interfaces-for-virtual-networking#vlan
+https://wiki.archlinux.org/title/Network_bridge
+https://routemyip.com/posts/linux/networking/bridge-netfilter-unexpected-consequences/
+https://serverfault.com/questions/1115934/linux-bridge-vlan-aware-and-untagged-traffic
+
+https://wiki.linuxfoundation.org/networking/bridge
+https://wiki.linuxfoundation.org/networking/bridge
+https://wiki.nftables.org/wiki-nftables/index.php/Nftables_families

@@ -1,0 +1,39 @@
+| VGA
+| video
+
+
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/io.h>
+#include <unistd.h>
+
+#define VIDEO_MEMORY 0xB8000  // Адрес видеопамяти VGA в текстовом режиме
+#define SCREEN_WIDTH 80       // Ширина экрана (80 символов)
+#define SCREEN_HEIGHT 25      // Высота экрана (25 строк)
+
+// Функция для печати символа на экране
+void put_char(int x, int y, char character, char color) {
+    unsigned short *video_memory = (unsigned short *) VIDEO_MEMORY;
+    int offset = y * SCREEN_WIDTH + x; // Вычисляем позицию в видеопамяти
+    video_memory[offset] = (color << 8) | character; // Записываем символ + цвет
+}
+
+int main() {
+    if (ioperm(0x3D4, 2, 1)) { // Разрешаем доступ к VGA-регистрам
+        perror("ioperm");
+        return 1;
+    }
+
+    // Выводим текст "Hello VGA" в центр экрана белым цветом на черном фоне
+    char *text = "Hello, VGA!";
+    int start_x = (SCREEN_WIDTH - strlen(text)) / 2;
+    int start_y = SCREEN_HEIGHT / 2;
+
+    for (int i = 0; text[i] != '\0'; i++) {
+        put_char(start_x + i, start_y, text[i], 0x0F); // 0x0F - белый цвет
+    }
+
+    return 0;
+}

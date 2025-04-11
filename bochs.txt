@@ -1,0 +1,24 @@
+| bochs
+
+links
+
+https://github.com/darkk/redsocks/blob/master/redsocks.conf.example
+https://bochs.sourceforge.io/doc/docbook/user/setup.html#AEN1586
+https://www.linux.com/news/getting-started-bochs/
+https://bochs.sourceforge.io/doc/docbook/user/rom-images.html
+
+https://bochs.sourceforge.io/cgi-bin/topper.pl?name=New+Bochs+Documentation&url=https://bochs.sourceforge.io/doc/docbook/
+
+
+https://bochs.sourceforge.io/diskimages.html
+https://bochs.sourceforge.io/doc/docbook/user/cpu-models.html
+
+https://www.mankier.com/5/bochsrc
+https://github.com/ipxe/bochs/blob/master/.bochsrc
+https://bochs.sourceforge.io/
+https://f.osdev.org/viewtopic.php?t=22856
+https://stackoverflow.com/questions/6142925/how-can-i-use-bochs-to-run-assembly-code
+https://www.cs.princeton.edu/courses/archive/fall06/cos318/precepts/bochs.html
+https://www.cs.princeton.edu/courses/archive/fall09/cos318/precepts/bochs_gdb.html
+https://www.fysnet.net/bochsdbg/index.htm
+https://medium.com/@jshschiavone/an-introduction-to-i386-boot-loader-programming-823354b80846

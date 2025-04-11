@@ -1,0 +1,6 @@
+# for i in {0..255}; do printf  "\x$(bc <<< "ibase=10;obase=16; $i")" >/dev/tty3; done
+
+# for line in $(cat 04); do printf "\u$line\n" > /dev/tty3 ; done
+
+
+# mapscrn --verbose  -C /dev/tty3 ./ISIRI-3342.acm.gz

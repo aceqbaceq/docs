@@ -1,0 +1,12 @@
+| keys
+| keyboard
+
+
+links
+
+https://wiki.archlinux.org/title/Xbindkeys#Identifying_keycodes
+
+https://superuser.com/questions/1857675/function-key-recognized-by-showkey-and-evtest-command-but-not-by-xev-on-arch-lin
+
+https://unix.stackexchange.com/questions/202891/how-to-know-whether-wayland-or-x11-is-being-used
+

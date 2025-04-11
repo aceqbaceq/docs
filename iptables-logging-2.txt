@@ -1,21 +1,27 @@
 на счет логирования в  nftables
-есть вот такая хрень
+есть вот такая таблица
 
-# cat /proc/net/netfilter/nf_log 
+	# cat /proc/net/netfilter/nf_log 
  0 NONE (nfnetlink_log)
  1 NONE (nfnetlink_log)
- 2 nfnetlink_log (nf_log_ipv4,nfnetlink_log)
- 3 nf_log_arp (nf_log_arp,nfnetlink_log)
+ 2 nfnetlink_log (nf_log_ipv4,nfnetlink_log)  *
+ 3 nf_log_arp (nf_log_arp,nfnetlink_log)      *
  4 NONE (nfnetlink_log)
- 5 nf_log_netdev (nf_log_netdev,nfnetlink_log)
+ 5 nf_log_netdev (nf_log_netdev,nfnetlink_log) *
  6 NONE (nfnetlink_log)
- 7 nfnetlink_log (nf_log_bridge,nfnetlink_log)
+ 7 nfnetlink_log (nf_log_bridge,nfnetlink_log) *
  8 NONE (nfnetlink_log)
  9 NONE (nfnetlink_log)
-10 nfnetlink_log (nf_log_ipv6,nfnetlink_log)
+10 nfnetlink_log (nf_log_ipv6,nfnetlink_log)  *
 
 
-здесь каждая строка это протокол 
+значит каждая строка в этой таблице это тип таблиц 
+в nftables. дело в том что в нфтейблс есть разнцые типы 
+таблиц. в таблицу суются правла которые филтруют трафик. 
+так вот каждый тип таблиц используется для фильтрации РАЗНОГО
+трафика. один тип таблиц для фильрования ipv6\ipv4 трафика
+
+здесь каждая строка отвечает за  протокол 
 строчка 2 отвечает за IPV4
 
 так вот в этой строке указаны модули ядра котоыре в nftables\iptables отвечают за логирование, они различаются по 
@@ -109,4 +115,4 @@ nft add rule inet my_filter input ip protocol icmp tee group 2
  и еще попробвать вариантпрограммы на си которая пытается 
  подписаться на группу NF и увидеть что она получит нахуй олтлуп
 
- 
+

@@ -2782,6 +2782,13 @@ ssl.txt
 sudo.txt
 pptpd.txt
 scroll_wheel_mouse.txt
+утилита perf (https://www.brendangregg.com/perf.html)
+systemd dynamic users 
+    https://0pointer.net/blog/dynamic-users-with-systemd.html
+    https://www.freedesktop.org/software/systemd/man/latest/systemd-userdbd.service.html
+dup() dup2()
+    https://stackoverflow.com/questions/1720535/practical-examples-use-dup-or-dup2
+    
 =========
 
 

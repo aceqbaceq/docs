@@ -1,0 +1,646 @@
+| wifi
+| nmcli
+
+
+> dump
+ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=0
+ctrl_interface_group=null
+eapol_version=1
+ap_scan=1
+user_mpm=1
+max_peer_links=99
+mesh_max_inactivity=1000
+mesh_fwding=1
+dot11RSNASAERetransPeriod=1000
+disable_scan_offload=0
+fast_reauth=1
+opensc_engine_path=null
+pkcs11_engine_path=null
+pkcs11_module_path=null
+openssl_ciphers=null
+pcsc_reader=null
+pcsc_pin=null
+external_sim=0
+driver_param=null
+dot11RSNAConfigPMKLifetime=0
+dot11RSNAConfigPMKReauthThreshold=0
+dot11RSNAConfigSATimeout=0
+update_config=0
+auto_uuid=0
+device_name=null
+manufacturer=null
+model_name=null
+model_number=null
+serial_number=null
+config_methods=null
+wps_cred_processing=0
+wps_cred_add_sae=0
+p2p_listen_reg_class=0
+p2p_listen_channel=0
+p2p_oper_reg_class=0
+p2p_oper_channel=0
+p2p_go_intent=7
+p2p_ssid_postfix=null
+persistent_reconnect=0
+p2p_intra_bss=1
+p2p_group_idle=0
+p2p_go_freq_change_policy=2
+p2p_passphrase_len=0
+p2p_add_cli_chan=0
+p2p_optimize_listen_chan=0
+p2p_go_ht40=0
+p2p_go_vht=0
+p2p_go_he=0
+p2p_go_edmg=0
+p2p_disabled=0
+p2p_go_ctwindow=0
+p2p_no_group_iface=0
+p2p_ignore_shared_freq=0
+ip_addr_go=0.0.0.0
+ip_addr_mask=0.0.0.0
+ip_addr_start=0.0.0.0
+ip_addr_end=0.0.0.0
+p2p_cli_probe=0
+p2p_device_random_mac_addr=0
+p2p_interface_random_mac_addr=0
+p2p_6ghz_disable=0
+bss_max_count=200
+bss_expiration_age=250
+bss_expiration_scan_count=2
+filter_ssids=0
+filter_rssi=0
+max_num_sta=128
+ap_isolate=0
+disassoc_low_ack=0
+hs20=0
+interworking=0
+access_network_type=15
+go_interworking=0
+go_access_network_type=0
+go_internet=0
+go_venue_group=0
+go_venue_type=0
+pbc_in_m1=0
+autoscan=null
+wps_nfc_dev_pw_id=0
+ext_password_backend=null
+p2p_go_max_inactivity=300
+auto_interworking=0
+okc=0
+pmf=1
+sae_check_mfp=0
+sae_pwe=2
+sae_pmkid_in_assoc=0
+dtim_period=0
+beacon_int=0
+ignore_old_scan_res=0
+scan_cur_freq=0
+scan_res_valid_for_connect=5
+sched_scan_interval=0
+sched_scan_start_delay=0
+tdls_external_control=0
+osu_dir=null
+wowlan_triggers=null
+p2p_search_delay=500
+mac_addr=0
+rand_addr_lifetime=60
+preassoc_mac_addr=0
+key_mgmt_offload=1
+passive_scan=0
+reassoc_same_bss_optim=0
+wps_priority=0
+fst_group_id=null
+fst_priority=0
+fst_llt=0
+cert_in_cb=1
+wpa_rsc_relaxation=1
+sched_scan_plans=null
+non_pref_chan=null
+mbo_cell_capa=3
+disassoc_imminent_rssi_threshold=0
+oce=1
+gas_address3=0
+ftm_responder=0
+ftm_initiator=0
+gas_rand_addr_lifetime=60
+gas_rand_mac_addr=0
+dpp_config_processing=0
+dpp_name=null
+dpp_mud_url=null
+dpp_extra_conf_req_name=null
+dpp_extra_conf_req_value=null
+dpp_connector_privacy_default=0
+coloc_intf_reporting=0
+disable_btm=0
+extended_key_id=0
+wowlan_disconnect_on_deinit=0
+ft_prepend_pmkid=0
+<3>CTRL-EVENT-SCAN-STARTED 
+<3>CTRL-EVENT-SCAN-RESULTS 
+> 
+
+====================
+было dot11RSNAConfigPMKLifetime=0  | стало dot11RSNAConfigPMKLifetime=604800
+
+
+было autoscan=periodic:600
+стало autoscan=null
+
+=========================
+
+$ nmcli connection  add  type tun  mode tun owner 1000   ifname tun0  con-name tun0 autoconnect yes
+save yes 
+ $ nmcli connection  add  ifname help
+
+
+ nmcli connection add { ARGUMENTS | help }
+
+ARGUMENTS := COMMON_OPTIONS TYPE_SPECIFIC_OPTIONS PORT_OPTIONS IP_OPTIONS [-- ([+|-]<setting>.<property> <value>)+]
+
+  COMMON_OPTIONS:
+                  type <type>
+                  [ifname <interface name> | "*"]
+                  [con-name <connection name>]
+                  [autoconnect yes|no]
+                  [save yes|no]
+                  [controller <controller (ifname, or connection UUID or name)>]
+                  [port-type <controller connection type>]
+
+  tun:          mode tun|tap
+                  [owner <UID>]
+                  [group <GID>]
+                  [pi yes|no]
+                  [vnet-hdr yes|no]
+                  [multi-queue yes|no]
+
+==================================
+
+
+
+
+# nmcli connection add     type vlan    dev tap11   id 2     ifname tap11.2    con-name tap11.2   autoconnect yes     save yes    ipv4.method disabled    ipv6.method disabled 
+
+
+nmcli conn mod tap11.2 master br1
+
+==================================
+
+nmcli conn sh
+
+NAME                UUID                                  TYPE      DEVICE
+Wired connection 1  25761cb7-2a88-31f4-811a-f48f0a9d4f77  ethernet  --
+
+если колнка DEVICE пустаая это значит что сет порт
+(на котором базрцется этот конект) неимеет тока 
+выключен. как тока получит ток то колонка DEVICE 
+наполнится
+
+
+
+далее 
+nmcli dev tap0 disconnect
+нельзя юзать нив коем случае! он сука удалаяет
+карту до презагрузк сервиса! 
+
+======================
+
+
+
+# ip -c link add   link tap11   name  tap11.2   type vlan   id 2
+
+# nmcli dev sh tap11.2
+GENERAL.DEVICE:                         tap11.2
+GENERAL.TYPE:                           vlan
+GENERAL.HWADDR:                         FA:7B:84:00:8D:F8
+GENERAL.MTU:                            1500
+GENERAL.STATE:                          10 (unmanaged)
+GENERAL.CONNECTION:                     --
+GENERAL.CON-PATH:                       --
+IP4.GATEWAY:                            --
+IP6.GATEWAY:                            --
+
+
+
+# ip -c l set  tap11.2  master br1
+
+
+# ip -d -c l  sh type vlan dev tap11.2
+tap11.2@tap11:master br1 
+    vlan protocol 802.1Q id 2 <REORDER_HDR> 
+    bridge_slave 
+
+===========================
+
+| nmcli bridge tap
+| tap 
+| bridge
+
+создам бридж
+# nmcli conn add type  bridge stp yes  ifname br1 con-name br1  autoconnect yes save yes  ip4 172.16.80.1/24
+
+модифицируем его до VLAN AWARE
+# nmcli connection modify br1  bridge.vlan-filtering yes bridge.vlan-default-pvid 1
+
+создаем два tap порта но пока что их в бридж
+не всталяем. потому что мы будем из них вычленять
+vlan субинтрфйесы
+
+
+# nmcli connection add   type tun  mode tap owner 1000 group 1000  ifname tap11  con-name tap11 autoconnect yes save yes ipv4.method disabled ipv6.method disabled
+master br1
+
+# nmcli conn up tap11
+
+
+
+
+создаем VLAN субинтерфейсы
+
+# nmcli connection add     type vlan    dev tap13   id 2     ifname tap13.2    con-name tap13.2     autoconnect yes     save yes    ipv4.method disabled    ipv6.method disabled
+
+
+
+# nmcli  conn mod tap13.2 master br2
+
+
+
+
+# nmcli connection add     type vlan    dev tap12   id 2     ifname tap12.2    con-name tap12.2    autoconnect yes     save yes    ipv4.method disabled    ipv6.method disabled  
+
+
+
+master br0 connection.interface-name  tap11.2  connection.controller br1 connection.master  br1      connection.slave-type  bridge    connection.port-type  bridge 
+
+
+~]$ nmcli connection add type bridge con-name Bridge0 ifname br0 ipv4.method manual ipv4.addresses 192.0.2.1/24
+
+~]$ nmcli connection add type vlan con-name Vlan2 ifname bond0.2 dev bond0 id 2 master br0 slave-type bridge
+
+=============================
+onlink
+flannel
+route
+
+
+имею карту 
+veth0:
+   inet 10.233.64.0/32 scope global veth0
+
+и маршрут
+10.233.65.0/24 via 10.233.65.0 dev veth0 onlink
+
+на том конце сидит veth1
+
+# ip netns exec ns01 ip -c a sh
+25: veth1@if26:
+    inet 10.233.65.0/32 scope global veth1
+
+и маршрут 
+# ip netns exec ns01 ip -c r sh
+10.233.64.0/24 via 10.233.64.0 dev veth1 onlink 
+
+
+и вот у меня работает пинг с хоста на veth1
+
+# ping -c1 -4 10.233.65.0 -I  veth0
+
+
+в чем приколы:
+  - onlink
+  - стремные ип адреса  10.233.65.0 10.233.64.0
+  - lo  в состоянии down на той стороне но все равно
+    работает
+  - арп поток работает несмотря на запрет в ипебйлс
+  - вот  этот обратный маршрут 
+    10.233.64.0/24 via 10.233.64.0 dev veth1 onlink 
+    он нужен доя ответного пинга. 
+
+
+вот эти стремные ип адреса любит фланнель вставлять
+на свои концы тунеля
+
+вот тцпдамп на veth1
+
+# ip netns exec ns01 tcpdump -epn -i veth1
+
+02:45:9f:eb:b2:f4 > ff:ff:ff:ff:ff:ff, ethertype ARP (0x0806), length 42: Request who-has 10.233.65.0 tell 10.233.64.0
+
+02:7b:1c:56:8e:fa > 02:45:9f:eb:b2:f4, ethertype ARP (0x0806), length 42: Reply 10.233.65.0 is-at 02:7b:1c:56:8e:fa
+
+02:45:9f:eb:b2:f4 > 02:7b:1c:56:8e:fa, ethertype IPv4 (0x0800), length 98: 10.233.64.0 > 10.233.65.0: ICMP echo request
+
+02:7b:1c:56:8e:fa > 02:45:9f:eb:b2:f4, ethertype IPv4 (0x0800), length 98: 10.233.65.0 > 10.233.64.0: ICMP echo reply
+
+
+если испольщуся порты уровня L2+L3 то далется зарпос
+мак адреса чтобы эзернет фрейм составит
+а если картчоки уровня чисто L3 (типа tunN) так 
+еще проще - даже мак едрса ненужно выяснять. чтито
+бери и суй в порт ип пакет.
+
+ксати фланнель использует тип порта vxlan
+
+# ip -c -d l sh dev flannel.1
+
+ flannel.1:
+    vxlan id 1 local 172.16.10.17 dev enp0s3 srcport 0 0 dstport 8472 nolearning ttl 
+
+
+замечу что в свойствах линка тоесть порта указан 
+некий ип.  
+
+а есть другой ип уже свойствах ип на этом порту
+5: flannel.1: 
+    inet 10.233.64.0/32 scope global flannel.1
+
+вот такой прикол. 
+
+насколько я понимаю на хосте мы суем пакет в 
+в порт flannel.1 ( но пока не понимаю с какими 
+ип параметрами) а он в итоге шифруется и перращается
+в UDP пакет с  src_ip 172.16.10.17
+вооможно в этом еще как то участует иптеблс таблица
+(разобраться)
+
+тажке что после утановки куба  видно что система
+заюзала iptavles-nft  интфрейс.
+
+
+
+======================
+disassoc_imminent_rssi_threshold=0
+
+=============
+ wifi connect (B)SSID [password password] [wep-key-type {key | phrase}] [ifname ifname]
+       [bssid BSSID] [name name] [private {yes | no}] [hidden {yes | no}]
+
+
+ wifi hotspot [ifname ifname] [con-name name] [ssid SSID] [band {a | bg}] [channel channel]
+       [password password]
+
+
+
+band это если мы создаем хотспот
+
+
+=============
+через iw ... тоже можно подключться (проверить!)
+
+iw list - описать свойства
+
+dhclient !
+
+проблема - отвал вай фай
+проблема - если я покдлючаю вай фай через
+голвый wpa_suplicant то сеть каждые 5 минут 
+отваливется. а если  подключаю через NM то все окей
+
+
+надо руками дать ип и маршрут.
+
+
+wpa_cli
+5min отруб
+dbus
+dbus ошибка
+
+про dhcp клиент ( какой у него пакет? IP?)
+
+далее надо описать что голый супликант я не запукаю
+что это делает nmcli  - расписать
+
+netorkmanager разные статусы
+nm applet показыает статусы нестатус портов а 
+статус конектов с точки зрения самого netowrkmanger
+
+
+
+============
+когда улдаялешь конекты в nmcli  и если
+они освноаны на искустрвенных портах то нмкли
+неудалется эти порты! и их нужно заходить и удалтья
+рукамми! обзятазлено!
+
+
+====
+| iw
+
+iw это самая современная утилита посмтреть
+свойства своей вай фай карточки и также поменять
+параметры вай фай карточки
+
+
+
+посмотреть свойства своей физ вай 
+фай карточки
+
+   #  iw list
+
+вижу там такое
+	Device supports RSN-IBSS.
+	Device supports AP-side u-APSD.
+	Device supports T-DLS.
+
+
+===========
+| iwconfig
+
+утилита аналог ifconfig
+якобы это старая утилита . более новый аналог ее
+это iw
+
+
+ее вывод
+
+wlan0     IEEE 802.11  ESSID:off/any  
+          Mode:Managed  Access Point: Not-Associated   Tx-Power=20 dBm   
+          Retry short limit:7   RTS thr:off   Fragment thr:off
+          Power Management:on
+          
+wlp2s0    IEEE 802.11  ESSID:"iphone"  
+          Mode:Managed  Frequency:5.18 GHz  Access Point: 8A:07:8A:23:04:C5   
+          Tx-Power=20 dBm   
+          Retry short limit:7   RTS thr:off   Fragment thr:off
+          Power Management:off
+          Link Quality=68/70  Signal level=-42 dBm  
+          Rx invalid nwid:0  Rx invalid crypt:0  Rx invalid frag:0
+          Tx excessive retries:0  Invalid misc:31   Missed beacon:0
+
+
+на счет Mode
+
+Mode:Managed
+
+это значит что карта работает в таком реиме что 
+она подключена к точке доступа. 
+
+=============
+iwd
+
+это программа которая наверно в будущем
+заменит wpa_supplicant
+по крайней мере она написана как ее заместитель
+
+устаналиваем
+    # pacman -Sy iwd
+
+
+первый прикол:
+при его старте он удаляет все wifi линки\порты wlp2s0 
+из списка. тоесть исчезают карты из 
+
+	ip link sh
+
+как он удалеяем я не знаю. я знаю как я могу
+это сделать 
+
+	# iw dev wlp2s0 del
+
+я могу сказать что приходсит при этом на уровне sys
+вот зесь сидит моя желкзка
+/sys/devices/pci0000:00/0000:00:1d.0/0000:02:00.0
+
+если карта есть в списке ip link sh то тут 
+создатеся папка net и в ней
+имя порта
+   
+   ./net/wlp2s0
+
+и также создается симлинк
+
+
+ln -s /sys/devices/pci0000:00/0000:00:1d.0/0000:02:00.0/net/wlp2s0   /sys/class/net/wlp2s0
+
+руками это все сдлетаь нельзя сразу говорю. это
+надо делать командой
+
+так вот когда я удаляю # iw dev wlp2s0 del то исчзает
+папка ./net и исчезает симлинк!
+
+
+при этом есть еше прикол . у меня есть тут еще 
+папка
+
+./ieee80211
+
+и в ней файл phy0
+
+этот phy0 это каото более нижнее имя карты. его
+удалить никак нелья. он есть всегда. но это не 
+имя порта! этот phy0 можно увидеть через уитилиты
+вот так
+
+# iw phy  |  head -n3
+Wiphy phy0   ****<===== *****
+	wiphy index: 0
+
+это какоето физическое лоу левел имя вай фай 
+железки. мы его в списке портов никогда не увидим
+
+
+так вот прикол в том что я могу на основе это физ
+линка создать уже привычную сеетевую карту
+которую видно в ip link sh
+
+# iw phy phy0 interface add wlan2 type managed
+
+где phy0  это что лежит  папке ./ieee80211 а 
+wlan2 это точ тобудет лежать в паапке ./net
+и то что будет лежать в пааке sys/class/net
+и то что будет видть ip link sh
+
+причем я могу это процесс повторить и создать на
+базе физ карты еще несколько "портов"
+
+# iw phy phy0 interface add wlan3 type managed
+
+тоеть мы на базе одной физ карты может насоздавать
+кучу вируальных карт. спрашивается зачем? в теории
+через одну карту можно поклюаться к одной вай  фай
+сети а через другую к другой. скажу сразу у меня
+это на пратике не получилось. при попытке подключатся
+через вторую я логах ошибка.
+
+	wpa_supplicant[697981]: nl80211: kernel reports: 
+	Match already configured
+
+обращаю внимание на опцию type managed она задает
+то какую роль будет выполнять вирт сетевая карта.
+есть вот такие типы:
+
+
+
+iwd созлает  wlan0  и он кладет праивло в 
+# cat /usr/lib/systemd/network/80-iwd.link 
+[Match]
+Type=wlan
+
+[Link]
+NamePolicy=keep kernel
+
+на случай если у нас запущен systemd-networkd
+чтобы после перезагуки у нас этот wlan0 ситмед созал
+повторно сам! 
+тут прикол в том что на компе есть udev который при 
+перезагзуке сздат спецфайлы. а тут еще выянсятется
+что систмд тоже этим занимается! 
+
+
+
+как сделть так тобы iwd нетргал уэе иеющиеся 
+порты
+# man iwd.config
+# cat /etc/iwd/main.conf 
+[General]
+UseDefaultInterface=true
+EnableNetworkConfiguration=false
+Interface=wlan0
+
+как сделаьт так чтобы iwd неавтосартолвал вход в
+сеть
+
+# iwctl known-networks iphone show
+                             Known Network: iphone                             
+--------------------------------------------------------------------------------
+  Settable  Property            Value                                             
+--------------------------------------------------------------------------------
+            Name                iphone                                              
+            Hidden              yes                                                 
+         *  AutoConnect         no                                                  
+
+# iwctl known-networks iphone set-property AutoConnect no
+
+причем важно чтобы  AutoConnect указать в точности!
+тоесть Autoconnect не прокатит!
+
+логины и пароли к сетион хранит в другом месте 
+/var/lib/iwd !
+
+
+так как на базе одно phy можно сздать неолкьско wlpN
+то у нас может wpa_suplicant рабоать с одной
+вай фай картой а iwd с другой. 
+
+===========
+links:
+https://networkmanager.dev/docs/api/latest/nm-settings-nmcli.html
+https://www.tek.com/en/documents/primer/wi-fi-overview-80211-physical-layer-and-transmitter-measurements
+https://help.keenetic.com/hc/en-us/articles/213968809-What-you-need-to-know-about-Wi-Fi-4-IEEE-802-11n
+https://en.wikipedia.org/wiki/Guard_interval
+https://en.wikipedia.org/wiki/IEEE_802.11ac-2013
+https://wiki.archlinux.org/title/Systemd-networkd
+https://www.intel.com/content/www/us/en/support/articles/000005725/wireless/legacy-intel-wireless-products.html
+https://en.wikipedia.org/wiki/Dynamic_Host_Configuration_Protocol
+https://wireless.docs.kernel.org/en/latest/en/users/documentation/iw.html
+https://help.ubuntu.com/community/WifiDocs/Adhoc
+https://en.wikipedia.org/wiki/Service_set_(802.11_network)
+https://en.wikipedia.org/wiki/TDLS
+https://wiki.archlinux.org/title/Ad-hoc_networking
+https://wireless.docs.kernel.org/en/latest/en/users/drivers.html
+https://wireless.docs.kernel.org/en/latest/en/users/documentation/iw.html
+https://wiki.archlinux.org/title/Wpa_supplicant
+https://www.spinics.net/lists/linux-wireless/msg44139.html
+https://gist.githubusercontent.com/nickpegg/059ad1e0a0a14671892e/raw/ccb9cbdb0f99208c93d7bfce3ada3e459fadce87/hostapd.conf
+https://raspberrypi.stackexchange.com/questions/56327/how-to-set-pi-up-as-a-hidden-wifi-access-point
+https://blog.fraggod.net/2017/04/27/wifi-hostapd-configuration-for-80211ac-networks.html
+https://www.kernel.org/doc/Documentation/rfkill.txt

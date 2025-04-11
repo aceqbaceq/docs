@@ -1,6 +1,3 @@
-$ LC_NUMERIC=de_DE.UTF-8  printf '%f\n' 1233.14
-bash: warning: setlocale: LC_NUMERIC: cannot change locale (de_DE.UTF-8)
-1233.140000
 
 $ env LC_NUMERIC=de_DE.UTF-8  printf '%f\n' 1233.14
 1233,140000

@@ -821,4 +821,21 @@ putc() printf()
 
 вобщем очередная тема пиздец.
 
+отличный сайт где можно посмотреть юникод поинты
+и кодровку символов в любой из ютф-8 ютф-16 ютф-32
 
+https://www.compart.com/en/unicode/U+042E
+
+ссылки:
+https://en.wikipedia.org/wiki/List_of_Unicode_characters
+https://superuser.com/questions/1648800/why-does-utf-16-have-big-or-little-endian-but-utf-8-doesnt
+https://en.wikipedia.org/wiki/UTF-16
+https://www.linux.com/news/programming-wide-characters/
+https://herbert.the-little-red-haired-girl.org/html/glibc/libc_18.html#SEC309 (glibc manual)
+https://ftp.gnu.org/old-gnu/Manuals/glibc-2.2.3/html_chapter/libc_9.html
+https://en.wikipedia.org/wiki/Wide_character
+https://stackoverflow.com/questions/4588302/why-isnt-wchar-t-widely-used-in-code-for-linux-related-platforms
+https://learn.microsoft.com/en-us/cpp/c-runtime-library/reference/putchar-putwchar?view=msvc-170
+https://stackoverflow.com/questions/75126743/i-have-difficulties-with-putwchar-in-c
+https://stackoverflow.com/questions/75126743/i-have-difficulties-with-putwchar-in-c
+https://ru.wikipedia.org/wiki/%D0%9A%D0%B8%D1%80%D0%B8%D0%BB%D0%BB%D0%B8%D1%86%D0%B0_%D0%B2_%D0%AE%D0%BD%D0%B8%D0%BA%D0%BE%D0%B4%D0%B5

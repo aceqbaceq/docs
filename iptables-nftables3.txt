@@ -1,0 +1,22 @@
+| iptables
+| nftables
+
+
+на картикнкнее iptables там где показано что с синего инетфрейса можно 
+подняться наверх к локал процесс. я проверил - рально можно прцоессом через задницу
+завхаитить синий интейрфес. намрер через 
+
+ ping -I tap0 172.16.10.11 -c 1
+
+
+ лог
+
+ фев 03 04:04:45 lenovo kernel: br0: port 2(tap0) entered disabled state
+фев 03 04:06:06 lenovo kernel: [NAT-OUTPUT icmp] IN= OUT=tap0 SRC=172.16.10.1 DST=172.16.10.11 LEN=84 TOS=0x00 PREC=0x00 TTL=64 ID=27698 DF PROTO=ICMP TYPE=8 CODE=0 ID=95 SEQ=1 
+фев 03 04:06:06 lenovo kernel: [FILTER-OUTPUT icmp] IN= OUT=tap0 SRC=172.16.10.1 DST=172.16.10.11 LEN=84 TOS=0x00 PREC=0x00 TTL=64 ID=27698 DF PROTO=ICMP TYPE=8 CODE=0 ID=95 SEQ=1 
+фев 03 04:06:06 lenovo kernel: [NAT-POSTROUTING icmp] IN= OUT=tap0 SRC=172.16.10.1 DST=172.16.10.11 LEN=84 TOS=0x00 PREC=0x00 TTL=64 ID=27698 DF PROTO=ICMP TYPE=8 CODE=0 ID=95 SEQ=1 
+фев 03 04:06:09 lenovo kernel: [FILTER-OUTPUT icmp] IN= OUT=lo SRC=172.16.10.1 DST=172.16.10.1 LEN=112 TOS=0x00 PREC=0xC0 TTL=64 ID=9899 PROTO=ICMP TYPE=3 CODE=1 [SRC=172.16.10.1 DST=172.16.10.11 LEN=84 TOS=0x00 PREC=0x00 TTL=64 ID=27698 DF PROTO=ICMP TYPE=8 CODE=0 ID=95 SEQ=1 ] 
+фев 03 04:06:09 lenovo kernel: [FILTER-INPUT icmp] IN=lo OUT= MAC=00:00:00:00:00:00:00:00:00:00:00:00:08:00 SRC=172.16.10.1 DST=172.16.10.1 LEN=112 TOS=0x00 PREC=0xC0 TTL=64 ID=9899 PROTO=ICMP TYPE=3 CODE=1 [SRC=172.16.10.1 DST=172.16.10.11 LEN=84 TOS=0x00 PREC=0x00 TTL=64 ID=27698 DF PROTO=ICMP TYPE=8 CODE=0 ID=95 SEQ=1 ] 
+^C
+
+

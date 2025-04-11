@@ -1,0 +1,99 @@
+| bond   active+backup
+
+
+
+# ip link add veth13 type veth peer name veth14
+# ip link add veth15 type veth peer name veth16
+# ip link set veth14 master br0
+# ip link set veth16 master br0
+
+
+# ip link set bond1 down
+# ip link set bond1 type bond mode active-backup
+# ip link set bond1 up
+
+
+# ip link set veth13 master bond1
+# ip link set veth15 master bond1
+
+
+# ip -c link set veth13 up
+# ip -c link set veth14 up
+# ip -c link set veth15 up
+# ip -c link set veth16 up
+
+# ip -c addr add 172.16.50.1/24 dev bond1
+
+# ip netns exec mynet2  ip addr add 172.16.50.11/24 dev veth12
+# ip netns exec   ns03   ip addr add 172.16.50.10/24 dev veth10
+ 
+роерил раобтаает 
+
+# ping -s 1000 -i 0.01 172.16.50.10 -I 172.16.40.1 1>/dev/null
+
+ nmon
+
+
+# cat /sys/class/net/bond1/bonding/mode
+active-backup 1
+# cat /sys/class/net/bond1/bonding/active_slave 
+veth13
+
+
+
+# cat /proc/net/bonding/bond1
+Ethernet Channel Bonding Driver: v6.11.11-1-MANJARO
+
+Bonding Mode: fault-tolerance (active-backup)
+Primary Slave: None
+Currently Active Slave: veth13
+MII Status: up
+MII Polling Interval (ms): 100
+Up Delay (ms): 0
+Down Delay (ms): 0
+Peer Notification Delay (ms): 0
+
+Slave Interface: veth13
+MII Status: up
+Speed: 10000 Mbps
+Duplex: full
+Link Failure Count: 1
+Permanent HW addr: c6:1d:b1:0e:ad:2c
+Slave queue ID: 0
+
+Slave Interface: veth15
+MII Status: up
+Speed: 10000 Mbps
+Duplex: full
+Link Failure Count: 1
+Permanent HW addr: 16:92:df:70:86:9b
+Slave queue ID: 0
+# 
+
+
+
+
+а вот что на счет мак адресов
+
+
+# ip -c l sh dev bond1
+bond1:  c6:1d:b1:0e:ad:2c 
+
+
+
+# ip -c l sh master bond1
+veth13@veth14:  c6:1d:b1:0e:ad:2c 
+veth15@veth16:  c6:1d:b1:0e:ad:2c 
+
+
+итак
+
+bond1:   c6:1d:b1:0e:ad:2c 
+veth13@veth14:  c6:1d:b1:0e:ad:2c 
+veth15@veth16:  c6:1d:b1:0e:ad:2c 
+
+тоесть при высираении пакета из каждый карты
+тоест для исходящего поткоа 
+у нас пакет будет иметь один и тотже мак и он 
+будет равен маку bond интейрфейса
+

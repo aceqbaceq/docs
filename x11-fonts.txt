@@ -1,0 +1,23 @@
+| x11
+| fonts
+| X11
+
+
+for font in *.bdf; do bdftopcf "$font" -o "${font%.bdf}.pcf"; done
+
+
+sudo mkdir -p /usr/share/fonts/local
+sudo cp *.pcf /usr/share/fonts/local/
+cd /usr/share/fonts/local/
+sudo mkfontscale
+sudo mkfontdir
+xset +fp /usr/share/fonts/local/
+xset fp rehash
+fc-cache -fv
+
+links:
+https://en.wikipedia.org/wiki/PC_Screen_Font#Font_flags
+https://en.wikipedia.org/wiki/PC_Screen_Font#Font_flags
+https://wiki.archlinux.org/title/X_Logical_Font_Description
+
+https://www.cl.cam.ac.uk/~mgk25/ucs-fonts.html

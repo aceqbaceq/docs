@@ -34,3 +34,7 @@ WantedBy=multi-user.target
 # systemctl disable atop
 # systemctl mask atop
 
+
+
+https://www.atoptool.nl/download/ATOP-cheatsheet-keys.pdf
+

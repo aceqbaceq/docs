@@ -1,0 +1,1 @@
+modprobe ideapad_laptop touchpad_ctrl_via_ec=Y
