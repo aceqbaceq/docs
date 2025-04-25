@@ -616,6 +616,8 @@ all:
  
    inventory/mycluster/inventory.ini
 
+(если папки mycluster нет то создаем ее путем
+копирования из inventory/sample)
 
 и в каждой сеции пропиваем какой хост или 
 хосты там будут . у мен в итоге вот так
@@ -673,6 +675,11 @@ $ source ~.venv/python3/ansible/env/bin/activate
 (вновом варенанте)
 (env)$ ansible-playbook -i inventory/mycluster/inventory.ini  --become --become-user=root cluster.yml
 
+соотвесвтенно ответ на вопрос о том как ансибль
+знает с каким инвентарем работать состоит в том
+что мы укаызаем нужный нам инвентарь при
+запуске ансибля inventory/mycluster/inventory.ini 
+вот и весь секрет
 
 все процесс пошел.
 примерно через 20 минут мы получим установленный куб

@@ -1,0 +1,82 @@
+| debian
+| ubuntu
+| dpkg
+
+если я хочу узнать в состав какого пакета
+входит файл то я делаю так
+
+  $ dpkg -S $(which ls)
+
+положим что wchich ls  = /usr/bin/ls
+
+засада тут в том что дпкдж он ищет в пакетах
+точный путь "/usr/bin/ls"
+тоесть условно дпкдж работает как 
+
+  cat file | grep '/usr/bin/ls'
+
+так вот прикол в том что команда which она работает
+как - она ищет заданный файл в папках указанных в 
+$PATH
+она ищет первое совпдаение. 
+так вот положим что у нас в PATH указано
+
+$ echo $PATH
+/usr/sbin:/usr/local/bin:/usr/bin:/bin:/usr/local/games:/usr/games
+
+теперь положим что в пакете прописано что файл 
+ставится в /usr/local/bin/ls
+а потом ктото сделал симлинк на /usr/sbin
+
+   $ ln -s   /usr/local/bin/ls  /usr/sbin/ls
+
+тоесть  /usr/sbin/ls это симлинк на /usr/local/bin/ls
+так вот which ls нам выдаст /usr/sbin/ls
+но о таком пути дпкдж ничего незнает. тоесть 
+проблема из за того что у нас /usr/sbin/ls это
+не оригиналрный бинарник а симлинк. 
+поэтому
+
+  $ dpkg -S $(which ls)
+
+
+нам выдаст пусто. 
+
+вторая причина такой прьлелмы это если  унас 
+не файл а папка яявляется симлинком. тоесть
+скажем в пакете укзано что файл ставится в /bin/ls
+при этом /bin на компе это симлинк на /usr/bin
+тоесть пакетный менежер сует файл в /bin/ls
+а по факту он запиывается в /usr/bin/ls
+и если у нас в PATH первой папкой имеет /usr/bin
+то which ls выдаст   /usr/bin/ls
+и 
+
+
+  $ dpkg -S $(which ls)
+
+выдаст нам пусто!
+
+чтобы не ебаться с этими путями можно делать вот так
+
+$ dpkg -S "ls" | grep '/ls$'
+mc: /usr/lib/mc/fish/ls
+coreutils: /bin/ls
+klibc-utils: /usr/lib/klibc/bin/ls
+
+
+и уже тут легко понять что наш ls входит 
+в состав пакета coreutils
+
+
+вот еще конкретный пример где с этим была
+ебала
+
+
+# dpkg -S ifup | grep '/ifup$'
+ifupdown: /sbin/ifup
+bash-completion: /usr/share/bash-completion/completions/ifup
+
+
+значит ifup входит в состав ifupdown
+

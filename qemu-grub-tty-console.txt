@@ -1,0 +1,27 @@
+| grub
+| console
+| terminal
+
+
+если я хочу чтобы при запуске qemu 
+я видел в окне терминала меню граба
+то нужно отредактировать граб вот так
+
+
+/etc/default/grub
+
+GRUB_DEFAULT=0
+GRUB_TIMEOUT=5
+GRUB_DISTRIBUTOR=`lsb_release -i -s 2> /dev/null || echo Debian`
+GRUB_CMDLINE_LINUX_DEFAULT="quiet console=tty1  console=ttyS0,115200n8"
+GRUB_CMDLINE_LINUX=""
+
+GRUB_TERMINAL="console serial"
+GRUB_SERIAL_COMMAND="serial --unit=0 --speed=115200 --word=8 --parity=no --stop=1"
+
+
+и далее переустанвоить граб
+
+  # update-grub
+
+

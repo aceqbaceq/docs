@@ -1,6 +1,27 @@
 | bridge
 | nmcli
 
+------------------------
+создать бридж с нуля
+
+nmcli connection add  type bridge   ifname br1  con-name bridge-br1  autoconnect yes  save yes 
+
+nmcli connection modify bridge-br1 ipv6.method "disabled"
+
+nmcli con modify bridge-br1 ipv4.method manual ipv4.address 172.16.110.1/24
+
+nmcli con up bridge-br1
+
+и воткнуть в него tap порты
+
+nmcli connection  add  type tun  mode tap owner 1000 group 1000  ifname tap17 con-name "tap17" autoconnect yes save yes controller bridge-br1 port-type bridge hairpin no
+
+а вот так можно созать сразу кучу tapN портов
+
+ for i in $(seq 18 21); do nmcli connection  add  type tun  mode tap owner 1000 group 1000  ifname tap$i con-name "tap$i" autoconnect yes save yes controller br4 port-type bridge hairpin no; done
+
+-------------------------
+
 
 давай еще раз. 
 вот у меня есть деволтовыый сетевой неймспейс хоста.
@@ -301,7 +322,7 @@ ipv4.address ""
 
 итого 
 
-
+ДАЛЕЕ ТАК ДЕЛАТЬ НЕНАДО!>>>>>>>>>>>>>>>>>
 nmcli connection  add  type ethernet   ifname tap5 con-name tap5 autoconnect yes save yes controller br1 port-type bridge hairpin no  ipv4.address ""
 
 ввожу
@@ -314,10 +335,12 @@ Error: invalid or not allowed setting 'ipv4': 'ipv4' not among [connection, 802-
 Connection 'tap5' (4439a70f-1718-4971-becb-4499137277c1) successfully added.
 
 ИТОГ - хуйня
-сет карточки tap5  итп несоздаются 
+сет карточки tap5  итп несоздаются >>>>>>>>>>>>>>>>>
 
+НАДО ДЕЛАТЬ ТАК:
 
-$ nmcli connection  add  type tun  mode tap owner 1000 group 1000  ifname tap0 con-name "tap0-->br0" autoconnect yes save yes controller br1 port-type bridge hairpin no
+nmcli connection  add  type tun  mode tap owner 1000 group 1000  ifname tap17 con-name "tap17" autoconnect yes save yes controller br4 port-type bridge hairpin no
+
 
 
   tun:          mode tun|tap
