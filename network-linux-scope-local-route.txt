@@ -13,6 +13,7 @@
 
 этот менеджер ставтится из пакета ifupdown
 
+
 этот пакет имеет бинарники ifup ifdown
 также он имеет systemd сервис  "networking"
 в его теле как раз указано что он юзает ifup/ifdown
@@ -25,11 +26,12 @@ ExecStop=/sbin/ifdown -a --read-environment --exclude=lo
 ExecStopPost=/usr/bin/touch /run/network/restart-hotplug
 
 
-так вот именно этот менеджер используя этот сервис
+так вот именно этот менеджер используя этот 
+систмад сервис
 который использует бинарники ifup ifdown конфинурирует
 сеть на компе в дебиане. 
 он назначает ип адреса карточкам.
-но этого мало чтобы заработаа сесть. нужны еще
+но этого мало чтобы заработала сеть. нужны еще
 маршруты. так вот этот же менеджер пропсывает
 маршруты.
 как я уже сказал что конфиг этого менежера это файл
@@ -80,7 +82,7 @@ default via 172.16.100.1 dev enp0s3 onlink
 что тут видно. видно то что в свойствах сет карты
 у нас ип адрес назначаен с "scope link"
 
-а дефолтовый маршрут неимеет параметра "src IP"
+а DEFAULT маршрут НЕимеет параметра "src IP"
 
 к чему это приводит? это приводит к ПИЗДЕЦУ.
 когда я будут пинговать dest IP =172.16.100.100
@@ -88,8 +90,8 @@ default via 172.16.100.1 dev enp0s3 onlink
 
 default via 172.16.100.1 dev enp0s3 onlink 
 
-из него ядро узнает что пакет нужно выплюнуть в 
-порт enp0s3
+из него ядро узнает что исходящий пакет нужно 
+выплюнуть в  порт enp0s3
 но нам еще нужно опредедить какой IP адрес 
 из тех что назначены данному порту ( а таких адресов
 может быть несколько ) нужно подставит в пакет в 
@@ -120,8 +122,9 @@ default via 172.16.100.1 dev enp0s3 scope global onlink
 
 
 в даннм случае наш порт имеет один ип. 
-и у него к соажению scope <> global он равен local
-это приводит вот к какому пиздец. так как подходящего
+и у него к соажению scope НЕРАВЕН global 
+он равен local
+это приводит вот к  пиздец. так как подходящего
 ип нет у порта то ядро в качестве src IP в исходящий
 пакет подставит 
 
@@ -240,22 +243,30 @@ ping 172.16.100.100
 вид
 
 
+таже я
 еще хочу обьянсить что значит слово 
 
    onlink 
 
-в маршуртуте.  для этого читай onlink.txt
+в маршуртуте.  для этого читай 
+в iproute2-ip-route-onlink.txt
+
 
 ксттаи со скоупом чуть посложнее чем я выше
 написал читаю man ip-route
 
 scope SCOPE_VAL
- the scope of the destinations covered by the route prefix.  SCOPE_VAL may be a num‐
- ber  or a string from /usr/share/iproute2/rt_scopes or /etc/iproute2/rt_scopes (has
- precedence if exists).  If this parameter is omitted, ip assumes scope  global  for
- all  gatewayed  unicast  routes, scope link for direct unicast and broadcast routes
+ the scope of the destinations covered by the route
+ prefix.  SCOPE_VAL may be a num‐
+ ber  or a string from /usr/share/iproute2/rt_scopes 
+ or /etc/iproute2/rt_scopes (has
+ precedence if exists).  If this parameter is omitted,
+ ip assumes scope  global  for
+ all  gatewayed  unicast  routes, scope link for 
+ direct unicast and broadcast routes
  and scope host for local routes.
 
 
+пока на этом все.
 
 

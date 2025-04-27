@@ -1,0 +1,7 @@
+| debian
+| dns
+| resolv.conf
+
+
+приколл что щас в дебиане по деолфту
+работает resolvconf в связке  dnsmasq

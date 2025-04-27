@@ -1766,7 +1766,7 @@ tap16             3 PVID Egress Untagged
 
 теперь нужно к br4 прикрутить  L3 субопорты
 
- # nmcli con add type vlan con-name br4.2  ifname br4.2  dev br4 id 2  ipv4.method manual ipv4.address ipv6.method ignore 172.16.80.1/24
+ # nmcli con add type vlan con-name br4.2  ifname br4.2  dev br4 id 2  ipv4.method manual ipv4.address 172.16.80.1/24  ipv6.method ignore 
  
  
  # nmcli con add type vlan con-name br4.3  ifname br4.3  dev br4 id 3  ipv4.method manual ipv4.address ipv6.method ignore 172.16.90.1/24

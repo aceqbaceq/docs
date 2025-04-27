@@ -1,0 +1,23 @@
+| kubernetes
+| error
+| troubleshoot
+
+ставлю куб через кубспрей 
+и на одном хосте вылезает ошибка
+
+
+TASK [kubernetes/preinstall : Ensure kubelet expected parameters are set] *******************************
+failed: [kub2-03] (item={'name': 'kernel.keys.root_maxbytes', 'value': 25000000}) => {"ansible_loop_var": "item", "changed": false, "item": {"name": "kernel.keys.root_maxbytes", "value": 25000000}, "msg": "Failed to reload sysctl: net.ipv6.conf.enp0s3.disable_ipv6 = 1\nnet.ipv6.conf.lo.disable_ipv6 = 1\nnet.ipv4.ip_forward = 1\nkernel.keys.root_maxbytes = 25000000\nsysctl: cannot stat /proc/sys/net/ipv6/conf/enp0s4/disable_ipv6: No such file or directory\n"}
+
+
+разгдка в том что когда то я сам руками
+встауиит в sysctl.conf строку
+
+net.ipv6.conf.enp0s4.disable_ipv6=1
+
+а потом про нее забыл. а этого интрфейейса enp0s4
+уже и нет. а куб все это проверяет. в итоге
+изза этого ошибка.
+удалил строку и все стало окей
+
+
