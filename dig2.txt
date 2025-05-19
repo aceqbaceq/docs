@@ -1,0 +1,23 @@
+| dig
+| DNS
+
+как проверить какие для домена какие ИП имеют
+адреса его DNS сервров (его NS сервров)
+
+
+$ dig -t NS gijmokcawzi0.ru  | grep NS
+
+gijmokcawzi0.ru.	7184	IN	NS	kami.ns.cloudflare.com.
+gijmokcawzi0.ru.	7184	IN	NS	damien.ns.cloudflare.com.
+
+
+тут четко вино что для домена gijmokcawzi0.ru
+это
+
+NS kami.ns.cloudflare.com.
+NS damien.ns.cloudflare.com.
+
+
+это полезно уметь делать когда мы хотим 
+перетащить домен с одних NS на другие
+

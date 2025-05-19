@@ -1,0 +1,31 @@
+| mysql
+
+как поменть на сервре парметр  binlog_expire_logs_seconds
+
+меняем мы его в файле
+
+   /etc/mysql/mysql.conf.d/mysqld.cnf
+
+
+[mysqld]
+...
+...
+binlog_expire_logs_seconds	= 170000
+
+
+
+
+
+прояеряем
+
+$ mysql
+
+
+mysql> show variables like'binlog_expire_logs_seconds';
+
++----------------------------+--------+
+| Variable_name              | Value  |
++----------------------------+--------+
+| binlog_expire_logs_seconds | 170000 |
++----------------------------+--------+
+

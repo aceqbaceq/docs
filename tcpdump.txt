@@ -27,3 +27,15 @@
 
    $ sudo tcpdump -i br0 -n               "tcp[tcpflags] & (tcp-syn|tcp-rst) != 0"
 
+
+| tcpdump
+
+| tcpdump
+
+
+как фльтровать по ХОСТУ и ПОРТУ
+
+# tcpdump -ni igb1 host 192.168.1.11 and tcp port 80
+
+
+
