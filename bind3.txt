@@ -1,0 +1,9 @@
+| bind
+| dns
+
+
+как проверить конфиг у bind
+
+ named-checkconf && named-checkzone vasya.loc ./db.vasya.loc  && kill -HUP $(pidof named)
+
+ 

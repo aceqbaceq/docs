@@ -1,0 +1,63 @@
+| bind
+| dig 
+| dns 
+| cname
+
+
+если я клиентом делаю запрос на запись 
+типа А но такой записи нет но есть запись
+типа CNAME то днс сервер и днс клиент нам 
+вернет cname запись и ту А запись на которую 
+он ведет.
+пример 
+
+я запрашиваю   тип А  имя = b.vasya.loc
+такой записи нет. но есть запись с таким же 
+именем но тип CNAME и тоогда вот что вернет
+нам днс сервер и клиент
+
+
+# dig -4 @127.0.0.1  -t A  b.vasya.loc 
+
+
+; <<>> DiG 9.18.33-1~deb12u2-Debian <<>> -4 @127.0.0.1 -t A b.vasya.loc
+; (1 server found)
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 38522
+;; flags: qr aa rd ra; QUERY: 1, ANSWER: 2, AUTHORITY: 0, ADDITIONAL: 1
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 1232
+; COOKIE: c92a316c79a4ecb50100000068333933ce826df4407cb7ee (good)
+;; QUESTION SECTION:
+;b.vasya.loc.			IN	A
+
+;; ANSWER SECTION:
+b.vasya.loc.		604800	IN	CNAME	a.vasya.loc.
+a.vasya.loc.		604800	IN	A	172.16.100.2
+
+;; Query time: 0 msec
+;; SERVER: 127.0.0.1#53(127.0.0.1) (UDP)
+;; WHEN: Sun May 25 11:37:23 EDT 2025
+;; MSG SIZE  rcvd: 100
+
+
+таикм образом несмотря на то что мы 
+запросили вот такую запись
+
+
+b.vasya.loc. ...    тип A   .....
+
+он нам вернул совершенно другое
+
+
+b.vasya.loc.       тип CNAME	a.vasya.loc.
+a.vasya.loc.	   тип А	   172.16.100.2
+
+
+тоест он нам вернул запись с таким же 
+именем но с друним ТИПОМ!
+и потом еще и нашел запись А на которую этот
+cname указывает!
+

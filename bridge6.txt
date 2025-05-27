@@ -1,0 +1,9 @@
+| bridge 
+| brctl 
+| nmcli 
+
+добавить порт tapN к brctlM
+
+ $ sudo nmcli connection add con-name "tap22"    type tun   mode tap   ifname "tap22" ipv4.method disabled ipv6.method disabled  owner 1000   autoconnect yes  master br4
+
+

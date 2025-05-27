@@ -4648,7 +4648,8 @@ tcp      127.0.0.1:953       0.0.0.0:*                  users:(("named"
 
   host1.nyc3.example.com   A  172.16.10.11
 
-так вот согласно этой (https://www.gabriel.urdhr.fr/2020/03/17/systemd-revolved-dns-configuration-for-vpn/) статье я делаю вот такую настройку на 
+так вот согласно этой (https://www.gabriel.urdhr.fr/2020/03/17/systemd-revolved-dns-configuration-for-vpn/) 
+статье я делаю вот такую настройку на 
 своем компе
 
 я говорю что за br0 сидит днс сервер 172.16.10.11

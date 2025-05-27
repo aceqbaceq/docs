@@ -1,0 +1,20 @@
+| bind
+| dns
+
+rndc это такое CLI при работае с сервером BIND
+
+
+как посмтреть какие запии есть 
+в кеше у бинд
+
+
+rndc dumpdb -all
+
+rndc dumpdb -cache
+
+man rndc
+
+сам кеш можно увидеть не на экране
+а в папке
+
+/var/cache/bind
