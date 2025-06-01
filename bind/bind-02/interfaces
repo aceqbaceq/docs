@@ -1,0 +1,51 @@
+# This file describes the network interfaces available on your system
+# and how to activate them. For more information, see interfaces(5).
+
+source /etc/network/interfaces.d/*
+
+# The loopback network interface
+auto lo
+iface lo inet loopback
+
+# The primary network interface
+#allow-hotplug enp0s3
+auto enp0s3
+iface enp0s3 inet static
+	address 172.16.100.27
+        netmask 255.255.255.0
+	#gateway 172.16.100.1
+        scope global
+	# dns-* options are implemented by the resolvconf package, if installed
+	dns-nameservers 127.0.0.1
+#        dns-nameserver 172.16.100.1
+#        up ip addr add 172.16.10.15/24 dev enp0s3
+
+         up ip route add default via 172.16.100.1  dev enp0s3 proto static  src 172.16.100.27  metric 100
+         down ip route del default
+
+
+#auto enp0s3:0
+#iface enp0s3:0 inet static
+#	address 172.16.10.15/24
+#        scope global
+#        dns-nameserver 172.16.10.1
+
+
+
+#auto enp0s3:0 
+#    iface enp0s3:0 inet static
+#    address 172.16.10.25
+#    netmask 24
+#    scope global
+#    gateway 172.16.10.1
+#    dns-nameserver 172.16.10.1
+    
+
+    
+
+
+
+
+
+
+

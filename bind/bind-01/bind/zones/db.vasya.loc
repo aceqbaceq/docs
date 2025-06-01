@@ -1,0 +1,52 @@
+;
+; BIND data file for local loopback interface
+;
+
+$ORIGIN vasya.loc.
+
+$TTL	604800
+@	IN	SOA	ns1.vasya.loc. admin.vasya.loc. (
+			    33		; Serial
+			 604800		; Refresh
+			  86400		; Retry
+			2419200		; Expire
+			 604800 )	; Negative Cache TTL
+;
+
+; NS servers
+@	IN      NS      ns1.vasya.loc.
+@	IN      NS      ns2.vasya.loc.
+
+
+; delegate qqq.vasya.loc.
+qqq	IN 	NS      ns1.vasya.loc.
+
+
+; delegate ftp.vasya.loc.
+ftp	IN 	NS	ns1.ftp
+ns1.ftp	IN	A	172.16.100.30
+ftp	IN 	NS	ns2.ftp
+ns2.ftp	IN	A	172.16.100.31
+
+
+
+
+
+
+
+; A records
+@	    	IN	A	172.16.100.26
+ns1		IN      A       172.16.100.26
+ns2         	IN      A       172.16.100.27
+gateway     	IN      A       172.16.100.1
+a	    	IN      A       172.16.100.2
+
+
+
+; CNAME records
+b		IN	CNAME	a.vasya.loc.
+g		IN	CNAME	gateway.vasya.loc.
+cc		IN	CNAME	g.vasya.loc.
+
+
+

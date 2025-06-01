@@ -1,0 +1,77 @@
+//
+// Do any local configuration here
+//
+
+// Consider adding the 1918 zones here, if they are not used in your
+// organization
+//include "/etc/bind/zones.rfc1918";
+
+
+
+zone "vasya.loc" {
+    type master;
+    file "/etc/bind/zones/db.vasya.loc"; # zone file path
+    allow-transfer { 172.16.100.27; };   # bind-02 private IP address - secondary
+};
+
+
+
+zone "db.vasya.loc" {
+
+    type stub;  
+    file "/var/lib/bind/db.vasya.loc"; 
+    masters { 172.16.100.30; };  # bind2-03
+
+};
+
+
+
+
+
+
+zone "www.vasya.loc" {
+    type forward;
+    forward only;
+    forwarders { 172.16.100.30; };  # bind2-03
+
+};
+
+
+
+
+zone "kukushka.loc" {
+    type master;
+    file "/etc/bind/zones/db.kukushka.loc"; # zone file path
+    allow-transfer { 172.16.100.27; };         # bind-02 private IP address - secondary
+};
+
+
+
+zone "google.com" {
+
+    type stub;  
+    file "/var/lib/bind/db.google.com"; 
+    masters { 216.239.32.10; };  # 
+
+};
+
+
+
+
+
+
+
+
+zone "100.16.172.in-addr.arpa" {
+    type master;
+    file "/etc/bind/zones/db.172.16.100";  # 172.16.100.0/24 subnet
+    allow-transfer { 172.16.100.27; };  # bind-02 private IP address - secondary
+};
+
+
+
+
+
+
+
+

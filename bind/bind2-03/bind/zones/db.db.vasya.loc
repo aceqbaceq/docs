@@ -1,0 +1,32 @@
+$TTL	604800
+
+@	IN	SOA	ns1.db.vasya.loc. admin.db.vasya.loc. (
+              13	; Serial
+         604800		; Refresh
+          86400		; Retry
+        2419200		; Expire
+         604800 )	; Negative Cache TTL
+;
+
+
+
+; NS servers
+@    IN      NS      ns1.db.vasya.loc.
+@    IN      NS      ns2.db.vasya.loc.
+
+
+
+
+
+; name servers - A records
+@		IN	A	172.16.100.30
+ns1		IN      A       172.16.100.30
+ns2		IN	A	172.16.100.31
+web1		IN	A	172.16.100.31
+web2		IN 	A 	172.16.100.32
+
+
+
+
+
+

@@ -5,3 +5,133 @@
 | iterative
 
 
+если я хочу руками найти какую то запись 
+например я хочу найти 
+
+для начала нужно узнать ип адрес коренвого
+днс сервера.
+
+это можно узнать вот тут  если установен 
+пакет bind9
+
+ /usr/share/dns/root.hints
+
+
+или вот так
+(что такое итеративны запрос +norecurse 
+смотри в файле bind-iterative-recurse.txt)
+
+ dig -4 @1.1.1.1  -t NS  .  +norecurse 
+
+; <<>> DiG 9.18.33-1~deb12u2-Debian <<>> -4 @1.1.1.1 -t NS . +norecurse
+; (1 server found)
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 61850
+;; flags: qr ra ad; QUERY: 1, ANSWER: 13, AUTHORITY: 0, ADDITIONAL: 1
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 1232
+;; QUESTION SECTION:
+;.				IN	NS
+
+;; ANSWER SECTION:
+.			517867	IN	NS	a.root-servers.net.
+.			517867	IN	NS	b.root-servers.net.
+.			517867	IN	NS	c.root-servers.net.
+.			517867	IN	NS	d.root-servers.net.
+.			517867	IN	NS	e.root-servers.net.
+.			517867	IN	NS	f.root-servers.net.
+.			517867	IN	NS	g.root-servers.net.
+.			517867	IN	NS	h.root-servers.net.
+.			517867	IN	NS	i.root-servers.net.
+.			517867	IN	NS	j.root-servers.net.
+.			517867	IN	NS	k.root-servers.net.
+.			517867	IN	NS	l.root-servers.net.
+.			517867	IN	NS	m.root-servers.net.
+
+;; Query time: 63 msec
+;; SERVER: 1.1.1.1#53(1.1.1.1) (UDP)
+;; WHEN: Sun May 25 12:29:38 EDT 2025
+;; MSG SIZE  rcvd: 239
+
+
+это мы узнали днс имя
+теперь узнаем его ип
+
+# dig -4 @1.1.1.1  -t A  m.root-servers.net   +norecurse 
+
+; <<>> DiG 9.18.33-1~deb12u2-Debian <<>> -4 @1.1.1.1 -t A m.root-servers.net +norecurse
+; (1 server found)
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 196
+;; flags: qr ra; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 1
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 1232
+;; QUESTION SECTION:
+;m.root-servers.net.		IN	A
+
+;; ANSWER SECTION:
+m.root-servers.net.	3597118	IN	A	202.12.27.33
+
+;; Query time: 71 msec
+;; SERVER: 1.1.1.1#53(1.1.1.1) (UDP)
+;; WHEN: Sun May 25 12:34:59 EDT 2025
+;; MSG SIZE  rcvd: 63
+
+
+замечу что днс имена на самом деле все в конце
+имеют точку просто в бразуере дебильно сделано
+что точку эту нас не засталвяют ставить но она
+там есть
+
+     m.root-servers.net.
+
+
+итак мы узнали ип от днс сервера корневного домена "."
+
+   202.12.27.33
+
+теперь нужно обратиться  к нему и узнать днс
+имя серера который отвечает за домен "ru."
+и его ип
+
+
+# dig -4 @202.12.27.33  -t NS  "ru." 
+
+; <<>> DiG 9.18.33-1~deb12u2-Debian <<>> -4 @202.12.27.33 -t NS ru.
+; (1 server found)
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 21936
+;; flags: qr rd; QUERY: 1, ANSWER: 0, AUTHORITY: 5, ADDITIONAL: 11
+;; WARNING: recursion requested but not available
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 1232
+;; QUESTION SECTION:
+;ru.				IN	NS
+
+;; AUTHORITY SECTION:
+ru.			172800	IN	NS	b.dns.ripn.net.
+ru.			172800	IN	NS	f.dns.ripn.net.
+ru.			172800	IN	NS	a.dns.ripn.net.
+ru.			172800	IN	NS	d.dns.ripn.net.
+ru.			172800	IN	NS	e.dns.ripn.net.
+
+;; ADDITIONAL SECTION:
+f.dns.ripn.net.		172800	IN	A	193.232.156.17
+e.dns.ripn.net.		172800	IN	A	193.232.142.17
+d.dns.ripn.net.		172800	IN	A	194.190.124.17
+b.dns.ripn.net.		172800	IN	A	194.85.252.62
+a.dns.ripn.net.		172800	IN	A	193.232.128.6
+f.dns.ripn.net.		172800	IN	AAAA	2001:678:14:0:193:232:156:17
+e.dns.ripn.net.		172800	IN	AAAA	2001:678:15:0:193:232:142:17
+d.dns.ripn.net.		172800	IN	AAAA	2001:678:18:0:194:190:124:17
+b.dns.ripn.net.		172800	IN	AAAA	2001:678:16:0:194:85:252:62
+a.dns.ripn.net.		172800	IN	AAAA	2001:678:17:0:193:232:128:6
+
+в чем прикол за один присест мы узнаем и доменное
+имя как просили и ип как бонус

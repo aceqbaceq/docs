@@ -1,0 +1,25 @@
+;
+; BIND reverse data file for local loopback interface
+;
+$TTL	604800
+@	IN	SOA	bind-01.vasya.loc. admin.vasya.loc. (
+			      6		; Serial
+			 604800		; Refresh
+			  86400		; Retry
+			2419200		; Expire
+			 604800 )	; Negative Cache TTL
+;
+
+; name servers - NS records
+      IN      NS      bind-01.vasya.loc.
+      IN      NS      bind-02.vasya.loc.
+
+
+; PTR Records
+26   IN      PTR     bind-01.vasya.loc.    ; 172.16.100.26
+27   IN      PTR     bind-02.vasya.loc.    ; 172.16.100.27
+1    IN      PTR     host.vasya.loc.       ; 172.16.100.1
+2    IN      PTR     a.vasya.loc.          ; 172.16.100.2
+
+
+

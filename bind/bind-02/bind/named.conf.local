@@ -1,0 +1,37 @@
+//
+// Do any local configuration here
+//
+
+// Consider adding the 1918 zones here, if they are not used in your
+// organization
+//include "/etc/bind/zones.rfc1918";
+
+
+zone "vasya.loc" {
+    type slave;
+    file "/var/lib/bind/db.vasya.loc";
+    masters { 172.16.100.26; };  # ns1 private IP
+};
+
+
+zone "google.com" {
+
+    type stub;  
+    file "/var/lib/bind/db.google.com"; 
+    masters { 216.239.32.10; };  #  ns1.google.com. 
+
+};
+
+
+
+
+
+zone "100.16.172.in-addr.arpa" {
+    type slave;
+    file "/var/lib/bind/db.172.16.100";
+    masters { 172.16.100.26; };  # ns1 private IP
+};
+
+
+
+

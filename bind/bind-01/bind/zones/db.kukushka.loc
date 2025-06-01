@@ -1,0 +1,28 @@
+;
+; BIND data file for local loopback interface
+;
+
+$ORIGIN kukushka.loc.
+
+$TTL	604800
+@	IN	SOA	ns1.kukushka.loc. admin.kukushka.loc. (
+			    31		; Serial
+			 604800		; Refresh
+			  86400		; Retry
+			2419200		; Expire
+			 604800 )	; Negative Cache TTL
+;
+
+; NS servers
+@	IN      NS      ns1.petya.loc.
+@	IN      NS      ns2.petya.loc.
+
+
+
+
+
+; name servers - A records
+
+
+
+
