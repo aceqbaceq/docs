@@ -1,0 +1,66 @@
+| dig
+| trace
+
+
+есть такой загадоный флаг у дига
+что он делает.
+
+в мане описано хуево.
+
+делает вот он что 
+
+вот мы дали комнду
+
+ # dig ... @1.1.1.1 +trace
+
+если мы указали сервер то он к нему делает
+итеративный запрос адреса коренвого днс сервра.
+
+а альше он делает запрос к коневому. потом от него
+к сереуру более низкому и так далее. 
+
+то есть он делат всю цеопочку итератиных зпросов.
+
+# dig -4 @1.1.1.1  -t A "bbc.co.uk."  +trace
+
+.			515649	IN	NS	a.root-servers.net.
+.			515649	IN	NS	b.root-servers.net.
+.			515649	IN	NS	c.root-servers.net.
+.			515649	IN	NS	d.root-servers.net.
+.			515649	IN	NS	e.root-servers.net.
+.			515649	IN	NS	f.root-servers.net.
+.			515649	IN	NS	g.root-servers.net.
+.			515649	IN	NS	h.root-servers.net.
+.			515649	IN	NS	i.root-servers.net.
+.			515649	IN	NS	j.root-servers.net.
+.			515649	IN	NS	k.root-servers.net.
+.			515649	IN	NS	l.root-servers.net.
+.			515649	IN	NS	m.root-servers.net.
+
+
+uk.			172800	IN	NS	nsa.nic.uk.
+uk.			172800	IN	NS	nsb.nic.uk.
+uk.			172800	IN	NS	nsc.nic.uk.
+uk.			172800	IN	NS	nsd.nic.uk.
+uk.			172800	IN	NS	dns1.nic.uk.
+uk.			172800	IN	NS	dns2.nic.uk.
+uk.			172800	IN	NS	dns3.nic.uk.
+uk.			172800	IN	NS	dns4.nic.uk.
+
+
+bbc.co.uk.		172800	IN	NS	dns0.bbc.co.uk.
+bbc.co.uk.		172800	IN	NS	dns0.bbc.com.
+bbc.co.uk.		172800	IN	NS	dns1.bbc.co.uk.
+bbc.co.uk.		172800	IN	NS	dns1.bbc.com.
+bbc.co.uk.		172800	IN	NS	ddns0.bbc.co.uk.
+bbc.co.uk.		172800	IN	NS	ddns0.bbc.com.
+bbc.co.uk.		172800	IN	NS	ddns1.bbc.co.uk.
+bbc.co.uk.		172800	IN	NS	ddns1.bbc.com.
+
+
+
+bbc.co.uk.		300	IN	A	151.101.0.81
+bbc.co.uk.		300	IN	A	151.101.64.81
+bbc.co.uk.		300	IN	A	151.101.128.81
+bbc.co.uk.		300	IN	A	151.101.192.81
+

@@ -1,0 +1,56 @@
+| systemd
+| container
+
+
+systemd позволяет заупускать контейнеры
+без установки всяких там докеров.
+
+вначале нужно кое что поставить
+
+ # apt install systemd-container
+ # systemctl enable --now systemd-machined
+ # apt install debootstrap
+ # debootstrap --arch=amd64 bookworm /var/lib/machines/mycontainer http://deb.debian.org/debian
+
+ где bookworm это версия той фс которую мы хотим
+ установить для контейнера
+
+
+запускаем конейнер
+
+ # systemd-nspawn -M cont2 -D /var/lib/machines/mycontainer --network-veth
+
+ -M cont2 = это имя контйенера
+ -D /var/lib/machines/mycontainer = это где лежит
+     вирт фс на основе котрой мы запускаем контенер
+ --network-veth  = подключаем сеть к контейнеру
+
+мы оказыаемся внутри конйтера.
+нужно руками дать ip вирт сет карте
+и поднять ее
+
+	# ip -c addr add 10.0.0.1/24 dev host0
+	# ip -c l up dev host0
+
+
+далее досттаточно тупая прблема состоит  в том
+что мы сидим в консоли контейнера и выйти
+из нее и при этом не убить контйенер 
+невощможно. это какая то мудота на пустом
+месте
+поэтому найдо зайти на хост  с другой 
+консоли напрмиер по ссш
+и там посмтреть список контйереров
+
+# machinectl list
+MACHINE CLASS     SERVICE        OS     VERSION ADDRESSES
+cont2   container systemd-nspawn debian 12      10.0.0.1
+
+1 machines listed.
+
+
+самое главное что мы видим что у контйрера есть
+ип адрес. значит все окей.
+
+
+
