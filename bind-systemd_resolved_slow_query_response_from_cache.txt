@@ -1,0 +1,171 @@
+| systemd-resolved
+| dns
+| bind
+| resolvectl
+
+можно посмтреть статистику по SD
+
+# resolvectl statistics
+DNSSEC supported by current servers: no
+
+Transactions            
+Current Transactions: 0
+  Total Transactions: 38
+                        
+Cache                   
+  Current Cache Size: 3
+          Cache Hits: 36
+        Cache Misses: 2
+                        
+DNSSEC Verdicts         
+              Secure: 0
+            Insecure: 0
+               Bogus: 0
+       Indeterminate: 0
+
+
+
+можно смотреть какие днс записи запрашвиватся
+в режиме рално времени
+
+$ sudo resolvectl monitor
+
+
+
+
+→ Q: www.youtube.com IN A
+← S: success
+← A: www.youtube.com IN CNAME youtube-ui.l.google.com
+← A: youtube-ui.l.google.com IN CNAME wide-youtube.l.google.com
+← A: wide-youtube.l.google.com IN A 64.233.165.198
+
+
+
+прикол с кторого я охует стоститв том
+что SD из КЕША блядь вытаскивает запись 100-200мс!!!
+
+# dig -4 @127.0.0.54 -t A "www.youtube.com."
+...
+...
+;; Query time: 228 msec  <=======
+
+
+
+228 мс из кеша сука!
+это как?
+
+
+
+
+
+для сравнения бинд выдает запист из кеша
+за 0-4мс !!!
+
+
+# dig -4 @localhost  -t A "www.youtube.com."
+
+;; Query time: 0 msec  <======
+
+
+
+
+тоесть  мне что между приложением и SD еще 
+бинд вставлять.
+
+
+
+что еще смешно.
+бинд когда получает запист то он у нее 
+уменьшает TTL с течением времени.
+
+
+а SD он не уменьшает! тоесь 
+если я буду запрашивать из кеша
+постянно одну и туже зааись то она будет
+иметь все время яодин и тот же TTL!!
+
+вот сравни.
+запрашиваю два раза из бинд
+
+
+;; ANSWER SECTION:
+www.youtube.com.	139	IN	CNAME	youtube-ui.l.google.com.
+youtube-ui.l.google.com. 177	IN	CNAME	wide-youtube.l.google.com.
+wide-youtube.l.google.com. 177	IN	A	108.177.14.198
+
+
+;; ANSWER SECTION:
+www.youtube.com.	115	IN	CNAME	youtube-ui.l.google.com.
+youtube-ui.l.google.com. 153	IN	CNAME	wide-youtube.l.google.com.
+wide-youtube.l.google.com. 153	IN	A	108.177.14.198
+
+
+
+TTL падает
+
+
+а теперь два раза из SD
+
+
+# resolvectl statistics
+                        
+Cache                   
+  Current Cache Size: 3
+          Cache Hits: 37   <=====
+        Cache Misses: 2 
+                        
+
+;; ANSWER SECTION:
+www.youtube.com.	299	IN	CNAME	youtube-ui.l.google.com.
+youtube-ui.l.google.com. 299	IN	CNAME	wide-youtube.l.google.com.
+wide-youtube.l.google.com. 299	IN	A	173.194.221.198
+
+
+
+
+;; ANSWER SECTION:
+www.youtube.com.	299	IN	CNAME	youtube-ui.l.google.com.
+youtube-ui.l.google.com. 299	IN	CNAME	wide-youtube.l.google.com.
+wide-youtube.l.google.com. 299	IN	A	173.194.221.198
+
+
+# resolvectl statistics
+Cache                   
+  Current Cache Size: 3
+          Cache Hits: 39  <====
+        Cache Misses: 2
+                        
+
+
+обращаю ваимаие что оба запроса 
+было обслужено из кеша.
+
+
+
+также попутно наблюдаем эфект двойного CNAME
+тоесть это случай когда  я запрашива тип-А
+такой записи нет.
+есть вместо нее cname но он укзвает на другой
+cname , поэтому нам когда разматывают
+синейм в А то в итоге выдают два cname и  A
+
+
+ксати как посмтреть записи в кеше SD
+
+https://askubuntu.com/questions/1257831/how-can-i-see-the-systemd-resolve-dns-cache
+
+тоесть man systemd-resolved
+
+ SIGUSR1
+           Upon reception of the SIGUSR1 process signal systemd-resolved will dump the contents of all
+           DNS resource record caches it maintains, as well as all feature level information it learnt
+           about configured DNS servers into the system logs.
+
+           Added in version 231.
+
+
+
+# sudo kill -USR1 $(pidof systemd-resolved)
+# sudo journalctl -u systemd-resolved > ~/resolved.txt
+
+
