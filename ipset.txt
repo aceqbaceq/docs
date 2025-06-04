@@ -1,0 +1,73 @@
+| ipset
+| iptables
+
+
+есть такая тема как ipset
+зачем он нужен. он позволяет в ядро 
+пихать список из ип адресов
+или ип сетей
+и потом можно уже в iptables в правило
+совать не отдельный ип а список который в ипсет.
+это очень удобно. это заменяет то чтобы  в иптбейлс
+небыло огромного списка однотипнх правил
+
+
+ставим ipset 
+
+
+  # apt-get -y install ipset  ipset-persistent
+
+
+далее статья https://wiki.archlinux.org/title/Ipset
+
+есть как минимум два типа спиков.один список
+дает возмосность создавать список для сетей.
+а второй список для ип адресов.
+мы щас буем создавать список из ип адресов
+
+
+  # ipset -N   set1  iphash
+
+теперь пихаем ип адреса в этот список
+
+# ipset add set1 1.1.1.1
+# ipset add set1 1.1.1.2
+# ipset add set1 1.1.1.3
+
+
+
+
+сморим спсок
+
+# ipset list
+Name: set1
+Type: hash:ip
+Revision: 5
+Header: family inet hashsize 1024 maxelem 65536 bucketsize 12 initval 0x89b0b215
+Size in memory: 320
+References: 1
+Number of entries: 3
+Members:
+1.1.1.2
+1.1.1.3
+1.1.1.1
+
+
+
+теперь пихаем список в иптеббейлс
+
+# iptables -I OUTPUT -m set --match-set set1 dst  -j DROP
+
+мы запрещаем пинги на dst ip из нашего списка set1
+
+  # ping -c1 1.1.1.1
+
+бум сработало. связи нет.
+
+как сохнранить список этого ипсет чтоб 
+презагрузку пережил 
+
+ # ipset save  > /etc/iptables/ipsets
+
+бум .. все система в сборе
+
