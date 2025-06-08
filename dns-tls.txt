@@ -1,6 +1,13 @@
 | DNS
 
 
+ремарка: вот тут я кратко расписал все главное
+про systemd-resolved
+  https://unix.stackexchange.com/questions/548830/whats-the-difference-between-run-systemd-resolve-stub-resolv-conf-and-run-sys/783931#783931
+то что заебешься собирать по кусочкам в тексте
+
+
+
 ПРО NSS Я ХОРОШО РАСПИСАЛ В "DNS-HOSTS-NSS-DIG.TXT"
 
 значит важно то что DNS сервер он не сбраывает в отве на реквест обратно IP адрес.
