@@ -11,6 +11,14 @@ https://en.wikipedia.org/wiki/Netfilter
 
 | iptables beginning
 
+для начала прочитай вот это 
+
+    iptables-nfttables-сосуществование.txt
+
+
+исходя из этого внизу могут быть ошибки
+потому что ниже более старый материал
+теперь поехали
 значит iptables написала контора netfilter
 проект iptables состоит из двух кусков:
 	первый кусок это юзер спейс утилиты такие как
@@ -544,3 +552,62 @@ COMMIT
 далее мы импортируем эти праивла на новый бекенд
 
 
+в дебиан вся эта схема с утилитами выгдядит так
+утилиты
+
+ iptables
+ iptables-save
+ iptavles-restore 
+
+это симлинки коотоырые лежат в /usr/sbin/
+и они укзывают на другие симлинки 
+которые лежат в папке /etc/alternatives с теми
+же именами
+
+/usr/sbin/iptables --->    /etc/alternatives/iptables
+
+/usr/sbin/iptables-save --->  /etc/alternatives/iptables-save
+
+/usr/sbin/iptables-restore --->  /etc/alternatives/iptables-restore
+
+они в свою очередь указыают на опять же симлинк
+сука iptables-nft либо iptables-legacy
+который уже в свою очередь наконце то указвыает
+на бинарник xtables-nft-multi или xtables-legacy-multi
+
+
+тоесть еще раз эта ебанутая цепочка
+
+
+/usr/sbin/iptables ---> /etc/alternatives/iptables --
+---> /usr/sbin/iptables-legacy --
+--->  /etc/alternatives/xtables-legacy-multi
+
+это просто охуеть. 
+
+поэтому если в дебиан я хочу чтобы мои утилиты
+брали старые правила  и пихали их в старые модули
+(переключиться на старый иптбейлс)
+то нужно сделать вот так
+
+# ln -s  /usr/sbin/iptables-legacy  /etc/alternatives/iptables
+# ln -s  /usr/sbin/iptables-legacy  /etc/alternatives/iptables-save
+# ln -s  /usr/sbin/iptables-legacy  /etc/alternatives/iptables-restore
+
+а если я хочу чтобы мои старые правила пихались
+(переключится на новый nftables)
+в новые модули то нужно сделать вот так
+
+# ln -s  /usr/sbin/iptables-nft  /etc/alternatives/iptables
+# ln -s  /usr/sbin/iptables-nft  /etc/alternatives/iptables-save
+# ln -s  /usr/sbin/iptables-nft  /etc/alternatives/iptables-restore
+
+
+как мы можем проверить так куда блять были
+зар=гружены правила в nft модули или старые xtables
+модули. для этого делаем вот так
+
+  # nft list ruleset
+
+если тут пусто. значит все павила в старые модулях
+засунуты

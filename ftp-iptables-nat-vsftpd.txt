@@ -1,0 +1,602 @@
+| ftp
+| vsftpd
+| iptables
+| conntrack
+| nat
+
+
+для начала
+основы iptables читай в itables-beginning-01.txt
+
+
+основная тема задали вопрос
+у нас есть фтп сервер в локланой сети
+и есть гейтвей который смотртит в инерннет и 
+на котором есть иптбейлс. как нам сделать чтобы
+через него был виден фтп сервер клиентам из 
+интернета. 
+
+
+и тут понеслась.
+
+
+во первых как работает фтп.
+есть активный режим. это когда клиент стучит на tcp/21
+порт сервера. это тцп соединение нзвыается control
+канал. далее клиент вводит в рамках эттго 
+конекта команду active (чтототтпа того) и далее
+клиент шлет в канал серерверу ип адрес и порт
+на который сервер должен будет далее постучать.
+это как бы такая подготтовительная стадия. далее
+клиент вводит уже какую то фтп команду которая 
+должна чтото полезное дать например комнда LIST
+и сервер кидает ответ на тот второй тцп канал.
+этот режим работы нам нафиг не прдходит потому что
+это требует чтобы у клиента был белый ип адрес.
+
+поэтому есть второй фтп режим пассивный.
+клиент стучит на tcp/21 у сервера. вводит комаду
+PASV и сервер передает клиенту ип и порт на который
+клиент должен подключиться. далее клиент вводит
+какюуто полезную команду типа LIST и сервер шлет
+на второй канал данные. этот режим не требует
+от клиента наличия белого ип. но получается
+некая проблема с фарволлом на фтп сервере. потому
+что сервер выбирает порт  напрмиер в рамках
+какогто диапазона например мы можем задать ему
+диапазон 50000-50200. тогда нам на серверре 
+нужно открыть порт 21 и еще диапазон поротов 50000-50200 что вроде как не супер. хотелосьбы
+чттобы порты 50000-50200 были откртыты не сразу
+кучей а открывались по одному динамически.
+такое возможно на основе фтп хелпер модуля
+у меня получислось это сделать читай в conntrack.txt
+
+а здесь я описал подход попроще. я не использую
+тут фтп хелпер. но здест тоже рассмотрены
+аспекты на которых можно споткнуться
+
+
+клиент стучит на сервер на 21 порт
+потом передает через этот тцп конект 
+команду PASV
+на это сервер  передает клиенту
+ип адерс и порт нпрмиер 2.2.2.2 50000
+и начинает слушать этот сокет.
+и фтп клиент должен позвонить на сервер
+именноно на этот сокет создать второй тцп конект.
+
+и коннтрак когда в него влетает первый пакет
+этого второго тцп конекта на сокет 2.2.2.2 50000
+и присваиывает этому пакету статус NEW
+а не REALATED(в случае если мы не юзаем фтп хелпер)
+далее этот пакет предается из коннтрака 
+уже в иптбейлс систему в его систему
+фильтрующих правил
+а это значит что чтобы этот пакет прошел 
+фильтр то  нужно в явной форме разрещать для этого
+порта 50000 проход. тоесть в виде
+
+-A INPUT -m tcp -p tcp  --dport 50000 -j ACCEPT
+
+если же у нас юзается фтп хелпер то коннтрак
+присвоит пакету статус RELATED
+и моно будет записать другое разрешающее правило
+
+-A INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+
+(об этом читай в conntrack.txt)
+
+так как фтп сервер выбирает этот порт из 
+диапазона который мы ему задали 
+то  нужно разрешать весь дипазон
+
+-A INPUT -m tcp -p tcp  --match multiport --dports 50000:50200 -j ACCEPT
+
+
+в итоге мы имеем тогда вот такой набор правил
+
+-A INPUT -m tcp -p tcp   --dport 21   -j ACCEPT
+-A INPUT -m tcp -p tcp  --match multiport --dports 50000:50200 -j ACCEPT
+
+
+также что смешно. казалось бы вот мой фтп
+клиент. я позвонид на 21 порт.
+потом pasv. потом сервер мне передал ип+порт
+я позвонил на 2.2.2.2 50000 , теерь у меня 
+клиент имеет два тцп конекта к срверу. и  я думал
+что с ними мой клиент и будет работать до конца
+всего сеанса. ХУЙ ТАМ. второй конект раотает только
+на время выполенения одной команды. например 
+команды LIST или GET
+а потом фтп сервер (или клиент хуй знает)закрывает
+этот второй конект! и нужно клиенту заново 
+послыть команду PASV. сервер заново шлет ип + 
+какойто порт из диапазона. и так до бесконечности.
+тоесть на каждую команду работы с фтп сервером
+нужно заново открыывать новый тцп конект с новым
+портом. что тупо и лебилно.
+
+теперь я дам практическую тстовый стенд.
+у меня два компа. на одном фтп сервер. на другом
+гейтвей с иптейблс и нат. моя задача чтобы
+чел который сидит перед гейтвееем (типа в интененте)
+мог через гейтвей покдлчюиться к фтп серверу.
+
+фтп сервер
+хостнейм ftp
+сет карта  enp0s3: 172.16.5.2/24   (LAN)
+гейтвей  172.16.5.1
+
+
+гейтвей
+хостнейм gataway
+сет карта  enp0s3: 172.16.100.31/24  (WAN)
+сет карта  enp0s4: 172.16.5.1/24     (LAN)
+
+
+во первых на гейтвее  нужно 
+активиовать ipv4 forward
+# sysctl -p
+net.ipv4.ip_forward = 1
+
+на фтп сервере ненужно.
+
+
+
+настройки иптейлблс на фтп сервере
+
+# cat /etc/iptables/rules.v4 
+*filter
+:INPUT DROP [10:598]
+:FORWARD ACCEPT [0:0]
+:OUTPUT ACCEPT [12:750]
+
+
+-A INPUT -m tcp -p tcp   --dport 21   -j ACCEPT
+
+-A INPUT -m tcp -p tcp  --match multiport --dports 50000:50200 -j ACCEPT
+
+-A INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+
+
+
+-A OUTPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+
+COMMIT
+
+основные правила про фтп это
+
+-A INPUT -m tcp -p tcp   --dport 21   -j ACCEPT
+
+-A INPUT -m tcp -p tcp  --match multiport --dports 50000:50200 -j ACCEPT
+
+
+
+на гейтвеее настройки иптейбдс
+
+
+*nat
+:PREROUTING ACCEPT [0:0]
+:INPUT ACCEPT [0:0]
+:OUTPUT ACCEPT [6:402]
+:POSTROUTING ACCEPT [6:402]
+
+
+-A PREROUTING -i enp0s3 -p tcp -m tcp --dport 21 -j DNAT --to-destination 172.16.5.2
+
+-A PREROUTING -i enp0s3 -p tcp -m tcp --match multiport --dports 50000:50200  -j DNAT --to-destination 172.16.5.2
+
+
+
+-A OUTPUT  -m tcp -p tcp --dport 21 -j LOG
+-A OUTPUT  -d 172.16.100.31/32 -p tcp -m tcp --dport 21 -j DNAT --to-destination 172.16.5.2:21
+
+COMMIT
+
+
+
+*filter
+:INPUT ACCEPT [0:0]
+:FORWARD ACCEPT [0:0]
+:OUTPUT ACCEPT [24:1608]
+-A INPUT -p icmp -j LOG
+-A INPUT -p icmp -j ACCEPT
+
+
+-A INPUT -p tcp -m tcp --dport 22 -j ACCEPT
+
+-A INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+
+
+
+
+-A FORWARD -p tcp -m tcp --dport 21 -j ACCEPT
+
+-A FORWARD -p tcp -m tcp -m multiport --dports 50000:50200 -j ACCEPT
+
+-A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+
+
+
+-A OUTPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+COMMIT
+
+
+
+
+тоесть вот эти два праивла
+
+-A PREROUTING -i enp0s3 -p tcp -m tcp --dport 21 -j DNAT --to-destination 172.16.5.2
+
+-A PREROUTING -i enp0s3 -p tcp -m tcp --match multiport --dports 50000:50200  -j DNAT --to-destination 172.16.5.2
+
+
+они на входящий поток для портов 21, 50000-50200
+меняют dest_IP
+после этого даный поток уже подаает в 
+таблицу filter в цепь forward
+и там их ждут эти два равила
+
+
+-A FORWARD -p tcp -m tcp --dport 21 -j ACCEPT
+
+-A FORWARD -p tcp -m tcp -m multiport --dports 50000:50200 -j ACCEPT
+
+
+
+таким макаром мы через DNAt меняем у потока
+дест ип и перенарлвеяем тарнзитом на фтп
+сервер
+
+
+полный набор правил (где необрезаны правила
+для логиования и ссш смотрит в папке ftp+nat)
+
+
+и конфиг самого vsftpd
+
+
+  $ cat vsftpd.conf 
+listen=YES
+listen_ipv6=NO
+
+anonymous_enable=YES
+anon_root=/srv/ftp
+anon_upload_enable=YES
+anon_mkdir_write_enable=YES
+
+
+local_enable=YES
+write_enable=YES
+dirmessage_enable=YES
+use_localtime=YES
+xferlog_enable=YES
+connect_from_port_20=YES
+chown_uploads=YES
+chown_username=nobody
+secure_chroot_dir=/var/run/vsftpd/empty
+pam_service_name=vsftpd
+rsa_cert_file=/etc/ssl/certs/ssl-cert-snakeoil.pem
+rsa_private_key_file=/etc/ssl/private/ssl-cert-snakeoil.key
+ssl_enable=NO
+
+
+pasv_max_port=50200
+pasv_min_port=50000
+
+pasv_address=172.16.100.31
+
+allow_writeable_chroot=YES
+
+
+
+этот конфиг дает право подключаться как
+юзер anonymous и неолько читать но и писать
+в папку /srv/ftp/uploads. щас обьясную.
+
+значит из кастомых настроек вот эти строки
+
+
+anonymous_enable=YES
+anon_root=/srv/ftp
+anon_upload_enable=YES
+anon_mkdir_write_enable=YES
+
+
+без этой настройки вообще запись невзможна
+
+write_enable=YES
+
+
+chown_uploads=YES
+chown_username=nobody
+
+
+это указывает в каком диапазоне портов сервер
+будет выдавать для второго тцп конекта
+
+pasv_max_port=50200
+pasv_min_port=50000
+
+
+так как наш фтп сидит за NAT то мы тут укзыаем
+какой белый ип адрес имеет наш гейтвей
+под которым он виден в инете. и который ип должен
+фтп клиент юзать при создании второго тцп конекта
+к нашему фтп серверув рамхках второго тцп
+конекта
+
+pasv_address=172.16.100.31
+
+
+allow_writeable_chroot=YES
+
+
+значит теперь про структуру папок
+на фтп серере. 
+он сам создаст папку 
+
+  /srv/ftp
+
+
+# stat /srv/ftp
+  File: /srv/ftp
+  Size: 4096      	Blocks: 8          IO Block: 4096   directory
+Device: 254,1	Inode: 130480      Links: 3
+Access: (0755/drwxr-xr-x)  Uid: (    0/    root)   Gid: (    0/    root)
+
+
+но в нее писать нельзя никак через фтп.
+внутрии нее создаем папку uploads
+
+# stat /srv/ftp/uploads/
+  File: /srv/ftp/uploads/
+  Size: 4096      	Blocks: 8          IO Block: 4096   directory
+Device: 254,1	Inode: 130492      Links: 2
+Access: (0777/drwxrwxrwx)  Uid: (    0/    root)   Gid: (    0/    root)
+
+вот в нее уже и можно будет писать чеорез фтп 
+конект, право писать появляется за счет
+премишна rwx для others
+
+кстати чтобы вспомнить за что отвечают преимшны
+rwx на папку читай  fs-rwx-на_папку.txt
+
+
+как выглядит сам сеанс.
+ставим фтп клиент tnftp
+полкючаемся
+
+
+$ ftp anonymous@172.16.100.31
+Connected to 172.16.100.31.
+220 (vsFTPd 3.0.3)
+331 Please specify the password.
+Password: 
+
+пароль пустой
+
+230 Login successful.
+Remote system type is UNIX.
+Using binary mode to transfer files.
+
+
+активруем пасивный режим 
+
+ftp> passive on
+Passive mode on.
+
+смотрим что есть на удаленном фтп сервере
+ftp> 
+ftp> ls
+227 Entering Passive Mode (172,16,100,31,196,15).
+150 Here comes the directory listing.
+drwxrwxrwx    2 0        0            4096 Jun 08 17:00 uploads
+-rw-r--r--    1 105      112             0 Jun 08 12:32 vasya.txt
+226 Directory send OK.
+
+
+переходим в папку uploads
+
+ftp> 
+ftp> cd uploads
+250 Directory successfully changed.
+ftp> 
+
+смотрим что есть в этой папке
+при этом можно заметить что комп опять 
+использует пассивный режим причем на другом порту
+и нам для этого ничего делать ненадо. я щас
+ниже этот момент поясню
+
+ftp> ls
+227 Entering Passive Mode (172,16,100,31,195,247).
+150 Here comes the directory listing.
+-rw-------    1 65534    112           362 Jun 08 17:00 simple_firewall.rules
+226 Directory send OK.
+ftp> 
+
+
+сморим что у нас есть на нашем локлаьном компе.
+для этого юзаем "!"
+ftp> !ls
+empty.rules  ip6tables.rules  iptables.rules  simple_firewall.rules
+
+суем файл на удаленный севрер
+ftp> put iptables.rules 
+227 Entering Passive Mode (172,16,100,31,195,141).
+150 Ok to send data.
+226 Transfer complete.
+17931 bytes sent in 0,00037 seconds (46,2 Mbytes/s)
+ftp> 
+
+
+что значит вот эта хрень
+(172,16,100,31,195,141)
+
+она значит что серер нам преедает в пасивном
+режиме на какой ип 172,16,100,31 нужно
+нашему клиенту стучать открывая второй тцп 
+конект для получения данных (дата канал)
+а это 
+
+195,141
+
+означает на какой порт нашему клиенту нужно будет
+стучать. он вычилсется по формуле
+
+ 195*256 + 141 = 50061
+
+тоестнаш клиент должен постучать на 172,16,100,31 
+на tcp/50061
+
+
+а вот пример когда я вместо фтп клиента юзаю
+netcat чтобы самому вводит фтп команды.
+дело в том что команды которые я вводил в 
+tnftp клиенте это на самом деле муляж алиасы
+от реально тех команд которые шлются на фтп
+сервер.
+
+ $ nc 172.16.100.31 21
+220 (vsFTPd 3.0.3)
+
+ввожу логин
+user anonymous
+
+ввожу пароль
+331 Please specify the password.
+pass
+230 Login successful.
+
+обьясняю фтп серверу что я хочу пасивный режим
+он мне выдает ип и порт на который нужно
+мне создать доп тцп конект
+pasv
+227 Entering Passive Mode (172,16,100,31,195,198).
+
+теперь мне нужно открыть еще один тцп конект
+через неткат чтобы я мог получит данные с фтп
+сревера 
+
+(второй неткат)$ nc 172.16.100.31 $(( 195*256+198 ))
+
+
+теперь на первом некате я ввожу команду
+(первый нетка) list
+
+и тогда во втором неткате я увижу
+$ nc 172.16.100.31 $(( 195*256+198 ))
+drwxrwxrwx    2 0        0            4096 Jun 09 07:51 uploads
+-rw-r--r--    1 105      112             0 Jun 08 12:32 vasya.txt
+
+а на первом неткате я увижу
+150 Here comes the directory listing.
+226 Directory send OK.
+
+
+далее важно то что. если я хочу выполнит 
+следующую команду на фтп серевре мне нужно
+опять запустить вначале команду
+pasv
+получить от срвера новый порт через который
+он ждет от нас второго тцп конекта
+
+227 Entering Passive Mode (172,16,100,31,195,198).
+
+поключиться к нему. и толко потом запускать
+новую команду на первом неткате.
+тоесть второй тцп конект работает только на 
+протяжении одной фтп команды. потом его унжно 
+заново запрашивать. и это будет другой порт.
+
+фтп клиенты такие как tnftp он это делают каждый
+раз за нас автоматом. 
+
+
+ftp> passive on
+Passive mode on.
+
+ftp> ls
+227 Entering Passive Mode (172,16,100,31,195,252).
+150 Here comes the directory listing.
+drwxrwxrwx    2 0        0            4096 Jun 09 07:51 uploads
+-rw-r--r--    1 105      112             0 Jun 08 12:32 vasya.txt
+226 Directory send OK.
+
+ftp> ls
+227 Entering Passive Mode (172,16,100,31,195,80).
+150 Here comes the directory listing.
+drwxrwxrwx    2 0        0            4096 Jun 09 07:51 uploads
+-rw-r--r--    1 105      112             0 Jun 08 12:32 vasya.txt
+226 Directory send OK.
+
+ftp> ls
+227 Entering Passive Mode (172,16,100,31,195,245).
+150 Here comes the directory listing.
+drwxrwxrwx    2 0        0            4096 Jun 09 07:51 uploads
+-rw-r--r--    1 105      112             0 Jun 08 12:32 vasya.txt
+226 Directory send OK.
+
+
+тесть видно кадый раз когда я запускаю ls
+то фтп клиент аавтоматом запраивает заново
+праметры второго канала. и кажый раз фтп сервер
+выдает уже другой порт
+
+
+вот как у нас выглядит дерево процессов фтп
+серера до того как мы к нему подключились
+
+# ps aux | grep vsftpd | grep -v grep
+root         943  0.0  1.6  10184  3952 ?        Ss   Jun08   0:00 /usr/sbin/vsftpd /etc/vsftpd.conf
+
+# lsof -Pnp 943 | grep TCP
+vsftpd  943 root    3u  IPv4              21126      0t0    TCP *:21 (LISTEN)
+
+
+вот мы подключились.
+и ввели пасивный режим
+# nc 172.16.100.31 21
+220 (vsFTPd 3.0.3)
+user anonymous
+331 Please specify the password.
+
+pass 
+230 Login successful.
+pasv
+227 Entering Passive Mode (172,16,100,31,195,82).
+
+по идее это поорт 50002
+
+тогда вот такое дереево процессов
+ps aux | grep vsftpd | grep -v grep
+root         943  0.0  1.6  10184  4056 ?        Ss   Jun08   0:00 /usr/sbin/vsftpd /etc/vsftpd.conf
+nobody      1363  0.0  1.1  10184  2644 ?        Ss   10:13   0:00 /usr/sbin/vsftpd /etc/vsftpd.conf
+ftp         1365  0.0  1.5  11420  3608 ?        S    10:13   0:00 /usr/sbin/vsftpd /etc/vsftpd.conf
+
+и какой то изних должен слушать 50002
+да так и есть
+
+# lsof -Pnp 943 | grep TCP | grep 50002
+root@ftp:/etc# lsof -Pnp 1363 | grep TCP | grep 50002
+vsftpd  1363 nobody    5u  IPv4              30369      0t0    TCP 172.16.5.2:50002 (LISTEN)
+
+
+в целом более менее все.
+
+вот статья про хелперы 
+но в nft
+https://wiki.nftables.org/wiki-nftables/index.php/Conntrack_helpers
+я ее не проработал
+
+
+
+список FTP команд
+https://en.wikipedia.org/wiki/List_of_FTP_commands
+
+
+
+
+
+

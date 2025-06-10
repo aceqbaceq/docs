@@ -1616,6 +1616,16 @@ IN= OUT=wlp2s0 SRC=192.168.21.1 DST=127.0.0.1
 потому что до этого rule уже пакет никогда не попдает. поэтому мы можем уивдтеь как
 пакет выгляди до экешена а кк он выгляди после экшена мы уже в этой талице не уидвиим
 
+
+как экспортиовать правила из nft
+
+% echo "flush ruleset" > backup.nft
+% nft list ruleset >> backup.nft
+(https://wiki.nftables.org/wiki-nftables/index.php/Operations_at_ruleset_level)
+
+
+
+
 ===================
 links:
 

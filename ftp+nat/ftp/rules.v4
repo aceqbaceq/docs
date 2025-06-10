@@ -1,0 +1,35 @@
+*filter
+:INPUT DROP [10:598]
+:FORWARD ACCEPT [0:0]
+:OUTPUT ACCEPT [12:750]
+
+
+-A INPUT -p tcp -m tcp --dport 21 -m conntrack --ctstate NEW -j LOG --log-prefix "[NEW] "
+-A INPUT -p tcp -m tcp --sport 21 -m conntrack --ctstate NEW -j LOG --log-prefix "[NEW] "
+
+-A INPUT -p tcp -m tcp --dport 20 -m conntrack --ctstate NEW -j LOG --log-prefix "[NEW] "
+
+-A INPUT -p tcp -m tcp -m conntrack --ctstate RELATED -j LOG --log-prefix "[RELATED] "
+-A INPUT -p tcp -m tcp -m conntrack --ctstate NEW -j LOG --log-prefix "[NEW] "
+
+-A INPUT -p icmp -j LOG --log-prefix "[FILTER-INPUT icmp] "
+-A INPUT -p icmp -j NFLOG --nflog-prefix "NFLOG icmp"
+
+-A INPUT -m tcp -p tcp --dport 22 -j ACCEPT
+
+-A INPUT -m tcp -p tcp   --dport 21   -j ACCEPT
+-A INPUT -m tcp -p tcp  --match multiport --dports 50000:50200 -j ACCEPT
+-A INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+
+-A INPUT -j DROP
+
+
+
+-A OUTPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+
+COMMIT
+# Completed on Sun Jun  8 09:25:00 2025
+
+
+
+
