@@ -1,0 +1,9 @@
+| Iphone
+
+как выключить включить приложоение фотоапарат
+
+ settings - screen time - content & privacy  -
+                          restrictions 
+
+
+- allowed apps - camera 

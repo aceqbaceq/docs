@@ -1,0 +1,34 @@
+| permissions
+| permission
+| file
+
+
+что значит знак "+"   в файл перминшнс
+
+$ ls -dl  ~/temp
+drwxr-xr-x+ 69 noroot noroot 4096 июн 13 17:35 /home/noroot/temp
+
+тоесть я про вот этот плюс
+
+drwxr-xr-x+
+
+он значит то что файл имеет ACL
+
+
+ B 뾳  $ getfacl ~/temp
+getfacl: Removing leading '/' from absolute path names
+
+# file: home/noroot/temp
+# owner: noroot
+# group: noroot
+user::rwx
+user:openvpn:--x
+group::r-x
+mask::r-x
+other::r-x
+
+соббтсвенно вот видно что файл имеет доп ACL
+
+user:openvpn:--x
+
+
