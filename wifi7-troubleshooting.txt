@@ -1,0 +1,762 @@
+| wifi
+| проблемы
+| troubleshooting
+
+значит здесь я хочу описать что и как 
+делать если на компе есть проблемы с вай фай
+связью
+
+значит вобщето как раз для этой цели есть
+реально отличная статья    wifi.txt     
+поэтому рекоменду туда пройти для начала
+
+но тем не менее здесь я изложу более короткую
+и более свежую инфорацию. по горячим следам
+когда у меня неработал вай фай.
+
+
+итак вот мы включили графический режим cinnamon
+и у нас NetworkManager applet  в трее показывает
+что связи по вай фай нет.
+в этом аплете искать ответ почему связи нет ненужно.
+нужно искать причины другими способами.
+
+вначале нужно убедиться что вай фай сетевая
+карта видна ядру и он для нее имеет драйвер
+
+
+$ lspci | grep Wi
+02:00.0 Network controller: Qualcomm Atheros QCA9377 802.11ac Wireless Network Adapter (rev 31)
+
+выяснили вот эту цифру 02:00.0
+смотрим более подробно
+
+
+$ lspci -v -s 02:00.0
+02:00.0 Network controller: Qualcomm Atheros QCA9377 802.11ac Wireless Network Adapter (rev 31)
+	Subsystem: Lenovo Qualcomm Atheros QCA9377 Wireless Network Adapter
+	Flags: bus master, fast devsel, latency 0, IRQ 145
+	Memory at a1000000 (64-bit, non-prefetchable) [size=2M]
+	Capabilities: <access denied>
+	Kernel driver in use: ath10k_pci
+	Kernel modules: ath10k_pci
+
+вот мы видим
+
+	Kernel driver in use: ath10k_pci
+	Kernel modules: ath10k_pci
+
+
+значит в этом плане все окей.
+железка видна. модуль\драйвер запущен
+
+
+далее есть такая супер утилита 
+
+
+    iw
+
+она позволяет посмотреть список именно вай 
+карт на компе. ( в отлиичиии от ip -c link sh который
+показыает все карты подряд и проводные и вай фай
+и прочие что нам нахер неудобно)
+
+
+$ iw dev
+phy#0
+	Unnamed/non-netdev interface
+		wdev 0x4
+		addr 80:30:49:b2:85:cf
+		type P2P-device
+	Interface wlp2s0
+		ifindex 2
+		wdev 0x1
+		addr 80:30:49:b2:85:cf
+		type managed
+		channel 36 (5180 MHz), width: 80 MHz, center1: 5210 MHz
+		txpower 20.00 dBm
+		multicast TXQ:
+			qsz-byt	qsz-pkt	flows	drops	marks	overlmt	hashcol	tx-bytes	tx-packets
+			0	0	0	0	0	0	0	0		0
+
+
+из ее вывода вот что мы узнаем.
+что на уровне ядра наша вай фай карта имеет
+имя phy#0
+но юзер утилиты под этим именем ее никогда не 
+увидят. это имя именно с точки зрения внутри
+ядра. а сточки зрения юзер утилит эта карта
+видна как
+
+	Interface wlp2s0
+
+вот это мы и хотели узнать. давай проверим
+что "обычные" утилиты сетевые видят wlp2s0
+
+$ ip -c l  sh dev wlp2s0
+2: wlp2s0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP mode DORMANT group default qlen 1000
+    link/ether 80:30:49:b2:85:cf brd ff:ff:ff:ff:ff:ff
+    altname wlx803049b285cf
+
+или
+
+$ ip -c l  sh | grep wlp2s0
+2: wlp2s0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP mode DORMANT group default qlen 1000
+
+таким макаром нашли имя вай карты в нашем
+сетевом стеке
+
+вот эта утилита iw  она много чего интересного
+умеет делать.  например прикол в том что на данный
+момент один физ чип вай фай карты он позволяет
+его нарезать на несколько частей, на несколько
+вирт сет карт. тоесть мой текущий чип позволяет
+создать внутри линукса толи 3 толи 5 вирутальных
+сет карт. и каждую можно настрваить отдельно. 
+и вот эта нарезка делается как раз через утилиту iw
+можно например удалить текущую вирт сет карту 
+
+   # iw dev wlp2s0 del
+
+а потом создать вместо нее новую с другим более
+удобным для нас именем
+
+  # iw phy phy0 interface add wlan0 type managed
+
+то есть данный командой мы из физ чипа phy0
+вырезаем (вычленяем) первую вирт карту wlan0
+обо всем этом ищи в других статьях.
+а щас пока это мне ненадо.
+работаем далее с wlp2s0
+
+
+имя wlp2s0 при загрузке создает автоматом
+systemd-udevd но  я не буду щас углубляться на
+том как оно это делает и как это настрваивать
+или менять.
+
+итак мы выяснили что мы имеем у себя вай 
+фай карту wlp2s0
+
+
+
+
+ТЕПЕРЬ супер важные знания: если взять обычную 
+проводную карту то что нужно чтобы она заработала.
+первое - нужно в нее воткнуть провод. при этом
+наша карта получает доступ физически к среде.
+после этого останется назначит ей IP адрес и 
+все готоово. ТАК ВОТ - вай фай карта в нее с одной
+стороны "провод" воткнут всегда. но все таки она
+неимеет доступа к среде передачи данных. чтобы она
+получила такую возможость - нужно чтобы карта
+ввела пароль на точке доступа к которой она хочет
+подключиться. только после этого карта получает
+одобрение от точки доступа. и точка доступа 
+начинает позволять этой сет карте переавать пакеты
+через эту точку доступа далее в сеть (или получть
+пакеты от точки доступа внутрь себя из сети). 
+когда мы ввели пароль на точке доступа наша вай
+фай карта как бы наконец "втыкает провод " в себя.
+тоесть на уровне L2 она может делать передачу
+данных. далее нужно такой карте назначить IP 
+адрес (через ip addr add ...) , далее нужно на компе
+доабвить маршрут (хотя ip addr add обычно это делает
+за нас автоматом) и можно начинать пользоваться 
+этой картой. так вот что это значит на практкие.
+это значит то что когда мы убеиидись что ядро
+имеет модуль от нашей вай фай карты то теперь
+на компе нужно найти особую программу:
+
+  wpa_supplicant
+
+(ест еще альтерантива iwd но она пока редка)
+
+так вот этот   wpa_supplicant  это такая супер
+спец особая программа которая делает вот что -
+она берет SSID и пароль и вводит его на точке
+доступа. таким макаром именно эта программа
+"втыкает провод" в нашу вай фай карту.
+это делает именно она. другие программы такие
+как например сетевые менеджеры NetworkManager
+или systemd-networkd делать этого не умеют
+и не хотят. они это делают как раз таки юзая
+эту прогу. но опять же - эти сетевые менеджеры
+они могут быть их может вобще не быть. они нам
+в целом похер. в любом случае программа wpa_supplicant
+должна быть запущена на нашем компе. и она
+должна быть правильно законфигурирована. 
+именно эта программа и никаакая другая
+занимается подключенеим вай фай карты к
+точке доступа.(вводит SSID и пароль и получает
+от точки доступа параметры шифрования канала).
+значит на этом этапе нам нужно узнать работает
+ли эта программа. и посмотреть какой статус
+на вай фай карте через неее.
+
+$ ps aux | grep wpa_supp
+root         947  0.0  0.0  17548 10764 ?        Ss   01:32   0:00 /usr/bin/wpa_supplicant -u -s -c /etc/wpa_supplicant/wpa_supplicant.conf -i wlp2s0 -D nl80211
+
+как видно она работает.
+как правило она запускается через systemd unit
+
+$ systemctl status wpa_supplicant
+● wpa_supplicant.service - WPA supplicant
+     Loaded: loaded (/usr/lib/systemd/system/wpa_supplicant.service; disabled; preset: disabled)
+    Drop-In: /usr/lib/systemd/system/wpa_supplicant.service.d
+             └─config.conf
+     Active: active (running) since Sat 2025-06-14 01:32:01 MSK; 17h ago
+ Invocation: 0636d3b0eb8c40e89b98f020244ea779
+   Main PID: 947 (wpa_supplicant)
+      Tasks: 1 (limit: 18794)
+     Memory: 6.9M (peak: 7.5M)
+        CPU: 705ms
+     CGroup: /system.slice/wpa_supplicant.service
+             └─947 /usr/bin/wpa_supplicant -u -s -c /etc/wpa_supplicant/wpa_supplicant.conf -i wlp2s0 -D>
+
+июн 14 17:23:19 lenovo wpa_supplicant[947]: wlp2s0: CTRL-EVENT-REGDOM-BEACON-HINT before freq=5180 max_t>
+июн 14 17:23:19 lenovo wpa_supplicant[947]: wlp2s0: CTRL-EVENT-REGDOM-BEACON-HINT after freq=5180 max_tx>
+июн 14 17:23:26 lenovo wpa_supplicant[947]: wlp2s0: SME: Trying to authenticate with 8a:07:8a:23:04:c5 (>
+июн 14 17:23:26 lenovo wpa_supplicant[947]: wlp2s0: Trying to associate with 8a:07:8a:23:04:c5 (SSID='ip>
+июн 14 17:23:26 lenovo wpa_supplicant[947]: wlp2s0: Associated with 8a:07:8a:23:04:c5
+июн 14 17:23:26 lenovo wpa_supplicant[947]: wlp2s0: CTRL-EVENT-SUBNET-STATUS-UPDATE status=0
+июн 14 17:23:26 lenovo wpa_supplicant[947]: wlp2s0: WPA: Key negotiation completed with 8a:07:8a:23:04:c>
+июн 14 17:23:26 lenovo wpa_supplicant[947]: wlp2s0: CTRL-EVENT-CONNECTED - Connection to 8a:07:8a:23:04:>
+июн 14 17:23:26 lenovo wpa_supplicant[947]: wlp2s0: CTRL-EVENT-SIGNAL-CHANGE above=1 signal=-44 noise=-9>
+июн 14 17:29:37 lenovo wpa_supplicant[947]: wlp2s0: CTRL-EVENT-SIGNAL-CHANGE above=1 signal=-36 noise=-9>
+
+
+из чего мы видим что 
+     Active: active (running)
+прога раобтает
+
+
+также
+мы видим как эта прога запущена в качестве процесса
+
+/usr/bin/wpa_supplicant -u -s -c /etc/wpa_supplicant/wpa_supplicant.conf -i wlp2s0  -D nl80211
+
+что совпадает что мы увидели через ps aux
+
+также видны логи этой проги. как она себя 
+чуствует.
+ксатти логи можно вот так посмотреть еще
+
+   # journalctl -f -u   wpa_supplicant
+
+
+итак прога запущена. прога раобатет.
+у нее есть клиент который может к ней
+подключаться. подключиться можно если знать
+где лежит локальный юникс сокет который 
+wpa_supplicant создает.
+найдем его
+
+# lsof -Pnp $(pidof wpa_supplicant) | grep unix | grep var
+wpa_suppl 26755 root  14u     unix 0x000000002326aba0      0t0    127070 /var/run/wpa_supplicant/wlp2s0 type=DGRAM (UNCONNECTED)
+
+
+итак вот где лежит его юникс сокет
+
+/var/run/wpa_supplicant/wlp2s0
+
+
+полключамся к wpa_supplicant через этот
+юникс сокет и клиента
+
+# wpa_cli -g /run/wpa_supplicant/wlp2s0
+
+
+> status
+bssid=8a:....
+freq=5180
+ssid=...
+id=0
+mode=station
+...
+...
+address=80:30:49:b2:85:cf
+
+
+итак тут видно что вай фай карта с МАC=80:30:49:b2:85:cf
+успешно аутентифицирована на точке доступа
+которая имеет bssid=8a:.... 
+
+напомню что наша wlp2s0 имеет MAC 80:30:49:b2:85:cf
+$ ip -c l sh dev wlp2s0
+2: wlp2s0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP mode DORMANT group default qlen 1000
+    link/ether 80:30:49:b2:85:cf brd ff:ff:ff:ff:ff:ff
+
+
+если у нас проблемы с вай фай то 
+# wpa_cli -g /run/wpa_supplicant/wlp2s0
+> status
+
+нам покажет какието детали проблемы.
+
+также может так случиться что wpa_supplicant
+на данный момент неимеет открытого юникс
+сокета. тогда обычно его достоачно просто
+перезагузить
+
+  # systemctl restart wpa_supplicant
+
+и локлаьный юникс сокет появялется в /var/run/...
+
+теперь важный момент - откуда wpa_supplicant
+беерет SSID и пароль? 
+ОТВЕТ - из своего конфига либо ему сообщает
+это другая прграмма через его локальный юникс сокет.
+
+конфиг (путь где лежит конфиг) указывается 
+в свойствах системд юнита.
+
+# cat /lib/systemd/system/wpa_supplicant.service
+...
+ExecStart=/usr/bin/wpa_supplicant -u -s -O /run/wpa_supplicant
+
+как видно по дефолту тут нет никаокго
+указания на конфиг файл.
+
+поэтому нам нужно самими дбавить путь к 
+конфигу файлу. 
+для этого создаем drop-in файл
+
+# cat /lib/systemd/system/wpa_supplicant.service.d/config.conf 
+[Service]
+ExecStart=
+ExecStart=/usr/bin/wpa_supplicant -u -s -c /etc/wpa_supplicant/wpa_supplicant.conf -i wlp2s0 -D nl80211 -O /run/wpa_supplicant
+
+
+вот путь к конфиг файлу 
+  -c /etc/wpa_supplicant/wpa_supplicant.conf 
+
+вот эта штука она укзывает где wpa_supplicant
+должен открыть юникс сокет
+  -O /run/wpa_supplicant
+
+об остальных опциях читай в 
+  $ man wpa_supplicant.conf
+
+
+вот как выглядит сам конфиг
+
+# cat /etc/wpa_supplicant/wpa_supplicant.conf 
+p2p_disabled=1
+ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=0
+passive_scan=1
+interworking=0
+go_interworking=0
+ap_scan=1
+country=ru
+
+autoscan=periodic:60
+
+network={
+
+   bgscan="simple:36000:-70:46000"
+   ssid="net1"
+   bssid=8a:07:8a:xx:xx:xx
+   frequency=5180
+   psk="vasyas1d21"
+   proto=WPA2
+   key_mgmt=WPA-PSK
+   pairwise=CCMP
+   group=CCMP
+   scan_ssid=1
+   mode=0
+   #disable_sgi=1
+
+}
+
+
+
+в нем как видно я еще раз продублировал
+уазание в какой папке создавать юникс 
+сокет.(папка /run и /var/run это одна и таже 
+папка)
+
+ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=0
+
+вот эта штука
+p2p_disabled=1
+она отключает p2p wifi . хуйня та еще . нам
+она ненужна. 
+
+но самое главное в этом файле
+указаны параетры точки доступа к которой
+нужно нашу вай карту подключить аутентфицировать
+указан SSID и пароль(psk) доступа  
+
+
+network={
+
+   bgscan="simple:36000:-70:46000"
+   ssid="net1"  # SSID
+   bssid=8a:07:8a:xx:xx:xx
+   frequency=5180
+   psk="vasyas1d21"  # ПАРОЛЬ
+   proto=WPA2
+   key_mgmt=WPA-PSK
+   pairwise=CCMP
+   group=CCMP
+   scan_ssid=1
+   mode=0
+   #disable_sgi=1
+
+}
+
+итак если мы в конфиге все указали верно
+то wpa_supplicant должен успешно
+поклчюить вай фай карту к точке доступа
+и подключение к wpa_supplicant 
+через его клиент wpa_cli
+
+# wpa_cli -g /run/wpa_supplicant/wlp2s0
+
+
+> status
+bssid=8a:....
+freq=5180
+ssid=...
+id=0
+mode=station
+...
+...
+address=80:30:49:b2:85:cf
+
+
+должна показать что все зашибись.
+при этом утилита ip link 
+должна покзывает что статус сеткарты равен UP
+
+# ip -c l sh dev wlp2s0
+2: wlp2s0: ... state UP
+
+
+тоесть если wpa_supplicant успено ввел SSID+пароль
+на точке доступа и "воткнул провод" в вай фай карту
+то ip link должен показывать статус UP
+прцоесс wpa_supplicant должен раобтать потоянно
+если он упадет то карта мгнвоенно "отключится"
+от точки доступа. и связь перкратится.
+
+когда мы карту завели (подключили к точке доступа)
+то это аналогично как если бы это была обычная
+проводная карта и в нее воткнули провоод. 
+теперь нужно только назначить ип адрес для 
+этой карты и добавить маршрут в таблицу.
+
+# ip addr add 192.18.10.25/24 scope global dev wlp2s0
+
+впрочем эта же команда сама автоматом
+и маршрут нам необходимый добавит.
+
+все! карта готова к употреблению!
+
+ТЕПЕРЬ тонкий момент. обычно на компе есть 
+менеджер сети тоесть менеджер сетевых карт.
+например это NetworkManager
+и нам нужно как состыковать эти две проги
+тоесть NetworkManager с wpa_supplicant
+
+я ранее писал что  wpa_supplicant он может необход
+имые SSID\пароль и прочее в себя получить не
+только через конфиг файл но и через свой
+локальный сокет. так вот NetworkManager он умеет
+искать wpa_supplicant на компе и его локальный
+сокет. и тогда схема такая. мы из конфига 
+wpa_supplicant конфина удаляем подробности 
+сети а осталяем только общие настройки
+тоесть вот к такому виду приводим
+
+
+# cat /etc/wpa_supplicant/wpa_supplicant.conf 
+p2p_disabled=1
+ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=0
+passive_scan=1
+interworking=0
+go_interworking=0
+ap_scan=1
+country=ru
+
+autoscan=periodic:60
+
+
+зато в конфиге NetworkManager
+мы добавляем
+
+
+# cat /etc/NetworkManager/system-connections/iphone-72c69289-6c9f-499e-9b31-52b0cb1c10ee.nmconnection 
+[connection]
+id=iphone
+uuid=72c69289-6c9f-499e-9b31-52b0cb1c10ee
+type=wifi
+down-on-poweroff=1
+interface-name=wlp2s0
+timestamp=1749848325
+
+[wifi]
+mode=infrastructure
+mtu=1500
+powersave=2
+ssid=iphone
+wake-on-wlan=32768
+
+[wifi-security]
+key-mgmt=wpa-psk
+psk=ПАРОЛЬ
+
+[ipv4]
+dns=8.8.8.8;8.8.4.4;
+method=auto
+
+[ipv6]
+addr-gen-mode=default
+method=ignore
+
+[proxy]
+
+
+в этом конфиге
+самые важные строки
+
+    interface-name=wlp2s0
+
+это имя нашей вай фай карты
+
+имя сети
+
+     ssid=iphone
+
+
+тип пароля и пароль
+
+     key-mgmt=wpa-psk
+     psk=ПАРОЛЬ
+
+
+и произойдет вот что.
+при старте NetworkManager он через сокет 
+/var/run/wpa_supplicant передаст в wpa_supplicant
+параметры вай фай сети SSID\пароль 
+и тот получив это "подключит" вай фай карту
+к точке доступа. и далее наш NetworkManager уже
+автоматом назначит сет карте ип адрес.
+ВОТ КАК ЭТА СВЯЗКА РАБОТАЕТ!
+
+обычно проблема почему вай фай работал 
+и потом перстал это потому что  у нас 
+ядро поменяло имя вай фай карты
+а в настройках NetworkManager указано 
+старое название вай файл карты
+
+    interface-name=wlp2s0
+
+
+кстати я выше указал строку котроый
+мы запускаем wpa_supplicant в системд юните
+
+ExecStart=/usr/bin/wpa_supplicant -u -s -c /etc/wpa_supplicant/wpa_supplicant.conf -i wlp2s0 -D nl80211 -O /run/wpa_supplicant
+
+так вот 
+если мы пытаемся управлять вай фай картой
+чеез NetworkManager то можно сократить
+эту строку
+
+ExecStart=/usr/bin/wpa_supplicant -u -s -c /etc/wpa_supplicant/wpa_supplicant.conf  -O /run/wpa_supplicant
+
+убрав из нее 
+
+  -i wlp2s0 -D nl80211
+
+
+чтобы передачей этих параметров в wpa_supplicant
+занимался сам NetworkManager
+
+если NetworkManager доволен то как вай
+фай карты покдлючена к сети то он 
+выведет вот так
+
+# nmcli dev
+DEVICE          TYPE      STATE                   CONNECTION 
+wlp2s0          wifi      connected               iphone     
+
+я обращаю внимание на 
+
+  STATE
+  connected
+
+
+так вот если я  остановлю wpa_supplicant
+то NetworkManager покажет про эту вай фай карту
+вот что
+
+ nmcli dev | grep -E "DEVICE|wlp2s0"
+DEVICE          TYPE      STATE                   CONNECTION 
+wlp2s0          wifi      unavailable             --         
+
+обращаю внимание на 
+
+   STATE
+   unavailable
+
+
+таким образом этим NetworkManager нам 
+хочет сказать что есть какаято проблема
+с wpa_supplicant  тоесть нужно идти на него
+и проверять - есть ли у него пролемы с "поклюеничем"
+карты к точке доступа.
+либо как уже указал что имя вай фай карты wlp2s0
+указаннное в настройках NetworkManager устарело
+и неактуально.
+
+в моем случае проблема была именно в этом - ядро
+изменило имя вай фай карты.а в настройках 
+NetworkManager остался старым.
+
+как можно посмтреть ткущие настройки в NetworkManager
+через cli
+
+# nmcli conn show iphone | grep interface-name
+connection.interface-name:              wlp2s0
+
+и так как в NetworkManager предапочтельно
+менять настойки не через конфиги а через cli
+то меняем вот так
+
+ # nmcli conn mod iphone   connection.interface-name  wlan0
+
+если все станет зашибись то в свойствах
+NetworkManager даный конект выглядел вот так
+
+$ nmcli conn | grep -E "NAME|wifi"
+NAME        UUID     TYPE      DEVICE   
+iphone      72c6...  wifi      --       
+
+а станет вот так
+
+NAME        UUID      TYPE      DEVICE   
+iphone      72c6...   wifi      wlp2s0   
+
+
+еще если все окей то вот так будет
+но это уже мало важно
+
+$ nmcli dev wifi
+IN-USE  BSSID   SSID    MODE   CHAN  RATE        SIGNAL  BARS  SECURITY 
+*       8A:...  iphone  Infra  36    135 Mbit/s  94      ▂▄▆█  WPA2    
+
+
+ИТАК чтобы вай фай завелся
+то нужно чтобы все было зашибись с wpa_supplicant
+а точнее его связкой с NetworkManager
+
+также как я уже сказал что любой нетворк 
+менеджер это необяательная прога на компе.
+он просто нас освобождает от ручного ввода
+праарметров сет карт при старте компа.
+
+в случае вай фай карт по сути сетевым 
+менеджером является wpa_supplicant
+мы можем уже через него "покдлчить" вай фай карту
+к точке доступа указав SSID\пароль в его 
+конфиге.
+. а потом руками назначить
+карте ип адрес , плюс доавбить маршрут и все
+будет раобтать. но мы указываем в его конфиге
+только общие параметры. а основные настроки
+мы переносим в NetworkManager ибо все таки
+он у нас на компе рулит картами в глобаьном смысле.
+и он через сокет передает эти параметры в
+wpa_supplicant. 
+итак получается что NetoworkManager преедает 
+чреез сокет в wpa_suplicant имя карты, SSID\пароль
+и тот делает аутенфтикацию карты на  точке
+доступа. а потом уже NetoworkManager присваивает
+заместо наших рук ИП адрес на эту вай фай карту.
+по сути никакой магии. но мудота точно есть.
+особенно о том как это все плохо описано.
+
+
+ДАЛЕЕ.  я опишу еще кое какие важные 
+моменты.
+
+через iw я могу из phy0 чипа 
+выделить +1 вирт сет карту и назначить ей
+режим работы не клиента а режим что данная
+вирт карта сама будет точкой доступа. 
+детали я описывать не будут тут ибо это щас
+неважно. а важно то что если я это сделаю
+то нужно поставить на комп hostapd
+
+hostapd это сервер аутантфииации если 
+мы наш комп будем использовать как точку 
+доступа.
+
+но этого мало. нам нужно еще на комп 
+поставить DHCP сервер kea (он есть только в
+pamac)
+
+kea это pamac пакет kea
+
+и сделать привязку к этой вай фай карте.
+
+вот как выглядит его конфиг
+
+# cat kea-dhcp4.conf 
+{
+    "Dhcp4": {
+        "interfaces-config": {
+            "interfaces": [ "wifi-ap0/172.16.2.253" ],
+            "dhcp-socket-type": "raw"
+        },
+
+        "subnet4": [
+            {
+                "id": 1,
+                "subnet": "172.16.2.0/24",
+                "pools": [ { "pool": "172.16.2.100 - 172.16.2.199" } ],
+                "option-data": [
+                    {
+                        "name": "routers",
+                        "data": "172.16.2.254"
+                    },
+                    {
+                        "name": "domain-name-servers",
+                        "data": "172.16.2.1"
+                    }
+                ]
+            }
+        ]
+    }
+}
+
+
+
+здесь wifi-ap0 это имя вай фай карты которую
+мы с помощью iw  создали вычленили из phy0
+и перекючили ее в режим точки доступа
+все конфиги этой службы я скопировал в папку
+
+   wifi/kea
+
+
+
+а вот еще ВАЖНЫЙ момент.
+положим я вычленил  и phy0 +1 вай фай карту.
+но как же это делать автоматом при загрузке.
+и тут нам подходит systemd-udev (или просто UDEV)
+хрень.
+нам нужно создать вот такой файл
+
+# pwd
+/etc/udev/rules.d
+
+# cat 120-wireless.rules 
+ACTION=="add", SUBSYSTEM=="ieee80211", KERNEL=="phy0",  \
+    RUN+="/usr/bin/iw phy %k interface add wifi-ap0 type managed addr 80:30:49:b2:85:aa"
+
+
+
+ПОЖАЛУЙ ПОКА ПРО WI-FI ВСЕ

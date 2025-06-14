@@ -1,0 +1,36 @@
+| iptables
+| vm
+| virtualka
+| systemd-resolved
+
+
+есть хост на нем есть br0 интерфейс 172.16.10.1
+за которыми сидят виртлки
+я на хосте настроил systemd-resolved
+так чтобы он слушал запросы на br0
+
+# cat /etc/systemd/resolved.conf.d/global.conf 
+
+[Resolve]
+...
+...
+DNSStubListenerExtra=172.16.10.1
+
+
+на самой виртуалке есть тоже systemd-resolved
+и на нем я настроил чтобы у него форвардер
+был 172.16.10.1
+тоесть я хочу чтобы SR вирталки брал инфо
+из SR хоста а не лазил в интернет
+чтобы это работало то нужно на iptables хоста
+добавить правило
+
+*filter
+:INPUT DROP [39:4773]
+
+-A INPUT  -m udp  -p udp --dport 53 -i br0 -s 172.16.10.11  -j ACCEPT
+
+
+где 172.16.10.11 это ип вирталки
+
+

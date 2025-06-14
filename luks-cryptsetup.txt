@@ -3,7 +3,10 @@
 
 $ fallocate -l 3GiB redmi9.luks
 
-$ sudo cryptsetup -y -v --type luks2 luksFormat ./redmi9.luks
+$ sudo cryptsetup  --type luks2 luksFormat ./redmi9.luks
+
+он спросить ввести 'yes' НО СУКА! нужно ее 
+ввести БОЛЬШИМИ БУКВАМИ! ИНАЧЕ ИДИ НАХУЙ
 
 команду нужно обязаетельно под судо запускать иначе выдаст ошибку
 
