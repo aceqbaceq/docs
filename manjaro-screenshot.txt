@@ -1,0 +1,7 @@
+| manjaro
+| screenshot
+
+
+  # pacman -Sy gnome-screenshot 
+
+  
