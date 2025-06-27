@@ -1,0 +1,3 @@
+| ssh
+
+ssh -o KexAlgorithms=curve25519-sha256 va@1.1.1.1

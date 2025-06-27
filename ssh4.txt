@@ -1,0 +1,33 @@
+| ssh
+
+$ ssh -o KexAlgorithms=diffie-hellman-group1-sha1      va@1.1.1.1
+Unable to negotiate with 1.1.1.1 port 22: no matching host key type found. Their offer: ssh-rsa,ssh-dss
+
+
+решение 
+$ ssh -o    HostKeyAlgorithms=ssh-rsa        va@1.1.1.1
+
+или еще лучше добавить в конфиг   /etc/ssh/ssh_config
+
+
+
+
+
+#  tail /etc/ssh/ssh_config
+
+    HostKeyAlgorithms +ssh-rsa  
+
+
+
+эта настройка (плюс) именно добавит этот кей экчендж алгоритм а не сделает его единсвтенным
+
+
+
+из man ssh_config
+
+  HostKeyAlgorithms
+               Specifies the host key signature algorithms that the client wants to use in order of preference.
+
+
+
+
