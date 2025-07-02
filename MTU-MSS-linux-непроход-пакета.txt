@@ -448,6 +448,8 @@ mtu - размер фрейма
 
 если влан нет то иппакет + 18 байт
 
+======
+ethtool -K br0 tx off sg off tso off
 
 
 

@@ -110,3 +110,7 @@ proxmox tools то установка просто зависнет.
 ===
 
 ==
+как получить список всех вм в кластере
+pvesh get /cluster/resources --type vm  --output-format [text, json, json-pretty, yaml]
+===
+
