@@ -114,3 +114,17 @@ proxmox tools то установка просто зависнет.
 pvesh get /cluster/resources --type vm  --output-format [text, json, json-pretty, yaml]
 ===
 
+
+как создать юзера и ему дать права только на чтение по всему кластеру
+
+to create a Proxmox user with full read permissions, you'll need to add 
+the user and then assign them the appropriate permissions. First, create 
+the user through the Proxmox web interface, selecting the appropriate 
+authentication realm (e.g., pve for Proxmox users or pam for PAM authentication).
+Then, navigate to Datacenter -> Permissions, and create a new user permission. 
+Set the path to / (or the specific object you want them to have full read access to), 
+and select the PVEAuditor role, which provides read-only access to most Proxmox objects. 
+Finally, ensure the "Propagate" checkbox is enabled to apply the permissions to child objects.
+
+======
+
