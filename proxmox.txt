@@ -127,4 +127,8 @@ and select the PVEAuditor role, which provides read-only access to most Proxmox 
 Finally, ensure the "Propagate" checkbox is enabled to apply the permissions to child objects.
 
 ======
+при  миграции в кластере с ноды на ноду мак адрес вирталки
+не менятся
+проерил
+====
 
