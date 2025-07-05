@@ -1,0 +1,10 @@
+| sysrq
+| reboot
+
+
+   echo 1 > /proc/sys/kernel/sysrq
+
+Далее посылаем нужную команду в sysrq триггер:
+
+   echo b > /proc/sysrq-trigger
+   
