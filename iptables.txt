@@ -742,3 +742,15 @@ COMMIT
 
   при этом нужен OUTPUT или FORWARDING тоже нужен?
 
+=======
+
+| manjaro
+| iptables
+| restore
+
+чтобы в манжаро при загрузке правила иптебйлс автоматом восстаналвивлаись надо 
+сделать вот так
+
+  # systemctl enable --now iptables
+  
+========
