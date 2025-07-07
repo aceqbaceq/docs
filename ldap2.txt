@@ -338,6 +338,27 @@ systemctl restart nslcd
 pam-auth-update
 
 
+есть еще одна засада
+файл nscd.conf
+его надо поправить
+
+
+nscd.conf <<EOF
+
+enable-cache            passwd          yes
+positive-time-to-live   passwd          30    # 30 сек вместо 600
+negative-time-to-live   passwd          2     # 2 сек вместо 20
+check-files             passwd          yes   # Следить за изменениями /etc/passwd
+persistent              passwd          no    # Не сохранять кэш после перезагрузки
+
+И ОБЯЗАТЕЛЬНО ПОСЛЕ ЭТОГО НУЖНО РЕСТАРТОВАТЬ NSCD!1! ОБЯАЗАТЕЛЬНО!
+
+
+systemctl restart nscd
+
+
+
+
 проверяем
 
 $ getent passwd masha

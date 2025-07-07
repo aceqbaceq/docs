@@ -1,0 +1,11 @@
+| apt
+| ipv6
+
+ест такя фигня апт поемуто резволит свои апт серера в ipv6
+чтобы ему это запретить то нужно 
+
+
+  # echo 'Acquire::ForceIPv4 "true";' | sudo tee /etc/apt/apt.conf.d/99force-ipv4
+  
+  
+  
