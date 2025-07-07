@@ -536,3 +536,33 @@ FBIOPUT_VSCREENINFO: invalid argument
 qemu-system-x86_64 -name kub02-01 -m 1224M -boot d -drive file=hda.img,media=disk,if=virtio,format=qcow2,file.locking=on -cpu host -enable-kvm -smp 1 -M q35 -device virtio-balloon -device VGA,vgamem_mb=8 -display none -netdev tap,id=mynet1,ifname=tap14,script=no,downscript=no -device virtio-net-pci,netdev=mynet1,mac=ba:ec:24:5c:40:01 -serial /dev/tty ; reset
 
 ================
+
+| debian
+| install
+
+сиавлю дебиан и он пишет сразу что мол
+cant unpack initramfs и кернел паник.
+
+хуйня  в том имеет значение порядок параметров в строке qemu
+рабочий вариант воттакой
+
+qemu-system-x86_64 \
+    -name ldap-c4 \
+    -m 856 \
+    -cdrom ./dvd.iso \
+    -boot d \
+    -drive file=hda.img,media=disk,if=virtio,format=qcow2,file.locking=on \
+    -cpu host \
+    -enable-kvm \
+    -smp 1 \
+    -M q35 \
+    -device virtio-balloon -device VGA,vgamem_mb=8 \
+    -display sdl  \
+    -netdev tap,id=mynet1,ifname=tap7,script=no,downscript=no \
+    -device virtio-net-pci,netdev=mynet1,mac=ba:ec:24:5c:08:08
+
+скорее всего -boot d 
+был вставлен не в ту позицию
+
+
+=======

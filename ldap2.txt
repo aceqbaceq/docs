@@ -4,7 +4,9 @@
 SERVER:
 
 apt-get update
-apt-get install slapd ldap-utils
+apt-get install -y screen
+apt-get install slapd ldap-utils -y
+
 
 
 
@@ -33,11 +35,16 @@ olcSuffix: dc=nodomain
 
 
 
+
 # ldapdelete -Y EXTERNAL -H ldapi:/// "olcDatabase={1}mdb,cn=config"
 SASL/EXTERNAL authentication started
 SASL username: gidNumber=0+uidNumber=0,cn=peercred,cn=external,cn=auth
 SASL SSF: 0
 root@ldap-s2:/home/krivosheeva# 
+
+
+
+
 
 
 
@@ -73,6 +80,7 @@ olcDbIndex: mail eq
 
 
 
+
 #  ldapsearch -Y EXTERNAL -H ldapi:/// -b "cn=config" "(olcDatabase=*)" dn olcSuffix
 SASL/EXTERNAL authentication started
 SASL username: gidNumber=0+uidNumber=0,cn=peercred,cn=external,cn=auth
@@ -100,9 +108,13 @@ olcSuffix: dc=company,dc=local
 
 
 
+
+
 # ldapwhoami -x -H ldapi:/// -D "cn=admin,dc=company,dc=local" -W
 Enter LDAP Password: 
 dn:cn=admin,dc=company,dc=local
+
+
 
 
 
@@ -153,6 +165,10 @@ olcAccess: {1}to *
 
 
 
+
+
+
+
 # cat groups.ldif 
 dn: ou=Groups,dc=company,dc=local
 objectClass: organizationalUnit
@@ -168,6 +184,7 @@ adding new entry "ou=Groups,dc=company,dc=local"
 
 
 
+
 # cat people.ldif 
 dn: ou=People,dc=company,dc=local
 objectClass: organizationalUnit
@@ -175,6 +192,7 @@ ou: People
 
 
 # ldapadd -x -D "cn=admin,dc=company,dc=local" -W  -H ldapi:/// -f people.ldif
+
 
 
 
@@ -210,6 +228,7 @@ gidNumber: 2000
 # ldapadd -x -D "cn=admin,dc=company,dc=local" -W  -H ldapi:/// -f   group-ldapusers.ldif 
 Enter LDAP Password: 
 adding new entry "cn=ldapusers,ou=Groups,dc=company,dc=local"
+
 
 
 
@@ -270,6 +289,9 @@ memberUid: masha
 Enter LDAP Password: 
 modifying entry "cn=ldapusers,ou=Groups,dc=company,dc=local"
 
+
+
+УСТАНОВК СЕРВЕРА ЗАВЕРШЕНА!
 
 
 
