@@ -1,0 +1,3 @@
+dn: ou=Groups,dc=company,dc=local
+objectClass: organizationalUnit
+ou: Groups

@@ -1,0 +1,6 @@
+dn: cn=ldapusers,ou=Groups,dc=company,dc=local
+objectClass: posixGroup
+cn: developers
+gidNumber: 2000
+
+

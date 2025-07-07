@@ -1,0 +1,7 @@
+dn: cn=masha,ou=Groups,dc=company,dc=local
+objectClass: posixGroup
+cn: masha
+gidNumber: 10002
+
+
+

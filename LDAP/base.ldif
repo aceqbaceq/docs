@@ -1,0 +1,14 @@
+dn: olcDatabase={2}mdb,cn=config
+objectClass: olcDatabaseConfig
+objectClass: olcMdbConfig
+olcDatabase: {2}mdb
+olcSuffix: dc=company,dc=local
+olcRootDN: cn=admin,dc=company,dc=local
+olcRootPW: {SSHA}G3+OdpL5985ReVKGQXUlBnZrkYCdoeHf
+olcDbDirectory: /var/lib/ldap/company
+olcDbIndex: objectClass eq
+olcDbIndex: uid eq
+olcDbIndex: cn eq
+olcDbIndex: mail eq
+
+

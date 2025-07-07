@@ -1,0 +1,10 @@
+dn: cn=reader,dc=company,dc=local
+objectClass: simpleSecurityObject
+objectClass: organizationalRole
+cn: reader
+description: LDAP read-only user
+userPassword: {SSHA}fBt1l+h4/fqHhOUWsa2W0gK9yIJc1tTl
+
+
+
+

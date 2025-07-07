@@ -1,0 +1,331 @@
+| ldap
+
+
+SERVER:
+
+apt-get update
+apt-get install slapd ldap-utils
+
+
+
+# ldapsearch -Y EXTERNAL -H ldapi:/// -b "cn=config" "(olcDatabase=*)" dn olcSuffix
+SASL/EXTERNAL authentication started
+SASL username: gidNumber=0+uidNumber=0,cn=peercred,cn=external,cn=auth
+SASL SSF: 0
+# extended LDIF
+#
+# LDAPv3
+# base <cn=config> with scope subtree
+# filter: (olcDatabase=*)
+# requesting: dn olcSuffix 
+#
+
+# {-1}frontend, config
+dn: olcDatabase={-1}frontend,cn=config
+
+# {0}config, config
+dn: olcDatabase={0}config,cn=config
+
+# {1}mdb, config
+dn: olcDatabase={1}mdb,cn=config
+olcSuffix: dc=nodomain
+
+
+
+
+# ldapdelete -Y EXTERNAL -H ldapi:/// "olcDatabase={1}mdb,cn=config"
+SASL/EXTERNAL authentication started
+SASL username: gidNumber=0+uidNumber=0,cn=peercred,cn=external,cn=auth
+SASL SSF: 0
+root@ldap-s2:/home/krivosheeva# 
+
+
+
+
+
+mkdir /var/lib/ldap/company
+chown openldap:openldap /var/lib/ldap/company
+
+
+
+
+
+
+# cat base.ldif 
+dn: olcDatabase={2}mdb,cn=config
+objectClass: olcDatabaseConfig
+objectClass: olcMdbConfig
+olcDatabase: {2}mdb
+olcSuffix: dc=company,dc=local
+olcRootDN: cn=admin,dc=company,dc=local
+olcRootPW: {SSHA}G3+OdpL5985ReVKGQXUlBnZrkYCdoeHf
+olcDbDirectory: /var/lib/ldap/company
+olcDbIndex: objectClass eq
+olcDbIndex: uid eq
+olcDbIndex: cn eq
+olcDbIndex: mail eq
+
+
+
+
+
+# ldapadd -Y EXTERNAL -H ldapi:/// -f base.ldif
+
+
+
+#  ldapsearch -Y EXTERNAL -H ldapi:/// -b "cn=config" "(olcDatabase=*)" dn olcSuffix
+SASL/EXTERNAL authentication started
+SASL username: gidNumber=0+uidNumber=0,cn=peercred,cn=external,cn=auth
+SASL SSF: 0
+# extended LDIF
+#
+# LDAPv3
+# base <cn=config> with scope subtree
+# filter: (olcDatabase=*)
+# requesting: dn olcSuffix 
+#
+
+# {-1}frontend, config
+dn: olcDatabase={-1}frontend,cn=config
+
+# {0}config, config
+dn: olcDatabase={0}config,cn=config
+
+# {1}mdb, config
+dn: olcDatabase={1}mdb,cn=config
+olcSuffix: dc=company,dc=local
+
+
+
+
+
+
+# ldapwhoami -x -H ldapi:/// -D "cn=admin,dc=company,dc=local" -W
+Enter LDAP Password: 
+dn:cn=admin,dc=company,dc=local
+
+
+
+
+
+
+# cat root-object.local 
+dn: dc=company,dc=local
+objectClass: top
+objectClass: dcObject
+objectClass: organization
+o: Company Org
+dc: company
+description: Root entry for company domain  # Можно добавить описание
+
+
+
+
+
+# ldapadd -Y EXTERNAL -H ldapi:/// -f root-object.local
+
+
+
+
+
+
+
+# cat base-acl.ldif 
+dn: olcDatabase={1}mdb,cn=config
+changetype: modify
+replace: olcAccess
+olcAccess: {0}to attrs=userPassword
+  by self write
+  by anonymous auth
+  by * none
+olcAccess: {1}to *
+  by self read
+  by dn.exact="cn=reader,dc=company,dc=local" read
+  by * none
+
+
+
+
+# ldapadd -Y EXTERNAL -H ldapi:/// -f base-acl.ldif
+
+
+
+
+
+
+# cat groups.ldif 
+dn: ou=Groups,dc=company,dc=local
+objectClass: organizationalUnit
+ou: Groups
+
+
+# ldapadd -x -D "cn=admin,dc=company,dc=local" -W  -H ldapi:/// -f groups.ldif 
+Enter LDAP Password: 
+adding new entry "ou=Groups,dc=company,dc=local"
+
+
+
+
+
+
+# cat people.ldif 
+dn: ou=People,dc=company,dc=local
+objectClass: organizationalUnit
+ou: People
+
+
+# ldapadd -x -D "cn=admin,dc=company,dc=local" -W  -H ldapi:/// -f people.ldif
+
+
+
+
+
+
+# cat reader.ldif 
+dn: cn=reader,dc=company,dc=local
+objectClass: simpleSecurityObject
+objectClass: organizationalRole
+cn: reader
+description: LDAP read-only user
+userPassword: {SSHA}fBt1l+h4/fqHhOUWsa2W0gK9yIJc1tTl
+
+
+
+
+# ldapadd -x -D "cn=admin,dc=company,dc=local" -W  -H ldapi:/// -f  reader.ldif 
+
+
+
+
+
+
+# 
+root@ldap-s2:/home/krivosheeva/LDAP-configs/ldap/NEW# cat group-ldapusers.ldif 
+dn: cn=ldapusers,ou=Groups,dc=company,dc=local
+objectClass: posixGroup
+cn: developers
+gidNumber: 2000
+
+
+# ldapadd -x -D "cn=admin,dc=company,dc=local" -W  -H ldapi:/// -f   group-ldapusers.ldif 
+Enter LDAP Password: 
+adding new entry "cn=ldapusers,ou=Groups,dc=company,dc=local"
+
+
+
+
+
+# cat masha.ldif 
+dn: uid=masha,ou=People,dc=company,dc=local
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+cn: Masha Sidorova
+sn: Sidorova
+uid: masha
+uidNumber: 10002
+gidNumber: 10002
+homeDirectory: /home/masha
+loginShell: /bin/bash
+userPassword: {SSHA}1ODBVqF8QlgoXGj60GKADPoZYX3t/pNl
+
+
+
+
+# ldapadd -x -D "cn=admin,dc=company,dc=local" -W  -H ldapi:/// -f   masha.ldif 
+Enter LDAP Password: 
+adding new entry "uid=masha,ou=People,dc=company,dc=local"
+
+
+
+
+
+# cat group-masha.ldif 
+dn: cn=masha,ou=Groups,dc=company,dc=local
+objectClass: posixGroup
+cn: masha
+gidNumber: 10002
+
+
+
+# ldapadd -x -D "cn=admin,dc=company,dc=local" -W  -H ldapi:/// -f    group-masha.ldif 
+Enter LDAP Password: 
+adding new entry "cn=masha,ou=Groups,dc=company,dc=local"
+
+
+
+
+
+
+
+# cat masha-to-ldapusersGroup.ldif 
+dn: cn=ldapusers,ou=Groups,dc=company,dc=local
+changetype: modify
+add: memberUid
+memberUid: masha
+
+
+
+# ldapadd -x -D "cn=admin,dc=company,dc=local" -W  -H ldapi:/// -f    masha-to-ldapusersGroup.ldif 
+Enter LDAP Password: 
+modifying entry "cn=ldapusers,ou=Groups,dc=company,dc=local"
+
+
+
+
+
+
+CLIENT:
+
+apt-get update
+
+apt install -y ldap-utils libpam-ldapd libnss-ldapd nscd
+
+выскаивает окона где нужно укзаать ип адрес лдап сервера
+потом надо укзаать базовый dn базы тоесть "dc=company,dc=local"
+потом надо поставить галочки рядом с 
+	[*] passwd
+	[*] group
+	[*] shadow
+
+
+
+
+редактируем
+
+# cat nslcd.conf  | grep -v '#'
+
+uid nslcd
+gid nslcd
+
+uri ldap://172.16.10.20
+
+base dc=company,dc=local
+
+
+binddn cn=reader,dc=company,dc=local
+bindpw ПАРОЛЬ (в явном виде а не хеш)
+
+
+
+
+systemctl restart nslcd
+
+
+
+pam-auth-update
+
+
+проверяем
+
+$ getent passwd masha
+
+должно сработать.
+
+
+все.
+
+проббуем логиниться в линукс черном экране. должно рабоать
+
+
+

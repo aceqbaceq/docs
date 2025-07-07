@@ -1,0 +1,17 @@
+dn: uid=masha,ou=People,dc=company,dc=local
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+cn: Masha Sidorova
+sn: Sidorova
+uid: masha
+uidNumber: 10002
+gidNumber: 10002
+homeDirectory: /home/masha
+loginShell: /bin/bash
+userPassword: {SSHA}1ODBVqF8QlgoXGj60GKADPoZYX3t/pNl
+#pass 345
+
+
+
+

@@ -1,0 +1,7 @@
+dn: cn=ldapusers,ou=Groups,dc=company,dc=local
+changetype: modify
+add: memberUid
+memberUid: masha
+
+
+

@@ -1,0 +1,12 @@
+dn: dc=company,dc=local
+objectClass: top
+objectClass: dcObject
+objectClass: organization
+o: Company Org
+dc: company
+description: Root entry for company domain  # Можно добавить описание
+
+
+
+
+
