@@ -1,0 +1,161 @@
+| ldap
+| openldap
+
+тут будет подробное описание ldap установки
+
+итак про лдап.
+
+
+значит по сути это база данных это никакая не "структура каталогов". это база данных.
+
+в добавок к ней идет и некий протокол общения с ней по сети ровно как это есть у мускул или постгрес.
+тоесть нужен клиент который знает протокол  L7 уровня для общения с этой базой.
+
+на лдап сервер можно навесить TLS , тоесть чтобы было шифрование между клиетом и сервером.
+также можно навесить kerberos (это я пока не знаю зачем и что дает)
+
+
+так вот эту базу можно использовать для того чтобы  в ней хранить параметры профиля линукс юзера. так то мы 
+по дефолту храним его в локальных файлах на компе  /etc/passwd  /etc/shadow  а так мы эти же хрени 
+будем хранить в лдап базе.  ксати говоря непонятно чем лдап в этом плане таки лучше по сравнению с тем же 
+мускулом или постгресом.  и в линуксе есть встроенные клиенты для  поиска этих кредов юзера в этой базе лдап.
+
+значит в линуксе за проецесс аутентфииациии ответчает подсиситема PAM
+
+
+    /etc/pam.d
+
+
+это получается набор конфигов и набор шаред либрари.
+
+
+# ls -1 /etc/pam.d/*
+/etc/pam.d/chfn
+/etc/pam.d/chpasswd
+/etc/pam.d/chsh
+/etc/pam.d/common-account
+/etc/pam.d/common-auth
+/etc/pam.d/common-password
+/etc/pam.d/common-session
+/etc/pam.d/common-session-noninteractive
+/etc/pam.d/cron
+/etc/pam.d/login
+/etc/pam.d/newusers
+/etc/pam.d/other
+/etc/pam.d/passwd
+/etc/pam.d/runuser
+/etc/pam.d/runuser-l
+/etc/pam.d/sshd
+/etc/pam.d/su
+/etc/pam.d/sudo
+/etc/pam.d/sudo-i
+/etc/pam.d/su-l
+
+
+зачем так много конфигов не очень ясно.
+
+но вот для примера  файл login вроде как именно он вызывается 
+при логине локально 
+
+
+
+# cat /etc/pam.d/login | grep  -v '#'
+
+auth       optional   pam_faildelay.so  delay=3000000
+
+auth       requisite  pam_nologin.so
+
+session [success=ok ignore=ignore module_unknown=ignore default=bad] pam_selinux.so close
+
+session    required     pam_loginuid.so
+
+session    optional   pam_motd.so motd=/run/motd.dynamic
+session    optional   pam_motd.so noupdate
+
+session [success=ok ignore=ignore module_unknown=ignore default=bad] pam_selinux.so open
+
+session       required   pam_env.so readenv=1
+session       required   pam_env.so readenv=1 envfile=/etc/default/locale
+
+@include common-auth
+
+auth       optional   pam_group.so
+
+
+
+session    required   pam_limits.so
+
+session    optional   pam_lastlog.so
+
+session    optional   pam_mail.so standard
+
+session    optional   pam_keyinit.so force revoke
+
+
+
+
+как я понимаю шаги выполняются сверху вниз
+
+сбсвтенно вот эти строки
+
+
+session    optional   pam_motd.so motd=/run/motd.dynamic
+session    optional   pam_motd.so noupdate
+
+
+они генерируеют шапку того что уже нарисвано на экране в экране логина
+
+в конце концов вызываются другой файл
+
+
+@include common-auth
+
+
+# cat /etc/pam.d/common-auth  | grep  -v '#'
+
+auth	[success=2 default=ignore]	pam_unix.so nullok
+auth	[success=1 default=ignore]	pam_ldap.so minimum_uid=1000 use_first_pass
+auth	requisite			pam_deny.so
+auth	required			pam_permit.so
+
+
+
+значит о чем он.
+
+
+эта строка
+
+auth	[success=2 default=ignore]	pam_unix.so nullok
+
+
+она проверяет логин и пароль на основе локальных файлов /etc/passwd /etc/shadow
+именно там она их ищет. и как я поинимаю делает это модуль  pam_unix.so
+как утверждает ИИ то поиск в локальных файлых /etc/passwd /etc/shadow идет силами 
+самого pam.d что вэтот NSS неучаствует! 
+
+спращивется а что тогда значит в NSS вот эта строка
+
+# cat /etc/nsswitch.conf 
+
+passwd:         files systemd ldap
+...
+...
+
+
+она не значит что за счет NSS ос провереяет пароль. а значит то что в /etc/passwd /etc/shadow есьт еще всякая
+полезная инфо про юзера например его домашняя папка. так вот этой строкой указано где искать не пассворд юзера
+а где искать доп инфо о профиле юзера!
+
+
+
+
+если пароль найден локально то  вот эта штука   success=2   она говорит что следущие две строки можно пропустиьт.
+а если пароль ненден локально то тогда запусакается
+
+auth	[success=1 default=ignore]	pam_ldap.so minimum_uid=1000 use_first_pass
+
+
+
+
+тоесть идет аутнтифиация через лдап.
+

@@ -1,0 +1,115 @@
+| proxmox
+
+
+| перезагрузить виртуалку
+
+мы зашли на любой хост кластера
+и хотим перезагрузить любую вм на этом кластере
+
+
+# export vmid=134; pvesh create /nodes/$(pvesh get /cluster/resources --type vm --output-format json | jq -r ".[] | select(.vmid == $vmid) | .node")/qemu/$vmid/status/reset
+
+
+
+|  поиск виртуалок которые сидят на сторадже 
+
+
+задача - есть сторадж.
+я хочу найти все виртулки которые диски имеет на данном сторадже
+и если виртулка щас работоает то мы ее перезагружаем
+
+
+
+
+
+
+
+
+$ cat 06.bash 
+#!/usr/bin/env bash
+
+STORAGE_ID="freenas"
+
+# Цветовые коды
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+
+
+# Вывожу список нод кластера
+echo "Список нод кластера"
+sudo pvecm nodes | awk 'NR>1 {print $3}' | grep -v Name | xargs -n1 getent   hosts
+echo ""
+
+
+
+
+
+# Получаем список всех ВМ в кластере с их статусами и именами
+VM_LIST=$(sudo pvesh get /cluster/resources --type vm --output-format json | \
+          jq -r '.[] | select(.type == "qemu") | "\(.vmid) \(.node) \(.status) \(.name)"')
+
+# Выводим заголовок
+echo -e "${YELLOW}Checking VMs for storage '$STORAGE_ID'...${NC}"
+echo "----------------------------------------"
+
+while read -r VMID NODE STATUS NAME; do
+    # Получаем конфигурацию дисков ВМ
+    DISK_INFO=$(sudo pvesh get /nodes/"$NODE"/qemu/"$VMID"/config --output-format json | \
+                jq 'with_entries(select(.key | test("^(ide|scsi|virtio|sata)[0-9]+")))')
+    
+    # Проверяем наличие нужного storage
+    if echo "$DISK_INFO" | jq -e --arg storage "$STORAGE_ID" \
+        'any(.[]?; . != null and contains($storage + ":"))' >/dev/null; then
+        
+        # Форматируем статус цветом
+        if [ "$STATUS" = "running" ]; then
+            COLORED_STATUS="${GREEN}running${NC}"
+        else
+            COLORED_STATUS="${RED}${STATUS}${NC}"
+        fi
+        
+        echo -e "VM ${YELLOW}$VMID${NC} (${NAME}) on node $NODE (Status: ${COLORED_STATUS}) uses $STORAGE_ID:"
+        echo "$DISK_INFO" | jq -r 'to_entries[] | select(.value != null and (.value | contains("'"$STORAGE_ID"':"))) | "  \(.key): \(.value)"'
+        
+        # Если ВМ запущена - выполняем reset
+        if [ "$STATUS" = "running" ]; then
+            echo "  Performing reset..."
+            sudo pvesh create /nodes/"$NODE"/qemu/"$VMID"/status/reset >/dev/null 2>&1
+            if [ $? -eq 0 ]; then
+                echo "  Reset command sent successfully"
+            else
+                echo "  Failed to send reset command"
+            fi
+        fi
+        
+        echo "----------------------------------------"
+    fi
+done <<< "$VM_LIST"
+
+echo -e "${YELLOW}Check complete.${NC}"
+
+
+
+
+
+
+
+
+
+вывод
+
+
+
+----------------------------------------
+VM 204 (VM-vasya) on node NODE5 (Status: running) uses freenas:
+  ide0: freenas:204/vm-...
+  Performing reset...
+  Reset command sent successfully
+----------------------------------------
+...
+
+

@@ -301,7 +301,7 @@ CLIENT:
 
 apt-get update
 
-apt install -y ldap-utils libpam-ldapd libnss-ldapd nscd
+apt-get  install -y ldap-utils libpam-ldapd libnss-ldapd nscd
 
 выскаивает окона где нужно укзаать ип адрес лдап сервера
 потом надо укзаать базовый dn базы тоесть "dc=company,dc=local"

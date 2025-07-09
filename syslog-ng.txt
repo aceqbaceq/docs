@@ -1,0 +1,320 @@
+| syslog
+| syslog-ng
+| forward
+
+
+была задача. 
+нужно было настроить чтобы из линукса из его журнала journald, rsyslog, syslog-ng
+был форвард на удаленный syslog-ng
+
+как это надо настроить.
+
+во первых про journald. 
+по дефолту он все что собирает также пихает в syslog - по факту как точно это происходит я не знаю
+но ИИ говорит что это значит что он все полученне данные пихает в сокет 
+
+	/run/systemd/journal/syslog
+
+и получается сислог программа (syslog, rsyslog, syslog-ng) должна найти на диске этот сокет и из него читать.
+а я вобше то думал что журналд пихает данные в /var/log и уже оттуда сислог прога его читает.
+по факту эта настройка журналд вот тут лежит
+
+
+$ cat /etc/systemd/journald.conf | grep -i syslog
+#ForwardToSyslog=yes
+#MaxLevelSyslog=debug
+
+
+
+так вот.  сам журналд форвардить свои логи на удаленную машину неумеет.
+поэтому для этой задачи нужно поставить на комп syslog-ng либо rsyslog.
+лучше syslog-ng. но на машине уже может стоять rsyslog поэтому в этом случае юзаем его.
+
+
+
+итак вариант с syslog-ng
+во первых нужно выключить в журналд перенарпавление в сислог
+
+
+$ cat /etc/systemd/journald.conf | grep -i syslog
+#ForwardToSyslog=no
+#MaxLevelSyslog=debug
+
+
+почему? потому что передача данных через сокет это утомительняа вещь для цпу. фишка в том что сислог-нг
+умеет сам напрямую читать бинарные файлы где журналд хранит свои записи. поэтому ему передавать ничего ненадо.
+
+теперь о самой настройке форварда в сислог-нг
+
+
+
+
+
+
+
+
+
+
+# cat /etc/syslog-ng/syslog-ng.conf 
+@version: 3.38
+@include "scl.conf"
+
+
+# Источники логов (локальные)
+source s_local {
+    systemd-journal();  # логи systemd
+    internal();         # внутренние логи syslog-ng
+};
+
+
+# Отправка на удалённый сервер (с правильным форматом)
+destination d_remote {
+    network(
+        "100.100.0.182"
+        port(514)
+        transport("udp")  
+        template("<${PRI}>1 ${ISODATE} ${HOST} ${SOURCEIP} ${PROGRAM} ${PID} ${MSGID} ${STRUCTURED-DATA} ${MESSAGE}\n")
+
+    );
+};
+
+
+
+# Правило: отправка ВСЕХ логов на удалённый сервер
+log {
+    source(s_local);
+    destination(d_remote);
+};
+
+
+
+
+
+
+
+
+
+заливаем такой конфиг. перезагружаем службу сислог-нг , готово.
+у нас заработал форвард на удленный сислог-нг
+теперь рассскажу про детали самого конфига
+
+
+
+source s_local {
+    systemd-journal();  # логи systemd
+    internal();         # внутренние логи syslog-ng
+};
+
+
+
+вот эта хрень описывает отуда мы засасывем данные
+
+вот эта штука
+
+   systemd-journal()
+
+указвыывает конкретный сборщик данные. в нашем случае эта хрень умеет читать из бинарных файлов журналд
+
+   internal()
+
+эта хрень собирает данные из самого процесса сислог его логи. типа того 
+
+цитирую из 
+
+   $  man syslog-ng.conf
+
+
+
+internal()                  │ Messages generated internally in syslog-ng. 
+
+
+
+
+вот эта хрень
+
+destination d_remote {
+    network(
+        "100.100.0.182"
+        port(514)
+        transport("udp")  
+        template("<${PRI}>1 ${ISODATE} ${HOST} ${SOURCEIP} ${PROGRAM} ${PID} ${MSGID} ${STRUCTURED-DATA} ${MESSAGE}\n")
+
+    );
+};
+
+
+
+она указывает КУДА мы будем сохранять то что лежит в памяти сислога
+в данном случае это удаленная машина по УДП порту 514 
+вот эта хрень
+
+
+        template("<${PRI}>1 ${ISODATE} ${HOST} ${SOURCEIP} ${PROGRAM} ${PID} ${MSGID} ${STRUCTURED-DATA} ${MESSAGE}\n")
+
+она указывает по какому шаблону отпралять данные туда. 
+
+
+
+последняя хрень
+
+
+
+log {
+    source(s_local);
+    destination(d_remote);
+};
+
+
+
+она  собирает вместе ОТКУДА забирать данные и КУДА эти данные пихать.
+потомку что мест откуда мы забираем данные может бытть много и куда их пихать тоже может быть много.
+
+
+
+
+
+
+
+
+хочу заметить что раньше формат сислог мессаг описываел один  рфц  а   щас стал другой поэтому
+на принимающей стороне тоже полезно указать в каком формате ожидаьт прилетающую инфо
+иначе приимающяа прога будет думать что инфо летит в старом формате и по факту в логах на принимающей
+стороне будут сохранятся не все поля от прилетающего сообщения. 
+поэтому на принимающем сислоге полезно сделать вот так
+
+
+
+
+
+# cat /etc/syslog-ng/syslog-ng.conf 
+@version: 3.38
+
+
+# Определяем источник (откуда брать логи)
+source s_all {
+#    system();
+    internal();
+    systemd-journal();  # если используем journald
+};
+
+
+
+
+source s_network {
+    network(
+        ip(0.0.0.0)    # Слушать на всех интерфейсах
+        port(514)       # Порт 514 (стандартный для syslog)
+        transport("udp") # Явно указываем протокол UDP
+        flags(syslog-protocol)            # Ключевая строка! Включает парсинг RFC5424
+
+    );
+};
+
+
+# Определяем destination (куда писать)
+destination d_all {
+    file("/var/log/all.log");
+};
+
+
+
+
+
+destination d_remote {
+    file("/var/log/remote.log"
+        template("<${PRI}> ${ISODATE} ${HOST} ${SOURCEIP} ${PROGRAM}[${PID}]: ${MESSAGE}\n")
+    );
+};
+
+
+destination d_debug {
+    file("/var/log/remote_debug.log"
+        template("PRI: ${PRI}\nPROGRAM: ${PROGRAM}\nMSG: ${MESSAGE}\n\n")
+    );
+};
+
+# Правило: всё из s_all → в d_all
+log {
+    source(s_all);
+    destination(d_all);
+};
+
+
+log {
+    source(s_network);
+    destination(d_remote);
+    destination(d_debug);  # Раскомментируйте для отладки
+
+};
+
+
+
+вот мы видим кусок
+
+destination d_remote {
+    file("/var/log/remote.log"
+        template("<${PRI}> ${ISODATE} ${HOST} ${SOURCEIP} ${PROGRAM}[${PID}]: ${MESSAGE}\n")
+    );
+};
+
+
+получается ринимающий сислог ему ненужнро распивыать формат влетающего сообщения
+но! по дефолту он будет этот мессседж сохраняться в старом формате а если мы хотим
+в другом или новом то нужно это раписать в destination
+
+
+
+
+
+итак как форвардить  через syslog-ng я расписал.
+
+
+
+теперь следующая часть - форвардинг через  rsyslog
+он уже неумеет читать из бинарного журнала журналд поэтому нужно 
+из журналд фрварить месссаги через сокет
+
+
+
+$ cat /etc/systemd/journald.conf | grep -i syslog
+#ForwardToSyslog=no
+#MaxLevelSyslog=debug
+
+
+
+
+# systemctl restart systemd-journald
+
+
+
+
+так вот какие настройки нужно дбавить в /etc/rsyslog.conf
+
+
+
+
+#################
+#### MODULES ####
+#################
+
+
+# provide forward messages via tcp/udp
+module(load="builtin:omfwd")
+
+
+
+
+###############
+#### RULES ####
+###############
+
+
+# LOG REMOTELY
+*.*  action(type="omfwd" target="100.100.0.182" port="514" protocol="udp"
+            action.resumeRetryCount="20"
+            queue.type="linkedList" queue.size="1000")
+
+
+
+
+
