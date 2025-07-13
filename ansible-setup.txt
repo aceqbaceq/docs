@@ -18,7 +18,52 @@
 
 далее обновляем (как этап подгтовки) сам pip
 
-  $  python pip install --upgrade pip
+   $ python -m pip install --upgrade pip
+
+
+тут я хочу пояснить очередную хуйню
+в чем разница между
+
+   $ python pip  ...
+   $ python -m pip install --upgrade pip
+   $ pip install --upgrade pip
+
+
+в первом случае заускется файл python который ищется
+в $PATH а  pip в него передается как аргумент. он же его
+интерпетирует как то что ему нужно найти файл pip в 
+текущей рабочей папке и выполнить как питоне скрипт.
+соовесвтенно если в  текущей папке файла pip нет то он
+пошлет нахуй
+что мы и видим
+
+$ python pip install --upgrade pip
+python: can't open file '/home/noroot/.venv/pip': [Errno 2] No such file or directory
+
+
+следйщий случай
+
+  $ pip install --upgrade pip
+
+здесь файл pip ищется в $PATH а нетолько в текйщей
+папке и выполняется в зависимости от того чему равен
+его SHABANG либо как ELF файл тоеть в завсиимосои от 
+его заголовка
+
+
+следйщий случай 
+
+   $ python -m pip install --upgrade pip
+
+тут у нас ищется файл python в $PATH , находится
+запускается далее уже этот питон процесс ищет
+внутри своих системыных папок модуль pip  где бы
+он ни находился и запускается. 
+
+тоесть все три случая охуенно разные.
+
+
+
 
 
 далее ДВА ВАРИАНТА.
@@ -57,14 +102,16 @@
 мог успешно отработать. например вот так он 
 выглдит
 
-			$ cat requirements.txt 
-	ansible==9.13.0
-	# Needed for community.crypto module
-	cryptography==44.0.1
-	# Needed for jinja2 json_query templating
-	jmespath==1.0.1
-	# Needed for ansible.utils.ipaddr
-	netaddr==1.3.0
+
+ $ cat requirements.txt 
+ansible==10.7.0
+# Needed for community.crypto module
+cryptography==45.0.5
+# Needed for jinja2 json_query templating
+jmespath==1.0.1
+# Needed for ansible.utils.ipaddr
+netaddr==1.3.0
+
 
 
 и вот здесь видно что нам нужен нетолко ансибль
@@ -76,8 +123,85 @@
 
 	$ python -m pip install -r requirements.txt
 
+посмотрим какую версию имеет ансибль с точки зрения
+самого себя
+
 	$ ansible --version
-	ansible [core 2.16.14]
+	ansible [core 2.17.12]
+
+
+а теперь посмотрим каку версию имеет модуль ансиль
+с точки зрения самого питона
+
+$ python
+>>> import ansible
+>>> help(ansible)
+...
+...
+VERSION
+    2.17.12
+
+
+
+а ведь  в requirements.txt указана какаято
+совршенно другая версия ансибль.
+
+ $ cat requirements.txt  | grep ansible
+ansible==10.7.0
+
+
+оказывается то что указано в requirements.txt 
+это версия пакета с точки зрения pip менеджера пакетов.
+пакеты пип это такие как бы метапакеты.
+pip это такой спец модуль питона который позволяет
+ставить другие модули питона.  пип оперирует своими 
+метапакетами . внутри этого метапакета может быть указана 
+установка одного или несокльких реальных модулей питона.
+так вот в requiremtns.txt указаны номера пип метапакетов
+
+   ansible==10.7.0
+
+
+это номер пип метапакета 
+а внутри него указано какой один или неоклько уже питон
+пакетов нужно ставить.
+чтобы узнать что будет поставлено реаьно 
+над запустить пип вот так
+
+$ python -m pip install ansible==10.7.0 --dry-run
+ansible==10.7.0 in /home/noroot/.venv/ansible-01/lib/python3.13/site-packages (10.7.0)
+ansible-core~=2.17.7 in /home/noroot/.venv/ansible-01/lib/python3.13/site-packages (from ansible==10.7.0) (2.17.12)
+jinja2>=3.0.0 in /home/noroot/.venv/ansible-01/lib/python3.13/site-packages (from ansible-core~=2.17.7->ansible==10.7.0) (3.1.6)
+PyYAML>=5.1 in /home/noroot/.venv/ansible-01/lib/python3.13/site-packages (from ansible-core~=2.17.7->ansible==10.7.0) (6.0.2)
+cryptography in /home/noroot/.venv/ansible-01/lib/python3.13/site-packages (from ansible-core~=2.17.7->ansible==10.7.0) (45.0.5)
+packaging in /home/noroot/.venv/ansible-01/lib/python3.13/site-packages (from ansible-core~=2.17.7->ansible==10.7.0) (25.0)
+resolvelib<1.1.0,>=0.5.3 in /home/noroot/.venv/ansible-01/lib/python3.13/site-packages (from ansible-core~=2.17.7->ansible==10.7.0) (1.0.1)
+MarkupSafe>=2.0 in /home/noroot/.venv/ansible-01/lib/python3.13/site-packages (from jinja2>=3.0.0->ansible-core~=2.17.7->ansible==10.7.0) (3.0.2)
+cffi>=1.14 in /home/noroot/.venv/ansible-01/lib/python3.13/site-packages (from cryptography->ansible-core~=2.17.7->ansible==10.7.0) (1.17.1)
+pycparser in /home/noroot/.venv/ansible-01/lib/python3.13/site-packages (from cffi>=1.14->cryptography->ansible-core~=2.17.7->ansible==10.7.0) (2.22)
+
+тоесть буудут поставлены питон пакеты
+  ansible-core (2.17.12)
+  jinja2(3.1.6)
+  ...
+  ...
+  pycparser(2.22)
+
+
+
+а вот что показывает сам модуль ансибль про себя
+$ ansible --version
+ansible [core 2.17.12]
+
+тоесть он покзывает каую версию он имеет с точки
+зрения питона а не пип метапакета
+
+вот такая мудота. впрочем питон это всегда и постоянно
+несуразная мудота
+
+
+
+
 
 вот теперь все готово. устанолвен ансибль нужной
 версии и другие модули питона нужной версии. 

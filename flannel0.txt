@@ -1,0 +1,78 @@
+| flannel
+| etcd
+
+
+задача разобраться как работает flannel
+во первых ИИ сказал что якобы фланнель неумеет
+читать конфиг или часть конфига через обычный конфиг
+файл а только сука ищет его в etcd
+поэтому нужно вначале поставит etcd а уже потом
+толкоо фланнел
+
+ставим etd
+
+ETCD_VER=v3.5.9
+wget https://github.com/etcd-io/etcd/releases/download/v${ETCD_VER}/etcd-v${ETCD_VER}-linux-amd64.tar.gz
+tar -xzf etcd-v${ETCD_VER}-linux-amd64.tar.gz
+sudo mv etcd-v${ETCD_VER}-linux-amd64/etcd* /usr/local/bin/
+
+
+
+/etc/etcd/etcd.conf.yml:
+name: host1
+data-dir: /var/lib/etcd
+initial-advertise-peer-urls: http://192.168.1.101:2380
+listen-peer-urls: http://192.168.1.101:2380
+listen-client-urls: http://192.168.1.101:2379,http://127.0.0.1:2379
+advertise-client-urls: http://192.168.1.101:2379
+initial-cluster: host1=http://192.168.1.101:2380,host2=http://192.168.1.102:2380
+initial-cluster-state: new
+initial-cluster-token: etcd-cluster-01
+
+
+запускаем etcd
+sudo mkdir -p /var/lib/etcd
+sudo etcd --config-file /etc/etcd/etcd.conf.yml &
+
+
+провреем что этцд завелся
+etcdctl --endpoints=http://192.168.1.101:2379,http://192.168.1.102:2379 endpoint status
+etcdctl --endpoints=http://192.168.1.101:2379,http://192.168.1.102:2379 member list
+
+
+запиывесеавываем сеть фланель в этцд
+etcdctl --endpoints=http://192.168.1.101:2379,http://192.168.1.102:2379 put /coreos.com/network/config '{"Network":"10.244.0.0/16","Backend":{"Type":"vxlan"}}'
+
+
+качаем и запускаем фланеьль
+wget https://github.com/flannel-io/flannel/releases/latest/download/flannel-amd64
+chmod +x flannel-amd64
+sudo mv flannel-amd64 /usr/local/bin/flanneld
+
+
+sudo flanneld --etcd-endpoints=http://192.168.1.101:2379,http://192.168.1.102:2379 --iface=enp0s3 --ip-masq
+
+
+после запуска он создать индикаионный файл
+cat /run/flannel/subnet.env
+
+ии пишет что якобы это надо сделать
+source /run/flannel/subnet.env
+sudo ip link add flannel.1 type vxlan id 1 dev enp0s3 dstport 8472
+sudo ip addr add $FLANNEL_SUBNET dev flannel.1
+sudo ip link set up flannel.1
+
+но пому это нхуй ненужно
+
+
+есть только одна проблема что хосты по фланнель ип
+непинугуютя
+суки
+
+
+
+качаем фланнель с гитхаба
+
+
+
+sudo flanneld --etcd-endpoints=http://172.16.80.20:2379,http://172.16.80.21:2379 --iface=enp0s3 --ip-masq

@@ -12,6 +12,10 @@
 # ip link set bond1 type bond mode active-backup
 # ip link set bond1 up
 
+прикол в том что ответ на вопрос как узнать 
+какие порты входят в состав bond интерфейса состоит
+в том что через CLI это нихуя не узнать!
+а как узнать смотри чуть ниже
 
 # ip link set veth13 master bond1
 # ip link set veth15 master bond1
@@ -40,8 +44,12 @@ active-backup 1
 veth13
 
 
+ВОТ КАК МОЖНО УЗНАТЬ КАКИЕ ПОРТЫ ВХОДЯТ В СОСТАВ
+BOND ПОРТА
 
-# cat /proc/net/bonding/bond1
+    # cat /proc/net/bonding/bond1
+
+
 Ethernet Channel Bonding Driver: v6.11.11-1-MANJARO
 
 Bonding Mode: fault-tolerance (active-backup)

@@ -1,7 +1,27 @@
 | debian
 | dns
 | resolv.conf
-
+| dnsmasq
 
 приколл что щас в дебиане по деолфту
 работает resolvconf в связке  dnsmasq
+
+
+прикол получается вот в чем.
+вот мы зашли в /etc/resolv.conf
+
+и видим там
+
+ nameserver 127.0.0.1
+
+
+это значит что на компе крутится какйото днс резволвер
+который неклассический СИ резволвер а какйото 
+кастомный резволвер такие как dnsmasq или systemd-resolved
+и нужно лезить в их настройки чтобы увидеть какие
+форварделы они исоплзуют.
+для systend-resolved это /etc/systemd/resolved.conf
+или в resolvectl
+
+для dnsmasq это /var/run/dnsmasq/resolv.conf
+

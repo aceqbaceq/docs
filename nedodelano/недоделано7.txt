@@ -128,4 +128,8 @@ letsencrypt wildcard серфтикат через txt
 
 ====
 
+kubernetes:
+  flannel отдеьно
+  etcd собрать отдельно
 
+  
