@@ -1,0 +1,54 @@
+| ldap
+
+примеры команд как формировать запросы
+
+# ldapsearch -Y EXTERNAL -H ldapi:/// -b "cn=config" "(objectClass=*)"
+
+
+
+
+|
+
+
+# Укажи URI LDAP-сервера
+uri ldap://172.16.100.40/
+
+# Базовая DN для поиска пользователей и групп
+base dc=vasya,dc=local
+
+# DN учётной записи для подключения
+binddn cn=reader,dc=vasya,dc=local
+
+# Пароль этой учётки
+bindpw 234
+
+# Тип поиска uid/gid (по желанию)
+scope sub
+
+# Фильтры поиска (по желанию)
+# filter passwd (objectClass=posixAccount)
+# filter shadow (objectClass=shadowAccount)
+# filter group (objectClass=posixGroup)
+
+# Timeout'ы и логгирование (по желанию)
+bind_timelimit 5
+timelimit 10
+idle_timelimit 600
+
+# Уровень логирования
+log /var/log/nslcd.log
+
+
+| 
+
+
+ldapsearch -x -D "cn=reader,dc=vasya,dc=local" -W -b "dc=vasya,dc=local" "(objectClass=*)" "*"  -H  ldap://172.16.100.40 
+
+|
+
+ldapsearch -x -H ldap://172.16.100.40/ \
+      -D cn=reader,dc=vasya,dc=local \
+      -W  \
+      -b DC=vasya,DC=local \
+      -s base \
+        "(objectclass=*)"

@@ -1,0 +1,15 @@
+| manjaro
+| qemu
+| kvm
+| usb
+
+как нам загрузиться с флэшки
+
+sudo qemu-system-x86_64 -name deb5 -m 2096M -boot d  -drive file=/dev/sda,format=raw,index=0,media=disk   -cpu host -enable-kvm -smp 1 -M q35 -device virtio-balloon -device VGA,vgamem_mb=8 -display sdl -netdev tap,id=mynet1,ifname=tap19,script=no,downscript=no -device virtio-net-pci,netdev=mynet1,mac=ba:ec:24:5c:05:05 -serial /dev/tty 
+
+
+
+где параметры про флэшку это вот эти
+
+-drive file=/dev/sda,format=raw,index=0,media=disk
+

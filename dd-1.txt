@@ -1,0 +1,8 @@
+| dd
+
+как записать на usb флешку iso образ
+линукса 
+так что чтобы флэшка была загрузочной. 
+
+$ sudo dd if=./manjaro-cinnamon-25.0.3-250609-linux612.iso  of=/dev/sda bs=4M status=progress oflag=sync
+
