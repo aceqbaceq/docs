@@ -1,0 +1,10 @@
+| lxc
+
+example of usage
+
+lxc profile create vxlan10
+lxc network attach-profile br-vxlan10 vxlan10
+lxc launch images:alpine/3.4 lhs1 -p vxlan10
+sleep 10 # to wait for the container to be up and ready
+lxc exec lhs1 ip addr add 192.168.1.1/24 dev eth0
+

@@ -2,6 +2,16 @@
 | etcd
 
 
+большая работа по тому как работает фланнель уже 
+еьт в тексте kubernetes-flannel.txt
+тут повторение продолжение
+
+
+фланнель в своей работе использует vxlan.
+его я разбираю тут vxlan0.txt
+
+
+
 задача разобраться как работает flannel
 во первых ИИ сказал что якобы фланнель неумеет
 читать конфиг или часть конфига через обычный конфиг
@@ -11,7 +21,7 @@
 
 ставим etd
 
-ETCD_VER=v3.5.9
+ETCD_VER=v3.6.0
 wget https://github.com/etcd-io/etcd/releases/download/v${ETCD_VER}/etcd-v${ETCD_VER}-linux-amd64.tar.gz
 tar -xzf etcd-v${ETCD_VER}-linux-amd64.tar.gz
 sudo mv etcd-v${ETCD_VER}-linux-amd64/etcd* /usr/local/bin/

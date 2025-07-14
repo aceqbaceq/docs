@@ -1,0 +1,14 @@
+| vxlan 
+
+собрал виртуалки. 
+нтрвиваю по книжке
+пока не раоает.
+
+очень хоршо изложено тут kubernetes-flannel.txt
+
+ссылки котторые пока незаработали
+https://ilearnedhowto.wordpress.com/2017/02/16/how-to-create-overlay-networks-using-linux-bridges-and-vxlans/
+
+https://serverfault.com/questions/874438/set-up-bridged-vxlan-network-in-linux
+
+
