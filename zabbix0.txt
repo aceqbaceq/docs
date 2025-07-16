@@ -1,0 +1,106 @@
+| zabbix
+
+
+базирусб как ставиьть  как написано тут
+
+https://www.zabbix.com/download?zabbix=7.4&os_distribution=debian&os_version=12&components=server_frontend_agent&db=mysql&ws=nginx
+
+
+но с нюансами
+а именно
+
+важный шаг
+вначале обяазателно первым надо поставить mysql
+иначе mysql устанвоить будет невзомжно потом уже после забикса
+# sudo apt-get purge mariadb-common
+# wget https://dev.mysql.com/get/mysql-apt-config_0.8.34-1_all.deb
+# dpkg -i mysql-apt-config_0.8.34-1_all.deb
+выскочит окно там надо выбрать 8.4-lts
+# apt-get update
+# apt-get install -y mysql-server
+#  mysql_secure_installation
+
+
+
+
+
+# wget https://repo.zabbix.com/zabbix/7.4/release/debian/pool/main/z/zabbix-release/zabbix-release_latest_7.4+debian12_all.deb
+# dpkg -i zabbix-release_latest_7.4+debian12_all.deb
+# apt update
+
+
+# apt install zabbix-server-mysql zabbix-frontend-php zabbix-nginx-conf zabbix-sql-scripts zabbix-agent2
+
+
+
+# mysql -uroot -p
+password
+mysql> create database zabbix character set utf8mb4 collate utf8mb4_bin;
+mysql> create user zabbix@localhost identified by 'password';
+mysql> grant all privileges on zabbix.* to zabbix@localhost;
+mysql> set global log_bin_trust_function_creators = 1;
+mysql> quit;
+
+
+# zcat /usr/share/zabbix/sql-scripts/mysql/server.sql.gz | mysql --default-character-set=utf8mb4 -uzabbix -p zabbix
+
+
+# mysql -uroot -p
+password
+mysql> set global log_bin_trust_function_creators = 0;
+mysql> quit;
+
+
+Edit file /etc/zabbix/zabbix_server.conf
+DBPassword=password
+хотя лучше бы настрить так чтобы забикс работал через локальны сокет
+без всяких паролей
+
+
+Edit file /etc/zabbix/nginx.conf uncomment and set 'listen' and 'server_name' directives.
+# listen 80;
+# server_name  home.zabbix.com;
+
+
+
+
+# systemctl enable --now zabbix-server zabbix-agent2  nginx php8.2-fpm
+
+веб морда 
+Admin
+zabbix
+
+
+alerts-actions-auto registration actions - .... ТУТ НАДО ДОПИСАТЬ.
+там в конфиге забикс агента надо заюзать ключ
+
+    HostMetadata=linux
+
+
+
+ТАКЖЕ из одного забикс агента можно слать активные хрени на несклоько забикс сереров.
+делается это очень просто 
+
+	
+	# cat /etc/zabbix/zabbix_agentd.conf | grep Server
+	...
+	...
+	ServerActive=100.100.0.197:10051,23.23.23.23:10051
+
+просто в этой строке через запятую укзываем наши забикс сервера.
+и что клево забикс агент будет слать данные на все эти сервера паралельно
+
+
+ТАКЖЕ  про агента на centos
+прикол в том что конфиг забикс агента лежит не как мы привыкли на дебиане 
+
+
+     /etc/zabbix/zabbix_agentd.conf
+
+а в папке
+
+     /etc/zabbix_agentd.conf
+
+
+этот центос с его особенносятми просто азебал
+

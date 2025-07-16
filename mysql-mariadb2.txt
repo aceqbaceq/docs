@@ -1,0 +1,33 @@
+| mysql
+| mariadb 
+
+
+пробую ставить mysql-server
+и получаю херню
+
+
+# apt-get install mysql-server
+Reading package lists... Done
+Building dependency tree... Done
+Reading state information... Done
+Some packages could not be installed. This may mean that you have
+requested an impossible situation or if you are using the unstable
+distribution that some required packages have not yet been created
+or been moved out of Incoming.
+The following information may help to resolve the situation:
+
+The following packages have unmet dependencies:
+ mariadb-client-core : Conflicts: virtual-mysql-client-core
+E: Error, pkgProblemResolver::Resolve generated breaks, this may be caused by held packages.
+
+
+попытка удалить virtual-mysql-client-core
+выводить ошибку
+
+решение:
+
+ # apt-get purge mariadb-common
+
+
+ПРОФИТ!
+
