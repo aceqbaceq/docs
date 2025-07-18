@@ -1,0 +1,27 @@
+| IP
+| mac
+| vm
+
+как на hyper-v получить мак адреса сет картчоек и их ип
+
+
+р> get-vm | ?{$_.State -eq "Running"} | select -ExpandProperty networkadapters | select vmname, macaddress, switchname, ipaddresses | ft -wrap -autosize
+
+
+
+
+vmware
+
+идем в ssh
+
+высянем id виртуалок
+
+  # vim-cmd vmsvc/getallvms
+
+
+бреем id интерсной виртуалки и 
+
+  # vim-cmd vmsvc/get.guest  12 | grep -i -E "hostname|ipaddress"
+
+
+  

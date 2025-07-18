@@ -1,14 +1,82 @@
 | vxlan 
 
 собрал виртуалки. 
-нтрвиваю по книжке
-пока не раоает.
+настраиваю по книжке
 
-очень хоршо изложено тут kubernetes-flannel.txt
 
-ссылки котторые пока незаработали
+
+вот у меня есть три компа с карточкой  enp0s3 и ип адресами  172.16.10.25/26/27
+
+
+на первом компе
+
+  ip link add vxlan110 type vxlan id 110 dstport 4789 local 172.16.10.25 dev enp0s3
+  ip link set vxlan110 address 02:00:00:00:00:01
+  bridge fdb append to 00:00:00:00:00:00  dst 172.16.10.26  dev vxlan110 
+  bridge fdb append to 00:00:00:00:00:00  dst 172.16.10.27  dev vxlan110 
+  ip -c a add 10.100.100.2/24 dev vxlan110
+  ip -c link set dev vxlan110 up
+
+
+
+
+
+на втором компе
+
+  ip link add vxlan110 type vxlan id 110 dstport 4789 local 172.16.10.26 dev enp0s3
+  ip link set vxlan110 address 02:00:00:00:00:02
+  bridge fdb append to 00:00:00:00:00:00  dst 172.16.10.25  dev vxlan110 
+  bridge fdb append to 00:00:00:00:00:00  dst 172.16.10.27  dev vxlan110 
+  ip -c a add 10.100.100.3/24 dev vxlan110
+  ip -c link set dev vxlan110 up
+
+
+
+
+
+на третьем компе
+
+  ip link add vxlan110 type vxlan id 110 dstport 4789 local 172.16.10.27 dev enp0s3
+  ip link set vxlan110 address 02:00:00:00:00:03
+  bridge fdb append to 00:00:00:00:00:00  dst 172.16.10.25  dev vxlan110 
+  bridge fdb append to 00:00:00:00:00:00  dst 172.16.10.26  dev vxlan110 
+  ip -c a add 10.100.100.4/24 dev vxlan110
+  ip -c link set dev vxlan110 up
+
+
+
+
+
+все сразу должно заработаь. тоесть с первого компа
+мы пингуем скажем второй
+
+(первый комп)#  ping 10.100.100.3
+
+
+
+ВНИМАНИЕ! у меня вначале неработало потому что у меня небыло строки
+
+  ip link set vxlan110 address 02:00:00:00:00:03
+
+а она очень важна потому что : по дефолту незнаю почему у меня на всех трех вирталках
+при создании vxlan порта у меня этот порт на всех трех виртуалках будет иметь ОДИНАКОВЫЙ СУКА МАК АДРЕС!
+поэтому нужно руками задать мак адрес этого порта чтобы они ни в коем случае небыли одинаковые.
+это была единсвтенная ебала. во всем остальном все должно сразу заработать.
+ip_forward при этом неважно чему равен. ни в одной ссылке данный феномен не описан !
+
+
+
+
+ксатти тема vxlan  хоршо изложено тут 
+              kubernetes-flannel.txt
+
+
+
+ссылки
 https://ilearnedhowto.wordpress.com/2017/02/16/how-to-create-overlay-networks-using-linux-bridges-and-vxlans/
 
 https://serverfault.com/questions/874438/set-up-bridged-vxlan-network-in-linux
 
+
+продолжение. работаю со статьей https://vincent.bernat.ch/en/blog/2017-vxlan-linux#fnref-patch1
 
