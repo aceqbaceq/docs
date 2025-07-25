@@ -596,4 +596,19 @@ qemu-system-x86_64 \
   -device virtio-net-pci,netdev=mynet1,mac=ba:ec:24:5c:08:21
 
 
+далее  я хочу чтобы экран его рзмер менялся если я меняю размер окна 
+тогда
+
+sudo apt update
+sudo apt install spice-vdagent
+
+
+sudo systemctl enable spice-vdagent
+sudo systemctl start spice-vdagent
+
+
+теперь яесли я меняю размер окна виртулки то и разрешение внутри окна менется!
+
+
+
 =============
