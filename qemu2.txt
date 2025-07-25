@@ -566,3 +566,34 @@ qemu-system-x86_64 \
 
 
 =======
+
+| qemu
+| vga
+| mouse
+
+как делать так чтобы если ВМ у нас юзает  граф режим то что бы в экране консоли 
+у нас мышка летала а не тормозила!
+
+
+$ cat start.bash 
+#!/usr/bin/bash
+
+qemu-system-x86_64 \
+  -name debian10 \
+  -m 1024M \
+  -smp 2 \
+  -enable-kvm \
+  -cpu host \
+  -M q35 \
+  -boot c \
+  -drive file=hda.img,media=disk,if=virtio,format=qcow2,file.locking=on \
+  -device virtio-balloon \
+  -device virtio-vga\
+  -device usb-ehci,id=ehci \
+  -device usb-tablet,bus=ehci.0 \
+  -display gtk,gl=on \
+  -netdev tap,id=mynet1,ifname=tap21,script=no,downscript=no \
+  -device virtio-net-pci,netdev=mynet1,mac=ba:ec:24:5c:08:21
+
+
+=============
