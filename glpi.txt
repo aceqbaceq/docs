@@ -1,0 +1,181 @@
+| glpi
+
+качаем версию glpi версию 10.0.6
+
+wget https://github.com/glpi-project/glpi/releases/download/10.0.6/glpi-10.0.6.tgz
+
+
+нужна имено эта версия. потому что только с ней работатет плагин fusioninventory ,  и именно тлько с этим
+плагином у меня получилось эту шамранку заставить работать
+
+
+
+
+
+	# apt-get install apache2
+	# apt-get install mariadb-server
+
+
+почему апач ане жинкс. потому что на жинксе нихуя не заработало поэтому апаче
+
+
+
+
+
+распаковываем от рута архив в папку веб сервера
+
+     /var/www/html/glpi
+
+
+создаем папки 
+# mkdir /etc/glpi   /var/lib/glpi /var/log/glpi
+мувим туда контент 
+# mv /var/www/html/glpi/config /etc/glpi
+# mv /var/www/html/glpi/files  /var/lib/glpi
+меняем пермишнсы
+# chown -R www-data:www-data /etc/glpi  /var/lib/glpi /var/log/glpi
+# chown www-data:www-data ./marketplace/
+
+
+
+
+
+
+создаем файл 
+ # cat /var/www/html/glpi/inc/downstream.php
+
+
+<?php
+define('GLPI_CONFIG_DIR', '/etc/glpi/');
+
+if (file_exists(GLPI_CONFIG_DIR . '/local_define.php')) {
+   require_once GLPI_CONFIG_DIR . '/local_define.php';
+}
+
+
+
+
+
+создаем файл 
+
+  # /etc/glpi/local_define.php
+
+<?php
+define('GLPI_VAR_DIR', '/var/lib/glpi');
+define('GLPI_LOG_DIR', '/var/log/glpi');
+
+
+
+удаляем сайт по дефолту
+
+   /etc/apache2/sites-enabled/000-default*
+
+
+
+
+
+создаем конфиг апаче
+
+
+# cat /etc/apache2/sites-enabled/glpi.conf 
+
+<VirtualHost *:80>
+    ServerName 172.16.10.29
+
+<FilesMatch \.php$>
+    SetHandler "proxy:unix:/run/php/php8.2-fpm.sock|fcgi://localhost/"
+</FilesMatch>
+
+    DocumentRoot /var/www/html/glpi
+
+
+    <Directory /var/www/html/glpi>
+        Require all granted
+
+        RewriteEngine On
+
+        # Ensure authorization headers are passed to PHP.
+        # Some Apache configurations may filter them and break usage of API, CalDAV, ...
+        RewriteCond %{HTTP:Authorization} ^(.+)$
+        RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+        # Redirect all requests to GLPI router, unless file exists.
+        RewriteCond %{REQUEST_FILENAME} !-f
+        RewriteRule ^(.*)$ index.php [QSA,L]
+    </Directory>
+</VirtualHost>
+
+
+
+
+
+тут идет мудеж чтобы отключить встроенный в апач интепретор пхп и вместо этого
+заставить его обращаться к php-fpm 
+  # a2enmod rewrite 
+  # a2dismod php8.2
+  # apt install php8.2-fpm libapache2-mod-fcgid
+  # a2enmod proxy proxy_fcgi rewrite
+
+
+ставим php, php-fpm и нужные модули php
+
+	# apt update
+	# sudo apt -y install php8.2 php8.2-fpm php8.2-dom php8.2-fileinfo php8.2-simplexml php8.2-xmlreader php8.2-xmlwriter php8.2-curl php8.2-gd php8.2-intl php8.2-mysqli php8.2-mysql php8.2-ldap php8.2-bz2 php8.2-zip php8.2-mbstring
+
+
+нужно подправить чтобы было
+    # cat /etc/php/8.2/fpm/php.ini  | grep   session.cookie_httponly
+       session.cookie_httponly = On;
+
+
+
+
+   # systemctl restart php8.2-fpm
+   # systemctl restart apache2
+
+
+
+
+
+идем в веб морду и запускаем установщик
+
+     http://172.16.10.29
+
+
+
+
+
+доходим до базы. 
+и перекходит в конслоь и создаем базу
+
+> CREATE DATABASE glpi DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_general_ci;
+
+
+> CREATE USER 'glpi'@'localhost' IDENTIFIED BY 'glpi123';
+
+> GRANT ALL PRIVILEGES ON glpi.* TO glpi@localhost;
+
+
+возвращаеся в веб инстллер 
+в верхне йстроке вбиваем
+
+ localhost
+
+во второй 
+
+  glpi
+
+в третьей 
+
+  glpi123
+
+
+установка закончена
+
+
+удаляем install/install.php
+
+
+заходим в веб морду  и меняем  пароли для юзеров  glpi post-only tech normal
+
+

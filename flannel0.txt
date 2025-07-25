@@ -7,8 +7,13 @@
 тут повторение продолжение
 
 
-фланнель в своей работе использует vxlan.
+
+ВО ПЕРВЫХ фланнель в своей работе использует vxlan.
 его я разбираю тут vxlan0.txt
+
+
+ВО ВТОРЫХ он в своей работе использует ETCD
+его я разбиаю тут etcd0.txt
 
 
 
@@ -22,9 +27,10 @@
 ставим etd
 
 ETCD_VER=v3.6.0
-wget https://github.com/etcd-io/etcd/releases/download/v${ETCD_VER}/etcd-v${ETCD_VER}-linux-amd64.tar.gz
-tar -xzf etcd-v${ETCD_VER}-linux-amd64.tar.gz
-sudo mv etcd-v${ETCD_VER}-linux-amd64/etcd* /usr/local/bin/
+wget https://github.com/etcd-io/etcd/releases/download/${ETCD_VER}/etcd-${ETCD_VER}-linux-amd64.tar.gz
+tar -xzf etcd-${ETCD_VER}-linux-amd64.tar.gz
+sudo mv etcd-${ETCD_VER}-linux-amd64/etcd* /usr/local/bin/
+
 
 
 
@@ -38,6 +44,10 @@ advertise-client-urls: http://192.168.1.101:2379
 initial-cluster: host1=http://192.168.1.101:2380,host2=http://192.168.1.102:2380
 initial-cluster-state: new
 initial-cluster-token: etcd-cluster-01
+log-level: info 
+logger: zap
+log-outputs: stderr
+
 
 
 запускаем etcd
@@ -45,12 +55,12 @@ sudo mkdir -p /var/lib/etcd
 sudo etcd --config-file /etc/etcd/etcd.conf.yml &
 
 
-провреем что этцд завелся
+проверяем что etcd завелся
 etcdctl --endpoints=http://192.168.1.101:2379,http://192.168.1.102:2379 endpoint status
 etcdctl --endpoints=http://192.168.1.101:2379,http://192.168.1.102:2379 member list
 
 
-запиывесеавываем сеть фланель в этцд
+записываем сеть фланель в этцд
 etcdctl --endpoints=http://192.168.1.101:2379,http://192.168.1.102:2379 put /coreos.com/network/config '{"Network":"10.244.0.0/16","Backend":{"Type":"vxlan"}}'
 
 

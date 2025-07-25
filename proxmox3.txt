@@ -1,0 +1,57 @@
+| proxmox
+
+
+получить список ВМ , показат только те ккоторые RUNNING
+и показать их VLANS
+
+
+# cat 01.bash 
+#!/usr/bin/bash
+
+
+
+
+# Получаем список всех запущенных ВМ
+pvesh get /cluster/resources --type vm --output-format json 2>/dev/null |
+  jq -r '.[] | select(.status=="running") | "\(.node) \(.vmid) \(.name)"' |
+  while read node vmid name; do
+
+    # Получаем конфиг ВМ
+    config=$(pvesh get /nodes/$node/qemu/$vmid/config --output-format json 2>/dev/null)
+    
+    # Проверка, что JSON действительно получен
+    if ! echo "$config" | jq empty >/dev/null 2>&1; then
+        echo "⚠️ VMID: $vmid | Name: $name | Node: $node | VLAN(s): [ERROR: invalid config]"
+        continue
+    fi
+
+    # Извлекаем VLAN'ы из netX интерфейсов
+    vlan_tags=$(echo "$config" |
+        jq -r 'to_entries[] | select(.key|test("^net[0-9]+$")) | .value' |
+        grep -oP 'tag=\K[0-9]+' | sort -u | paste -sd ',' -)
+
+    echo "VMID: $vmid | Name: $name | Node: $node | VLAN(s): ${vlan_tags:-none}"
+done
+
+
+
+
+| openswitch
+
+псмотреть список портоа на опенсвич
+
+# ovs-vsctl show
+26328e5d-d563-473d-98ec-017c8c820545
+
+    Bridge vmbr0
+        Port vlan91
+            tag: 91
+            Interface vlan91
+                type: internal
+        Port vlan2610
+            tag: 2610
+            Interface vlan2610
+                type: internal
+        Port vlan2345
+
+        
