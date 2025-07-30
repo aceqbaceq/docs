@@ -1,0 +1,28 @@
+| proxmox
+
+как имея установленный агент создаьт юзера на хосте
+
+
+$ sudo qm guest exec 130 --   useradd -m  vasya
+{
+   "exitcode" : 0,
+   "exited" : 1
+}
+
+
+
+$ sudo qm guest exec 130 -- bash -c 'echo vasya:123456 | chpasswd'
+{
+   "exitcode" : 0,
+   "exited" : 1
+}
+
+
+$ sudo qm guest exec 130 --   usermod -aG sudo  vasya
+{
+   "exitcode" : 0,
+   "exited" : 1
+}
+
+
+
