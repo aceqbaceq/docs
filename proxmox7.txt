@@ -1,0 +1,12 @@
+| proxmox
+| nfs
+
+пример маунтинга 
+
+
+1.1.1.1:/store/global/proxmox on /mnt/pve/nfs-ext type nfs (rw,relatime,vers=3,rsize=1048576,wsize=1048576,namlen=255,hard,proto=tcp,timeo=600,retrans=2,sec=sys,mountaddr=1.1.1.1,mountvers=3,mountport=32798,mountproto=udp,local_lock=none,addr=1.1.1.1)
+
+1.1.1.1:/mnt/strip-2mirror/share/proxmox on /mnt/pve/freenas type nfs (rw,relatime,vers=3,rsize=131072,wsize=131072,namlen=255,hard,proto=tcp,timeo=600,retrans=2,sec=sys,mountaddr=1.1.1.1,mountvers=3,mountport=924,mountproto=udp,local_lock=none,addr=1.1.1.1)
+
+
+

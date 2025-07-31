@@ -1,0 +1,22 @@
+| proxmox
+
+
+Примечание: Сервер использует множество subinterface vlan. Необходимо наличие патча для openvswitch для разрешения прохождения тэгированных пакетов от виртуальной машины в сеть.
+
+--- /usr/share/perl5/PVE/Network.pm.orig 2020-05-08 16:54:14.734230861 +0200 +++ /usr/share/perl5/PVE/Network.pm 2020-05-08 16:55:14.739249932 +0200 @@ -249,8 +249,10 @@ # first command push @$cmd, '--', 'add-port', $bridge, $iface; push @$cmd, "tag=$tag" if $tag;
+
+    push @$cmd, "trunks=". join(',', $trunks) if $trunks;
+
+    push @$cmd, "vlan_mode=native-untagged" if $tag && $trunks;
+
+    push @$cmd, "vlan_mode=dot1q-tunnel" if $tag;
+
+    push @$cmd, "other-config:qinq-ethtype=802.1q" if $tag;
+
+    push @$cmd, "cvlans=". join(',', $trunks) if $trunks && $tag;
+
+    push @$cmd, "trunks=". join(',', $trunks) if $trunks && !$tag;
+
+    if ($internal) {
+    second command
+
