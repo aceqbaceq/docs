@@ -1,0 +1,31 @@
+| proxmox
+
+если есть /dev/sdc
+то как понять к какому контррллеру он подклчен
+
+# udevadm info -q path -n /dev/sdc
+/devices/pci0000:00/0000:00:01.0/0000:01:00.0/host4/port-4:0/expander-4:0/port-4:0:0/end_device-4:0:0/target4:0:0/4:0:0:0/block/sdc
+
+
+
+вот эта хрень этоконтрллер
+
+00:01.0
+
+# lspci -s 01:00.0
+01:00.0 Serial Attached SCSI controller: Broadcom / LSI SAS3008 PCI-Express Fusion-MPT SAS-3 (rev 02)
+
+
+или через sys
+
+
+# readlink -f /sys/block/sdc/device
+/sys/devices/pci0000:00/0000:00:01.0/0000:01:00.0/host4/port-4:0/expander-4:0/port-4:0:0/end_device-4:0:0/target4:0:0/4:0:0:0
+
+
+
+тоже самое
+
+00:01.0
+
+адрес контроллера

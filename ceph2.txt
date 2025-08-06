@@ -1,0 +1,267 @@
+| ceph
+
+
+$ sudo ceph osd pool ls
+.mgr
+ceph_pool
+
+
+
+
+
+
+$ sudo ceph osd pool get ceph_pool size
+size: 3
+это сколкьо копий одного PG
+
+
+
+
+
+
+$ sudo ceph -s
+  cluster:
+    id:     67bf77ff-87ea-483a-8b66-9a45c34f5cc6
+    health: HEALTH_OK
+ 
+  services:
+    mon: 5 daemons, quorum hst3,hst4,hst6,hst7,hst2 (age 3w)
+    mgr: hst7(active, since 3w), standbys: hst5, hst4, hst1, hst6, hst3
+    osd: 24 osds: 24 up (since 5d), 23 in (since 12m); 58 remapped pgs
+ 
+  data:
+    pools:   2 pools, 513 pgs
+    objects: 1.72M objects, 6.0 TiB
+    usage:   13 TiB used, 11 TiB / 24 TiB avail
+    pgs:     153860/5151111 objects misplaced (2.987%)
+             455 active+clean
+             58  active+remapped+backfilling
+ 
+  io:
+    client:   521 KiB/s rd, 19 MiB/s wr, 33 op/s rd, 1.00k op/s wr
+    recovery: 193 MiB/s, 50 objects/s
+ 
+
+
+
+тоесть
+             455 active+clean
+             58  active+remapped+backfilling
+
+
+так вот 455+58=513  уникальных PGS. 
+сучетом что их три копии то полное число PGS = 513*3 ~ 1500 штук
+
+
+
+
+
+
+
+
+
+
+
+
+$ sudo ceph df
+--- RAW STORAGE ---
+CLASS    SIZE   AVAIL    USED  RAW USED  %RAW USED
+hdd    24 TiB  11 TiB  13 TiB    13 TiB      54.05
+TOTAL  24 TiB  11 TiB  13 TiB    13 TiB      54.05
+ 
+--- POOLS ---
+POOL       ID  PGS   STORED  OBJECTS     USED  %USED  MAX AVAIL
+.mgr        6    1  115 MiB       30  346 MiB      0    2.6 TiB
+ceph_pool  10  512  6.2 TiB    1.72M   11 TiB  59.25    2.6 TiB
+
+
+
+$ sudo ceph osd df
+ID  CLASS  WEIGHT   REWEIGHT  SIZE     RAW USE  DATA     OMAP     META     AVAIL    %USE   VAR   PGS  STATUS
+ 0    hdd  1.20070   1.00000  1.2 TiB  728 GiB  616 GiB   10 MiB  1.1 GiB  501 GiB  59.21  1.10   76      up
+ 3    hdd  0.90059   1.00000  922 GiB  563 GiB  479 GiB  8.1 MiB  890 MiB  359 GiB  61.04  1.13   59      up
+ 4    hdd  1.20070   1.00000  1.2 TiB  752 GiB  640 GiB   11 MiB  4.7 GiB  478 GiB  61.13  1.13   85      up
+ 2    hdd  0.90059   1.00000  922 GiB  573 GiB  489 GiB  8.2 MiB  891 MiB  350 GiB  62.09  1.15   60      up
+ 5    hdd  1.20070   1.00000  1.2 TiB  745 GiB  633 GiB   10 MiB  1.1 GiB  485 GiB  60.57  1.12   79      up
+ 6    hdd  0.90059   1.00000  922 GiB  514 GiB  430 GiB  7.2 MiB  815 MiB  408 GiB  55.76  1.03   52      up
+ 7    hdd  0.90059   1.00000  922 GiB  448 GiB  364 GiB  6.1 MiB  633 MiB  475 GiB  48.54  0.90   44      up
+ 8    hdd  0.90059         0      0 B      0 B      0 B      0 B      0 B      0 B      0     0   58      up
+11    hdd  1.20070   1.00000  1.2 TiB  770 GiB  658 GiB   11 MiB  1.1 GiB  460 GiB  62.59  1.16   79      up
+ 9    hdd  0.90059   1.00000  922 GiB  512 GiB  429 GiB  7.3 MiB  915 MiB  410 GiB  55.56  1.03   53      up
+10    hdd  0.90059   1.00000  922 GiB  577 GiB  493 GiB  8.2 MiB  968 MiB  345 GiB  62.58  1.16   60      up
+19    hdd  1.20070   1.00000  1.2 TiB  615 GiB  503 GiB  8.9 MiB  3.8 GiB  614 GiB  50.03  0.93   67      up
+ 1    hdd  1.20070   1.00000  1.2 TiB  662 GiB  550 GiB  9.2 MiB  1.0 GiB  567 GiB  53.86  1.00   65      up
+13    hdd  0.90059   1.00000  922 GiB  447 GiB  363 GiB  6.0 MiB  645 MiB  475 GiB  48.50  0.90   45      up
+17    hdd  1.20070   1.00000  1.2 TiB  664 GiB  552 GiB  9.5 MiB  1.2 GiB  566 GiB  53.99  1.00   68      up
+12    hdd  0.90059   1.00000  922 GiB  509 GiB  425 GiB  7.1 MiB  880 MiB  413 GiB  55.19  1.02   52      up
+14    hdd  1.20070   1.00000  1.2 TiB  664 GiB  552 GiB  9.9 MiB  4.2 GiB  565 GiB  54.01  1.00   74      up
+18    hdd  0.90059   1.00000  922 GiB  584 GiB  500 GiB  8.4 MiB  884 MiB  338 GiB  63.31  1.17   61      up
+15    hdd  1.20079   1.00000  1.2 TiB  745 GiB  633 GiB   11 MiB  1.1 GiB  485 GiB  60.58  1.12   78      up
+16    hdd  1.20079   1.00000  1.2 TiB  767 GiB  655 GiB   11 MiB  1.2 GiB  463 GiB  62.37  1.15   80      up
+20    hdd  1.20079   1.00000  1.2 TiB  720 GiB  609 GiB   10 MiB  1.3 GiB  509 GiB  58.60  1.08   75      up
+21    hdd  0.87329   1.00000  894 GiB  250 GiB  248 GiB  8.2 MiB  2.2 GiB  644 GiB  28.00  0.52   62      up
+22    hdd  0.87329   1.00000  894 GiB  212 GiB  210 GiB  6.8 MiB  1.6 GiB  682 GiB  23.70  0.44   51      up
+23    hdd  0.87329   1.00000  894 GiB  231 GiB  229 GiB  7.5 MiB  1.9 GiB  663 GiB  25.84  0.48   56      up
+                       TOTAL   24 TiB   13 TiB   11 TiB  202 MiB   35 GiB   11 TiB  54.07                   
+MIN/MAX VAR: 0.44/1.17  STDDEV: 11.57
+
+
+
+
+
+
+
+$ sudo ceph-volume lvm list
+
+
+====== osd.11 ======
+
+  [db]          /dev/ceph-4040b672-b148-474e-a662-229734266b8f/osd-db-da218459-89f3-4088-b8ff-2ca257a99a37
+
+      block device              /dev/ceph-bce978c8-1164-4acd-aaf0-145dc208ca1c/osd-block-ccca1def-e99e-44b9-b2fa-55490c6ed472
+      block uuid                MdBdts-W10x-shKO-TANr-PMqL-mztX-pStM3C
+      cephx lockbox secret      
+      cluster fsid              67bf77ff-87ea-483a-8b66-9a45c34f5cc6
+      cluster name              ceph
+      crush device class        None
+      db device                 /dev/ceph-4040b672-b148-474e-a662-229734266b8f/osd-db-da218459-89f3-4088-b8ff-2ca257a99a37
+      db uuid                   XwVLOR-p7ef-UA8I-neZH-8dck-Dtz0-LNCdJi
+      encrypted                 0
+      osd fsid                  ccca1def-e99e-44b9-b2fa-55490c6ed472
+      osd id                    11
+      osdspec affinity          
+      type                      db
+      vdo                       0
+      devices                   /dev/sdd
+
+  [block]       /dev/ceph-bce978c8-1164-4acd-aaf0-145dc208ca1c/osd-block-ccca1def-e99e-44b9-b2fa-55490c6ed472
+
+      block device              /dev/ceph-bce978c8-1164-4acd-aaf0-145dc208ca1c/osd-block-ccca1def-e99e-44b9-b2fa-55490c6ed472
+      block uuid                MdBdts-W10x-shKO-TANr-PMqL-mztX-pStM3C
+      cephx lockbox secret      
+      cluster fsid              67bf77ff-87ea-483a-8b66-9a45c34f5cc6
+      cluster name              ceph
+      crush device class        None
+      db device                 /dev/ceph-4040b672-b148-474e-a662-229734266b8f/osd-db-da218459-89f3-4088-b8ff-2ca257a99a37
+      db uuid                   XwVLOR-p7ef-UA8I-neZH-8dck-Dtz0-LNCdJi
+      encrypted                 0
+      osd fsid                  ccca1def-e99e-44b9-b2fa-55490c6ed472
+      osd id                    11
+      osdspec affinity          
+      type                      block
+      vdo                       0
+      devices                   /dev/sdf
+
+====== osd.7 =======
+
+  [block]       /dev/ceph-644c33c1-2d63-499f-b0df-0fb492731de1/osd-block-4f64af4f-3f70-4b32-8231-361323a6b124
+
+      block device              /dev/ceph-644c33c1-2d63-499f-b0df-0fb492731de1/osd-block-4f64af4f-3f70-4b32-8231-361323a6b124
+      block uuid                Gi5vuw-3FLJ-HPUu-aEMB-I9q6-VafB-lfcRAx
+      cephx lockbox secret      
+      cluster fsid              67bf77ff-87ea-483a-8b66-9a45c34f5cc6
+      cluster name              ceph
+      crush device class        hdd
+      db device                 /dev/ceph-87836a31-9722-4287-8046-bbc22f99c11a/osd-db-666e6a5c-b9c7-49cf-942e-42674493cde1
+      db uuid                   ARpxgW-47x2-R7x7-7pxi-K9KA-rBfZ-3a3rmb
+      encrypted                 0
+      osd fsid                  4f64af4f-3f70-4b32-8231-361323a6b124
+      osd id                    7
+      osdspec affinity          
+      type                      block
+      vdo                       0
+      devices                   /dev/sdb
+
+  [db]          /dev/ceph-87836a31-9722-4287-8046-bbc22f99c11a/osd-db-666e6a5c-b9c7-49cf-942e-42674493cde1
+
+      block device              /dev/ceph-644c33c1-2d63-499f-b0df-0fb492731de1/osd-block-4f64af4f-3f70-4b32-8231-361323a6b124
+      block uuid                Gi5vuw-3FLJ-HPUu-aEMB-I9q6-VafB-lfcRAx
+      cephx lockbox secret      
+      cluster fsid              67bf77ff-87ea-483a-8b66-9a45c34f5cc6
+      cluster name              ceph
+      crush device class        hdd
+      db device                 /dev/ceph-87836a31-9722-4287-8046-bbc22f99c11a/osd-db-666e6a5c-b9c7-49cf-942e-42674493cde1
+      db uuid                   ARpxgW-47x2-R7x7-7pxi-K9KA-rBfZ-3a3rmb
+      encrypted                 0
+      osd fsid                  4f64af4f-3f70-4b32-8231-361323a6b124
+      osd id                    7
+      osdspec affinity          
+      type                      db
+      vdo                       0
+      devices                   /dev/sdg
+
+====== osd.8 =======
+
+  [db]          /dev/ceph-1ba4a9b9-795c-4ece-afa1-bf1556be9592/osd-db-46705324-5b49-4be9-ad50-8bcd4f668802
+
+      block device              /dev/ceph-3c422b3c-7244-4b72-90c1-275d4f67d07c/osd-block-d82b58ee-498d-45f8-9787-c94e92ee2fbc
+      block uuid                NuIK8H-TjV9-jym0-UNrx-EKVG-gsX4-5kIVik
+      cephx lockbox secret      
+      cluster fsid              67bf77ff-87ea-483a-8b66-9a45c34f5cc6
+      cluster name              ceph
+      crush device class        
+      db device                 /dev/ceph-1ba4a9b9-795c-4ece-afa1-bf1556be9592/osd-db-46705324-5b49-4be9-ad50-8bcd4f668802
+      db uuid                   oPOp4s-izX8-ikJ3-0tpy-ZyZ0-sG75-M3eLDA
+      encrypted                 0
+      osd fsid                  d82b58ee-498d-45f8-9787-c94e92ee2fbc
+      osd id                    8
+      osdspec affinity          
+      type                      db
+      vdo                       0
+      devices                   /dev/sde
+
+  [block]       /dev/ceph-3c422b3c-7244-4b72-90c1-275d4f67d07c/osd-block-d82b58ee-498d-45f8-9787-c94e92ee2fbc
+
+      block device              /dev/ceph-3c422b3c-7244-4b72-90c1-275d4f67d07c/osd-block-d82b58ee-498d-45f8-9787-c94e92ee2fbc
+      block uuid                NuIK8H-TjV9-jym0-UNrx-EKVG-gsX4-5kIVik
+      cephx lockbox secret      
+      cluster fsid              67bf77ff-87ea-483a-8b66-9a45c34f5cc6
+      cluster name              ceph
+      crush device class        
+      db device                 /dev/ceph-1ba4a9b9-795c-4ece-afa1-bf1556be9592/osd-db-46705324-5b49-4be9-ad50-8bcd4f668802
+      db uuid                   oPOp4s-izX8-ikJ3-0tpy-ZyZ0-sG75-M3eLDA
+      encrypted                 0
+      osd fsid                  d82b58ee-498d-45f8-9787-c94e92ee2fbc
+      osd id                    8
+      osdspec affinity          
+      type                      block
+      vdo                       0
+      devices                   /dev/sdc
+
+
+
+
+
+
+
+как псмотреть лейтенси на OSD
+
+$ sudo ceph osd perf
+osd  commit_latency(ms)  apply_latency(ms)
+ 11                  10                 10
+  8                   0                  0
+  7                   3                  3
+ 18                   3                  3
+ 12                   3                  3
+ 23                   1                  1
+ 22                   1                  1
+ 21                   0                  0
+ 20                   3                  3
+ 19                   7                  7
+ 17                   2                  2
+  0                   3                  3
+ 13                   3                  3
+  1                   2                  2
+ 14                  11                 11
+  2                   6                  6
+ 15                   3                  3
+  3                   2                  2
+ 16                   3                  3
+  4                   6                  6
+  5                   9                  9
+  6                   8                  8
+  9                   3                  3
+ 10                   2                  2
+
+
+ 
