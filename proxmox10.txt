@@ -1,0 +1,106 @@
+| proxmox
+| script
+
+# cat 02.bash 
+#!/bin/bash
+
+
+# скрипт берет vmid и имя секьюирити группы. а потом он на этой вм
+# навешивает этой sg к файрволлу, на всех портах этой вм он активирует 
+# фильтрацию файрволлом 
+# меняет дефолт полиси на файволее
+# и наконец активирует файрволл
+
+
+
+#!/bin/bash
+VMID="$1"
+SGROUP="$2"
+
+if [[ -z "$VMID" || -z "$SGROUP" ]]; then
+  echo "Usage: $0 <vmid> <security-group>"
+  exit 1
+fi
+
+# Найдём node, где находится VM
+NODE=$(pvesh get /cluster/resources --type vm --output-format json | jq -r --arg vmid "$VMID" '.[] | select(.vmid == ($vmid|tonumber)) | .node')
+
+if [[ -z "$NODE" ]]; then
+  echo "VMID $VMID not found in cluster"
+  exit 1
+fi
+
+echo "VM $VMID found on node $NODE"
+
+# 1. Включаем firewall на всех сетевых интерфейсах VM
+echo "Searching for network interfaces on VM..."
+pvesh get /nodes/$NODE/qemu/$VMID/config --output-format json | jq -r 'to_entries[] | select(.key|test("^net[0-9]+$")) | "\(.key): \(.value)"' | while read -r line; do
+    IFACE=$(echo "$line" | cut -d':' -f1)
+    CONFIG=$(echo "$line" | cut -d':' -f2- | sed 's/^ //')
+
+    echo "Found interface $IFACE with config: $CONFIG"
+
+    if [[ "$CONFIG" =~ firewall=1 ]]; then
+        echo "$IFACE already has firewall enabled, skipping"
+        continue
+    fi
+
+    if [[ "$CONFIG" =~ firewall=[^,]* ]]; then
+        CONFIG=$(echo "$CONFIG" | sed -r 's/firewall=[^,]*/firewall=1/')
+    else
+        CONFIG="$CONFIG,firewall=1"
+    fi
+
+    echo "Activating firewall on $IFACE"
+    sudo pvesh set /nodes/$NODE/qemu/$VMID/config --$IFACE "$CONFIG"
+done
+
+# 2. Проверяем, привязана ли security group уже
+EXISTS=$(sudo pvesh get /nodes/$NODE/qemu/$VMID/firewall/rules --output-format json | jq -r --arg sg "$SGROUP" '[.[] | select(.type=="group" and .action==$sg)] | length')
+
+if [[ "$EXISTS" -gt 0 ]]; then
+  echo "Security group $SGROUP already attached to VM, skipping add"
+else
+  echo "Adding security group $SGROUP"
+  sudo pvesh create /nodes/$NODE/qemu/$VMID/firewall/rules --type group --action "$SGROUP" --pos 0
+fi
+
+# 3. Проверяем, включено ли правило security group
+RULE_INDEX=$(sudo pvesh get /nodes/$NODE/qemu/$VMID/firewall/rules --output-format json | jq -r --arg sg "$SGROUP" 'to_entries | map(select(.value.type=="group" and .value.action==$sg)) | .[0].key')
+
+if [[ -z "$RULE_INDEX" ]]; then
+  echo "Security group rule not found, cannot enable"
+else
+  ENABLED=$(sudo pvesh get /nodes/$NODE/qemu/$VMID/firewall/rules/$RULE_INDEX --output-format json | jq -r '.enable')
+  if [[ "$ENABLED" == "1" ]]; then
+    echo "Security group rule already enabled"
+  else
+    echo "Enabling security group rule"
+    sudo pvesh set /nodes/$NODE/qemu/$VMID/firewall/rules/$RULE_INDEX --enable 1
+  fi
+fi
+
+# 4. Проверяем и устанавливаем default политики
+POLICIES=$(sudo pvesh get /nodes/$NODE/qemu/$VMID/firewall/options --output-format json)
+POLICY_IN=$(echo "$POLICIES" | jq -r '.policy_in')
+POLICY_OUT=$(echo "$POLICIES" | jq -r '.policy_out')
+
+if [[ "$POLICY_IN" == "ACCEPT" && "$POLICY_OUT" == "ACCEPT" ]]; then
+  echo "Default policies already set to ACCEPT"
+else
+  echo "Setting default policies INPUT=ACCEPT, OUTPUT=ACCEPT"
+  sudo pvesh set /nodes/$NODE/qemu/$VMID/firewall/options --policy_in ACCEPT --policy_out ACCEPT
+fi
+
+# 5. Проверяем включён ли firewall на VM
+FW_ENABLED=$(echo "$POLICIES" | jq -r '.enable')
+if [[ "$FW_ENABLED" == "1" ]]; then
+  echo "Firewall already enabled on VM"
+else
+  echo "Enabling firewall on VM"
+  sudo pvesh set /nodes/$NODE/qemu/$VMID/firewall/options --enable 1
+fi
+
+echo "Firewall setup complete for VM $VMID on node $NODE with security group $SGROUP"
+
+

@@ -1,0 +1,20 @@
+| proxmox
+| nested
+
+как уставнить проквсокс поверх прокксмокс
+
+
+https://pve.proxmox.com/wiki/Nested_Virtualization
+
+
+на рпроксмокс хосте
+# cat /sys/module/kvm_intel/parameters/nested   
+Y
+
+
+и в свойствах вм
+
+# qm set <vmid> --cpu host
+
+готво!
+
