@@ -311,3 +311,8 @@ ID   CLASS  WEIGHT    TYPE NAME       STATUS  REWEIGHT  PRI-AFF
 
 $ sudo ceph osd reweight osd.4 1.0
 
+
+
+число мониторов должно быть нечет. для кворума.
+число менеждеров пофиг потому что один актив остальные стендбай.
+
