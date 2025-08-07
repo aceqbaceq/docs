@@ -265,3 +265,49 @@ osd  commit_latency(ms)  apply_latency(ms)
 
 
  
+
+
+
+
+
+ ~$ sudo ceph osd tree
+ID   CLASS  WEIGHT    TYPE NAME       STATUS  REWEIGHT  PRI-AFF
+ -1         22.73244  root default                             
+ -9          3.30199      host hst1                            
+  0    hdd   1.20070          osd.0       up   1.00000  1.00000
+  3    hdd   0.90059          osd.3       up   1.00000  1.00000
+  4    hdd   1.20070          osd.4       up   0.84999  1.00000
+ -3          3.00188      host hst2                            
+  2    hdd   0.90059          osd.2       up   1.00000  1.00000
+  5    hdd   1.20070          osd.5       up   1.00000  1.00000
+  6    hdd   0.90059          osd.6       up   1.00000  1.00000
+ -5          0.90059      host hst3                            
+  7    hdd   0.90059          osd.7       up   0.79999  1.00000
+ -7          3.00188      host hst4                            
+  9    hdd   0.90059          osd.9       up   1.00000  1.00000
+ 10    hdd   0.90059          osd.10      up   1.00000  1.00000
+ 19    hdd   1.20070          osd.19      up   1.00000  1.00000
+-13          3.30199      host hst5                            
+  1    hdd   1.20070          osd.1       up   1.00000  1.00000
+ 13    hdd   0.90059          osd.13      up   1.00000  1.00000
+ 17    hdd   1.20070          osd.17      up   1.00000  1.00000
+-11          3.00188      host hst6                            
+ 12    hdd   0.90059          osd.12      up   1.00000  1.00000
+ 14    hdd   1.20070          osd.14      up   1.00000  1.00000
+ 18    hdd   0.90059          osd.18      up   1.00000  1.00000
+-76          3.60237      host hst7                            
+ 15    hdd   1.20079          osd.15      up   1.00000  1.00000
+ 16    hdd   1.20079          osd.16      up   1.00000  1.00000
+ 20    hdd   1.20079          osd.20      up   1.00000  1.00000
+-15          2.61987      host hst8                            
+ 21    hdd   0.87329          osd.21      up   1.00000  1.00000
+ 22    hdd   0.87329          osd.22      up   1.00000  1.00000
+ 23    hdd   0.87329          osd.23      up   1.00000  1.00000
+  8                0  osd.8             down         0  1.00000
+
+
+
+
+
+$ sudo ceph osd reweight osd.4 1.0
+
