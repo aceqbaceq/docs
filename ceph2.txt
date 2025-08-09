@@ -683,3 +683,13 @@ Aug 09 00:00:33 hst1 ceph-osd[5610]: 2025-08-09T00:00:33.619+0300 7fce30aa9700 -
 
 
 
+комнады проверики здвроьвья цефа
+
+
+#  sudo ceph -s
+#  sudo ceph  osd  tree
+#  sudo ceph  osd  df
+
+
+
+
