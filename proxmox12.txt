@@ -1,0 +1,24 @@
+| proxmox
+
+на хостах кластера нужно иметь точно синхронзированное время.
+на данынй моментоно это делает через ntpd и его /etc/ntp.conf
+
+# cat /etc/ntp.conf
+server 100.100.0.6 iburst prefer
+server 0.pool.ntp.org iburst
+
+peer 100.100.0.20
+peer 100.100.0.30
+peer 100.100.0.40
+peer 100.100.0.60
+peer 100.100.0.70
+peer 100.100.0.80
+peer 100.100.0.90
+
+restrict −4 default kod notrap nomodify nopeer noquery
+restrict −6 default kod notrap nomodify nopeer noquery
+
+restrict 100.100.0.0 mask 255.255.255.0 nomodify notrap
+
+
+но по идее нужно от ntpd отказаться в сторону chrony

@@ -1,0 +1,73 @@
+| proxmox
+
+ему важно синхро время между нодами
+
+systemd-timed якобы это простецкая хуйня на базе SNTP (simplfied ntp)
+а нам нужен NTP сам.
+
+поэтому либо ntp сервис (лошизм)
+либо chrony
+
+
+тут покажу как ntp
+
+во первых нужно в апппарамор добавить хуйню
+
+нужно 
+в файл
+/etc/apparmor.d/usr.sbin.ntpd
+
+втавить
+
+ /run/systemd/userdb/io.systemd.DynamicUser w,
+
+
+где нибудь неважно тамже где аналогичная хуйня
+
+потом
+
+# systemctl restart apparmor
+
+потом 
+
+
+$ cat /etc/ntp.conf
+
+server 12.12.0.6 iburst prefer
+server ru.pool.ntp.org iburst
+
+#hst1
+#peer 12.12.0.10
+
+#hst2
+peer 12.12.0.20
+
+#hst3
+peer 12.12.0.30
+
+#hst4
+peer 12.12.0.40
+
+#hst5
+peer 12.12.0.60
+
+hst6
+peer 12.12.0.70
+
+#hst7
+peer 12.12.0.80
+
+#hst8
+peer 12.12.0.90
+
+
+restrict −4 default kod notrap nomodify nopeer noquery
+restrict −6 default kod notrap nomodify nopeer noquery
+
+restrict 12.12.0.0 mask 255.255.255.0 nomodify notrap
+
+
+# systemctl restart ntp
+
+# journalctl -f -u ntp
+

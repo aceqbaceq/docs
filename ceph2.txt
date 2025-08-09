@@ -478,3 +478,208 @@ ceph--4ea7bc65--5f81--4fe8--b764--254e10ed98a9-osd--block--11979a88--4b56--491b-
 
 если я создаю осд и выдяеляю диск под данынеи и под базу то AWL пишется на базу
 
+
+
+
+далее 
+как происходит "подключение" диска к ВМ кему через ceph
+для начала скажу как оно происходит к контйреру LXC на прокмкокс.
+
+прокмокс обращется к цеф и на нем создает RBD область.  типа он там аллоцирует
+кусок байтов тоесть блок данных. далее ядро создает на хосте блочное устройство 
+/dev/rdb0 и теперь любой процесс может  работать с этим блочным устройством.
+и прокскокс при создании контенера ему вместо диска подсвывает этот /dev/rbd0
+на пракике это выглядит так
+
+$ sudo pct list
+VMID       Status     Lock         Name                
+100        running                 dns1-cn03-ct1       
+258        running                 lxc-test-01        
+
+
+$ sudo rbd showmapped
+id  pool       namespace  image          snap  device   
+0   ceph_pool             vm-258-disk-0  -     /dev/rbd0
+
+
+
+но если мы проверим папку /dev/ мы там ненайдем кучи rbdN файлов
+ $ ls -1 /dev/rbd*
+/dev/rbd0
+
+
+потому что прокскосм если создает вм кему то в нее он диск сует по другому.
+как я понял у кему есть кусок кода либо он есть в системе а кему умеет его юзать.
+так вот этот код он умеет лазить на цеф пул в RBD (Ceph RBD (RADOS Block Device)) сам!
+ему нужно только указать 
+параметры этого rbd куска. и он сам сможет к цеф задать запрос. поэтому /dev/rbdN для
+кему виртуалки не создается на системе. просто при запске кему прописывется вот что
+
+-drive file=rbd:ceph_pool/vm-191-disk-0:conf=/etc/pve/ceph.conf:id=admin:keyring=/etc/pve/priv/ceph/ceph_pool.keyring,if=none,id=drive-scsi0,format=raw,cache=none,aio=io_uring,detect-zeroes=on
+
+
+тоесть
+rbd:ceph_pool/vm-191-disk-0
+
+где
+ceph_pool 
+название пула
+
+
+и 
+vm-191-disk-0
+название rbd области
+
+ну а остальная хрень это как досутчаться до этого цефа в целом
+
+
+вот как можно посмтреть список всех созданных RBD на пуле  ceph_pool
+
+ $ sudo rbd ls ceph_pool | head
+vm-101-disk-0
+vm-102-disk-0
+..
+..
+
+
+
+
+
+
+далее берем RBD
+
+ $ sudo rbd info vm-101-disk-0  -p ceph_pool
+rbd image 'vm-101-disk-0':
+  size 64 MiB in 16 objects
+  order 22 (4 MiB objects)
+  snapshot_count: 0
+  id: 123cc19ba38c9a
+  block_name_prefix: rbd_data.123cc19ba38c9a
+  format: 2
+  features: layering, exclusive-lock, object-map, fast-diff, deep-flatten
+  op_features: 
+  flags: 
+  create_timestamp: Wed Feb 21 09:01:58 2024
+  access_timestamp: Fri Aug  8 20:02:31 2025
+  modify_timestamp: Fri Aug  8 20:04:00 2025
+
+
+узнаем что он сосоит из 16 обьектом по 4МБ
+
+находит эти обьекты
+# rados -p  ceph_pool  ls | grep rbd_data.123cc19ba38c9a
+rbd_data.123cc19ba38c9a.0000000000000006
+rbd_data.123cc19ba38c9a.000000000000000d
+rbd_data.123cc19ba38c9a.000000000000000f
+..
+..
+
+
+берем один обьект и узнаем на какой PG+OSD он лежит
+
+# ceph osd map ceph_pool   bd_data.123cc19ba38c9a.000000000000000f
+osdmap e6272591 pool 'ceph_pool' (10) object 'bd_data.123cc19ba38c9a.000000000000000f' -> pg 10.d6d4860e (10.e) -> up ([19,0,14], p19) acting ([19,0,14], p19)
+
+
+из чего мы видим что этот оьбект лежит в PG=10.d6d4860e на OSD=19 либо 0 либо 14
+причем оснвым считается OSD=19
+
+
+
+суть в чем. 
+у нас есть RBD. он состоит из кучиобьектов по 4МБ.  это не потому что так решает кему или кто.
+так решает цеф. типа онапреддоставляет как я понимаю доступ к данны в формате 4МБ кусков.
+что забавно это то что LVM LVS как раз таки оперирует 4МБ кусками.
+так вот кадый оьект хранится внутри PG. эта PG хранится на OSD.
+
+
+так вот посмотрим как по OSD рамрдеелные обьекты эттого RBD
+
+
+
+# ceph osd map ceph_pool   rbd_data.123cc19ba38c9a.000000000000000d
+osdmap e6272595 pool 'ceph_pool' (10) object 'rbd_data.123cc19ba38c9a.000000000000000d' -> pg 10.532df050 (10.50) -> up ([5,10,20], p5) acting ([5,10,20], p5)
+
+# ceph osd map ceph_pool   rbd_data.123cc19ba38c9a.000000000000000f
+osdmap e6272595 pool 'ceph_pool' (10) object 'rbd_data.123cc19ba38c9a.000000000000000f' -> pg 10.1db30330 (10.130) -> up ([2,3,14], p2) acting ([2,14,0], p2)
+
+
+получается первый обьектлежит на OSD 19,0,4
+второй на OSD 5,10,20
+третий на OSD 2,14,0
+
+тоесь обьекты одного RBD они разбарываются по РАЗНЫМ PG. которые в свою очередь 
+разсбрвыаются  "равноемрно" по всему множвеству OSD !!!!
+
+
+смотри что получается. положим что я цеф испольую тлько под диски прокмкос ее виртуалок кему.
+
+полуачается что так как диск вм лежит на  RBD , а он состоит из обектов по 4МБ 
+каждый из которых ка правило лежит на своем PG который лежит на своем OSD то получатеся что кажый OSD это сборище отдельных кусочков множества RBD.
+
+это как бутто я взял 1000 арбузов (RBD)  порезал их на 1000 кусков.(обьекты)
+
+а потом взял ящик (OSD) и сунул в него по 1 кусочку от кажого арубуза.
+если мой OSD погибает то у меня погибает один маленький кусочек из каждого арбуза.
+
+
+
+далее
+в логах можно уивдеть вот такое
+
+
+
+оно идет вот отсоюда
+из логротейта
+
+# cat /etc/logrotate.d/ceph-common 
+/var/log/ceph/*.log {
+    rotate 7
+    daily
+    compress
+    sharedscripts
+    postrotate
+        killall -q -1 ceph-mon ceph-mgr ceph-mds ceph-osd ceph-fuse radosgw rbd-mirror cephfs-mirror || pkill -1 -x "ceph-mon|ceph-mgr|ceph-mds|ceph-osd|ceph-fuse|radosgw|rbd-mirror|cephfs-mirror" || true
+    endscript
+    missingok
+    notifempty
+    su root ceph
+}
+
+
+который запускается через системд таймер
+
+# systemctl list-timers --all
+NEXT                        LEFT          LAST                        PASSED       UNIT                         ACTIVATES
+Sat 2025-08-09 19:40:54 MSK 20min left    Sat 2025-08-09 13:47:19 MSK 5h 33min ago apt-daily.timer              apt-daily.service
+***>  Sun 2025-08-10 00:00:00 MSK 4h 39min left Sat 2025-08-09 00:00:33 MSK 19h ago      logrotate.timer              logrotate.service
+Sun 2025-08-10 00:00:00 MSK 4h 39min left Sat 2025-08-09 00:00:33 MSK 19h ago      man-db.timer                 man-db.service
+Sun 2025-08-10 03:10:19 MSK 7h left       Sun 2025-08-03 03:11:19 MSK 6 days ago   e2scrub_all.timer            e2scrub_all.service
+Sun 2025-08-10 05:11:27 MSK 9h left       Sat 2025-08-09 03:48:19 MSK 15h ago      pve-daily-update.timer       pve-daily-update.service
+Sun 2025-08-10 06:43:28 MSK 11h left      Sat 2025-08-09 06:11:33 MSK 13h ago      apt-daily-upgrade.timer      apt-daily-upgrade.service
+Sun 2025-08-10 12:51:26 MSK 17h left      Sat 2025-08-09 12:51:26 MSK 6h ago       systemd-tmpfiles-clean.timer systemd-tmpfiles-clean.service
+n/a                         n/a           n/a                         n/a          pvesr.timer                  
+
+
+
+в журналд при этом увидим
+Aug 09 00:00:33 hst1 ceph-mgr[2812]: 2025-08-09T00:00:33.523+0300 7fcbec848700 -1 received  signal: Hangup from killall -q -1 ceph-mon ceph-mgr ceph-mds ceph-osd ceph-fuse radosgw rbd-mirror cephfs-mirror  (PID: 4001163) UID: 0
+Aug 09 00:00:33 hst1 ceph-osd[5610]: 2025-08-09T00:00:33.523+0300 7fce30aa9700 -1 received  signal: Hangup from killall -q -1 ceph-mon ceph-mgr ceph-mds ceph-osd ceph-fuse radosgw rbd-mirror cephfs-mirror  (PID: 4001163) UID: 0
+Aug 09 00:00:33 hst1 ceph-osd[5611]: 2025-08-09T00:00:33.527+0300 7f2a10b89700 -1 received  signal: Hangup from killall -q -1 ceph-mon ceph-mgr ceph-mds ceph-osd ceph-fuse radosgw rbd-mirror cephfs-mirror  (PID: 4001163) UID: 0
+Aug 09 00:00:33 hst1 ceph-mon[2016500]: 2025-08-09T00:00:33.531+0300 7fbe4da0f700 -1 received  signal: Hangup from killall -q -1 ceph-mon ceph-mgr ceph-mds ceph-osd ceph-fuse radosgw rbd-mirror cephfs-mirror  (PID: 4001163) UID: 0
+Aug 09 00:00:33 hst1 ceph-mon[2016500]: 2025-08-09T00:00:33.531+0300 7fbe4da0f700 -1 mon.hst1@5(peon) e28 *** Got Signal Hangup ***
+Aug 09 00:00:33 hst1 ceph-mgr[2812]: 2025-08-09T00:00:33.619+0300 7fcbec848700 -1 received  signal: Hangup from  (PID: 4001179) UID: 0
+Aug 09 00:00:33 hst1 ceph-mon[2016500]: 2025-08-09T00:00:33.619+0300 7fbe4da0f700 -1 received  signal: Hangup from  (PID: 4001179) UID: 0
+Aug 09 00:00:33 hst1 ceph-mon[2016500]: 2025-08-09T00:00:33.619+0300 7fbe4da0f700 -1 mon.hst1@5(peon) e28 *** Got Signal Hangup ***
+Aug 09 00:00:33 hst1 ceph-osd[5611]: 2025-08-09T00:00:33.619+0300 7f2a10b89700 -1 received  signal: Hangup from  (PID: 4001179) UID: 0
+Aug 09 00:00:33 hst1 ceph-osd[5610]: 2025-08-09T00:00:33.619+0300 7fce30aa9700 -1 received  signal: Hangup from  (PID: 4001179) UID: 0
+
+
+по факту цеф службам logrotate через команду
+        killall -q -1 ceph-mon ceph-mgr ceph-mds ceph-osd ceph-fuse radosgw rbd-mirror cephfs-mirror 
+посылает HUP сигнал.
+и на самом  деле ничео страшного непроисходит.
+они просто переоткрывают свои лог файлы и все.
+
+
+
