@@ -693,3 +693,20 @@ Aug 09 00:00:33 hst1 ceph-osd[5610]: 2025-08-09T00:00:33.619+0300 7fce30aa9700 -
 
 
 
+логи цефа в 
+
+/var/log/ceph/*.log
+
+
+
+алогритм удаления OSD 
+
+ceph osd out $ID
+ceph osd crush reweight osd.$ID 0 # Optional: Will cause data to backfill across other hosts and improve balancing
+# Then you have to wait for this command to clear before proceeding
+ceph osd safe-to-destroy osd.$ID
+
+????? проерить
+
+
+
