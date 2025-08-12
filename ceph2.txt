@@ -699,14 +699,172 @@ Aug 09 00:00:33 hst1 ceph-osd[5610]: 2025-08-09T00:00:33.619+0300 7fce30aa9700 -
 
 
 
-алогритм удаления OSD 
 
-ceph osd out $ID
-ceph osd crush reweight osd.$ID 0 # Optional: Will cause data to backfill across other hosts and improve balancing
-# Then you have to wait for this command to clear before proceeding
-ceph osd safe-to-destroy osd.$ID
 
-????? проерить
+
+
+
+
+
+
+
+
+алогритм не удаления OSD  а замены диска в OSD
+
+
+захожу на хост где диск и ввожу
+
+      ceph osd reweight osd.7 0.98
+
+
+смотрим статус движухи чреез
+
+    ceph -w
+
+как устаканится то 
+
+    ceph osd df | grep -E "WEIGHT|4    hdd "
+
+
+
+    ceph osd reweight osd.7 0.80
+...
+...
+    ceph osd reweight osd.7 0
+
+таким макаром цеф один раз передивгает с него ПГ на остальной кластер.
+если у нас вес=0 то это по факту уже явялется статусом OUT
+но все равно делаем команду
+
+  ceph osd out osd.7
+
+провряем что ссостояние осд равно out
+
+  # ceph osd dump | grep osd.7
+  osd.7 up   out weight ...
+
+проярем по другому
+  # ceph osd tree out
+ID  CLASS  WEIGHT   TYPE NAME              STATUS  REWEIGHT  PRI-AFF
+-1         0.07927  root default                                    
+-5         0.01959      host prox-test-02                           
+ 4    hdd  0.00980          osd.7              up         0  1.00000
+
+
+
+так как ПГ на этом диске уже нет то движухи нет
+и делаем на нем даун
+
+  # ceph osd down 7
+
+
+  # systemctl stop ceph-osd@7
+
+
+# ceph osd tree down
+ID  CLASS  WEIGHT   TYPE NAME              STATUS  REWEIGHT  PRI-AFF
+-1         0.07927  root default                                    
+-5         0.01959      host prox-test-02                           
+ 4    hdd  0.00980          osd.7            down         0  1.00000
+
+
+
+статус
+# ceph osd tree down
+ID  CLASS  WEIGHT   TYPE NAME              STATUS  REWEIGHT  PRI-AFF
+ 4    hdd  0.00980          osd.4            down   1.00000  1.00000
+
+
+# ceph osd dump | grep osd.4
+osd.4 down in  weight 1 up_from 952 up_thru 952 down_at 954 last_clean_interval [873,951) [v2:10.10.60.213:6808/1864221,v1:10.10.60.213:6809/1864221] [v2:10.10.60.213:6816/6864221,v1:10.10.60.213:6817/6864221] exists 049ca903-9ddc-4da9-b5a5-530038d5e90d
+
+
+
+
+
+
+далее
+
+  ceph osd safe-to-destroy osd.7
+  ceph osd destroy 7 --yes-i-really-mean-it
+
+при этом никакой движухи в плане перемещения ПГ в кластере нет
+далее вствляю новый диск в сервер sdf
+
+вспоминает какие диски входят в состав OSD
+
+  ceph-volume lvm  list
+
+
+зачистить эти диски
+
+ ceph-volume lvm zap /dev/sdc --destroy
+ ceph-volume lvm zap /dev/sda --destroy
+
+
+ceph-volume lvm create --osd-id 0 --data /dev/sde --block.db /dev/sdf
+
+проблема что он его сразу стартует. иу него коэфиц равен  1
+
+
+
+systemctl start ceph-osd@7
+
+ceph osd in osd7
+
+теперь начнется движуха с пг. но она уже связана с дургим что данные обратно 
+на этот пг заливаются.
+
+вот в итоге я заменил диск и при этом пг в кластере на стадии "изьятия" диска из сервера произошла тлоко 1 раз.
+что скажешь
+
+
+
+
+как выянить какие диски входят в состави каких OSD
+
+      ceph-volume lvm  list
+
+тут укаано и OSD ID и /dev/sdN
+
+====== osd.2 =======    (<!!<!****************<<!<)
+
+  [db]          /dev/ceph-61f539d5-e59b-4dde-af91-c0fb0e483b23/osd-db-a694834f-cb41-4ab0-b80c-a923f0713ee8
+
+      block device              /dev/ceph-a8e5b3f4-4b11-4208-88df-7fd4a4f3064f/osd-block-2f9e884a-16f7-4bec-b1de-073f0b06565c
+      block uuid                eooYag-vtbz-Ql0B-uOUm-lXUC-NK1q-S5HbIW
+      cephx lockbox secret      
+      cluster fsid              67bf77ff-87ea-483a-8b66-9a45c34f5cc6
+      cluster name              ceph
+      crush device class        hdd
+      db device                 /dev/ceph-61f539d5-e59b-4dde-af91-c0fb0e483b23/osd-db-a694834f-cb41-4ab0-b80c-a923f0713ee8
+      db uuid                   avKQEe-VON7-NEIl-7usO-v6Y9-SxPJ-hVE2bh
+      encrypted                 0
+      osd fsid                  2f9e884a-16f7-4bec-b1de-073f0b06565c
+      osd id                    2  (<!!<!****************<<!<)
+      osdspec affinity          
+      type                      db
+      vdo                       0
+      devices                   /dev/sdg               (<!!<!****************<<!<)
+
+  [block]       /dev/ceph-a8e5b3f4-4b11-4208-88df-7fd4a4f3064f/osd-block-2f9e884a-16f7-4bec-b1de-073f0b06565c
+
+      block device              /dev/ceph-a8e5b3f4-4b11-4208-88df-7fd4a4f3064f/osd-block-2f9e884a-16f7-4bec-b1de-073f0b06565c
+      block uuid                eooYag-vtbz-Ql0B-uOUm-lXUC-NK1q-S5HbIW
+      cephx lockbox secret      
+      cluster fsid              67bf77ff-87ea-483a-8b66-9a45c34f5cc6
+      cluster name              ceph
+      crush device class        hdd
+      db device                 /dev/ceph-61f539d5-e59b-4dde-af91-c0fb0e483b23/osd-db-a694834f-cb41-4ab0-b80c-a923f0713ee8
+      db uuid                   avKQEe-VON7-NEIl-7usO-v6Y9-SxPJ-hVE2bh
+      encrypted                 0
+      osd fsid                  2f9e884a-16f7-4bec-b1de-073f0b06565c
+      osd id                    2   (<!!<!****************<<!<)
+      osdspec affinity          
+      type                      block
+      vdo                       0
+      devices                   /dev/sdd    (<!!<!****************<<!<)
+
 
 
 
