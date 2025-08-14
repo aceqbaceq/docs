@@ -1,0 +1,39 @@
+| proxmox
+
+если я задетачил диск через веб морду 
+
+
+
+# qm config 128
+boot: order=scsi1
+cores: 6
+cpu: x86-64-v2-AES
+ide2: none,media=cdrom
+machine: q35
+memory: 8192
+meta: creation-qemu=9.0.0,ctime=1755086601
+name: debian-zfs-test
+net0: virtio=C2:C0:BB:AC:BF:FE,bridge=vmbr0,firewall=1,tag=805
+numa: 0
+onboot: 1
+ostype: l26
+scsi1: os9000:128/vm-128-disk-1.qcow2,iothread=1,size=15G
+scsihw: virtio-scsi-single
+smbios1: uuid=3b5ec080-9d81-4329-9807-0ef68901b863
+sockets: 1
+startup: up=10
+unused0: os9000:128/vm-128-disk-0.qcow2
+vmgenid: 6177351a-85c2-44f9-aeb1-f10456685c59
+
+
+
+то обратно его приаттачить можно только через CLI
+
+
+
+# qm set 128 -scsi0 os9000:128/vm-128-disk-0.qcow2
+
+где -scsi0 это я выбираю сам. это чтото типа контроллера через который он
+поключается или номера канала хер знает. но влияет на букву под которой он 
+будет виден
+
