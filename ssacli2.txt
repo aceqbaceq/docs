@@ -5,3 +5,7 @@
 
 
 opt/hp/hpssacli/bin/hpssacli rescandetects newly added devices since the last rescan
+
+
+/opt/hp/hpssacli/bin/ssacli ctrl slot=0 array all add spares=1:5,1:7
+

@@ -1,0 +1,18 @@
+| ssacli
+| hpadureport
+
+можно получить детальный инфо о рейд контроллере делается через утилиту 
+
+
+   hpadureport
+
+
+но вместо нее можно этот репорт получить через ssacli
+
+
+   $  sudo ssacli ctrl slot=0   diag    file=diag2.zip    zip=on   
+
+
+
+
+
