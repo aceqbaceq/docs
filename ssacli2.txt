@@ -1,0 +1,7 @@
+| ssacli 
+
+/opt/hp/hpssacli/bin/hpssacli ctrl slot=0 create type=ld raid=0 drives=2I:1:5 drivetype=ss_sata
+
+
+
+opt/hp/hpssacli/bin/hpssacli rescandetects newly added devices since the last rescan
