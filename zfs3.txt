@@ -1,0 +1,14 @@
+| zfs
+
+установка дебиана на zfs mirror пул. тоесть когда у нас корень лежит 
+на zfs и мы с него грузиися
+
+
+делаю по статье
+
+
+https://openzfs.github.io/openzfs-docs/Getting%20Started/Debian/Debian%20Bookworm%20Root%20on%20ZFS.html
+
+
+освещу моменты
+

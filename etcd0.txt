@@ -1,2 +1,61 @@
 | etcd
 
+ставим две ВМ.
+на каждую в /usr/local/bin качаем бинарники отсюда
+	https://github.com/etcd-io/etcd/releases/download/v3.6.4/etcd-v3.6.4-linux-amd64.tar.gz
+
+
+
+на первой машине запускаем
+/usr/local/bin/etcd \
+      --name etcd1 \
+      --data-dir ./etcd1 \
+      --listen-client-urls http://0.0.0.0:2379  \
+      --advertise-client-urls http://172.16.10.25:2379  \
+      --listen-peer-urls http://0.0.0.0:2380  \
+      --initial-advertise-peer-urls http://172.16.10.25:2380  \
+      --initial-cluster etcd1=http://172.16.10.25:2380,etcd2=http://172.16.10.26:2380   \
+      --initial-cluster-token tkn  \
+      --initial-cluster-state new  \
+      --log-level info  \
+      --logger zap  \
+      --log-outputs stderr
+
+
+
+на второй машине запускаем
+/usr/local/bin/etcd \
+      --name etcd2 \
+      --data-dir ./etcd2 \
+      --listen-client-urls http://0.0.0.0:2379  \
+      --advertise-client-urls http://172.16.10.26:2379  \
+      --listen-peer-urls http://0.0.0.0:2380  \
+      --initial-advertise-peer-urls http://172.16.10.26:2380  \
+      --initial-cluster etcd1=http://172.16.10.25:2380,etcd2=http://172.16.10.26:2380   \
+      --initial-cluster-token tkn  \
+      --initial-cluster-state new  \
+      --log-level info  \
+      --logger zap  \
+      --log-outputs stderr
+
+
+
+потом заходим еще раз на одну из машин и проверяем что кластер 
+сросся
+
+
+~$   /usr/local/bin/etcdctl --endpoints='127.0.0.1:2379'  member list  -w table
++------------------+---------+-------+--------------------------+--------------------------+------------+
+|        ID        | STATUS  | NAME  |        PEER ADDRS        |       CLIENT ADDRS       | IS LEARNER |
++------------------+---------+-------+--------------------------+--------------------------+------------+
+| 1bb3d091cee7b172 | started | etcd2 | http://172.16.10.26:2380 | http://172.16.10.26:2379 |      false |
+| 7f96ea95e27a8e1c | started | etcd1 | http://172.16.10.25:2380 | http://172.16.10.25:2379 |      false |
++------------------+---------+-------+--------------------------+--------------------------+------------+
+
+
+
+как померить перфоманс кластера. 
+тут прикол в том что etcd очень юзает диск жесткий диск для протоколирования 
+транзакций
+
+
