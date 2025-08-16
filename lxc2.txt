@@ -1,0 +1,51 @@
+| lxc
+| manjaro
+
+
+написано на основе
+https://wiki.archlinux.org/title/Linux_Containers
+https://linuxcontainers.org/lxc/getting-started/
+
+
+
+
+  # pacman -Sy lxc
+  # pacman -Sy  arch-install-scripts
+
+для начала будем стартовать привилиигировнные контейнеры. ибо с них
+начать проше
+
+идем в 
+  /etc/default/lxc-net
+  USE_LXC_BRIDGE="true"
+
+
+далее важно установить dnsmasq
+
+  # pacman -Sy dnsmasq
+
+ибо без него не стартанет вот это
+
+# systemctl start lxc-net.service
+
+
+
+
+
+скачиваем предполготовленный образ и создаем контейнер
+# lxc-create -n lxc-cont-1 -t download -- --dist debian --release bookworm --arch amd64
+
+
+теперт надо рестарт аппармор
+ # systemctl restart apparmor
+
+
+запускаем контейнер
+ # lxc-start --name lxc-cont-1
+
+
+помеятть пароль для рута ибо он мне неизвестен
+ # lxc-attach -n lxc-cont-1 passwd
+
+
+
