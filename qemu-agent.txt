@@ -1,0 +1,18 @@
+| qemu
+| qemu-agent
+
+если внутри вм поставили qemu-agent
+
+
+  # apt-get install -y qemu-guest-agent
+  # systemctl enable --now qemu-guest-agent
+
+
+то он не стартанет потому что 
+нужно при старте вм добавить вот эти железки
+
+
+-device virtio-serial \
+-device virtserialport,chardev=char0,name=org.qemu.guest_agent.0 \
+
+
