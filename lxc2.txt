@@ -21,7 +21,11 @@ https://linuxcontainers.org/lxc/getting-started/
 
 
 далее важно установить dnsmasq
+и зайти в конфиг днсмаск /etc/dnsmasq
+и там указать чтобы он слушал сидел только на порту lxcbr0 а не на всех портах
 
+
+далее
   # pacman -Sy dnsmasq
 
 ибо без него не стартанет вот это
