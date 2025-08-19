@@ -30,11 +30,12 @@ wget https://github.com/glpi-project/glpi/releases/download/10.0.6/glpi-10.0.6.t
 создаем папки 
 # mkdir /etc/glpi   /var/lib/glpi /var/log/glpi
 мувим туда контент 
-# mv /var/www/html/glpi/config /etc/glpi
-# mv /var/www/html/glpi/files  /var/lib/glpi
+# mv /var/www/html/glpi/config/* /etc/glpi
+# mv /var/www/html/glpi/files/*  /var/lib/glpi
 меняем пермишнсы
 # chown -R www-data:www-data /etc/glpi  /var/lib/glpi /var/log/glpi
 # chown www-data:www-data ./marketplace/
+
 
 
 
@@ -177,5 +178,23 @@ define('GLPI_LOG_DIR', '/var/log/glpi');
 
 
 заходим в веб морду  и меняем  пароли для юзеров  glpi post-only tech normal
+
+
+далее скачиыакем плагин fusioninventory
+
+https://github.com/fusioninventory/fusioninventory-for-glpi/releases/download/glpi10.0.6%2B1.1/fusioninventory-10.0.6+1.1.tar.bz2
+
+и распокоавыаем его под рутом в папку 
+
+
+    /var/www/html/glpi/plugins
+
+
+потом идем в веб морд в setup - plugins 
+и там длжно появится название плагина.
+выделяем его - жмем actions - install 
+потом жмем   actions - enable
+
+всплывает окно что мол он установлен успешно и при этом failure. вроде как на самом деле все окей
 
 
