@@ -1,0 +1,44 @@
+| ipv6
+| systemd-networkd
+
+есть порт enp0s3
+
+
+
+почемуто вот это не срабатывает
+
+
+# cat /etc/sysctl.conf | grep disable_ipv6
+net.ipv6.conf.enp0s3.disable_ipv6 = 1
+
+
+а вот это сработало (при условии что сетевой менеджер systemd-network)
+
+
+n12-c1:/etc/systemd/network# cat 50-static.network 
+[Match]
+Name=enp0s3
+
+[Network]
+Gateway=172.16.10.1
+DNS=172.16.10.1
+DNSDefaultRoute=False
+Domains=nyc3.example.com
+LLMNR=false
+MulticastDNS=false
+IPv6AcceptRA=no           <<<<*****<<<<<<<
+LinkLocalAddressing=no    <<<<*****<<<<<<<
+
+
+
+
+[Address]
+Address=172.16.10.11/24
+Scope=global
+Label=vasya
+
+
+
+причем надо вставить именно обе строки чтобы выключить ipv6 !
+
+
