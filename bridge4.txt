@@ -762,9 +762,19 @@ bridge-port.vlans
 
 #  nmcli conn down br3; nmcli conn up br3; nmcli conn up tap14; nmcli conn up tap15; bridge vlan sh dev tap14
 
+приэтом проверить какие порты на свиче поднялись можно вот так
+$ bridge    vlan show br3
 port              vlan-id  
-tap14             2 PVID Egress Untagged
-                  3
+tap17             1 PVID Egress Untagged
+tap2              1 PVID Egress Untagged
+tap25             1 PVID Egress Untagged
+tap29             1 PVID Egress Untagged
+tap24             1 PVID Egress Untagged
+
+если тут не видишь искомый порт значит он лежит ! значит надо
+
+# nmcli conn up tap42
+
 
 
 
