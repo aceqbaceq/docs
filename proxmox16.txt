@@ -1,0 +1,42 @@
+| proxmox 
+
+
+
+
+#!/usr/bin/bash
+
+SEARCH_IP="192.168.1.20"
+
+vms=$(pvesh get /cluster/resources --output-format json --type vm)
+
+echo "$vms" | jq -c '.[]' | while read -r vm; do
+  node=$(echo "$vm" | jq -r '.node')
+  vmid=$(echo "$vm" | jq -r '.vmid')
+  echo "node=$node, vmid=$vmid"
+
+  interfaces=$(pvesh get /nodes/$node/qemu/$vmid/agent/network-get-interfaces --output-format json-pretty 2>/dev/null)
+  if [ -z "$interfaces" ]; then
+    continue
+  fi
+
+  has_result=$(echo "$interfaces" | jq 'has("result")')
+  if [ "$has_result" != "true" ]; then
+    continue
+  fi
+
+  echo "$interfaces" | jq -c '.result[]?' | while read -r iface; do
+    ip_addresses=$(echo "$iface" | jq -c '.["ip-addresses"]? // []')
+    echo "$ip_addresses" | jq -r '.[]."ip-address"?' | while read -r ip; do
+      if [ "$ip" = "$SEARCH_IP" ]; then
+        echo "Найдена ВМ с IP $SEARCH_IP: VMID=$vmid на узле $node"; exit 0
+      fi
+    done
+  done
+done
+
+
+
+
+скрипт берет ип и ищет на кластере 
+такую вм при условии что на вм устанолвен  агент
+

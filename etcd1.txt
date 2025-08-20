@@ -1,0 +1,17 @@
+| etcd 
+| ssd
+
+ Samsung SSD 870
+
+на нем perf test  для etcd дает вот такой результат
+
+# /usr/local/bin/etcdctl --endpoints='127.0.0.1:2379,172.16.10.26:2379'  check perf
+
+100.00% 1 p/s
+PASS: Throughput is 150 writes/s
+PASS: Slowest request took 0.257412s
+PASS: Stddev is 0.011669s
+PASS
+
+
+

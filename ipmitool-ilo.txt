@@ -1,0 +1,15 @@
+| ipmitool
+
+приклоно что можено поставить этот пакет
+
+apt-get install ipmitool
+
+и потом в строке видеть сколько жрет мощности комп
+
+
+root@pve193:/# ipmitool sensor | grep Watts
+Power            | 450.000    | Watts      | ok    | na        | na        | na        | na        | na        | na        
+Power1           | 210.000    | Watts      | ok    | na        | na        | na        | na        | na        | na        
+Power2           | 240.000    | Watts      | ok    | na        | na        | na        | na        | na        | na        
+
+
