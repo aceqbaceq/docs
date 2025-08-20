@@ -176,7 +176,10 @@ serializable
 другое дело что если комит противорчеит сериалиазции то база его отвергнет на стадии комита.
 
 
-МТ
+ИТАК 
+двигаем дальше
+начнем установку etcd
+
 
 
 
@@ -220,18 +223,54 @@ serializable
 
 
 
-потом заходим еще раз на одну из машин и проверяем что кластер 
-сросся
 
 
-~$   /usr/local/bin/etcdctl --endpoints='127.0.0.1:2379'  member list  -w table
-+------------------+---------+-------+--------------------------+--------------------------+------------+
-|        ID        | STATUS  | NAME  |        PEER ADDRS        |       CLIENT ADDRS       | IS LEARNER |
-+------------------+---------+-------+--------------------------+--------------------------+------------+
-| 1bb3d091cee7b172 | started | etcd2 | http://172.16.10.26:2380 | http://172.16.10.26:2379 |      false |
-| 7f96ea95e27a8e1c | started | etcd1 | http://172.16.10.25:2380 | http://172.16.10.25:2379 |      false |
-+------------------+---------+-------+--------------------------+--------------------------+------------+
 
+
+
+etcdctl member add etcd3 --peer-urls=http://172.16.10.27:2380
+
+
+
+
+
+
+/usr/local/bin/etcd \
+  --name etcd3 \
+  --data-dir ./etcd3 \
+  --listen-client-urls http://0.0.0.0:2379 \
+  --advertise-client-urls http://172.16.10.27:2379 \
+  --listen-peer-urls http://0.0.0.0:2380 \
+  --initial-advertise-peer-urls http://172.16.10.27:2380 \
+  --initial-cluster etcd1=http://172.16.10.25:2380,etcd2=http://172.16.10.26:2380,etcd3=http://172.16.10.27:2380 \
+  --initial-cluster-token tkn \
+  --initial-cluster-state existing \
+  --log-level info \
+  --logger zap \
+  --log-outputs stderr
+
+
+
+
+проги для проверки статуса
+
+
+
+
+
+  269  /usr/local/bin/etcdctl --endpoints='127.0.0.1:2379,172.16.10.26:2379'  member list  -w table
+  270  /usr/local/bin/etcdctl --endpoints='127.0.0.1:2379,172.16.10.26:2379'  endpoint status  -w table
+  271  /usr/local/bin/etcdctl --endpoints='127.0.0.1:2379,172.16.10.26:2379'  endpoint health   -w table
+  272  /usr/local/bin/etcdctl --endpoints='127.0.0.1:2379,172.16.10.26:2379'  check perf
+  273  /usr/local/bin/etcdctl --endpoints='127.0.0.1:2379,172.16.10.26:2379'  check perf
+  274  /usr/local/bin/etcdctl --endpoints='127.0.0.1:2379,172.16.10.26:2379'  endpoint health   -w table
+  275  etcdctl member add etcd3 --peer-urls=http://172.16.10.27:2380
+  276  /usr/local/bin/etcdctl --endpoints='127.0.0.1:2379,172.16.10.26:2379'  member list  -w table
+  277  /usr/local/bin/etcdctl --endpoints='127.0.0.1:2379,172.16.10.26:2379,172.16.10.27:2379'  endpoint health   -w table
+  278  /usr/local/bin/etcdctl --endpoints='127.0.0.1:2379,172.16.10.26:2379'  member list  -w table
+  279  /usr/local/bin/etcdctl --endpoints='127.0.0.1:2379,172.16.10.26:2379,172.16.10.27:2379'  endpoint health   -w table
+  280  /usr/local/bin/etcdctl --endpoints='127.0.0.1:2379,172.16.10.26:2379'  endpoint status  -w table
+  281  /usr/local/bin/etcdctl --endpoints='127.0.0.1:2379,172.16.10.26:2379,172.16.10.27:2379'  endpoint status  -w table
 
 
 как померить перфоманс кластера. 
