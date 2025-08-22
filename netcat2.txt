@@ -1,0 +1,31 @@
+| nc
+| netcat 
+| getaddrinfo
+
+
+$ nc -zvn  localhost 80
+nc: getaddrinfo for host "localhost" port 80: Name or service not known
+
+
+
+разгадка состоит в том что я указал ключ -n которйы говотит нетакату о том что я
+буду подставлять Ип адрес а я вмемто этого всунул доменное имя! поэтому то он меня
+нахер и шлет!
+
+
+а функция getaddrinfo()   запускется для тогог чтобы текстовый ИП превратить в структ *addr
+который потом постоянно юзает в сетевых фунциях
+
+
+
+
+       int getaddrinfo(const char *restrict node,
+                       const char *restrict service,
+                       const struct addrinfo *restrict hints,
+                       struct addrinfo **restrict res);
+
+
+
+
+есественно этот срукт шлет нас нахер
+
