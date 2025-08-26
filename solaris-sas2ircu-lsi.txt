@@ -1,0 +1,73 @@
+| solaris
+| lsi
+| controller
+| raid
+| sas
+| 2308
+| disk
+| disk
+| sas2ircu
+
+
+
+есть солярис и на нем контроллер дисков.
+как узнать его модель.
+
+вариант номер один
+
+
+   # /usr/X11/bin/scanpci -v
+
+
+
+pci bus 0x0002 cardnum 0x00 function 0x00: vendor 0x1000 device 0x0072
+ LSI Logic / Symbios Logic SAS2008 PCI-Express Fusion-MPT SAS-2 [Falcon]
+ CardVendor 0x1000 card 0x3020 (LSI Logic / Symbios Logic, Card unknown)
+  STATUS    0x0010  COMMAND 0x0146
+  CLASS     0x01 0x07 0x00  REVISION 0x03
+  BIST      0x00  HEADER 0x00  LATENCY 0x00  CACHE 0x40
+  BASE0     0x0000c001  addr 0x0000c000  I/O
+  BASE1     0x00000000fae3c004  addr 0x00000000fae3c000  MEM 64BIT
+  BASE3     0x00000000fae40004  addr 0x00000000fae40000  MEM 64BIT
+  BASEROM   0xfae80000  addr 0xfae80000  not-decode-enabled
+  MAX_LAT   0x00  MIN_GNT 0x00  INT_PIN 0x01  INT_LINE 0x0a
+
+
+
+
+вот мы видим типа название контроллера
+
+ LSI Logic / Symbios Logic SAS2008 PCI-Express Fusion-MPT SAS-2 [Falcon]
+
+а вот его Vendor/Dev
+
+ vendor 0x1000 device 0x0072
+
+
+
+ если контролллер от LSI\Broadcom 
+
+# sas2ircu list                          
+LSI Corporation SAS2 IR Configuration Utility.
+Version 12.00.00.00 (2011.11.08) 
+Copyright (c) 2009-2011 LSI Corporation. All rights reserved. 
+
+
+         Adapter      Vendor  Device                       SubSys  SubSys 
+ Index    Type          ID      ID    Pci Address          Ven ID  Dev ID 
+ -----  ------------  ------  ------  -----------------    ------  ------ 
+   0     SAS2008     1000h    72h   00h:02h:00h:00h      1000h   3020h 
+SAS2IRCU: Utility Completed Successfully.
+
+
+
+здесь он имя не покызает. он покзыает чип   SAS2008
+и покзыает VEN\DEV    1000h   3020h 
+
+
+
+вот некая полезная статья по sas2ircu
+https://unix.bris.ac.uk/2016/03/07/fusion-mpt-sas-2-sas2ircu-disk-replacement/
+
+как я понял это про то как заменить диск на этом контролллере LSI Logic / Symbios Logic SAS2008 PCI-Express Fusion-MPT SAS-2 [Falcon]  когда он рабтает в режиме RAID контроллера
+

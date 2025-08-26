@@ -1,0 +1,31 @@
+| ipmi 
+| supermicro
+
+если есть доступ на ос на хосте
+то нужно постваиьт утилиту ipmitool
+и через нее можно добавить юзера под которым можно заходит в IPMI
+
+ipmitool user list 1
+ipmitool user enable 4
+ipmitool user set name 4 vasya
+
+ipmitool channel setaccess 1 4 callin=on ipmi=on link=on privilege=5
+или
+ipmitool channel setaccess 1 4 callin=on ipmi=on link=on privilege=4
+
+ipmitool user set password 4 ipmivasya
+
+
+
+расшифровка
+
+    ipmitool user list 1 — показать список пользователей на канале 1.
+
+    ipmitool user enable 4 — включить пользователя с ID 4.
+
+    ipmitool user set name 4 vasya — задать имя пользователю с ID 4.
+
+    ipmitool channel setaccess 1 4 callin=on ipmi=on link=on privilege=5 — задать права доступа пользователю 4 на канале 1 (привилегия 5 — администратор).
+
+    ipmitool user set password 4 ipmivasya — установить пароль пользователю 4.
+
