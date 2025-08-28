@@ -1,0 +1,198 @@
+| proxmox
+| pvesh
+| bash
+| scripts
+
+
+
+несколкьо срикпторв которые позводяляют искать на проксмокс
+кластере вм и lxc контейнеры которые имеют диск на заданном сторалдже
+
+
+
+
+
+$ cat 02.bash  03.bash  04.bash  05.bash 
+#!/usr/bin/bash
+
+# указываем vmid машины 
+# и она ишется на кластере и проверяется есть ли у нее диски на сторадже ceph_pool
+#
+
+
+if [ -z "$1" ]; then
+  echo "Использование: $0 <vmid>"
+  exit 1
+fi
+
+VMID=$1
+
+# Узнаём ноду, на которой находится данная VM
+NODE=$(pvesh get /cluster/resources --output-format json | jq -r '.[] | select(.vmid=='$VMID') | .node')
+
+if [ -z "$NODE" ]; then
+    echo "VMID $VMID не найден в кластере"
+    exit 1
+fi
+
+# Запрашиваем конфигурацию с нужного узла
+config=$(pvesh get /nodes/$NODE/qemu/$VMID/config --output-format json 2>/dev/null)
+
+if [ -z "$config" ]; then
+    echo "Не удалось получить конфигурацию для VMID $VMID на узле $NODE"
+    exit 1
+fi
+
+echo "$config" | jq empty 2>/dev/null
+if [ $? -ne 0 ]; then
+    echo "Ошибка разбора JSON конфигурации для VMID $VMID"
+    exit 1
+fi
+
+# Проверяем наличие диска с ceph_pool
+ceph_disk_count=$(echo "$config" | jq -r 'to_entries[] | select(.value | type=="string") | select(.value | startswith("ceph_pool:"))' | wc -l)
+
+if [ "$ceph_disk_count" -gt 0 ]; then
+    echo "VMID $VMID на узле $NODE имеет диск на ceph_pool"
+else
+    echo "Диск на ceph_pool для VMID $VMID не найден"
+fi
+#!/bin/bash
+
+# укывзаем vmid и имя стораджа 
+# и он ищет данный LXC контенейр на кластере и проверяет есть ли него диски на указанном стордже
+
+
+
+if [ "$#" -ne 2 ]; then
+  echo "Использование: $0 <ctid> <storage_name>"
+  echo "Пример: $0 258 ceph_pool"
+  exit 1
+fi
+
+CTID=$1
+STORAGE=$2
+
+# Определяем узел, где расположен контейнер LXC
+NODE=$(pvesh get /cluster/resources --output-format json | jq -r '.[] | select(.vmid=='$CTID' and .type=="lxc") | .node')
+
+if [ -z "$NODE" ]; then
+    echo "Контейнер LXC с ID $CTID не найден в кластере"
+    exit 1
+fi
+
+# Получаем конфигурацию контейнера
+config=$(pvesh get /nodes/$NODE/lxc/$CTID/config --output-format json 2>/dev/null)
+
+if [ -z "$config" ]; then
+    echo "Не удалось получить конфигурацию контейнера $CTID на узле $NODE"
+    exit 1
+fi
+
+# Проверяем, есть ли в конфигурации диски с нужным префиксом хранилища
+echo "$config" | jq -r --arg storage "$STORAGE" \
+  'to_entries[] | select(.value | type=="string") | select(.value | startswith($storage+":"))' | grep -q .
+
+if [ $? -eq 0 ]; then
+  echo "Контейнер LXC $CTID на узле $NODE имеет диск на хранилище $STORAGE"
+else
+  echo "Дисков на хранилище $STORAGE для контейнера LXC $CTID не найдено"
+fi
+
+
+#!/bin/bash
+
+
+# указываем имя стораджа и по всему кластеру ищутся lxc контейнеры
+# которые имеют диски на указанном контейнере
+#
+
+
+
+if [ "$#" -ne 1 ]; then
+  echo "Использование: $0 <storage_name>"
+  echo "Пример: $0 ceph_pool"
+  exit 1
+fi
+
+STORAGE=$1
+
+# Получаем список всех LXC контейнеров с их ID, узлами и именами
+containers=$(pvesh get /cluster/resources --output-format json | jq -c '.[] | select(.type=="lxc") | {vmid: .vmid, node: .node, name: .name}')
+
+echo "Проверка LXC контейнеров на наличие дисков в хранилище $STORAGE"
+echo "--------------------------------------------------------------"
+
+echo "$containers" | while read -r container; do
+    VMID=$(echo "$container" | jq -r '.vmid')
+    NODE=$(echo "$container" | jq -r '.node')
+    NAME=$(echo "$container" | jq -r '.name')
+
+    # Получаем конфигурацию контейнера
+    config=$(pvesh get /nodes/"$NODE"/lxc/"$VMID"/config --output-format json 2>/dev/null)
+    if [ -z "$config" ]; then
+        echo "Не удалось получить конфигурацию контейнера LXC $VMID ($NAME) на узле $NODE"
+        continue
+    fi
+
+    # Проверяем, есть ли диск с нужным storage префиксом
+    echo "$config" | jq -r --arg storage "$STORAGE" \
+    'to_entries[] | select(.value | type=="string") | select(.value | startswith($storage+":"))' | grep -q .
+
+    if [ $? -eq 0 ]; then
+#        echo "LXC контейнер $VMID ($NAME) на узле $NODE"
+        echo "LXC контейнер $VMID ($NAME)"
+
+    fi
+done
+
+
+#!/bin/bash
+
+
+# укаызваем имя стораджа и он ищет все виртлуки 
+# на кластере проксмокса которые 
+# имеют диск на этом сторадже
+
+
+
+if [ "$#" -ne 1 ]; then
+  echo "Использование: $0 <storage_name>"
+  echo "Пример: $0 ceph_pool"
+  exit 1
+fi
+
+STORAGE=$1
+
+# Получаем список всех виртуальных машин с их ID, узлами и именами
+vms=$(pvesh get /cluster/resources --output-format json | jq -c '.[] | select(.type=="qemu") | {vmid: .vmid, node: .node, name: .name}')
+
+echo "Проверка виртуальных машин на наличие дисков в хранилище $STORAGE"
+echo "--------------------------------------------------------------"
+
+echo "$vms" | while read -r vm; do
+    VMID=$(echo "$vm" | jq -r '.vmid')
+    NODE=$(echo "$vm" | jq -r '.node')
+    NAME=$(echo "$vm" | jq -r '.name')
+
+    # Получаем конфигурацию виртуальной машины
+    config=$(pvesh get /nodes/"$NODE"/qemu/"$VMID"/config --output-format json 2>/dev/null)
+
+    if [ -z "$config" ]; then
+        echo "Не удалось получить конфигурацию виртуальной машины $VMID ($NAME) на узле $NODE"
+        continue
+    fi
+
+    # Проверяем, есть ли в конфигурации диски с нужным storage префиксом
+    echo "$config" | jq -r --arg storage "$STORAGE" \
+        'to_entries[] | select(.value | type=="string") | select(.value | startswith($storage+":"))' | grep -q .
+
+    if [ $? -eq 0 ]; then
+#        echo "Виртуальная машина $VMID ($NAME) на узле $NODE"
+        echo "Виртуальная машина $VMID ($NAME)"
+
+    fi
+done
+
+
+

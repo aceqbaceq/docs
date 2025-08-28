@@ -1,0 +1,11 @@
+| solaris
+| mc
+| midnight commander
+
+заепускаю mc но стрелки неработают. что надо делать 
+
+в баше на солярисе делаем
+
+	$ export TERM=xterm
+	$ mc
+
