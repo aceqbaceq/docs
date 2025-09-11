@@ -1,0 +1,13 @@
+| ip 
+| vlan 
+
+нужно на карту eth0  навесить  тегированный vlan 4022
+и на него ип 
+
+
+sudo ip link add link eth0 name eth0.4022 type vlan id 4022
+
+sudo ip addr add 100.100.2.12/24 dev eth0.4022
+
+
+sudo ip link set dev eth0.4022 up

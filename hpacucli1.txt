@@ -1,0 +1,12 @@
+| hpacucli
+
+
+  799  ./hpacucli  ctrl slot=0 ld all show
+  800  ./hpacucli  ctrl slot=0 pd all show
+  801  ./hpacucli  ctrl slot=0 pd all show detail
+
+
+поменять приоритет ребилдинга raid1 массива
+
+  807  ./hpacucli  ctrl slot=0  modify rp=low
+

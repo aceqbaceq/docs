@@ -19,3 +19,10 @@
 
 и только так это все заработает
 
+
+как запустить контейнер
+
+
+  # podman run --rm -p 5901:5900  localhost/fnndsc/hplocons:latest
+
+ 
