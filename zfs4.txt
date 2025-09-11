@@ -1,0 +1,1067 @@
+rofl4
+
+root@rawflowdb4:/# zpool status -v store                  
+  pool: store
+ state: DEGRADED
+status: One or more devices are faulted in response to persistent errors.
+        Sufficient replicas exist for the pool to continue functioning in a
+        degraded state.
+action: Replace the faulted device, or use 'zpool clear' to mark the device
+        repaired.
+ scan: resilvered 1.78T in 92h23m with 0 errors on Wed Aug 27 02:18:14 2025
+config:
+
+        NAME                         STATE     READ WRITE CKSUM
+        store                        DEGRADED    91     0     0
+          mirror-0                   DEGRADED    91     0    75
+            spare-0                  DEGRADED     0     0   161
+              c0t5000CCA369D53642d0  DEGRADED    91     0   271  too many errors
+              c0t5000C50066CC38DBd0  ONLINE       0     0   338
+            spare-1                  DEGRADED   326     0     0
+              c0t5000C50066C7D4F8d0  FAULTED      0     0     0  too many errors
+              c0t5000C50078E40AAAd0  ONLINE       0     0   326
+          mirror-1                   ONLINE       0     0     0
+            c0t5000C5003EF5B2D3d0    ONLINE       0     0     0
+            c0t5000C5007BD3D09Ad0    ONLINE       0     0     0
+          mirror-2                   ONLINE       0     0     0
+            c0t5000C5003EF5E521d0    ONLINE       0     0     0
+            c0t5000C5003EF11CA0d0    ONLINE       0     0     0
+          mirror-3                   ONLINE       0     0     0
+            c0t5000C50066D0BCEAd0    ONLINE       0     0     0
+            c0t5000C5003EF233E3d0    ONLINE       0     0     0
+          mirror-4                   ONLINE       0     0     0
+            c0t5000C5003EF236A6d0    ONLINE       0     0     0
+            c0t5000C5003EF239F7d0    ONLINE       0     0     0
+          mirror-5                   ONLINE       0     0     0
+            c0t5000C5003EF2339Cd0    ONLINE       0     0     0
+            c0t5000C5003EF1F4E5d0    ONLINE       0     0     0
+          mirror-6                   ONLINE       0     0     0
+            c0t5000C5003EF2386Bd0    ONLINE       0     0     0
+            c0t5000C5003EF20575d0    ONLINE       0     0     0
+          mirror-7                   ONLINE       0     0     0
+            c0t5000C5003EF21411d0    ONLINE       0     0     0
+            c0t5000C5003EF23468d0    ONLINE       0     0     0
+          mirror-8                   ONLINE       0     0     0
+            c0t5000C5003EF23840d0    ONLINE       0     0     0
+            c0t5000C5003EF41543d0    ONLINE       0     0     0
+          mirror-9                   ONLINE       0     0     0
+            c0t5000C5003F0AADBEd0    ONLINE       0     0     0
+            c0t5000C5003F0ACF6Ed0    ONLINE       0     0     0
+          mirror-10                  ONLINE       0     0     0
+            c0t5000C5003F0AE0E2d0    ONLINE       0     0     0
+            c0t5000C5003F0B0D4Bd0    ONLINE       0     0     0
+          mirror-11                  ONLINE       0     0     0
+            c0t5000C5003F0B07E3d0    ONLINE       0     0     0
+            c0t5000C5003F0B0284d0    ONLINE       0     0     0
+          mirror-12                  ONLINE       0     0     0
+            c0t5000C5003F0B1812d0    ONLINE       0     0     0
+            c0t5000C5003F0B5333d0    ONLINE       0     0     0
+          mirror-13                  ONLINE       0     0     0
+            c0t5000C5003F0CB38Cd0    ONLINE       0     0     0
+            c0t5000C5003F0ECB0Fd0    ONLINE       0     0     0
+          mirror-14                  ONLINE       0     0     0
+            c0t5000C5003F10F87Cd0    ONLINE       0     0     0
+            c0t5000C5003F0ECD10d0    ONLINE       0     0     0
+          mirror-15                  ONLINE       0     0     0
+            c0t5000C5003F0F0B27d0    ONLINE       0     0     0
+            c0t5000C5003F0FB73Ed0    ONLINE       0     0     0
+        spares
+          c0t5000C50078E40AAAd0      INUSE     currently in use
+          c0t5000C50066CC38DBd0      INUSE     currently in use
+
+errors: No known data errors
+
+
+
+
+
+
+
+root@rawflowdb4:/# dmesg | grep c0t5000C50066CC38DBd0
+root@rawflowdb4:/# iostat -En | grep c0t5000C50066CC38DBd0
+c0t5000C50066CC38DBd0 Soft Errors: 0 Hard Errors: 1 Transport Errors: 0 
+root@rawflowdb4:/# iostat -En                             
+c0t5000C5003EF11CA0d0 Soft Errors: 0 Hard Errors: 3 Transport Errors: 0 
+Vendor: ATA      Product: ST2000NM0011     Revision: SN02 Serial No:  
+Size: 2000.40GB <2000398933504 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 3 Recoverable: 0 
+Illegal Request: 1 Predictive Failure Analysis: 0 
+c0t5000C5003EF23840d0 Soft Errors: 0 Hard Errors: 3 Transport Errors: 0 
+Vendor: ATA      Product: ST2000NM0011     Revision: SN02 Serial No:  
+Size: 2000.40GB <2000398933504 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 3 Recoverable: 0 
+Illegal Request: 1 Predictive Failure Analysis: 0 
+c0t5000C5003EF5E521d0 Soft Errors: 0 Hard Errors: 3 Transport Errors: 0 
+Vendor: ATA      Product: ST2000NM0011     Revision: SN02 Serial No:  
+Size: 2000.40GB <2000398933504 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 3 Recoverable: 0 
+Illegal Request: 1 Predictive Failure Analysis: 0 
+c0t5000C5003EF21411d0 Soft Errors: 0 Hard Errors: 3 Transport Errors: 0 
+Vendor: ATA      Product: ST2000NM0011     Revision: SN02 Serial No:  
+Size: 2000.40GB <2000398933504 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 3 Recoverable: 0 
+Illegal Request: 1 Predictive Failure Analysis: 0 
+c0t5000C5003EF5B2D3d0 Soft Errors: 0 Hard Errors: 3 Transport Errors: 0 
+Vendor: ATA      Product: ST2000NM0011     Revision: SN02 Serial No:  
+Size: 2000.40GB <2000398933504 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 3 Recoverable: 0 
+Illegal Request: 1 Predictive Failure Analysis: 0 
+c0t5000C5003EE65F09d0 Soft Errors: 0 Hard Errors: 8 Transport Errors: 8 
+Vendor: ATA      Product: ST2000NM0011     Revision: SN02 Serial No:  
+Size: 2000.40GB <2000398933504 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 8 Recoverable: 0 
+Illegal Request: 1 Predictive Failure Analysis: 0 
+c0t5000C5003EDEFE7Ed0 Soft Errors: 0 Hard Errors: 8 Transport Errors: 6 
+Vendor: ATA      Product: ST2000NM0011     Revision: SN02 Serial No:  
+Size: 2000.40GB <2000398933504 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 8 Recoverable: 0 
+Illegal Request: 1 Predictive Failure Analysis: 0 
+c0t5000C5003F0ACF6Ed0 Soft Errors: 0 Hard Errors: 3 Transport Errors: 0 
+Vendor: ATA      Product: ST2000NM0011     Revision: SN02 Serial No:  
+Size: 2000.40GB <2000398933504 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 3 Recoverable: 0 
+Illegal Request: 1 Predictive Failure Analysis: 0 
+c0t5000C5003F0ECD10d0 Soft Errors: 0 Hard Errors: 3 Transport Errors: 0 
+Vendor: ATA      Product: ST2000NM0011     Revision: SN02 Serial No:  
+Size: 2000.40GB <2000398933504 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 3 Recoverable: 0 
+Illegal Request: 1 Predictive Failure Analysis: 0 
+c0t5000C5003F0B1812d0 Soft Errors: 0 Hard Errors: 3 Transport Errors: 0 
+Vendor: ATA      Product: ST2000NM0011     Revision: SN02 Serial No:  
+Size: 2000.40GB <2000398933504 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 3 Recoverable: 0 
+Illegal Request: 1 Predictive Failure Analysis: 0 
+c0t5000C5003F0AE0E2d0 Soft Errors: 0 Hard Errors: 3 Transport Errors: 0 
+Vendor: ATA      Product: ST2000NM0011     Revision: SN02 Serial No:  
+Size: 2000.40GB <2000398933504 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 3 Recoverable: 0 
+Illegal Request: 1 Predictive Failure Analysis: 0 
+c0t5000C5003F0B07E3d0 Soft Errors: 0 Hard Errors: 3 Transport Errors: 0 
+Vendor: ATA      Product: ST2000NM0011     Revision: SN02 Serial No:  
+Size: 2000.40GB <2000398933504 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 3 Recoverable: 0 
+Illegal Request: 1 Predictive Failure Analysis: 0 
+c0t5000C5003F0B5333d0 Soft Errors: 0 Hard Errors: 3 Transport Errors: 0 
+Vendor: ATA      Product: ST2000NM0011     Revision: SN02 Serial No:  
+Size: 2000.40GB <2000398933504 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 3 Recoverable: 0 
+Illegal Request: 1 Predictive Failure Analysis: 0 
+c0t5000C5003EF41543d0 Soft Errors: 0 Hard Errors: 3 Transport Errors: 0 
+Vendor: ATA      Product: ST2000NM0011     Revision: SN02 Serial No:  
+Size: 2000.40GB <2000398933504 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 3 Recoverable: 0 
+Illegal Request: 1 Predictive Failure Analysis: 0 
+c0t5000C5003EF233E3d0 Soft Errors: 0 Hard Errors: 3 Transport Errors: 0 
+Vendor: ATA      Product: ST2000NM0011     Revision: SN02 Serial No:  
+Size: 2000.40GB <2000398933504 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 3 Recoverable: 0 
+Illegal Request: 1 Predictive Failure Analysis: 0 
+c0t5000C5003F0B0284d0 Soft Errors: 0 Hard Errors: 3 Transport Errors: 0 
+Vendor: ATA      Product: ST2000NM0011     Revision: SN02 Serial No:  
+Size: 2000.40GB <2000398933504 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 3 Recoverable: 0 
+Illegal Request: 1 Predictive Failure Analysis: 0 
+c0t5000C5003EF20575d0 Soft Errors: 0 Hard Errors: 3 Transport Errors: 0 
+Vendor: ATA      Product: ST2000NM0011     Revision: SN02 Serial No:  
+Size: 2000.40GB <2000398933504 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 3 Recoverable: 0 
+Illegal Request: 1 Predictive Failure Analysis: 0 
+c0t5000C5003EF1F4E5d0 Soft Errors: 0 Hard Errors: 3 Transport Errors: 0 
+Vendor: ATA      Product: ST2000NM0011     Revision: SN02 Serial No:  
+Size: 2000.40GB <2000398933504 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 3 Recoverable: 0 
+Illegal Request: 1 Predictive Failure Analysis: 0 
+c0t5000C5003EF236A6d0 Soft Errors: 0 Hard Errors: 3 Transport Errors: 0 
+Vendor: ATA      Product: ST2000NM0011     Revision: SN02 Serial No:  
+Size: 2000.40GB <2000398933504 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 3 Recoverable: 0 
+Illegal Request: 1 Predictive Failure Analysis: 0 
+c0t5000C5003EF239F7d0 Soft Errors: 0 Hard Errors: 3 Transport Errors: 0 
+Vendor: ATA      Product: ST2000NM0011     Revision: SN02 Serial No:  
+Size: 2000.40GB <2000398933504 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 3 Recoverable: 0 
+Illegal Request: 1 Predictive Failure Analysis: 0 
+c0t5000C5003F0F0B27d0 Soft Errors: 0 Hard Errors: 3 Transport Errors: 0 
+Vendor: ATA      Product: ST2000NM0011     Revision: SN02 Serial No:  
+Size: 2000.40GB <2000398933504 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 3 Recoverable: 0 
+Illegal Request: 1 Predictive Failure Analysis: 0 
+c0t5000C5003EF23468d0 Soft Errors: 0 Hard Errors: 3 Transport Errors: 0 
+Vendor: ATA      Product: ST2000NM0011     Revision: SN02 Serial No:  
+Size: 2000.40GB <2000398933504 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 3 Recoverable: 0 
+Illegal Request: 1 Predictive Failure Analysis: 0 
+c0t5000C5003EF2386Bd0 Soft Errors: 0 Hard Errors: 3 Transport Errors: 0 
+Vendor: ATA      Product: ST2000NM0011     Revision: SN02 Serial No:  
+Size: 2000.40GB <2000398933504 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 3 Recoverable: 0 
+Illegal Request: 1 Predictive Failure Analysis: 0 
+c0t5000C5003F0B0D4Bd0 Soft Errors: 0 Hard Errors: 3 Transport Errors: 0 
+Vendor: ATA      Product: ST2000NM0011     Revision: SN02 Serial No:  
+Size: 2000.40GB <2000398933504 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 3 Recoverable: 0 
+Illegal Request: 1 Predictive Failure Analysis: 0 
+c0t5000C5003EF2339Cd0 Soft Errors: 0 Hard Errors: 4 Transport Errors: 0 
+Vendor: ATA      Product: ST2000NM0011     Revision: SN02 Serial No:  
+Size: 2000.40GB <2000398933504 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 4 Recoverable: 0 
+Illegal Request: 1 Predictive Failure Analysis: 0 
+c0t5000C5003F10F87Cd0 Soft Errors: 0 Hard Errors: 3 Transport Errors: 0 
+Vendor: ATA      Product: ST2000NM0011     Revision: SN02 Serial No:  
+Size: 2000.40GB <2000398933504 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 3 Recoverable: 0 
+Illegal Request: 1 Predictive Failure Analysis: 0 
+c0t5000C5003F0CB38Cd0 Soft Errors: 0 Hard Errors: 3 Transport Errors: 0 
+Vendor: ATA      Product: ST2000NM0011     Revision: SN02 Serial No:  
+Size: 2000.40GB <2000398933504 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 3 Recoverable: 0 
+Illegal Request: 1 Predictive Failure Analysis: 0 
+c0t5000C5003F0AADBEd0 Soft Errors: 0 Hard Errors: 3 Transport Errors: 0 
+Vendor: ATA      Product: ST2000NM0011     Revision: SN02 Serial No:  
+Size: 2000.40GB <2000398933504 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 3 Recoverable: 0 
+Illegal Request: 1 Predictive Failure Analysis: 0 
+c0t5000C5003F0FB73Ed0 Soft Errors: 0 Hard Errors: 3 Transport Errors: 0 
+Vendor: ATA      Product: ST2000NM0011     Revision: SN02 Serial No:  
+Size: 2000.40GB <2000398933504 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 3 Recoverable: 0 
+Illegal Request: 1 Predictive Failure Analysis: 0 
+c0t5000C5003F0ECB0Fd0 Soft Errors: 0 Hard Errors: 3 Transport Errors: 0 
+Vendor: ATA      Product: ST2000NM0011     Revision: SN02 Serial No:  
+Size: 2000.40GB <2000398933504 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 3 Recoverable: 0 
+Illegal Request: 1 Predictive Failure Analysis: 0 
+c0t5000CCA369D53642d0 Soft Errors: 0 Hard Errors: 3909 Transport Errors: 9790 
+Vendor: ATA      Product: Hitachi HDS72302 Revision: AA10 Serial No:  
+Size: 2000.40GB <2000398933504 bytes>
+Media Error: 3116 Device Not Ready: 0 No Device: 793 Recoverable: 0 
+Illegal Request: 1 Predictive Failure Analysis: 0 
+c0t5000C50066C7D4F8d0 Soft Errors: 0 Hard Errors: 115 Transport Errors: 23 
+Vendor: ATA      Product: ST2000NM0033-9ZM Revision: GA06 Serial No:  
+Size: 2000.40GB <2000398933504 bytes>
+Media Error: 1 Device Not Ready: 0 No Device: 3 Recoverable: 0 
+Illegal Request: 1 Predictive Failure Analysis: 0 
+c0t5000C50066D0BCEAd0 Soft Errors: 0 Hard Errors: 3 Transport Errors: 0 
+Vendor: ATA      Product: ST2000NM0033-9ZM Revision: GA06 Serial No:  
+Size: 2000.40GB <2000398933504 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 3 Recoverable: 0 
+Illegal Request: 1 Predictive Failure Analysis: 0 
+c0t5000C5007BD3D09Ad0 Soft Errors: 0 Hard Errors: 3 Transport Errors: 0 
+Vendor: ATA      Product: ST2000NM0033-9ZM Revision: GA0A Serial No:  
+Size: 2000.40GB <2000398933504 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 3 Recoverable: 0 
+Illegal Request: 1 Predictive Failure Analysis: 0 
+c0t5000C50078E40AAAd0 Soft Errors: 0 Hard Errors: 1 Transport Errors: 0 
+Vendor: ATA      Product: ST2000NM0033-9ZM Revision: GA0A Serial No:  
+Size: 2000.40GB <2000398933504 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 1 Recoverable: 0 
+Illegal Request: 1 Predictive Failure Analysis: 0 
+c0t5000C50066CC38DBd0 Soft Errors: 0 Hard Errors: 1 Transport Errors: 0 
+Vendor: ATA      Product: ST2000NM0033-9ZM Revision: GA06 Serial No:  
+Size: 2000.40GB <2000398933504 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 1 Recoverable: 0 
+Illegal Request: 1 Predictive Failure Analysis: 0 
+====
+
+
+zpool replace store c0t5000CCA369DCC6F7d0   c0t5000C50066CC42C9d0
+
+
+====
+           spare-0                  DEGRADED     0     0   161
+              c0t5000CCA369D53642d0  DEGRADED    91     0   271  too many errors
+              c0t5000C50066CC38DBd0  ONLINE       0     0   338
+            spare-1                  DEGRADED   326     0     0
+              c0t5000C50066C7D4F8d0  FAULTED      0     0     0  too many errors
+              c0t5000C50078E40AAAd0  ONLINE       0     0   326
+          mirror-1                   ONLINE       0     0     0
+
+
+
+
+
+
+      to get command specific help
+root@rawflowdb4:/# sas2ircu 0 display
+LSI Corporation SAS2 IR Configuration Utility.
+Version 12.00.00.00 (2011.11.08) 
+Copyright (c) 2009-2011 LSI Corporation. All rights reserved. 
+
+Read configuration has been initiated for controller 0
+------------------------------------------------------------------------
+Controller information
+------------------------------------------------------------------------
+  Controller type                         : SAS2008
+  BIOS version                            : 7.21.00.00
+  Firmware version                        : 11.00.00.00
+  Channel description                     : 1 Serial Attached SCSI
+  Initiator ID                            : 0
+  Maximum physical devices                : 255
+  Concurrent commands supported           : 3712
+  Slot                                    : 20
+  Segment                                 : 0
+  Bus                                     : 2
+  Device                                  : 0
+  Function                                : 0
+  RAID Support                            : No
+------------------------------------------------------------------------
+IR Volume information
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+Physical device information
+------------------------------------------------------------------------
+Initiator at ID #0
+
+Device is a Hard disk
+  Enclosure #                             : 2
+  Slot #                                  : 0
+  SAS Address                             : 5003048-0-00f0-20ec
+  State                                   : Ready (RDY)
+  Size (in MB)/(in sectors)               : 1907729/3907029167
+  Manufacturer                            : ATA     
+  Model Number                            : ST2000NM0011    
+  Firmware Revision                       : SN02
+  Serial No                               : Z1P0JS1W
+  GUID                                    : 5000c5003ef21411
+  Protocol                                : SATA
+  Drive Type                              : SATA_HDD
+
+Device is a Enclosure services device
+  Enclosure #                             : 2
+  Slot #                                  : 0
+  SAS Address                             : 5003048-0-00f0-20fd
+  State                                   : Standby (SBY)
+  Manufacturer                            : LSI CORP
+  Model Number                            : SAS2X28         
+  Firmware Revision                       : 0717
+  Serial No                               : x36557230
+  GUID                                    : N/A
+  Protocol                                : SAS
+  Drive Type                              : SAS_HDD
+
+Device is a Hard disk
+  Enclosure #                             : 2
+  Slot #                                  : 1
+  SAS Address                             : 5003048-0-00f0-20ed
+  State                                   : Ready (RDY)
+  Size (in MB)/(in sectors)               : 1907729/3907029167
+  Manufacturer                            : ATA     
+  Model Number                            : ST2000NM0011    
+  Firmware Revision                       : SN02
+  Serial No                               : Z1P053WH
+  GUID                                    : 5000c5003ef23840
+  Protocol                                : SATA
+  Drive Type                              : SATA_HDD
+
+Device is a Hard disk
+  Enclosure #                             : 2
+  Slot #                                  : 2
+  SAS Address                             : 5003048-0-00f0-20ee
+  State                                   : Ready (RDY)
+  Size (in MB)/(in sectors)               : 1907729/3907029167
+  Manufacturer                            : ATA     
+  Model Number                            : ST2000NM0033-9ZM
+  Firmware Revision                       : GA06
+  Serial No                               : Z1X28M2X
+  GUID                                    : 5000c50066cc38db
+  Protocol                                : SATA
+  Drive Type                              : SATA_HDD
+
+Device is a Hard disk
+  Enclosure #                             : 2
+  Slot #                                  : 3
+  SAS Address                             : 5003048-0-00f0-20ef
+  State                                   : Ready (RDY)
+  Size (in MB)/(in sectors)               : 1907729/3907029167
+  Manufacturer                            : ATA     
+  Model Number                            : ST2000NM0033-9ZM
+  Firmware Revision                       : GA06
+  Serial No                               : Z1X28XPN
+  GUID                                    : 5000c50066c7d4f8
+  Protocol                                : SATA
+  Drive Type                              : SATA_HDD
+
+Device is a Hard disk
+  Enclosure #                             : 2
+  Slot #                                  : 4
+  SAS Address                             : 5003048-0-00f0-20f0
+  State                                   : Ready (RDY)
+  Size (in MB)/(in sectors)               : 1907729/3907029167
+  Manufacturer                            : ATA     
+  Model Number                            : ST2000NM0011    
+  Firmware Revision                       : SN02
+  Serial No                               : Z1P04V6R
+  GUID                                    : 5000c5003ef5b2d3
+  Protocol                                : SATA
+  Drive Type                              : SATA_HDD
+
+Device is a Hard disk
+  Enclosure #                             : 2
+  Slot #                                  : 5
+  SAS Address                             : 5003048-0-00f0-20f1
+  State                                   : Ready (RDY)
+  Size (in MB)/(in sectors)               : 1907729/3907029167
+  Manufacturer                            : ATA     
+  Model Number                            : ST2000NM0033-9ZM
+  Firmware Revision                       : GA0A
+  Serial No                               : Z1X2VSE1
+  GUID                                    : 5000c50078e40aaa
+  Protocol                                : SATA
+  Drive Type                              : SATA_HDD
+
+Device is a Hard disk
+  Enclosure #                             : 2
+  Slot #                                  : 6
+  SAS Address                             : 5003048-0-00f0-20f2
+  State                                   : Ready (RDY)
+  Size (in MB)/(in sectors)               : 1907729/3907029167
+  Manufacturer                            : ATA     
+  Model Number                            : ST2000NM0011    
+  Firmware Revision                       : SN02
+  Serial No                               : Z1P0715V
+  GUID                                    : 5000c5003ef5e521
+  Protocol                                : SATA
+  Drive Type                              : SATA_HDD
+
+Device is a Hard disk
+  Enclosure #                             : 2
+  Slot #                                  : 7
+  SAS Address                             : 5003048-0-00f0-20f3
+  State                                   : Ready (RDY)
+  Size (in MB)/(in sectors)               : 1907729/3907029167
+  Manufacturer                            : ATA     
+  Model Number                            : ST2000NM0011    
+  Firmware Revision                       : SN02
+  Serial No                               : Z1P0MXY8
+  GUID                                    : 5000c5003f0acf6e
+  Protocol                                : SATA
+  Drive Type                              : SATA_HDD
+
+Device is a Hard disk
+  Enclosure #                             : 2
+  Slot #                                  : 8
+  SAS Address                             : 5003048-0-00f0-20f4
+  State                                   : Ready (RDY)
+  Size (in MB)/(in sectors)               : 1907729/3907029167
+  Manufacturer                            : ATA     
+  Model Number                            : ST2000NM0011    
+  Firmware Revision                       : SN02
+  Serial No                               : Z1P06HBF
+  GUID                                    : 5000c5003ef11ca0
+  Protocol                                : SATA
+  Drive Type                              : SATA_HDD
+
+Device is a Hard disk
+  Enclosure #                             : 2
+  Slot #                                  : 9
+  SAS Address                             : 5003048-0-00f0-20f5
+  State                                   : Ready (RDY)
+  Size (in MB)/(in sectors)               : 1907729/3907029167
+  Manufacturer                            : ATA     
+  Model Number                            : ST2000NM0033-9ZM
+  Firmware Revision                       : GA0A
+  Serial No                               : Z1X5BHTF
+  GUID                                    : 5000c5007bd3d09a
+  Protocol                                : SATA
+  Drive Type                              : SATA_HDD
+
+Device is a Hard disk
+  Enclosure #                             : 2
+  Slot #                                  : 10
+  SAS Address                             : 5003048-0-00f0-20f6
+  State                                   : Ready (RDY)
+  Size (in MB)/(in sectors)               : 1907729/3907029167
+  Manufacturer                            : ATA     
+  Model Number                            : ST2000NM0011    
+  Firmware Revision                       : SN02
+  Serial No                               : Z1P055EY
+  GUID                                    : 5000c5003edefe7e
+  Protocol                                : SATA
+  Drive Type                              : SATA_HDD
+
+Device is a Hard disk
+  Enclosure #                             : 2
+  Slot #                                  : 11
+  SAS Address                             : 5003048-0-00f0-20f7
+  State                                   : Ready (RDY)
+  Size (in MB)/(in sectors)               : 1907729/3907029167
+  Manufacturer                            : ATA     
+  Model Number                            : ST2000NM0011    
+  Firmware Revision                       : SN02
+  Serial No                               : Z1P03R8M
+  GUID                                    : 5000c5003ee65f09
+  Protocol                                : SATA
+  Drive Type                              : SATA_HDD
+
+Device is a Hard disk
+  Enclosure #                             : 3
+  Slot #                                  : 0
+  SAS Address                             : 5003048-0-00f4-9fcc
+  State                                   : Ready (RDY)
+  Size (in MB)/(in sectors)               : 1907729/3907029167
+  Manufacturer                            : ATA     
+  Model Number                            : ST2000NM0011    
+  Firmware Revision                       : SN02
+  Serial No                               : Z1P0JS2D
+  GUID                                    : 5000c5003ef1f4e5
+  Protocol                                : SATA
+  Drive Type                              : SATA_HDD
+
+Device is a Hard disk
+  Enclosure #                             : 3
+  Slot #                                  : 1
+  SAS Address                             : 5003048-0-00f4-9fcd
+  State                                   : Ready (RDY)
+  Size (in MB)/(in sectors)               : 1907729/3907029167
+  Manufacturer                            : ATA     
+  Model Number                            : Hitachi HDS72302
+  Firmware Revision                       : AA10
+  Serial No                               : MN1220F31HNKED
+  GUID                                    : 5000cca369d53642
+  Protocol                                : SATA
+  Drive Type                              : SATA_HDD
+
+Device is a Hard disk
+  Enclosure #                             : 3
+  Slot #                                  : 2
+  SAS Address                             : 5003048-0-00f4-9fce
+  State                                   : Ready (RDY)
+  Size (in MB)/(in sectors)               : 1907729/3907029167
+  Manufacturer                            : ATA     
+  Model Number                            : ST2000NM0033-9ZM
+  Firmware Revision                       : GA06
+  Serial No                               : Z1X29ZCG
+  GUID                                    : 5000c50066d0bcea
+  Protocol                                : SATA
+  Drive Type                              : SATA_HDD
+
+Device is a Hard disk
+  Enclosure #                             : 3
+  Slot #                                  : 3
+  SAS Address                             : 5003048-0-00f4-9fcf
+  State                                   : Ready (RDY)
+  Size (in MB)/(in sectors)               : 1907729/3907029167
+  Manufacturer                            : ATA     
+  Model Number                            : ST2000NM0011    
+  Firmware Revision                       : SN02
+  Serial No                               : Z1P0LEZX
+  GUID                                    : 5000c5003f0fb73e
+  Protocol                                : SATA
+  Drive Type                              : SATA_HDD
+
+Device is a Hard disk
+  Enclosure #                             : 3
+  Slot #                                  : 4
+  SAS Address                             : 5003048-0-00f4-9fd0
+  State                                   : Ready (RDY)
+  Size (in MB)/(in sectors)               : 1907729/3907029167
+  Manufacturer                            : ATA     
+  Model Number                            : ST2000NM0011    
+  Firmware Revision                       : SN02
+  Serial No                               : Z1P0NTLV
+  GUID                                    : 5000c5003f0cb38c
+  Protocol                                : SATA
+  Drive Type                              : SATA_HDD
+
+Device is a Hard disk
+  Enclosure #                             : 3
+  Slot #                                  : 5
+  SAS Address                             : 5003048-0-00f4-9fd1
+  State                                   : Ready (RDY)
+  Size (in MB)/(in sectors)               : 1907729/3907029167
+  Manufacturer                            : ATA     
+  Model Number                            : ST2000NM0011    
+  Firmware Revision                       : SN02
+  Serial No                               : Z1P0NKSZ
+  GUID                                    : 5000c5003f0b0d4b
+  Protocol                                : SATA
+  Drive Type                              : SATA_HDD
+
+Device is a Hard disk
+  Enclosure #                             : 3
+  Slot #                                  : 6
+  SAS Address                             : 5003048-0-00f4-9fd2
+  State                                   : Ready (RDY)
+  Size (in MB)/(in sectors)               : 1907729/3907029167
+  Manufacturer                            : ATA     
+  Model Number                            : ST2000NM0011    
+  Firmware Revision                       : SN02
+  Serial No                               : Z1P058SC
+  GUID                                    : 5000c5003ef233e3
+  Protocol                                : SATA
+  Drive Type                              : SATA_HDD
+
+Device is a Hard disk
+  Enclosure #                             : 3
+  Slot #                                  : 7
+  SAS Address                             : 5003048-0-00f4-9fd3
+  State                                   : Ready (RDY)
+  Size (in MB)/(in sectors)               : 1907729/3907029167
+  Manufacturer                            : ATA     
+  Model Number                            : ST2000NM0011    
+  Firmware Revision                       : SN02
+  Serial No                               : Z1P047AE
+  GUID                                    : 5000c5003ef2386b
+  Protocol                                : SATA
+  Drive Type                              : SATA_HDD
+
+Device is a Hard disk
+  Enclosure #                             : 3
+  Slot #                                  : 8
+  SAS Address                             : 5003048-0-00f4-9fd4
+  State                                   : Ready (RDY)
+  Size (in MB)/(in sectors)               : 1907729/3907029167
+  Manufacturer                            : ATA     
+  Model Number                            : ST2000NM0011    
+  Firmware Revision                       : SN02
+  Serial No                               : Z1P0JS2A
+  GUID                                    : 5000c5003ef20575
+  Protocol                                : SATA
+  Drive Type                              : SATA_HDD
+
+Device is a Hard disk
+  Enclosure #                             : 3
+  Slot #                                  : 9
+  SAS Address                             : 5003048-0-00f4-9fd5
+  State                                   : Ready (RDY)
+  Size (in MB)/(in sectors)               : 1907729/3907029167
+  Manufacturer                            : ATA     
+  Model Number                            : ST2000NM0011    
+  Firmware Revision                       : SN02
+  Serial No                               : Z1P0CZY2
+  GUID                                    : 5000c5003f0ecb0f
+  Protocol                                : SATA
+  Drive Type                              : SATA_HDD
+
+Device is a Hard disk
+  Enclosure #                             : 3
+  Slot #                                  : 10
+  SAS Address                             : 5003048-0-00f4-9fd6
+  State                                   : Ready (RDY)
+  Size (in MB)/(in sectors)               : 1907729/3907029167
+  Manufacturer                            : ATA     
+  Model Number                            : ST2000NM0011    
+  Firmware Revision                       : SN02
+  Serial No                               : Z1P0NJZP
+  GUID                                    : 5000c5003f0b0284
+  Protocol                                : SATA
+  Drive Type                              : SATA_HDD
+
+Device is a Hard disk
+  Enclosure #                             : 3
+  Slot #                                  : 11
+  SAS Address                             : 5003048-0-00f4-9fd7
+  State                                   : Ready (RDY)
+  Size (in MB)/(in sectors)               : 1907729/3907029167
+  Manufacturer                            : ATA     
+  Model Number                            : ST2000NM0011    
+  Firmware Revision                       : SN02
+  Serial No                               : Z1P0KAFK
+  GUID                                    : 5000c5003f10f87c
+  Protocol                                : SATA
+  Drive Type                              : SATA_HDD
+
+Device is a Hard disk
+  Enclosure #                             : 3
+  Slot #                                  : 12
+  SAS Address                             : 5003048-0-00f4-9fd8
+  State                                   : Ready (RDY)
+  Size (in MB)/(in sectors)               : 1907729/3907029167
+  Manufacturer                            : ATA     
+  Model Number                            : ST2000NM0011    
+  Firmware Revision                       : SN02
+  Serial No                               : Z1P04QZ5
+  GUID                                    : 5000c5003ef236a6
+  Protocol                                : SATA
+  Drive Type                              : SATA_HDD
+
+Device is a Hard disk
+  Enclosure #                             : 3
+  Slot #                                  : 13
+  SAS Address                             : 5003048-0-00f4-9fd9
+  State                                   : Ready (RDY)
+  Size (in MB)/(in sectors)               : 1907729/3907029167
+  Manufacturer                            : ATA     
+  Model Number                            : ST2000NM0011    
+  Firmware Revision                       : SN02
+  Serial No                               : Z1P0N1GF
+  GUID                                    : 5000c5003f0ae0e2
+  Protocol                                : SATA
+  Drive Type                              : SATA_HDD
+
+Device is a Hard disk
+  Enclosure #                             : 3
+  Slot #                                  : 14
+  SAS Address                             : 5003048-0-00f4-9fda
+  State                                   : Ready (RDY)
+  Size (in MB)/(in sectors)               : 1907729/3907029167
+  Manufacturer                            : ATA     
+  Model Number                            : ST2000NM0011    
+  Firmware Revision                       : SN02
+  Serial No                               : Z1P04KCV
+  GUID                                    : 5000c5003ef41543
+  Protocol                                : SATA
+  Drive Type                              : SATA_HDD
+
+Device is a Hard disk
+  Enclosure #                             : 3
+  Slot #                                  : 15
+  SAS Address                             : 5003048-0-00f4-9fdb
+  State                                   : Ready (RDY)
+  Size (in MB)/(in sectors)               : 1907729/3907029167
+  Manufacturer                            : ATA     
+  Model Number                            : ST2000NM0011    
+  Firmware Revision                       : SN02
+  Serial No                               : Z1P0NKJD
+  GUID                                    : 5000c5003f0b5333
+  Protocol                                : SATA
+  Drive Type                              : SATA_HDD
+
+Device is a Hard disk
+  Enclosure #                             : 3
+  Slot #                                  : 16
+  SAS Address                             : 5003048-0-00f4-9fdc
+  State                                   : Ready (RDY)
+  Size (in MB)/(in sectors)               : 1907729/3907029167
+  Manufacturer                            : ATA     
+  Model Number                            : ST2000NM0011    
+  Firmware Revision                       : SN02
+  Serial No                               : Z1P0CZ46
+  GUID                                    : 5000c5003f0f0b27
+  Protocol                                : SATA
+  Drive Type                              : SATA_HDD
+
+Device is a Hard disk
+  Enclosure #                             : 3
+  Slot #                                  : 17
+  SAS Address                             : 5003048-0-00f4-9fdd
+  State                                   : Ready (RDY)
+  Size (in MB)/(in sectors)               : 1907729/3907029167
+  Manufacturer                            : ATA     
+  Model Number                            : ST2000NM0011    
+  Firmware Revision                       : SN02
+  Serial No                               : Z1P0E4P5
+  GUID                                    : 5000c5003f0ecd10
+  Protocol                                : SATA
+  Drive Type                              : SATA_HDD
+
+Device is a Hard disk
+  Enclosure #                             : 3
+  Slot #                                  : 18
+  SAS Address                             : 5003048-0-00f4-9fde
+  State                                   : Ready (RDY)
+  Size (in MB)/(in sectors)               : 1907729/3907029167
+  Manufacturer                            : ATA     
+  Model Number                            : ST2000NM0011    
+  Firmware Revision                       : SN02
+  Serial No                               : Z1P053KH
+  GUID                                    : 5000c5003ef23468
+  Protocol                                : SATA
+  Drive Type                              : SATA_HDD
+
+Device is a Hard disk
+  Enclosure #                             : 3
+  Slot #                                  : 19
+  SAS Address                             : 5003048-0-00f4-9fdf
+  State                                   : Ready (RDY)
+  Size (in MB)/(in sectors)               : 1907729/3907029167
+  Manufacturer                            : ATA     
+  Model Number                            : ST2000NM0011    
+  Firmware Revision                       : SN02
+  Serial No                               : Z1P053ZC
+  GUID                                    : 5000c5003ef2339c
+  Protocol                                : SATA
+  Drive Type                              : SATA_HDD
+
+Device is a Hard disk
+  Enclosure #                             : 3
+  Slot #                                  : 20
+  SAS Address                             : 5003048-0-00f4-9fe0
+  State                                   : Ready (RDY)
+  Size (in MB)/(in sectors)               : 1907729/3907029167
+  Manufacturer                            : ATA     
+  Model Number                            : ST2000NM0011    
+  Firmware Revision                       : SN02
+  Serial No                               : Z1P08Y78
+  GUID                                    : 5000c5003ef239f7
+  Protocol                                : SATA
+  Drive Type                              : SATA_HDD
+
+Device is a Hard disk
+  Enclosure #                             : 3
+  Slot #                                  : 21
+  SAS Address                             : 5003048-0-00f4-9fe1
+  State                                   : Ready (RDY)
+  Size (in MB)/(in sectors)               : 1907729/3907029167
+  Manufacturer                            : ATA     
+  Model Number                            : ST2000NM0011    
+  Firmware Revision                       : SN02
+  Serial No                               : Z1P0MXCH
+  GUID                                    : 5000c5003f0b1812
+  Protocol                                : SATA
+  Drive Type                              : SATA_HDD
+
+Device is a Hard disk
+  Enclosure #                             : 3
+  Slot #                                  : 22
+  SAS Address                             : 5003048-0-00f4-9fe2
+  State                                   : Ready (RDY)
+  Size (in MB)/(in sectors)               : 1907729/3907029167
+  Manufacturer                            : ATA     
+  Model Number                            : ST2000NM0011    
+  Firmware Revision                       : SN02
+  Serial No                               : Z1P0N1N6
+  GUID                                    : 5000c5003f0aadbe
+  Protocol                                : SATA
+  Drive Type                              : SATA_HDD
+
+Device is a Hard disk
+  Enclosure #                             : 3
+  Slot #                                  : 23
+  SAS Address                             : 5003048-0-00f4-9fe3
+  State                                   : Ready (RDY)
+  Size (in MB)/(in sectors)               : 1907729/3907029167
+  Manufacturer                            : ATA     
+  Model Number                            : ST2000NM0011    
+  Firmware Revision                       : SN02
+  Serial No                               : Z1P0MD3H
+  GUID                                    : 5000c5003f0b07e3
+  Protocol                                : SATA
+  Drive Type                              : SATA_HDD
+
+Device is a Enclosure services device
+  Enclosure #                             : 3
+  Slot #                                  : 24
+  SAS Address                             : 5003048-0-00f4-9ffd
+  State                                   : Standby (SBY)
+  Manufacturer                            : LSI CORP
+  Model Number                            : SAS2X36         
+  Firmware Revision                       : 0717
+  Serial No                               : x36557230
+  GUID                                    : N/A
+  Protocol                                : SAS
+  Drive Type                              : SAS_HDD
+------------------------------------------------------------------------
+Enclosure information
+------------------------------------------------------------------------
+  Enclosure#                              : 1
+  Logical ID                              : 500605b0:03fb0c10
+  Numslots                                : 8
+  StartSlot                               : 0
+  Primary Boot Slot                       : 10
+  Enclosure#                              : 2
+  Logical ID                              : 50030480:00f020ff
+  Numslots                                : 13
+  StartSlot                               : 0
+  Primary Boot Slot                       : 10
+  Enclosure#                              : 3
+  Logical ID                              : 50030480:0000007f
+  Numslots                                : 25
+  StartSlot                               : 0
+  Primary Boot Slot                       : 10
+------------------------------------------------------------------------
+SAS2IRCU: Command DISPLAY Completed Successfully.
+SAS2IRCU: Utility Completed Successfully.
+root@rawflowdb4:/# 
+
+
+
+
+
+
+
+
+
+Device is a Hard disk
+  Enclosure #                             : 3
+  Slot #                                  : 1
+  SAS Address                             : 5003048-0-00f4-9fcd
+  State                                   : Ready (RDY)
+  Size (in MB)/(in sectors)               : 1907729/3907029167
+  Manufacturer                            : ATA     
+  Model Number                            : Hitachi HDS72302
+  Firmware Revision                       : AA10
+  Serial No                               : MN1220F31HNKED
+  GUID                                    : 5000cca369d53642
+  Protocol                                : SATA
+  Drive Type                              : SATA_HDD
+
+
+
+
+ПОДСВЕТКА
+	# sas2ircu 0 locate 3:1  ON
+
+
+удаление из пула
+	zpool detach store c0t5000C5003F0ACEE0d0
+
+# cfgadm -al | grep -i 5000C5003F0ACEE0  
+c3::w5000c5003f0acee0,0        disk-path    connected    configured   unknown
+
+#УДАЛЕНИЕ ДИСКА ИЗ /DEV SOLARISA
+	# cfgadm -c unconfigure c3::w5000c5003f0acee0,0
+
+
+ВЫТАСКИВАЕМ
+
+
+
+
+
+
+
+Device is a Hard disk
+  Enclosure #                             : 2
+  Slot #                                  : 3
+  SAS Address                             : 5003048-0-00f0-20ef
+  State                                   : Ready (RDY)
+  Size (in MB)/(in sectors)               : 1907729/3907029167
+  Manufacturer                            : ATA     
+  Model Number                            : ST2000NM0033-9ZM
+  Firmware Revision                       : GA06
+  Serial No                               : Z1X28XPN
+  GUID                                    : 5000c50066c7d4f8
+  Protocol                                : SATA
+  Drive Type                              : SATA_HDD
+
+
+
+
+	# sas2ircu 0 locate 2:3  ON
+
+
+# cfgadm -c unconfigure c2::w5000c50066c7d4f8,0
+
+
+
+ОБНУЛЯЕМ СЧЕТЧИКИ ОШИБОК НА ПУЛЕ
+
+# zpool cleat POOL_NAME
+
+
+
+вставил новый диск
+
+dmesg
+
+Aug 27 10:20:49 rawflowdb4 scsi: [ID 583861 kern.info] sd49 at scsi_vhci0: unit-address g5000c500b1d3cb4c: g5000c500b1d3cb4c
+Aug 27 10:20:49 rawflowdb4 genunix: [ID 936769 kern.info] sd49 is /scsi_vhci/disk@g5000c500b1d3cb4c
+Aug 27 10:20:49 rawflowdb4 genunix: [ID 408114 kern.info] /scsi_vhci/disk@g5000c500b1d3cb4c (sd49) online
+Aug 27 10:20:49 rawflowdb4 genunix: [ID 483743 kern.info] /scsi_vhci/disk@g5000c500b1d3cb4c (sd49) multipath status: degraded: path 38 mpt_sas2/disk@w5000c500b1d3cb4c,0 is online
+
+
+
+# cfgadm -al | grep 5000c500b1d3cb4c
+c3::w5000c500b1d3cb4c,0        disk-path    connected    configured   unknown
+
+
+# cfgadm -c configure c3::w5000c500b1d3cb4c,0
+
+
+
+вставил диск
+
+Aug 27 10:39:10 rawflowdb4 scsi: [ID 243001 kern.info] /pci@0,0/pci8086,340e@7/pci1000,3020@0 (mpt_sas0):
+Aug 27 10:39:10 rawflowdb4      mptsas_access_config_page: IOCStatus=0x22 IOCLogInfo=0x30030116
+Aug 27 10:39:11 rawflowdb4 scsi: [ID 583861 kern.info] sd50 at scsi_vhci0: unit-address g5000c500b1becc82: g5000c500b1becc82
+Aug 27 10:39:11 rawflowdb4 genunix: [ID 936769 kern.info] sd50 is /scsi_vhci/disk@g5000c500b1becc82
+Aug 27 10:39:11 rawflowdb4 genunix: [ID 408114 kern.info] /scsi_vhci/disk@g5000c500b1becc82 (sd50) online
+Aug 27 10:39:11 rawflowdb4 genunix: [ID 483743 kern.info] /scsi_vhci/disk@g5000c500b1becc82 (sd50) multipath status: degraded: path 39 mpt_sas1/disk@w5000c500b1becc82,0 is online
+
+
+
+
+root@rawflowdb4:/# cfgadm -al | grep 5000c500b1becc82
+c2::w5000c500b1becc82,0        disk-path    connected    configured   unknown
+root@rawflowdb4:/# cfgadm -c configure   c2::w5000c500b1becc82,0
+
+
+
+
+root@rawflowdb4:/# 
+root@rawflowdb4:/# echo | format  | grep -i 5000c500b1d3cb4c
+       1. c0t5000C500B1D3CB4Cd0 <DEFAULT cyl 60798 alt 2 hd 255 sec 252>
+          /scsi_vhci/disk@g5000c500b1d3cb4c
+root@rawflowdb4:/# 
+root@rawflowdb4:/#  zpool add store spare c0t5000C500B1D3CB4Cd0                          
+root@rawflowdb4:/# echo | format  | grep -i 5000c500b1becc82   
+       0. c0t5000C500B1BECC82d0 <DEFAULT cyl 60798 alt 2 hd 255 sec 252>
+          /scsi_vhci/disk@g5000c500b1becc82
+root@rawflowdb4:/#  zpool add store spare c0t5000C500B1BECC82d0
+
+
+
+
+
+
+        NAME                       STATE     READ WRITE CKSUM
+        store                      ONLINE       0     0     0
+          mirror-0                 ONLINE       0     0     0
+            c0t5000C50066CC38DBd0  ONLINE       0     0     0
+            c0t5000C50078E40AAAd0  ONLINE       0     0     0
+          mirror-1                 ONLINE       0     0     0
+            c0t5000C5003EF5B2D3d0  ONLINE       0     0     0
+            c0t5000C5007BD3D09Ad0  ONLINE       0     0     0
+          mirror-2                 ONLINE       0     0     0
+            c0t5000C5003EF5E521d0  ONLINE       0     0     0
+            c0t5000C5003EF11CA0d0  ONLINE       0     0     0
+          mirror-3                 ONLINE       0     0     0
+            c0t5000C50066D0BCEAd0  ONLINE       0     0     0
+            c0t5000C5003EF233E3d0  ONLINE       0     0     0
+          mirror-4                 ONLINE       0     0     0
+            c0t5000C5003EF236A6d0  ONLINE       0     0     0
+            c0t5000C5003EF239F7d0  ONLINE       0     0     0
+          mirror-5                 ONLINE       0     0     0
+            c0t5000C5003EF2339Cd0  ONLINE       0     0     0
+            c0t5000C5003EF1F4E5d0  ONLINE       0     0     0
+          mirror-6                 ONLINE       0     0     0
+            c0t5000C5003EF2386Bd0  ONLINE       0     0     0
+            c0t5000C5003EF20575d0  ONLINE       0     0     0
+          mirror-7                 ONLINE       0     0     0
+            c0t5000C5003EF21411d0  ONLINE       0     0     0
+            c0t5000C5003EF23468d0  ONLINE       0     0     0
+          mirror-8                 ONLINE       0     0     0
+            c0t5000C5003EF23840d0  ONLINE       0     0     0
+            c0t5000C5003EF41543d0  ONLINE       0     0     0
+          mirror-9                 ONLINE       0     0     0
+            c0t5000C5003F0AADBEd0  ONLINE       0     0     0
+            c0t5000C5003F0ACF6Ed0  ONLINE       0     0     0
+          mirror-10                ONLINE       0     0     0
+            c0t5000C5003F0AE0E2d0  ONLINE       0     0     0
+            c0t5000C5003F0B0D4Bd0  ONLINE       0     0     0
+          mirror-11                ONLINE       0     0     0
+            c0t5000C5003F0B07E3d0  ONLINE       0     0     0
+            c0t5000C5003F0B0284d0  ONLINE       0     0     0
+          mirror-12                ONLINE       0     0     0
+            c0t5000C5003F0B1812d0  ONLINE       0     0     0
+            c0t5000C5003F0B5333d0  ONLINE       0     0     0
+          mirror-13                ONLINE       0     0     0
+            c0t5000C5003F0CB38Cd0  ONLINE       0     0     0
+            c0t5000C5003F0ECB0Fd0  ONLINE       0     0     0
+          mirror-14                ONLINE       0     0     0
+            c0t5000C5003F10F87Cd0  ONLINE       0     0     0
+            c0t5000C5003F0ECD10d0  ONLINE       0     0     0
+          mirror-15                ONLINE       0     0     0
+            c0t5000C5003F0F0B27d0  ONLINE       0     0     0
+            c0t5000C5003F0FB73Ed0  ONLINE       0     0     0
+        spares
+          c0t5000C500B1D3CB4Cd0    AVAIL   
+          c0t5000C500B1BECC82d0    AVAIL   
+
+
+
+
+
+полезнгая команда чиаить DEV папку
+# devfsadm -Cv
+
+
+
+ПРОБЛЕМА на rofl4
+iostat -En выводит диски котоыреыжху же нет!
+якобы вот решение
+
+devfsadm -Cvc disk 5000c50066c7d4f8
+
+ПРРВЕРИТЬ
