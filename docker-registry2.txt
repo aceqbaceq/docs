@@ -1,0 +1,111 @@
+| docker 
+| registry
+
+установка
+
+
+
+#  docker run -d -p 11000:5000 --restart=always --name registry2 registry:2
+
+тогда унас на порту 11000 будет слушать служба registry
+
+далее мы импортируем в локальное хранилище докера образы из файла
+
+
+
+# docker load -i  public_images.tar
+
+смотрим что получили
+
+# docker images
+REPOSITORY                                                                TAG                            IMAGE ID       CREATED         SIZE
+registry.acs.com:11000/assets-service                                     1.3.0                          733c093c6d21   9 months ago    496MB
+registry.acs.com:11000/software-upgrade-service                           1.3.0                          2ba5166ccc5e   9 months ago    486MB
+registry.acs.com:11000/system-service                                     1.3.0                          714b02bb4d43   9 months ago    512MB
+registry.acs.com:11000/user-service                                       1.3.0                          fcc6ae552cee   9 months ago    480MB
+registry.acs.com:11000/diagnosis-service                                  1.3.0                          c015bd7b1c7f   9 months ago    477MB
+registry.acs.com:11000/alarm-service                                      1.3.0                          ed397c1d6d48   9 months ago    479MB
+registry.acs.com:11000/north-bound-service                                1.3.0                          b495d4e17530   9 months ago    491MB
+registry.acs.com:11000/data-computer-service                              1.3.0                          b78e8f39665f   9 months ago    474MB
+registry.acs.com:11000/gateway-service                                    1.3.0                          1fd9678deaf1   9 months ago    464MB
+registry.acs.com:11000/topology-service                                   1.3.0                          14620dfd46ab   9 months ago    470MB
+registry.acs.com:11000/access-service                                     1.3.0                          c0e356661ed7   9 months ago    471MB
+
+
+
+название имаджа в строке REPOSITORY напрмиер 
+
+
+registry.acs.com:11000/assets-service
+
+
+зависит от самих свойств имаджа которые запрятаны внутри public_images.tar 
+так вот вот эта хрень
+
+
+registry.acs.com
+
+она как бы показыает с какого хоста данный имадж был изначально скачан
+число 11000 покзывает на каком порту там регистри рабтает 
+
+
+так вот теперь я имея данный имаджи в локальном сторадже докера
+я хочу их  засунуть в наш установленный регистри. для этого мы должны написать
+
+
+# docker push   registry.acs.com:11000/assets-service:1.3.0
+
+и прикол в том что докер начнет искать хост  registry.acs.com и порт 11000
+поэтому чтобы мы успешно засунули этот имадж из локального докер хранилища
+нам надо прописать в hosts
+
+
+127.0.0.1    registry.acs.com
+
+и чтобы наш локальный регистри слушал 11000 порт. это я уже сделал.
+еще надо вот так сделать в свойствах моего докера
+
+
+# cat /etc/docker/daemon.json 
+{
+  "insecure-registries" : ["registry.acs.com:11000", "registry.public.com:9999"]
+}
+
+
+# systemctl restart docker
+
+
+
+теперь наконец то можно засунуть имадж в регистри
+
+
+# docker push   registry.acs.com:11000/assets-service:1.3.0
+
+
+теперь можно проверить что он там лежит
+
+
+# curl http://registry.acs.com:11000/v2/_catalog
+{"repositories":["access-service"]}
+
+
+
+
+можно получить расширенную информацию
+
+
+
+#  curl -H "Accept: application/vnd.docker.distribution.manifest.v2+json" \
+     http://registry.acs.com:11000/v2/access-service/manifests/1.3.0
+
+
+
+если у меня куча имаджей которые нужно засунуть  то можно вот так
+
+
+# for image in $(docker images --format "{{.Repository}}:{{.Tag}}"); do   echo "$image"; done | grep registry.acs | xargs  -n 1 -I %   docker push %
+
+
+
+вот такой прикол
+

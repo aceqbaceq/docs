@@ -1,0 +1,14 @@
+| nmcli 
+
+
+запрограмирвать ethernet карту
+
+
+
+   nmcli connection add type ethernet ifname enp6s19  con-name WAN
+
+   nmcli connection modify WAN ipv4.addresses 192.168.1.100/24 ipv4.gateway 192.168.1.1 ipv4.dns 8.8.8.8 ipv4.method manual
+
+
+   nmcli conn up WAN
+

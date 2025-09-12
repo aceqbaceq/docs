@@ -1,0 +1,56 @@
+| ACS
+| OMS
+
+install rocky linux 8.6
+
+nmcli conn mod enp6s18  connection.autoconnect 1
+
+sudo dnf install -y epel-release
+
+
+ssh-copy-id -i ~/.ssh/id_5519.pub  vasya@100.100.1.26
+
+
+на стадии установки мускула при запуске скрипта  install_server.sh
+нужно поменяьт порт на 16379 вместо предлагаемого 6379
+и нужно указать где лежит бинарник
+а именно 
+
+   /usr/local/bin/redis-server
+
+
+(он там реально лежит)
+если не указать где лежит бинарник то усатновщик пошлет нахер
+
+
+
+
+
+# ./install_server.sh
+Welcome to the redis service installer
+This script will help you easily set up a running redis server
+
+Please select the redis port for this instance: [6379] 16379
+Please select the redis config file name [/etc/redis/16379.conf] 
+Selected default - /etc/redis/16379.conf
+Please select the redis log file name [/var/log/redis_16379.log] 
+Selected default - /var/log/redis_16379.log
+Please select the data directory for this instance [/var/lib/redis/16379] 
+Selected default - /var/lib/redis/16379
+Please select the redis executable path [] /usr/local/bin/redis-server
+Selected config:
+Port           : 16379
+Config file    : /etc/redis/16379.conf
+Log file       : /var/log/redis_16379.log
+Data dir       : /var/lib/redis/16379
+Executable     : /usr/local/bin/redis-server
+Cli Executable : /usr/local/bin/redis-cli
+Is this ok? Then press ENTER to go on or Ctrl-C to abort.
+Copied /tmp/16379.conf => /etc/init.d/redis_16379
+Installing service...
+Successfully added to chkconfig!
+Successfully added to runlevels 345!
+Starting Redis server...
+Installation successful!
+
+
