@@ -3,12 +3,32 @@
 
 install rocky linux 8.6
 
+LVM+XFS !!
+
+
+
+
+супеважно везде в пеерменных TIMEZONE 
+
+   {MYSQL_TIME_ZONE}
+   {ACS_TIME_ZONE}
+
+ставить не GMT+3 а Europe/Moscow!
+
+
+
+
+
 nmcli conn mod enp6s18  connection.autoconnect 1
 
 sudo dnf install -y epel-release
 
 
 ssh-copy-id -i ~/.ssh/id_5519.pub  vasya@100.100.1.26
+
+
+
+		УСТАНОВКА ACS BASE
 
 
 на стадии установки мускула при запуске скрипта  install_server.sh
@@ -53,4 +73,230 @@ Successfully added to runlevels 345!
 Starting Redis server...
 Installation successful!
 
+
+
+далее
+
+/usr/local/bin/redis-cli -h localhost  -p 16379 -a пасс  set CURRENT_PRIMARY_INSTANCE_NUMBER "ACS#0"
+
+как я понял эта шткуа ACS#0 именно константа так и вводится
+
+
+
+
+
+
+после установки ACS BASE у меня будет
+
+[root@acs-master base]# kubectl get services -n acs
+NAME                               TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)                                        AGE
+minio-svc                          NodePort    10.96.71.141   <none>        9000:30090/TCP                                 9m55s
+nacos-svc                          NodePort    10.96.79.104   <none>        8848:30048/TCP,9848:28626/TCP,9849:17551/TCP   9m55s
+rocketmq-broker-a-s-svc-headless   ClusterIP   None           <none>        <none>                                         9m56s
+rocketmq-broker-a-svc-headless     ClusterIP   None           <none>        <none>                                         9m56s
+rocketmq-broker-b-s-svc-headless   ClusterIP   None           <none>        <none>                                         9m56s
+rocketmq-broker-b-svc-headless     ClusterIP   None           <none>        <none>                                         9m56s
+rocketmq-console-svc               NodePort    10.96.108.11   <none>        8080:30916/TCP                                 9m55s
+rocketmq-namesrv-svc               NodePort    10.96.110.85   <none>        20901:30915/TCP                                9m56s
+
+
+по факту у меня на уровне открытия в веб морде 
+сработало две штуки
+
+http://master_local_ip:30048//nacos/index.html
+http://master_local_ip:30916/
+
+остальыне сервисы через веб не открыаваются
+
+
+
+
+
+
+
+	ACS APPP DEPLOY
+
+
+    For the first installation, you only need to import nacos-config-deploy-v{version}.zip andnacos-config-ext.zip file is enough
+
+
+  
+я не нашел  
+
+nacos-config-deploy-v{version}.zip
+
+а потом нашел. внутри zip который лежал внутри zip
+
+супермегаважный момент. это в каком фмрате указывать timezone
+
+
+
+супеважно везде в пеерменных TIMEZONE 
+
+   {MYSQL_TIME_ZONE}
+   {ACS_TIME_ZONE}
+
+ставить не GMT+3 а Europe/Moscow!
+
+
+тоесть ни в коем случае лучше не пихать таймзону в эти перенные
+в виде GMT+3 а только в ввиде Europe/Moscow
+
+
+как это можно словить. 
+вот поставил я acs application .
+иду в его веб морду
+
+https://100.100.1.25:30080/#
+
+пробую ввести логин и пароль(какой логин и пароль я скажу ниже. это 
+отдельняа эпопея) а он пишет 
+
+warning 
+timeout 5000 exceeded
+
+
+прикол в том что java прога  лезет через odbc драйвер на мускул 
+и при входе указывает таймазону. и если она в формате gmt+3 то  идет она на хуй.
+как это можно в логах увидеть
+
+идем в эту папку
+
+/opt/k8s/app/logs/
+
+
+тут лежат логи подов.
+
+нас интерсуют логи вот этих подов
+
+
+acs-logs-access-service-0-*
+
+и/или
+
+acs-logs-user-service-0-*
+
+и там можно вот такое увидеть
+
+
+Caused by: java.sql.SQLNonTransientConnectionException: Could not create connection to database server. Attempted reconnect 3 times. Giving up.
+
+Caused by: java.time.DateTimeException: Invalid ID for region-based ZoneId, invalid format: GMT 3
+
+
+что делать - если все же зону ввел  в перменные
+
+   {MYSQL_TIME_ZONE}
+   {ACS_TIME_ZONE}
+
+
+неверно.
+я ненашел другого способа как удаляем полнгостью деплой  ACS APPLICATION
+
+   # helm uninstall acs-service -n acs
+
+
+но это еше неконец. при этом у нас неудалются а остаются  PVC и PV от этой инсталляиции
+вначале нужно удалить PVC а потом и PV 
+
+
+ # kubectl delete pvc -n acs $(kubectl get pvc  -n acs | grep log-nfs-storage | awk '{print $1}')
+ # kubectl delete pv -n acs $(kubectl get pv  -n acs | grep log-nfs-storage | awk '{print $1}')
+
+
+и потом поменяв в конфигах установки  на 
+
+   {MYSQL_TIME_ZONE} = Europe/Moscow
+   {ACS_TIME_ZONE}   = Europe/Moscow
+
+
+деплоим заново
+
+helm install --create-namespace -n acs --values $ACS/public.yaml --values $ACS/ACS-{version}-full/helm/{version}.yaml acs-service $ACS/ACS-{version}-full/helm/acs-service
+
+и должно заработать.
+
+
+
+
+Теперь на счет логина и пароля в веб морду ACS
+логины хранятся в базе 
+
+  acs-user
+
+в таблице
+
+tb_user
+
+и их там по дефолту два
+
+ superadmin 
+ systemadmin
+
+
+прблема в том что в доках нет  пароля от них 
+который бы сработал. 
+как решить проблему.
+идем в веб морду и вводим любой пароль.
+потом идем в 
+
+
+
+# head /opt/k8s/app/logs/acs-logs-user-service-0-pvc-efcf1f87-86dc-4b89-9e7f-f188e41d3297/sql.log 
+
+2025-09-15 20:34:25.500 [http-nio-1001-exec-5] DEBUG com.acs.user.service.mapper.UserMapper.selectList - ==>  Preparing: SELECT id,user_name,user_nick,user_password,user_mobile,current_token,user_address,user_email,authentication_type,modify_password_flag,password_expired,status,user_group_ids,company_ids,creator,created_time,modifier,update_time,del_status FROM tb_user WHERE (user_name = ? AND user_password = ? AND del_status = ?)
+
+2025-09-15 20:34:25.795 [http-nio-1001-exec-5] DEBUG com.acs.user.service.mapper.UserMapper.selectList - ==> Parameters: superadmin(String), cc68310a89df5b46ed2b01f3e81bc3fa(String), 1(Integer)
+
+
+
+и здесь мы видим такое
+
+Parameters: superadmin(String), cc68310a89df5b46ed2b01f3e81bc3fa(String), 1(Integer)
+
+
+указан логин и хэш по непоняному алгоритму нашего пароля. 
+и этот хэш сранивается с тем что прописан  в таблице tb_user
+соотсвтвтенно мы просто всталвляем в эту таблицу для этого юзера этот хэш 
+
+
+UPDATE tb_user
+SET user_password = 'cc68310a89df5b46ed2b01f3e81bc3fa'
+WHERE user_name = 'superadmin';
+
+все! мы можем успешно войти в морду!
+
+есть еще прикол. если вести пароль 3 раза невено то вход для этого логина 
+блочится на 30 минут.
+запись об этом хранится в редисе.
+чтобы этот блок сбсроить заходим в редис
+
+# redis-cli -p 16379
+
+атуентифицифруктся 
+127.0.0.1:16379> auth ПАРОЛЬ
+OK
+
+смотрим ключи
+127.0.0.1:16379> KEYS *
+1) "USER:USER_LOCK:NUM:systemadmin"    <==**==
+2) "CURRENT_PRIMARY_INSTANCE_NUMBER"
+3) "USER:USER_LOCK:NUM:superadmin"     <==**==
+
+вот видно что оба юзера заблочены на полчаса
+удаляем записи о них
+
+
+>DEL USER:USER_LOCK:NUM:systemadmin
+>DEL USER:USER_LOCK:NUM:superadmin
+
+все! можно пробовать заходить!
+
+
+
+
+
+
+
+127.0.0.1:16379> 
 
