@@ -1,0 +1,47 @@
+| freenas
+| fio
+| iops
+
+
+root@2hst1 .../temp/fio# fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=test --filename=test --bs=4k --iodepth=64 --size=32000M --readwrite=randread --rwmixread=75
+test: (g=0): rw=randread, bs=(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine=libaio, iodepth=64
+fio-3.25
+Starting 1 process
+test: Laying out IO file (1 file / 32000MiB)
+Jobs: 1 (f=1): [r(1)][100.0%][r=108MiB/s][r=27.7k IOPS][eta 00m:00s]  
+test: (groupid=0, jobs=1): err= 0: pid=2385796: Tue Sep 16 18:09:13 2025
+  read: IOPS=20.3k, BW=79.4MiB/s (83.3MB/s)(31.2GiB/402962msec)
+   bw (  KiB/s): min= 1320, max=110880, per=99.99%, avg=81307.40, stdev=33287.90, samples=805
+   iops        : min=  330, max=27720, avg=20326.84, stdev=8321.97, samples=805
+  cpu          : usr=2.96%, sys=14.59%, ctx=2791262, majf=0, minf=5723
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.1%, 8=0.1%, 16=0.1%, 32=0.1%, >=64=100.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=8192000,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+   READ: bw=79.4MiB/s (83.3MB/s), 79.4MiB/s-79.4MiB/s (83.3MB/s-83.3MB/s), io=31.2GiB (33.6GB), run=402962-402962msec
+root@2hst1 .../temp/fio# 
+root@2hst1 .../temp/fio# fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=test --filename=test --bs=4k --iodepth=64 --size=32000M --readwrite=randwrite --rwmixread=75
+test: (g=0): rw=randwrite, bs=(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine=libaio, iodepth=64
+fio-3.25
+Starting 1 process
+^Cbs: 1 (f=1): [w(1)][7.6%][w=3260KiB/s][w=815 IOPS][eta 02h:08m:56s] 
+fio: terminating on signal 2
+
+test: (groupid=0, jobs=1): err= 0: pid=2430390: Tue Sep 16 18:35:16 2025
+  write: IOPS=978, BW=3912KiB/s (4006kB/s)(2437MiB/637716msec); 0 zone resets
+   bw (  KiB/s): min=  192, max= 9160, per=100.00%, avg=3913.46, stdev=1616.22, samples=1275
+   iops        : min=   48, max= 2290, avg=978.36, stdev=404.06, samples=1275
+  cpu          : usr=0.19%, sys=0.76%, ctx=349138, majf=0, minf=9
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.1%, 8=0.1%, 16=0.1%, 32=0.1%, >=64=100.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=0,623763,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+  WRITE: bw=3912KiB/s (4006kB/s), 3912KiB/s-3912KiB/s (4006kB/s-4006kB/s), io=2437MiB (2555MB), run=637716-637716msec
+root@2hst1 .../temp/fio# 
+
