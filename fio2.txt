@@ -45,3 +45,114 @@ Run status group 0 (all jobs):
   WRITE: bw=3912KiB/s (4006kB/s), 3912KiB/s-3912KiB/s (4006kB/s-4006kB/s), io=2437MiB (2555MB), run=637716-637716msec
 root@2hst1 .../temp/fio# 
 
+
+| nfs-ext (на 2hst1)
+| fio
+| iops
+
+
+root@2hst1 .../nfs-ext/temp# fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=test --filename=test --bs=4k --iodepth=64 --size=32000M --readwrite=randread --rwmixread=75
+test: (g=0): rw=randread, bs=(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine=libaio, iodepth=64
+fio-3.25
+Starting 1 process
+test: Laying out IO file (1 file / 32000MiB)
+^Cbs: 1 (f=1): [r(1)][9.4%][r=5789KiB/s][r=1447 IOPS][eta 01h:24m:20s]
+fio: terminating on signal 2
+
+test: (groupid=0, jobs=1): err= 0: pid=2468782: Tue Sep 16 18:52:28 2025
+  read: IOPS=1465, BW=5864KiB/s (6005kB/s)(3019MiB/527267msec)
+   bw (  KiB/s): min= 4448, max= 6552, per=100.00%, avg=5865.15, stdev=229.89, samples=1054
+   iops        : min= 1112, max= 1638, avg=1466.24, stdev=57.50, samples=1054
+  cpu          : usr=0.34%, sys=1.30%, ctx=648177, majf=0, minf=99
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.1%, 8=0.1%, 16=0.1%, 32=0.1%, >=64=100.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=772966,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+   READ: bw=5864KiB/s (6005kB/s), 5864KiB/s-5864KiB/s (6005kB/s-6005kB/s), io=3019MiB (3166MB), run=527267-527267msec
+root@2hst1 .../nfs-ext/temp# 
+root@2hst1 .../nfs-ext/temp# fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=test --filename=test --bs=4k --iodepth=64 --size=32000M --readwrite=randwrite --rwmixread=75
+test: (g=0): rw=randwrite, bs=(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine=libaio, iodepth=64
+fio-3.25
+Starting 1 process
+^Cbs: 1 (f=1): [w(1)][0.1%][w=1492KiB/s][w=373 IOPS][eta 06h:01m:18s]
+fio: terminating on signal 2
+
+test: (groupid=0, jobs=1): err= 0: pid=2486918: Tue Sep 16 18:53:00 2025
+  write: IOPS=380, BW=1523KiB/s (1559kB/s)(33.7MiB/22664msec); 0 zone resets
+   bw (  KiB/s): min=  848, max= 1760, per=99.94%, avg=1522.84, stdev=177.84, samples=45
+   iops        : min=  212, max=  440, avg=380.71, stdev=44.46, samples=45
+  cpu          : usr=0.00%, sys=0.36%, ctx=3998, majf=0, minf=5
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.1%, 8=0.1%, 16=0.2%, 32=0.4%, >=64=99.3%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=0,8629,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+  WRITE: bw=1523KiB/s (1559kB/s), 1523KiB/s-1523KiB/s (1559kB/s-1559kB/s), io=33.7MiB (35.3MB), run=22664-22664msec
+
+  
+
+| sas3008
+| raid 10 x 4 SSD 960GB
+| iops
+| fio
+
+[root@acs-master fio]# fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=test --filename=test --bs=4k --iodepth=64 --size=10000M --readwrite=randread --rwmixread=75
+test: (g=0): rw=randread, bs=(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine=libaio, iodepth=64
+fio-3.19
+Starting 1 process
+test: Laying out IO file (1 file / 10000MiB)
+^Cbs: 1 (f=1): [r(1)][0.5%][r=1594KiB/s][r=398 IOPS][eta 02h:01m:41s]
+fio: terminating on signal 2
+
+test: (groupid=0, jobs=1): err= 0: pid=295504: Tue Sep 16 19:45:58 2025
+  read: IOPS=348, BW=1392KiB/s (1426kB/s)(50.0MiB/37487msec)
+   bw (  KiB/s): min=  976, max= 1744, per=100.00%, avg=1396.49, stdev=170.57, samples=74
+   iops        : min=  244, max=  436, avg=349.11, stdev=42.63, samples=74
+  cpu          : usr=0.33%, sys=1.41%, ctx=13022, majf=0, minf=73
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.1%, 8=0.1%, 16=0.1%, 32=0.2%, >=64=99.5%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=13048,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+   READ: bw=1392KiB/s (1426kB/s), 1392KiB/s-1392KiB/s (1426kB/s-1426kB/s), io=50.0MiB (53.4MB), run=37487-37487msec
+
+Disk stats (read/write):
+    dm-0: ios=13325/483, merge=0/0, ticks=2499055/105897, in_queue=2604952, util=99.38%, aggrios=13325/462, aggrmerge=0/20, aggrticks=2500173/53376, aggrin_queue=2553550, aggrutil=99.41%
+  sda: ios=13325/462, merge=0/20, ticks=2500173/53376, in_queue=2553550, util=99.41%
+[root@acs-master fio]# 
+[root@acs-master fio]# 
+[root@acs-master fio]# fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=test --filename=test --bs=4k --iodepth=64 --size=10000M --readwrite=randwrite --rwmixread=75
+test: (g=0): rw=randwrite, bs=(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine=libaio, iodepth=64
+fio-3.19
+Starting 1 process
+^Cbs: 1 (f=1): [w(1)][0.2%][w=918KiB/s][w=229 IOPS][eta 02h:15m:28s] 
+fio: terminating on signal 2
+
+test: (groupid=0, jobs=1): err= 0: pid=296029: Tue Sep 16 19:46:22 2025
+  write: IOPS=314, BW=1259KiB/s (1289kB/s)(21.0MiB/17871msec); 0 zone resets
+   bw (  KiB/s): min=  496, max= 2056, per=99.80%, avg=1256.51, stdev=420.98, samples=35
+   iops        : min=  124, max=  514, avg=314.06, stdev=105.32, samples=35
+  cpu          : usr=0.41%, sys=1.12%, ctx=4653, majf=0, minf=6
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.1%, 8=0.1%, 16=0.3%, 32=0.6%, >=64=98.9%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=0,5625,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+  WRITE: bw=1259KiB/s (1289kB/s), 1259KiB/s-1259KiB/s (1289kB/s-1289kB/s), io=21.0MiB (23.0MB), run=17871-17871msec
+
+Disk stats (read/write):
+    dm-0: ios=14/5783, merge=0/0, ticks=1324/1178475, in_queue=1179799, util=89.85%, aggrios=14/5782, aggrmerge=0/3, aggrticks=1323/1179962, aggrin_queue=1181285, aggrutil=90.00%
+  sda: ios=14/5782, merge=0/3, ticks=1323/1179962, in_queue=1181285, util=90.00%
+
+
+
+
