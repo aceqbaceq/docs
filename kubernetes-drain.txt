@@ -1,0 +1,12 @@
+| kubernetes
+| drain
+
+
+# kubectl drain <node-name> --ignore-daemonsets --delete-emptydir-data
+
+
+как обратно ввести 
+
+
+# kubectl uncordon   <node-name>
+

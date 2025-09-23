@@ -1,0 +1,17 @@
+| LSI
+| megaraid
+| storcli
+
+
+
+# history | grep -i megaraid
+    5  /opt/MegaRAID/storcli/storcli64 /c0 /v0 delete force
+    6  /opt/MegaRAID/storcli/storcli64 /c0 add vd type=raid10 drives=252:0,252:1,252:2,252:3 pdperarray=2
+    7  /opt/MegaRAID/storcli/storcli64 /c0 show
+    8  /opt/MegaRAID/storcli/storcli64 /c0 add vd type=raid10 drives=34:0,34:1,34:2,34:3 pdperarray=2
+    9  /opt/MegaRAID/storcli/storcli64 /c0/v0 set iopolicy=direct
+   10  /opt/MegaRAID/storcli/storcli64 /c0 /v0 set iopolicy=direct
+   11  /opt/MegaRAID/storcli/storcli64 /c0 /v0 set wrcache=wt
+   12  /opt/MegaRAID/storcli/storcli64 /c0 show
+   43  history | grep -i megaraid
+

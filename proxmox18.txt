@@ -1,0 +1,26 @@
+ищет по всему кластеру проксмокс вм с заданным VLAN
+
+
+
+#!/usr/bin/bash
+SEARCH_VLAN="123"
+
+vms=$(pvesh get /cluster/resources --output-format json --type vm)
+echo "$vms" | jq -c '.[]' | while read -r vm; do
+  node=$(echo "$vm" | jq -r '.node')
+  vmid=$(echo "$vm" | jq -r '.vmid')
+  config=$(pvesh get /nodes/$node/qemu/$vmid/config --output-format json 2>/dev/null)
+  if [ -z "$config" ]; then
+    continue
+  fi
+  # Ищем все параметры netX
+  echo "$config" | jq -r 'to_entries[] | select(.key | test("^net[0-9]+$")) | .value' | while read -r netparams; do
+    # Проверяем, есть ли tag=SEARCH_VLAN в строке параметров
+    if echo "$netparams" | grep -q "tag=$SEARCH_VLAN"; then
+      echo "Найдена ВМ с VLAN $SEARCH_VLAN: VMID=$vmid на узле $node"
+      # Можно прервать все циклы, но в bash сложно,
+      # чтобы прервать внешний цикл, можно использовать exit 0, но внутри вложенных while корректно выйти трудно
+      # Можно просто вывести и продолжить, или использовать другие конструкции, если нужно выходить сразу.
+    fi
+  done
+done

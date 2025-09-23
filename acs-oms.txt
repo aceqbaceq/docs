@@ -300,3 +300,205 @@ OK
 
 127.0.0.1:16379> 
 
+
+
+
+
+
+
+
+
+              УСТАНОВКА OMC BASE
+
+
+
+на стадии установки мускула при запуске скрипта  install_server.sh
+нужно поменяьт порт на 26379 вместо предлагаемого 6379
+остальное как при установке ACS BASE
+
+в папке с дистрибутивом есть два файла
+
+$ ls *tar -1
+public_images.tar
+u-omc_images_1.35.70.tar
+
+
+это имаджи докера.
+а в чем разница?
+а разница в том что в одном файле лежат дистрибутивы для одного регистри
+который 
+
+          registry.public.com:9999
+
+
+так называмый паблик регистри
+
+
+а во втором файле лежат имаджи для так назыаемого приватного регистри
+
+           registry.u-omc.com:10002
+
+
+как разворачивать этот регстри смотри в файле docker-registry2.txt
+упрошенно говоря нужно на отдеьной машине поставить докер и поднять регистри
+
+  # docker run -d -p 10002:5000 --restart=always --name registry3 registry:2
+
+
+потом надо на локальном компе засосать имаджи в свой локальный докер
+
+[noroot@manjaro UN-RAR]$ sudo docker load -i  u-omc_images_1.35.70.tar 
+0c42fb82b48f: Loading layer [==================================================>]  3.072kB/3.072kB
+53fc35dcc952: Loading layer [==================================================>]  133.8MB/133.8MB
+Loaded image: registry.u-omc.com:10002/nm-service:1.35.70
+47925820b1e1: Loading layer [==================================================>]  3.072kB/3.072kB
+b62d36e3a466: Loading layer [==================================================>]  134.4MB/134.4MB
+Loaded image: registry.u-omc.com:10002/usmc-service:1.35.70
+c857b28e735c: Loading layer [==================================================>]  9.111MB/9.111MB
+6c31e1147670: Loading layer [==================================================>]  3.072kB/3.072kB
+053a0f73aead: Loading layer [==================================================>]  307.9MB/307.9MB
+c2a6c271d956: Loading layer [==================================================>]  3.072kB/3.072kB
+fdf899c4813f: Loading layer [==================================================>]   2.56kB/2.56kB
+13d695606656: Loading layer [==================================================>]  3.072kB/3.072kB
+606fbdf301a4: Loading layer [==================================================>]  2.048kB/2.048kB
+c1412d2819ff: Loading layer [==================================================>]  4.608kB/4.608kB
+98ea0a9b6f27: Loading layer [==================================================>]  119.5MB/119.5MB
+9ef4193e84fe: Loading layer [==================================================>]  329.6MB/329.6MB
+af4475599a30: Loading layer [==================================================>]  15.87kB/15.87kB
+0dfbf87ad67b: Loading layer [==================================================>]  17.41kB/17.41kB
+9ea76694324b: Loading layer [==================================================>]   16.9kB/16.9kB
+fa58d01f8b81: Loading layer [==================================================>]  4.096kB/4.096kB
+ab5e99eed5e0: Loading layer [==================================================>]    727kB/727kB
+a3b942cf1f31: Loading layer [==================================================>]   74.8MB/74.8MB
+a6c138206bb1: Loading layer [==================================================>]  4.376MB/4.376MB
+e27e1946136f: Loading layer [==================================================>]  78.98MB/78.98MB
+e24d2acec1aa: Loading layer [==================================================>]  6.144kB/6.144kB
+79ea0dca2e35: Loading layer [==================================================>]  5.632kB/5.632kB
+5f70bf18a086: Loading layer [==================================================>]  1.024kB/1.024kB
+cd95a32dc253: Loading layer [==================================================>]  9.216kB/9.216kB
+9d2506986fee: Loading layer [==================================================>]  286.1MB/286.1MB
+Loaded image: registry.u-omc.com:10002/ems-service:1.35.60
+fd6f5f957484: Loading layer [==================================================>]  3.072kB/3.072kB
+3d0e90a501db: Loading layer [==================================================>]  148.4MB/148.4MB
+Loaded image: registry.u-omc.com:10002/sm-service:1.35.70
+8023b4559daa: Loading layer [==================================================>]  3.072kB/3.072kB
+b596aaa5c274: Loading layer [==================================================>]    133MB/133MB
+Loaded image: registry.u-omc.com:10002/tr069-service:1.35.70
+553e9c159b76: Loading layer [==================================================>]  158.4MB/158.4MB
+9c9cd62a1346: Loading layer [==================================================>]  4.861MB/4.861MB
+c0c582f825c3: Loading layer [==================================================>]  58.31MB/58.31MB
+Loaded image: registry.u-omc.com:10002/openresty:1.15.8.2-1.20.00
+8043a48ee696: Loading layer [==================================================>]  3.072kB/3.072kB
+9517b237bff3: Loading layer [==================================================>]  129.3MB/129.3MB
+Loaded image: registry.u-omc.com:10002/alarm-service:1.35.70
+91a49b481f09: Loading layer [==================================================>]  3.072kB/3.072kB
+93328a0c07a9: Loading layer [==================================================>]  154.7MB/154.7MB
+Loaded image: registry.u-omc.com:10002/cfg-service:1.35.70
+69396fdd05bd: Loading layer [==================================================>]  3.072kB/3.072kB
+69c87d49b822: Loading layer [==================================================>]  98.52MB/98.52MB
+Loaded image: registry.u-omc.com:10002/httpfs-service:1.35.70
+06f0d89e3d8f: Loading layer [==================================================>]  3.072kB/3.072kB
+6118073d712e: Loading layer [==================================================>]  135.7MB/135.7MB
+Loaded image: registry.u-omc.com:10002/pm-service:1.35.70
+
+а потом их нужно засунуть в тот удаленный регистри. предвариетельно в hosts
+прописав 
+
+               1.2.3.4   registry.u-omc.com
+
+где 1.2.3.4 ип того компа где мы ращвернули наш регистри
+
+
+
+ВАЖНО! если хост в мускул стучится 100 раз с неверным праолем то мускул 
+весь хост блокирует наехер! и его нужно разблокироватьс 
+
+   mysqladmin -u root -p flush-hosts
+
+
+
+еще момент.
+в файле 
+
+  /root/U-OMC-deploy/U_OMC/U-OMC-1.35.70-full/helm/ public-deploy-v1.35.70.yaml
+
+который мы используем при деплое OMC application 
+есть вот такой кусок
+
+
+  mysql:
+    mysqlHost: "{MYSQL_HOST}" # Please replace {MYSQL_HOST}
+    mysqlPort: "{MYSQL_PORT}" # Please replace {MYSQL_PORT}
+    mysqlPara: "allowPublicKeyRetrieval=true&serverTimezone={U_OMC_TIME_ZONE}" # Please replace {U_OMC_TIME_ZONE}
+    mysqlUser: "{MYSQL_USER}" # Please replace {MYSQL_USER}
+    mysqlPassword: "{MYSQL_PWD}" # Please replace {MYSQL_PWD}
+  ems:
+
+
+
+и в нем нифига непонятно о каком юзере мускула идет речь?
+как я понимаю сюда надо вставлять логин и пароль так назыавемого 
+
+       {MYSQL_U_OMC_USER} {MYSQL_U_OMC_PWD}
+
+
+того юзера мускула которого мы заводим вот на этом шаге
+
+
+# Login to the database using {MYSQL_ROOT_PWD}
+
+mysql -p
+
+# Add user and password, please replace {MYSQL_U_OMC_USER}, {MYSQL_U_OMC_PWD}
+
+mysql> create user '{MYSQL_U_OMC_USER}'@'%' identified by '{MYSQL_U_OMC_PWD}';
+
+# Assign permissions to {MYSQL_U_OMC_USER} users
+
+mysql> GRANT Alter, Create, Create Temporary Tables, Create View, Delete, Drop, Execute, Index, Insert, Process, Select, Show Databases, Update, Alter Routine, Create Routine, Lock Tables, SET_USER_ID,SYSTEM_USER, Trigger ON *.* TO `{MYSQL_U_OMC_USER}`@`%`;
+
+mysql> alter user '{MYSQL_U_OMC_USER}'@'%' identified with mysql_native_password BY '{MYSQL_U_OMC_PWD}';
+
+mysql> flush privileges;
+
+
+
+этот мускул юзер будет исползоваться подами  OMC и EMS  для доступа в мускул.
+
+
+в этом же *.yaml файле есть непонятный кусок
+
+
+
+    bizMode: {BIZ_MODE} # Please replace {BIZ_MODE}
+    bizCkaes: {BIZ_CKAES} # Please replace {BIZ_CKAES}
+    framedRoute: {FRAMED_ROUTE} # Please replace {FRAMED_ROUTE} dafault 0
+    bizSnmpVersion: {BIZ_SNMP_VERSION} # Please replace {BIZ_SNMP_VERSION} default 1
+
+
+
+
+тоесть что сюда совать неясно.
+согласно ответу консульатантов сюда надо совать
+
+
+  ems:
+    bizMode: 1 # Please replace {BIZ_MODE}
+    bizCkaes: 0 # Please replace {BIZ_CKAES}
+
+
+
+в итоге у меня вот так
+
+    bizMode: 1 # Please replace {BIZ_MODE}
+    bizCkaes: 0 # Please replace {BIZ_CKAES}
+    framedRoute: 0 # Please replace {FRAMED_ROUTE} dafault 0
+    bizSnmpVersion: 1 # Please replace {BIZ_SNMP_VERSION} default 1
+
+    
+
+
+
+
+
+

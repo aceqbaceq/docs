@@ -1,0 +1,38 @@
+| bridge
+
+конифг в /etc/network/intefaces
+когда у нас в физ карту (enp1s0f0) входит тегированный виланы(3044 и 4022).
+и мы хотим его сунуть в vlan aware bridge 
+как это есть когда мы на компе ставим проксмокс
+
+
+
+
+auto enp1s0f0
+iface enp1s0f0 inet manual
+
+auto vmbr0
+iface vmbr0 inet manual
+    bridge_ports enp1s0f0
+    bridge_stp off
+    bridge_fd 0
+    bridge_vlan_aware yes
+    bridge_vids 4022 3044
+
+auto vmbr0.4022
+iface vmbr0.4022 inet static
+    address 100.100.2.11/24
+    gateway 100.100.2.1
+
+auto vmbr0.3044
+iface vmbr0.3044 inet static
+    address 100.100.1.17/24
+
+
+
+
+
+
+
+
+
