@@ -1123,3 +1123,356 @@ root@ocsamsh1:/mnt/01/fio# dd if=/dev/zero of=./test bs=4MiB count=2000
 
 
 ============
+
+585g7
+
+Model name:            AMD Opteron(TM) Processor 6276
+BIOS Model name:     AMD Opteron(TM) Processor 6276                    CPU @ 2.3GHz
+
+
+
+
+Smart Array P410i in Slot 0 (Embedded)
+   Bus Interface: PCI
+   Slot: 0
+   Serial Number: 5001438023EC2230
+   Cache Serial Number: PACCQID12480X2X
+   Controller Status: OK
+   Hardware Revision: C
+   Firmware Version: 5.76
+   Rebuild Priority: Low
+   Expand Priority: Medium
+   Surface Scan Delay: 15 secs
+   Surface Scan Mode: Idle
+   Parallel Surface Scan Supported: No
+   Queue Depth: Automatic
+   Monitor and Performance Delay: 60  min
+   Elevator Sort: Enabled
+   Degraded Performance Optimization: Disabled
+   Inconsistency Repair Policy: Disabled
+   Wait for Cache Room: Disabled
+   Surface Analysis Inconsistency Notification: Disabled
+   Post Prompt Timeout: 0 secs
+   Cache Board Present: True
+   Cache Status: OK
+   Cache Ratio: 100% Read / 0% Write
+   Drive Write Cache: Enabled
+   Total Cache Size: 256 MB
+   Total Cache Memory Available: 144 MB
+   No-Battery Write Cache: Disabled
+   Battery/Capacitor Count: 0
+   SATA NCQ Supported: True
+   Number of Ports: 2 Internal only
+   Driver Name: hpsa
+   Driver Version: 3.4.20
+   Driver Supports HPE SSD Smart Path: True
+   PCI Address (Domain:Bus:Device.Function): 0000:03:00.0
+   Host Serial Number: CZ33109AJ9
+   Sanitize Erase Supported: False
+   Primary Boot Volume: logicaldrive 1 (600508B1001CFBAB2623FB21A81DBB09)
+   Secondary Boot Volume: None
+
+
+raid0
+
+      physicaldrive 1I:1:2
+         Port: 1I
+         Box: 1
+         Bay: 2
+         Status: Predictive Failure
+         Drive Type: Data Drive
+         Interface Type: Solid State SATA
+         Size: 179.2 GB
+         Drive exposed to OS: False
+         Native Block Size: 512
+         Firmware Revision: LHF002D
+         Serial Number: BTLA9466085G256CGN
+         Model: ATA     INTEL SSDSC2KI25
+         SATA NCQ Capable: True
+         SATA NCQ Enabled: True
+         Current Temperature (C): 39
+         Maximum Temperature (C): 40
+         SSD Smart Trip Wearout: Not Supported
+         PHY Count: 1
+         PHY Transfer Rate: 3.0Gbps
+         Sanitize Erase Supported: False
+
+
+
+
+root@p565h1:/mnt/sdb/1/fio# fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=test --filename=test --bs=4k --iodepth=64 --size=10000M --readwrite=randread --rwmixread=75
+test: (g=0): rw=randread, bs=(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine=libaio, iodepth=64
+fio-3.33
+Starting 1 process
+Jobs: 1 (f=1): [r(1)][100.0%][r=130MiB/s][r=33.4k IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=272279: Wed Sep 24 21:59:20 2025
+  read: IOPS=33.9k, BW=132MiB/s (139MB/s)(9.77GiB/75541msec)
+   bw (  KiB/s): min=129592, max=136976, per=100.00%, avg=135631.30, stdev=1283.92, samples=150
+   iops        : min=32398, max=34244, avg=33907.43, stdev=320.93, samples=150
+  cpu          : usr=13.33%, sys=67.32%, ctx=301929, majf=0, minf=91
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.1%, 8=0.1%, 16=0.1%, 32=0.1%, >=64=100.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=2560000,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+   READ: bw=132MiB/s (139MB/s), 132MiB/s-132MiB/s (139MB/s-139MB/s), io=9.77GiB (10.5GB), run=75541-75541msec
+
+Disk stats (read/write):
+  sdb: ios=2554900/0, merge=0/0, ticks=4407348/0, in_queue=4407348, util=100.00%
+root@p565h1:/mnt/sdb/1/fio# 
+
+
+
+
+
+
+
+
+
+root@p565h1:/mnt/sdb/1/fio# 
+root@p565h1:/mnt/sdb/1/fio# fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=test --filename=test --bs=4k --iodepth=64 --size=10000M --readwrite=randwrite
+test: (g=0): rw=randwrite, bs=(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine=libaio, iodepth=64
+fio-3.33
+Starting 1 process
+Jobs: 1 (f=1): [w(1)][100.0%][w=105MiB/s][w=26.9k IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=272741: Wed Sep 24 22:02:17 2025
+  write: IOPS=26.7k, BW=104MiB/s (109MB/s)(9.77GiB/95808msec); 0 zone resets
+   bw (  KiB/s): min=37716, max=113384, per=100.00%, avg=106944.64, stdev=9403.84, samples=191
+   iops        : min= 9429, max=28346, avg=26735.85, stdev=2350.94, samples=191
+  cpu          : usr=12.54%, sys=60.37%, ctx=341206, majf=0, minf=28
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.1%, 8=0.1%, 16=0.1%, 32=0.1%, >=64=100.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=0,2560000,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+  WRITE: bw=104MiB/s (109MB/s), 104MiB/s-104MiB/s (109MB/s-109MB/s), io=9.77GiB (10.5GB), run=95808-95808msec
+
+Disk stats (read/write):
+  sdb: ios=0/2555454, merge=0/0, ticks=0/5800922, in_queue=5800922, util=100.00%
+root@p565h1:/mnt/sdb/1/fio# 
+
+
+
+
+
+
+=================
+
+585G7  сервер
+smart array p410i  контрроллер
+
+ceph из 3-х дисков  (три OSD)           INTEL SSDSC2KI25
+
+
+выдает 17 000-18 000 IOPS на тесте
+ fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=test --filename=/mnt/fio/1/test --bs=4k --iodepth=64 --size=10000M --readwrite=randread
+
+
+если убавить osd до двух то чтение падает до 12 000 IOPS тоесть  один диск (oSD ) дает 5000-6000 IOPS
+
+
+сам контроллер с этого диска на RAID0 может снять на этом тесте 26 000 IOPS.
+а если этот диск сунуть в AHCI порт то на этом тесте с этого диска можно снять 86 000 IOPS
+
+однозначно я упираюсь в скорость ядра!
+Device            r/s     rkB/s   rrqm/s  %rrqm r_await rareq-sz     w/s     wkB/s   wrqm/s  %wrqm w_await wareq-sz     d/s     dkB/s   drqm/s  %drqm d_await dareq-sz     f/s f_await  aqu-sz  %util
+sdb           4356.00  17424.00     0.00   0.00    0.19     4.00    2.00     12.00     1.00  33.33    0.50     6.00    0.00      0.00     0.00   0.00    0.00     0.00    0.00    0.00    0.84  54.50
+
+потому что видно что диск занят по busytime на 54%
+(остальные иопсы читаются по сети от других нод)
+
+
+
+на текущем этапе как я понимаю упираемся в скорость 1-го ядра цпу.
+также если запустить две виртуалки или два контейнера то скорость делится между 
+ними. тоесть 18000 IOPS делится между контейнерами
+
+сеть 10Gb при этом загружена на 22 МБ/с в обе стороны
+
+
+====================
+
+ceph 
+performance
+
+8 хостов
+на каждом хосте стоит по 3 OSD. (итого 24 OSD)
+каждый OSD состоит из 
+       1 HDD 2.5'' 900GB SAS 10000 RPM шпиндель диска 
+          плюс 
+        SSD диск INTEL SSDSC2KG48 под журнал
+
+сеть 10Gb 
+
+
+# fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=test --filename=test --bs=4k --iodepth=64 --size=10000M --readwrite=randread --rwmixread=75
+test: (g=0): rw=randread, bs=(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine=libaio, iodepth=64
+fio-3.33
+Starting 1 process
+test: Laying out IO file (1 file / 10000MiB)
+^Cbs: 1 (f=1): [r(1)][9.8%][r=9024KiB/s][r=2256 IOPS][eta 15m:08s] 
+fio: terminating on signal 2
+
+test: (groupid=0, jobs=1): err= 0: pid=17845: Fri Sep 26 18:48:32 2025
+  read: IOPS=2542, BW=9.93MiB/s (10.4MB/s)(985MiB/99189msec)
+   bw (  KiB/s): min= 5984, max=12984, per=100.00%, avg=10192.67, stdev=1340.03, samples=198
+   iops        : min= 1496, max= 3246, avg=2547.99, stdev=335.03, samples=198
+  cpu          : usr=1.09%, sys=8.09%, ctx=212931, majf=0, minf=89
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.1%, 8=0.1%, 16=0.1%, 32=0.1%, >=64=100.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=252154,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+   READ: bw=9.93MiB/s (10.4MB/s), 9.93MiB/s-9.93MiB/s (10.4MB/s-10.4MB/s), io=985MiB (1033MB), run=99189-99189msec
+
+Disk stats (read/write):
+  rbd1: ios=252129/22, merge=0/0, ticks=6314288/497, in_queue=6314785, util=100.00%
+
+
+ИТОГО random read 2256 IOPS (пиздец как медленно)
+
+
+
+# fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=test --filename=test --bs=4k --iodepth=64 --size=10000M --readwrite=randwrite
+test: (g=0): rw=randwrite, bs=(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine=libaio, iodepth=64
+fio-3.33
+Starting 1 process
+ bs: 1 (f=1): [w(1)][9.2%][w=7235KiB/s][w=1808 IOPS][eta 17m:46s]
+fio: terminating on signal 2
+Jobs: 1 (f=0): [f(1)][100.0%][w=4316KiB/s][w=1079 IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=17852: Fri Sep 26 18:50:36 2025
+  write: IOPS=2174, BW=8698KiB/s (8907kB/s)(916MiB/107817msec); 0 zone resets
+   bw (  KiB/s): min= 3711, max=15014, per=100.00%, avg=8720.94, stdev=2247.92, samples=215
+   iops        : min=  927, max= 3753, avg=2180.09, stdev=562.01, samples=215
+  cpu          : usr=0.99%, sys=7.10%, ctx=180594, majf=0, minf=14
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.1%, 8=0.1%, 16=0.1%, 32=0.1%, >=64=100.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=0,234453,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+  WRITE: bw=8698KiB/s (8907kB/s), 8698KiB/s-8698KiB/s (8907kB/s-8907kB/s), io=916MiB (960MB), run=107817-107817msec
+
+Disk stats (read/write):
+  rbd1: ios=0/234330, merge=0/0, ticks=0/6850661, in_queue=6850660, util=99.98%
+
+
+
+
+ИТОГО random write 1808 IOPS (пиздец как медленно)
+
+
+======================
+
+
+ZFS 
+pool вот такой
+
+  pool: strip-2mirror
+ state: ONLINE
+  scan: scrub repaired 0B in 08:46:21 with 0 errors on Sun Sep 14 08:46:24 2025
+config:
+
+  NAME                                            STATE     READ WRITE CKSUM
+  strip-2mirror                                   ONLINE       0     0     0
+    mirror-0                                      ONLINE       0     0     0
+      gptid/04b6cc93-dca8-11ea-af22-782bcb09ac2d  ONLINE       0     0     0
+      gptid/04becd1b-dca8-11ea-af22-782bcb09ac2d  ONLINE       0     0     0
+    mirror-1                                      ONLINE       0     0     0
+      gptid/04c381f9-dca8-11ea-af22-782bcb09ac2d  ONLINE       0     0     0
+      gptid/04df1d47-dca8-11ea-af22-782bcb09ac2d  ONLINE       0     0     0
+    mirror-2                                      ONLINE       0     0     0
+      gptid/04fa174a-dca8-11ea-af22-782bcb09ac2d  ONLINE       0     0     0
+      gptid/b4ed60c8-7b3c-11eb-8ac6-782bcb09ac2d  ONLINE       0     0     0
+    mirror-3                                      ONLINE       0     0     0
+      gptid/aa2e44c8-7b3b-11eb-8ac6-782bcb09ac2d  ONLINE       0     0     0
+      gptid/aa3c7586-7b3b-11eb-8ac6-782bcb09ac2d  ONLINE       0     0     0
+    mirror-4                                      ONLINE       0     0     0
+      gptid/0714e2bd-7b3c-11eb-8ac6-782bcb09ac2d  ONLINE       0     0     0
+      gptid/0725ae55-7b3c-11eb-8ac6-782bcb09ac2d  ONLINE       0     0     0
+    mirror-5                                      ONLINE       0     0     0
+      gptid/69564a87-a431-11eb-8ac6-782bcb09ac2d  ONLINE       0     0     0
+      gptid/6991aa26-a431-11eb-8ac6-782bcb09ac2d  ONLINE       0     0     0
+    mirror-6                                      ONLINE       0     0     0
+      gptid/4d34f1b1-9c8b-11ed-9ab1-782bcb09ac2d  ONLINE       0     0     0
+      gptid/4d5598d8-9c8b-11ed-9ab1-782bcb09ac2d  ONLINE       0     0     0
+    mirror-7                                      ONLINE       0     0     0
+      gptid/8b53c1e9-b6dc-11ee-9b3c-782bcb09ac2d  ONLINE       0     0     0
+      gptid/8b80fc53-b6dc-11ee-9b3c-782bcb09ac2d  ONLINE       0     0     0
+    mirror-8                                      ONLINE       0     0     0
+      gptid/67481144-2df8-11ef-9b3c-782bcb09ac2d  ONLINE       0     0     0
+      gptid/6764fb75-2df8-11ef-9b3c-782bcb09ac2d  ONLINE       0     0     0
+    mirror-9                                      ONLINE       0     0     0
+      gptid/95bedf1a-2df8-11ef-9b3c-782bcb09ac2d  ONLINE       0     0     0
+      gptid/95aa8d1a-2df8-11ef-9b3c-782bcb09ac2d  ONLINE       0     0     0
+    mirror-10                                     ONLINE       0     0     0
+      gptid/a9b90f50-2df8-11ef-9b3c-782bcb09ac2d  ONLINE       0     0     0
+      gptid/a9c2aecc-2df8-11ef-9b3c-782bcb09ac2d  ONLINE       0     0     0
+    mirror-11                                     ONLINE       0     0     0
+      gptid/60fdf86b-0963-11f0-ae79-782bcb09ac2d  ONLINE       0     0     0
+      gptid/6109c0d5-0963-11f0-ae79-782bcb09ac2d  ONLINE       0     0     0
+    mirror-12                                     ONLINE       0     0     0
+      gptid/7258d993-0963-11f0-ae79-782bcb09ac2d  ONLINE       0     0     0
+      gptid/726281c0-0963-11f0-ae79-782bcb09ac2d  ONLINE       0     0     0
+    mirror-13                                     ONLINE       0     0     0
+      gptid/85fc24bc-0963-11f0-ae79-782bcb09ac2d  ONLINE       0     0     0
+      gptid/85f1da7e-0963-11f0-ae79-782bcb09ac2d  ONLINE       0     0     0
+    mirror-14                                     ONLINE       0     0     0
+      gptid/b4f96ce9-7b3c-11eb-8ac6-782bcb09ac2d  ONLINE       0     0     0
+      gptid/90d7907b-0963-11f0-ae79-782bcb09ac2d  ONLINE       0     0     0
+    mirror-15                                     ONLINE       0     0     0
+      gptid/9c46ff52-0963-11f0-ae79-782bcb09ac2d  ONLINE       0     0     0
+      gptid/9c948a9a-0963-11f0-ae79-782bcb09ac2d  ONLINE       0     0     0
+    mirror-16                                     ONLINE       0     0     0
+      gptid/ab56f791-5d07-11f0-9585-782bcb09ac2d  ONLINE       0     0     0
+      gptid/a89a9348-0963-11f0-ae79-782bcb09ac2d  ONLINE       0     0     0
+    mirror-17                                     ONLINE       0     0     0
+      gptid/e7a009d4-5bed-11f0-ae79-782bcb09ac2d  ONLINE       0     0     0
+      mfid24                                      ONLINE       0     0     0
+  spares
+    gptid/ab4cba0d-5d07-11f0-9585-782bcb09ac2d    AVAIL   
+    gptid/bcdadc57-713d-11f0-9585-782bcb09ac2d    AVAIL   
+
+
+по факту это все 2ТБ шпидель диски
+
+и он расшарен по NFS
+
+
+тестирую скорость
+
+
+# fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=./test --filename=test --bs=4k --iodepth=64 --size=32000M --readwrite=randread 
+./test: (g=0): rw=randread, bs=(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine=libaio, iodepth=64
+fio-3.25
+Starting 1 process
+^Cbs: 1 (f=1): [r(1)][0.6%][r=2506KiB/s][r=626 IOPS][eta 02h:00m:18s] 
+fio: terminating on signal 2
+Jobs: 1 (f=1): [r(1)][0.7%][r=1469KiB/s][r=367 IOPS][eta 02h:02m:00s]
+./test: (groupid=0, jobs=1): err= 0: pid=3033789: Fri Sep 26 22:42:53 2025
+  read: IOPS=1112, BW=4451KiB/s (4558kB/s)(209MiB/48010msec)
+   bw (  KiB/s): min=  848, max=65640, per=100.00%, avg=4493.00, stdev=7958.88, samples=95
+   iops        : min=  212, max=16410, avg=1123.24, stdev=1989.71, samples=95
+  cpu          : usr=0.68%, sys=2.76%, ctx=37579, majf=0, minf=388
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.1%, 8=0.1%, 16=0.1%, 32=0.1%, >=64=99.9%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=53428,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+   READ: bw=4451KiB/s (4558kB/s), 4451KiB/s-4451KiB/s (4558kB/s-4558kB/s), io=209MiB (219MB), run=48010-48010msec
+
+
+
+ИТОГО: какой то пиздец  RAND READ 626 IOPS
+
+
+======================

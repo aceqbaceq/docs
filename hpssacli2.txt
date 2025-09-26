@@ -1,0 +1,104 @@
+| hpssacli
+| ssacli
+| smart array
+| smartpath
+| smart path
+
+
+
+есть такая фича smartpath
+она для обслживания ssd дисков
+но! но по факту не все контроллеры подерживают.
+нпример p410i ее не поддерживает
+а когда мы смотрим параметры контроллера то там ssssmartpath указан не как
+свойства контроллера а как свойство драйвера!
+
+
+
+#   hpssacli ctrl slot=0 show
+
+Smart Array P410i in Slot 0 (Embedded)
+   Bus Interface: PCI
+   Slot: 0
+   Serial Number: 5001438023EC2230
+   Cache Serial Number: PACCQID12480X2X
+   Controller Status: OK
+   Hardware Revision: C
+   Firmware Version: 5.76
+   Rebuild Priority: Low
+   Expand Priority: Medium
+   Surface Scan Delay: 15 secs
+   Surface Scan Mode: Idle
+   Parallel Surface Scan Supported: No
+   Queue Depth: Automatic
+   Monitor and Performance Delay: 60  min
+   Elevator Sort: Enabled
+   Degraded Performance Optimization: Disabled
+   Inconsistency Repair Policy: Disabled
+   Wait for Cache Room: Disabled
+   Surface Analysis Inconsistency Notification: Disabled
+   Post Prompt Timeout: 0 secs
+   Cache Board Present: True
+   Cache Status: OK
+   Cache Ratio: 100% Read / 0% Write
+   Drive Write Cache: Enabled
+   Total Cache Size: 256 MB
+   Total Cache Memory Available: 144 MB
+   No-Battery Write Cache: Disabled
+   Battery/Capacitor Count: 0
+   SATA NCQ Supported: True
+   Number of Ports: 2 Internal only
+   Driver Name: hpsa
+   Driver Version: 3.4.20
+   Driver Supports HPE SSD Smart Path: True                   <<<***!!!***<<<***!!!**<<
+   PCI Address (Domain:Bus:Device.Function): 0000:03:00.0
+   Host Serial Number: CZ33109AJ9
+   Sanitize Erase Supported: False
+   Primary Boot Volume: logicaldrive 1 (600508B1001CFBAB2623FB21A81DBB09)
+   Secondary Boot Volume: None
+
+
+так вот p410i эту фичу не поддерживает
+
+
+
+
+# hpssacli ctrl slot=0 ld 2 show
+
+Smart Array P410i in Slot 0 (Embedded)
+
+   array B
+
+      Logical Drive: 2
+         Size: 166.9 GB
+         Fault Tolerance: 0
+         Heads: 255
+         Sectors Per Track: 32
+         Cylinders: 42884
+         Strip Size: 256 KB
+         Full Stripe Size: 256 KB
+         Status: OK
+         Caching:  Disabled
+         Unique Identifier: 600508B1001C4B4CD60EE002823188D1
+         Disk Name: /dev/sdb 
+         Mount Points: None
+         Logical Drive Label: AB0C639A5001438023EC2230C553
+         Drive Type: Data
+         LD Acceleration Method: All disabled    ********<<<<<<<<<<<
+
+
+указан тип кэширования который контроллер применяет для этого луна
+
+
+  
+#   hpssacli ctrl slot=0 array B  modify ssdsmartpath=enable
+
+Error: This operation is not supported with the current configuration. Use the 
+       "show" command on devices to show additional details about the
+       configuration.
+Reason: Not Applicable
+
+
+вот попытка актировать ssd smart path для луна из ссд терпит крах.
+так как p410i эту фичу не поддерживает
+
