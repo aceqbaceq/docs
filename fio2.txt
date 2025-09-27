@@ -1476,3 +1476,53 @@ Run status group 0 (all jobs):
 
 
 ======================
+
+nvme диск
+
+$ nvme list
+Model                                    Namespace  Usage                      Format             
+--------------------- --------------------- -------------------- -----------------------------
+WDC PC SN520 SDAPMUW-512G-1101           0x1        512.11  GB / 512.11  GB      4 KiB +  0 B   
+
+
+ N 㸒  $ fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=test --filename=test --bs=4k --iodepth=64 --size=10000M --readwrite=randread
+test: (g=0): rw=randread, bs=(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine=libaio, iodepth=64
+fio-3.39
+Starting 1 process
+Jobs: 1 (f=1): [r(1)][100.0%][r=431MiB/s][r=110k IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=153276: Sat Sep 27 19:16:59 2025
+  read: IOPS=113k, BW=440MiB/s (461MB/s)(9.77GiB/22727msec)
+   bw (  KiB/s): min=419896, max=470736, per=100.00%, avg=450731.38, stdev=8717.04, samples=45
+   iops        : min=104974, max=117684, avg=112682.84, stdev=2179.26, samples=45
+  cpu          : usr=18.01%, sys=59.32%, ctx=2322, majf=0, minf=71
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.1%, 8=0.1%, 16=0.1%, 32=0.1%, >=64=100.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=2560000,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+   READ: bw=440MiB/s (461MB/s), 440MiB/s-440MiB/s (461MB/s-461MB/s), io=9.77GiB (10.5GB), run=22727-22727msec
+
+Disk stats (read/write):
+    dm-0: ios=2548971/43, sectors=20391768/1544, merge=0/0, ticks=781053/14, in_queue=781067, util=99.62%, aggrios=2560000/43, aggsectors=20480000/1544, aggrmerge=0/0, aggrticks=739692/14, aggrin_queue=739714, aggrutil=86.34%
+  nvme0n1: ios=2560000/43, sectors=20480000/1544, merge=0/0, ticks=739692/14, in_queue=739714, 
+  util=86.34%
+
+
+итого рандом рид 110 000 IOPS
+
+
+а вот еще
+ N 舔  $ sudo dd if=/dev/nvme0n1   of=/dev/null bs=8MiB status=progress
+3531603968 bytes (3,5 GB, 3,3 GiB) copied, 5 s, 703 MB/s^C
+439+0 records in
+438+0 records out
+3674210304 bytes (3,7 GB, 3,4 GiB) copied, 5,60163 s, 656 MB/s
+
+ну както маловато. согласно спеку
+    https://documents.westerndigital.com/content/dam/doc-library/en_us/assets/public/western-digital/product/internal-drives/pc-sn520-ssd/data-sheet-pc-sn520-compute.pdf
+
+он должен на секвеншиал рид выжимать 1700 MB/s
+
+
