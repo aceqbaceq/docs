@@ -176,84 +176,6 @@ serializable
 другое дело что если комит противорчеит сериалиазции то база его отвергнет на стадии комита.
 
 
-ИТАК 
-двигаем дальше
-начнем установку etcd
-
-
-
-
-ставим две ВМ.
-на каждую в /usr/local/bin качаем бинарники отсюда
-	https://github.com/etcd-io/etcd/releases/download/v3.6.4/etcd-v3.6.4-linux-amd64.tar.gz
-
-
-
-на первой машине запускаем
-/usr/local/bin/etcd \
-      --name etcd1 \
-      --data-dir ./etcd1 \
-      --listen-client-urls http://0.0.0.0:2379  \
-      --advertise-client-urls http://172.16.10.25:2379  \
-      --listen-peer-urls http://0.0.0.0:2380  \
-      --initial-advertise-peer-urls http://172.16.10.25:2380  \
-      --initial-cluster etcd1=http://172.16.10.25:2380,etcd2=http://172.16.10.26:2380   \
-      --initial-cluster-token tkn  \
-      --initial-cluster-state new  \
-      --log-level info  \
-      --logger zap  \
-      --log-outputs stderr
-
-
-
-на второй машине запускаем
-/usr/local/bin/etcd \
-      --name etcd2 \
-      --data-dir ./etcd2 \
-      --listen-client-urls http://0.0.0.0:2379  \
-      --advertise-client-urls http://172.16.10.26:2379  \
-      --listen-peer-urls http://0.0.0.0:2380  \
-      --initial-advertise-peer-urls http://172.16.10.26:2380  \
-      --initial-cluster etcd1=http://172.16.10.25:2380,etcd2=http://172.16.10.26:2380   \
-      --initial-cluster-token tkn  \
-      --initial-cluster-state new  \
-      --log-level info  \
-      --logger zap  \
-      --log-outputs stderr
-
-
-
-
-если сервис на машине стартанул то на портах 2379 и 2380 должен прилепиться процесс
-далее нужно проверить увид
-
-
-
-
-
-
-etcdctl member add etcd3 --peer-urls=http://172.16.10.27:2380
-
-
-
-
-
-
-/usr/local/bin/etcd \
-  --name etcd3 \
-  --data-dir ./etcd3 \
-  --listen-client-urls http://0.0.0.0:2379 \
-  --advertise-client-urls http://172.16.10.27:2379 \
-  --listen-peer-urls http://0.0.0.0:2380 \
-  --initial-advertise-peer-urls http://172.16.10.27:2380 \
-  --initial-cluster etcd1=http://172.16.10.25:2380,etcd2=http://172.16.10.26:2380,etcd3=http://172.16.10.27:2380 \
-  --initial-cluster-token tkn \
-  --initial-cluster-state existing \
-  --log-level info \
-  --logger zap \
-  --log-outputs stderr
-
-
 
 
 проги для проверки статуса
@@ -280,5 +202,19 @@ etcdctl member add etcd3 --peer-urls=http://172.16.10.27:2380
 как померить перфоманс кластера. 
 тут прикол в том что etcd очень юзает диск жесткий диск для протоколирования 
 транзакций
+
+
+при работе etcd юзает  RAFT алогритм
+в инетет есть приколтная презентация как он работает но я не могу щас ее найти.
+там в частности суть в том что в кластере есть толко один мастер. клиент для записи 
+должен обартатиться только на него или если он обращается на немастер то немастер
+через себя проксирует запрос все равно на мастер. клиент пишет новое занчение в базу.
+тогда мастер начинает много кратный обмен с немастерами по поводу этого нового значения.
+там идет движуха туда сюда. и только потом когда мастер убедиться что данные 
+записаны на немастеры он записывает себе и вовзаращает клиенту ответ что данные
+записаны. таким образом если клиенет получил от мастера ответ что даныне записаны
+это значит что они реально записаны на все ноды и можно быть в этом уверенным. поэтому
+чем больше тормозит запись на диск на нодах тем дольше мастер неподтверждает что
+запись состоялась и тем дольше клиент будет висеть в ожидании.
 
 
