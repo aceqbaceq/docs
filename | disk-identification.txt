@@ -1,0 +1,46 @@
+| freebsd
+| linux
+| solaris
+| disks
+| raid
+| zfs
+
+эта хрень помвсвящена тому как на разных ос найти полкную инфо
+ по дискам воткнутым и контроллерам. и еще про рейд инфо получить. 
+
+
+linux:
+если у нас диски напрямую доступны ос то есть когда у нас дисковый 
+контрллер работает в режиме AHCI или HBA 
+то вот так
+
+
+	$ lsblk -o NAME,MODEL,SERIAL
+
+
+
+$ lsblk -o NAME,MODEL,SERIAL
+NAME                 MODEL            SERIAL
+sda                  EG1200JEMDY      WFK7MP65
+└─ceph--b53                  
+sdb                  INTEL_SSDSC2KG48 BTYG847303X0480BGN
+└─ceph--650                     
+sdc                  EG1200JEHMC      0EGW157L
+└─ceph--adc                  
+sdd                  EG0146FAWHU      6SD15SSD0000B109H3XK
+├─sdd1                                                                                                                 
+├─sdd2                                                                                                                 
+└─sdd3                                                                                                                 
+sde                  INTEL_SSDSC2KG48 BTYG847303WH480BGN
+└─ceph--bd1                     
+sdf                  EG1200JEHMC      0EGU06LL
+└─ceph--643cde                  
+sdg                  EG0146FAWHU      3SD2CTN400009024ZS6Q
+├─sdg1                                                                                                                 
+├─sdg2                                                                                                                 
+└─sdg3                                                                                                                 
+sdh                 INTEL_SSDSC2KI51 PHLA802102C1512DGN
+└─ceph--0b                     
+                                                                                                             
+
+тоесть мы видим то что нужно. букву диска. и его модель.

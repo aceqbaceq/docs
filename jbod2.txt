@@ -1,0 +1,26 @@
+| lsi
+| storcli
+| megacli
+| jbod
+
+
+
+
+
+   - Включить глобально JBOD:
+     ```
+     megacli -AdpSetProp -EnableJBOD -1 -aALL
+     ```
+     Или
+     ```
+     storcli /c0 set jbod=on
+     ```
+
+   - Сделать конкретный диск JBOD:
+     ```
+     megacli -PDMakeJBOD -PhysDrv[EnclosureID:SlotID] -a0
+     ```
+     или
+     ```
+     storcli /c0/e<EnclosureID>/s<SlotID> set jbod
+     ```
