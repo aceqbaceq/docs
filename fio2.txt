@@ -1526,3 +1526,265 @@ Disk stats (read/write):
 он должен на секвеншиал рид выжимать 1700 MB/s
 
 
+
+=========================
+
+AHCI порт 6Gb/s
+cpu Intel(R) Core(TM) i3-4130 CPU @ 3.40GHz
+диск  INTEL SSDSC2KI256G8
+
+linear read
+ dd if=/dev/sda2 of=/dev/null bs=8MiB status=progress
+24754782208 bytes (25 GB, 23 GiB) copied, 44 s, 563 MB/s
+
+
+random read  76 000 IOPS
+
+o# fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=test --filename=test --bs=4k --iodepth=64 --size=10000M --readwrite=randread
+test: (g=0): rw=randread, bs=(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine=libaio, iodepth=64
+fio-3.33
+Starting 1 process
+Jobs: 1 (f=1): [r(1)][100.0%][r=301MiB/s][r=76.9k IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=1113: Tue Sep 30 07:54:43 2025
+  read: IOPS=76.6k, BW=299MiB/s (314MB/s)(9.77GiB/33406msec)
+   bw (  KiB/s): min=304360, max=308032, per=99.96%, avg=306399.88, stdev=737.70, samples=66
+   iops        : min=76090, max=77008, avg=76599.97, stdev=184.41, samples=66
+  cpu          : usr=18.48%, sys=29.29%, ctx=2401403, majf=0, minf=71
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.1%, 8=0.1%, 16=0.1%, 32=0.1%, >=64=100.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=2560000,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+   READ: bw=299MiB/s (314MB/s), 299MiB/s-299MiB/s (314MB/s-314MB/s), io=9.77GiB (10.5GB), run=33406-33406msec
+
+Disk stats (read/write):
+  sda: ios=2555449/0, merge=3482/0, ticks=2121214/0, in_queue=2121214, util=79.07%
+
+
+random write 68 800 IOPS
+
+# fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=test --filename=test --bs=4k --iodepth=64 --size=10000M --readwrite=randwrite
+test: (g=0): rw=randwrite, bs=(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine=libaio, iodepth=64
+fio-3.33
+Starting 1 process
+Jobs: 1 (f=1): [w(1)][100.0%][w=269MiB/s][w=68.8k IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=1120: Tue Sep 30 07:56:09 2025
+  write: IOPS=72.9k, BW=285MiB/s (298MB/s)(9.77GiB/35136msec); 0 zone resets
+   bw (  KiB/s): min=256696, max=358720, per=100.00%, avg=291689.83, stdev=31415.96, samples=70
+   iops        : min=64174, max=89680, avg=72922.49, stdev=7853.97, samples=70
+  cpu          : usr=19.87%, sys=40.21%, ctx=1419012, majf=0, minf=9
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.1%, 8=0.1%, 16=0.1%, 32=0.1%, >=64=100.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=0,2560000,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+  WRITE: bw=285MiB/s (298MB/s), 285MiB/s-285MiB/s (298MB/s-298MB/s), io=9.77GiB (10.5GB), run=35136-35136msec
+
+Disk stats (read/write):
+  sda: ios=0/2542649, merge=0/1107, ticks=0/2146857, in_queue=2146895, util=83.84%
+
+
+
+
+диск  Micron_5300_MTFDDAK480TDS
+
+
+LINEAR READ
+# dd if=/dev/sdc2 of=/dev/null bs=8MiB status=progress
+23882366976 bytes (24 GB, 22 GiB) copied, 45 s, 531 MB/s
+
+
+
+
+RANDOM READ  83.6k IOPS
+
+
+# fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=test --filename=test --bs=4k --iodepth=64 --size=10000M --readwrite=randread
+test: (g=0): rw=randread, bs=(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine=libaio, iodepth=64
+fio-3.33
+Starting 1 process
+Jobs: 1 (f=1): [r(1)][100.0%][r=327MiB/s][r=83.6k IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=1184: Tue Sep 30 08:04:44 2025
+  read: IOPS=84.0k, BW=328MiB/s (344MB/s)(9.77GiB/30463msec)
+   bw (  KiB/s): min=330336, max=341280, per=100.00%, avg=336455.60, stdev=2010.31, samples=60
+   iops        : min=82584, max=85320, avg=84113.87, stdev=502.54, samples=60
+  cpu          : usr=22.57%, sys=43.84%, ctx=2204234, majf=0, minf=72
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.1%, 8=0.1%, 16=0.1%, 32=0.1%, >=64=100.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=2560000,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+   READ: bw=328MiB/s (344MB/s), 328MiB/s-328MiB/s (344MB/s-344MB/s), io=9.77GiB (10.5GB), run=30463-30463msec
+
+Disk stats (read/write):
+  sdc: ios=2552055/0, merge=2546/0, ticks=1925696/0, in_queue=1925696, util=72.27%
+
+
+
+
+RANDOM WRITE   87.2k IOPS
+
+
+# fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=test --filename=test --bs=4k --iodepth=64 --size=10000M --readwrite=randwrite
+test: (g=0): rw=randwrite, bs=(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine=libaio, iodepth=64
+fio-3.33
+Starting 1 process
+Jobs: 1 (f=1): [w(1)][100.0%][w=340MiB/s][w=87.2k IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=1191: Tue Sep 30 08:05:44 2025
+  write: IOPS=86.4k, BW=338MiB/s (354MB/s)(9.77GiB/29622msec); 0 zone resets
+   bw (  KiB/s): min=329488, max=350888, per=100.00%, avg=345828.75, stdev=6021.10, samples=59
+   iops        : min=82372, max=87722, avg=86457.15, stdev=1505.16, samples=59
+  cpu          : usr=20.06%, sys=39.11%, ctx=2116614, majf=0, minf=7
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.1%, 8=0.1%, 16=0.1%, 32=0.1%, >=64=100.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=0,2560000,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+  WRITE: bw=338MiB/s (354MB/s), 338MiB/s-338MiB/s (354MB/s-354MB/s), io=9.77GiB (10.5GB), run=29622-29622msec
+
+Disk stats (read/write):
+  sdc: ios=0/2539291, merge=0/1424, ticks=0/1853982, in_queue=1853983, util=83.09%
+
+==================================================================
+
+
+HBA контроллер LSI 9217-8i  , 6Gb/s
+
+
+диск  INTEL SSDSC2KI256G8
+
+
+LINEAR READ 483 MB/s
+
+
+
+
+RANDOM READ  49.8k IOPS
+
+
+# fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=test --filename=test --bs=4k --iodepth=64 --size=10000M --readwrite=randread
+test: (g=0): rw=randread, bs=(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine=libaio, iodepth=64
+fio-3.33
+Starting 1 process
+Jobs: 1 (f=1): [r(1)][100.0%][r=195MiB/s][r=49.8k IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=1243: Tue Sep 30 08:16:06 2025
+  read: IOPS=49.4k, BW=193MiB/s (202MB/s)(9.77GiB/51801msec)
+   bw (  KiB/s): min=192672, max=203568, per=100.00%, avg=197688.85, stdev=981.26, samples=103
+   iops        : min=48168, max=50892, avg=49422.25, stdev=245.31, samples=103
+  cpu          : usr=14.05%, sys=42.12%, ctx=1574887, majf=0, minf=79
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.1%, 8=0.1%, 16=0.1%, 32=0.1%, >=64=100.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=2560000,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+   READ: bw=193MiB/s (202MB/s), 193MiB/s-193MiB/s (202MB/s-202MB/s), io=9.77GiB (10.5GB), run=51801-51801msec
+
+Disk stats (read/write):
+  sda: ios=2548663/0, merge=2044/0, ticks=3274666/0, in_queue=3274666, util=78.01%
+
+
+
+
+
+RANDOM WRITE 40.8k IOPS
+
+# fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=test --filename=test --bs=4k --iodepth=64 --size=10000M --readwrite=randwrite
+test: (g=0): rw=randwrite, bs=(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine=libaio, iodepth=64
+fio-3.33
+Starting 1 process
+Jobs: 1 (f=1): [w(1)][100.0%][w=159MiB/s][w=40.8k IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=1536: Tue Sep 30 08:25:57 2025
+  write: IOPS=40.8k, BW=159MiB/s (167MB/s)(9.77GiB/62740msec); 0 zone resets
+   bw (  KiB/s): min=150656, max=169928, per=100.00%, avg=163220.74, stdev=3468.80, samples=125
+   iops        : min=37664, max=42482, avg=40805.17, stdev=867.20, samples=125
+  cpu          : usr=14.31%, sys=41.35%, ctx=1880876, majf=0, minf=19
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.1%, 8=0.1%, 16=0.1%, 32=0.1%, >=64=100.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=0,2560000,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+  WRITE: bw=159MiB/s (167MB/s), 159MiB/s-159MiB/s (167MB/s-167MB/s), io=9.77GiB (10.5GB), run=62740-62740msec
+
+Disk stats (read/write):
+  sda: ios=0/2552193, merge=0/2547, ticks=0/3947846, in_queue=3947893, util=84.92%
+
+
+
+
+диск  Micron_5300_MTFDDAK480TDS
+
+
+LINEAR READ 460 MB/s
+
+
+
+RANDOM READ  41.6k IOPS
+
+
+# fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=test --filename=test --bs=4k --iodepth=64 --size=10000M --readwrite=randread
+test: (g=0): rw=randread, bs=(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine=libaio, iodepth=64
+fio-3.33
+Starting 1 process
+Jobs: 1 (f=1): [r(1)][100.0%][r=162MiB/s][r=41.6k IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=1305: Tue Sep 30 08:19:47 2025
+  read: IOPS=37.8k, BW=148MiB/s (155MB/s)(9.77GiB/67770msec)
+   bw (  KiB/s): min=135832, max=177560, per=100.00%, avg=151160.65, stdev=11261.55, samples=135
+   iops        : min=33958, max=44390, avg=37790.19, stdev=2815.37, samples=135
+  cpu          : usr=12.62%, sys=35.15%, ctx=1710786, majf=0, minf=79
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.1%, 8=0.1%, 16=0.1%, 32=0.1%, >=64=100.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=2560000,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+   READ: bw=148MiB/s (155MB/s), 148MiB/s-148MiB/s (155MB/s-155MB/s), io=9.77GiB (10.5GB), run=67770-67770msec
+
+Disk stats (read/write):
+  sdd: ios=2552457/2, merge=2639/0, ticks=4277346/4, in_queue=4277352, util=77.48%
+
+
+
+RANDOM WRITE 40.1k IOPS
+
+
+# fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=test --filename=test --bs=4k --iodepth=64 --size=10000M --readwrite=randwrite
+test: (g=0): rw=randwrite, bs=(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine=libaio, iodepth=64
+fio-3.33
+Starting 1 process
+Jobs: 1 (f=1): [w(1)][100.0%][w=157MiB/s][w=40.1k IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=1588: Tue Sep 30 08:26:11 2025
+  write: IOPS=40.2k, BW=157MiB/s (165MB/s)(9.77GiB/63721msec); 0 zone resets
+   bw (  KiB/s): min=159072, max=164736, per=100.00%, avg=160714.08, stdev=750.45, samples=127
+   iops        : min=39768, max=41184, avg=40178.54, stdev=187.62, samples=127
+  cpu          : usr=16.15%, sys=45.16%, ctx=1997986, majf=0, minf=17
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.1%, 8=0.1%, 16=0.1%, 32=0.1%, >=64=100.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=0,2560000,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+  WRITE: bw=157MiB/s (165MB/s), 157MiB/s-157MiB/s (165MB/s-165MB/s), io=9.77GiB (10.5GB), run=63721-63721msec
+
+Disk stats (read/write):
+  sdd: ios=0/2553514, merge=0/2881, ticks=0/3982685, in_queue=3982689, util=84.14%
+
+
+
+ОБЩИЙ ВЫВОД : видно что в 2 раза скорость меньше чем на AHCI порту на простом компе !!
+
+====================================
+
