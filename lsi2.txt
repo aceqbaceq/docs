@@ -1,0 +1,54 @@
+| lsi
+
+я хочу узнать модель карты
+однако sas3ircu покажет гадина только модели чипа
+
+# /opt/SAS3/sas3ircu list
+Avago Technologies SAS3 IR Configuration Utility.
+Version 17.00.00.00 (2018.04.02) 
+Copyright (c) 2009-2018 Avago Technologies. All rights reserved. 
+
+
+         Adapter      Vendor  Device                       SubSys  SubSys 
+ Index    Type          ID      ID    Pci Address          Ven ID  Dev ID 
+ -----  ------------  ------  ------  -----------------    ------  ------ 
+   0     SAS3216       1000h   c9h    00h:04h:00h:00h      1028h   1fbeh 
+SAS3IRCU: Utility Completed Successfully.
+
+
+а модель карты мжно укзнать только через sas3flash
+
+
+# /opt/SAS3FLASH/sas3flash -list
+Avago Technologies SAS3 Flash Utility
+Version 16.00.00.00 (2017.05.02) 
+Copyright 2008-2017 Avago Technologies. All rights reserved.
+
+	Adapter Selected is a Avago SAS: SAS3216(A1)
+
+	Controller Number              : 0
+	Controller                     : SAS3216(A1)
+	PCI Address                    : 00:04:00:00
+	SAS Address                    : 500062b-2-029b-6a40
+	NVDATA Version (Default)       : 00.25.00.08
+	NVDATA Version (Persistent)    : 00.25.00.08
+	Firmware Product ID            : 0x2228 (IT)
+	Firmware Version               : 09.00.56.00
+	NVDATA Vendor                  : LSI
+	NVDATA Product ID              : SAS9305-16e
+	BIOS Version                   : N/A
+	UEFI BSD Version               : 10.00.01.00
+	FCODE Version                  : N/A
+	Board Name                     : SAS9305-16e ***<<<<****<<<<<
+	Board Assembly                 : 03-25704-05001
+	Board Tracer Number            : SP64200075
+
+	Finished Processing Commands Successfully.
+	Exiting SAS3Flash.
+
+
+толька эта  sas3flash она бывает разных годов. поэтому нужно искать 
+нужную версию.
+
+
+

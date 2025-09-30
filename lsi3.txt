@@ -1,0 +1,42 @@
+| lsi
+
+у их карт быает две вида прошивки 
+
+  IR 
+  IT
+
+
+IR это рейд контроллер верися
+IT это hba версия
+
+
+карты можно шить в обе стороны.
+однако  не всяская утилита прошивки это позволяет!
+
+
+sas2flash/sas3flash
+
+    sas2flash for LSI SAS 6 Gb/sec HBAs (Windows/Linux/EFI)
+        Cannot be used to flash to older firmware
+        Cannot be used to flash from IT to IR firmware or from IR to IT firmware
+        Can be used to flash the controller BIOS and/or EFI
+    sas2flsh for LSI SAS 6 Gb/sec HBAs (DOS)
+        Can be used to flash to older firmware
+        Can be used to flash from IT to IR firmware or from IR to IT firmware
+    sas3flash for LSI SAS 12 Gb/sec HBAs (Windows/Linux/EFI)
+        Cannot be used to flash to older firmware
+        Cannot be used to flash from IT to IR firmware or from IR to IT firmware
+        Can be used to flash the controller BIOS and/or EFI
+    sas3flsh for LSI SAS 12 Gb/sec HBAs (DOS)
+        Can be used to flash to older firmware
+        Can be used to flash from IT to IR firmware or from IR to IT firmware
+
+
+(https://www.broadcom.com/support/knowledgebase/1211161501344/flashing-firmware-and-bios-on-lsi-sas-hbas)
+
+
+
+тоесть если мы хотим IT первратить в IR или IR в IT
+то подходит тлько утилиита sas3flsh или sas2flsh которая работает только под DOS !!!!
+
+
