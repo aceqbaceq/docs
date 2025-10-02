@@ -264,3 +264,27 @@ mount /dev/mapper/VG_DB-SNAP_MARIA /backups/maria/
 охуеть
 
 =======
+
+| LVM
+| alignment
+
+
+чтобы при добавлнии нового диска в LVM несоздавать gpt раздел (ибо это 
+лишний труд) и при этом гарантировать alignment то можно делать вот так
+
+  # pvcreate --dataalignment 8m /dev/sdb
+
+делает то что LVM блоки начнут писатьнся на диске начиная с отступа 8МБ
+(по дефолту этот отступ равен 1МБ)
+
+а вот как проверить
+
+ #  pvs -o +pe_start
+  PV         VG Fmt  Attr PSize   PFree  1st PE 
+  /dev/sda2  rl lvm2 a--  <31.00g     0    1.00m
+  /dev/sdb      lvm2 ---   80.00g 80.00g   8.00m
+
+
+========
+
+

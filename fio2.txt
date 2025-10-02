@@ -1788,5 +1788,174 @@ Disk stats (read/write):
 дает в 2 раза скорость меньше чем обычный AHCI порт на простом компе !!
 
 
+итак мы выяснили что данный хба контррллер режет теряет скорость в 1.5-2 раза
+по сравннеию какая скорость у диска вобщето может быть.
+
+причем я проверил что нет разницы какая прошивка у контроллера IR или IT
+тоесть если у вас контррлллер  на прошивке IR (рейдовая) то особого смысла
+перешивать ее в IT смысла нет.
+
+еще раз скажу что этот контрроллер работате на чипе 2308
+
 ====================================
 
+AHCI
+диск Samsung SSD 860 EVO 1TB
+
+
+
+o# fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=test --filename=test --bs=4k --iodepth=64 --size=10000M --readwrite=randread
+test: (g=0): rw=randread, bs=(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine=libaio, iodepth=64
+fio-3.33
+Starting 1 process
+Jobs: 1 (f=1): [r(1)][100.0%][r=384MiB/s][r=98.4k IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=803: Thu Oct  2 10:25:05 2025
+  read: IOPS=98.1k, BW=383MiB/s (402MB/s)(9.77GiB/26101msec)
+   bw (  KiB/s): min=387288, max=396072, per=100.00%, avg=392423.69, stdev=892.87, samples=52
+   iops        : min=96822, max=99018, avg=98106.00, stdev=223.22, samples=52
+  cpu          : usr=25.85%, sys=39.00%, ctx=2415048, majf=0, minf=74
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.1%, 8=0.1%, 16=0.1%, 32=0.1%, >=64=100.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=2560000,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+   READ: bw=383MiB/s (402MB/s), 383MiB/s-383MiB/s (402MB/s-402MB/s), io=9.77GiB (10.5GB), run=26101-26101msec
+
+Disk stats (read/write):
+  sdb: ios=2538005/1, merge=1336/0, ticks=1640310/1, in_queue=1640311, util=71.87%
+
+===========================
+
+
+КАРТА:
+root@debian:/opt/SAS3IRCU# ./sas3ircu list
+Avago Technologies SAS3 IR Configuration Utility.
+Version 17.00.00.00 (2018.04.02) 
+Copyright (c) 2009-2018 Avago Technologies. All rights reserved. 
+
+
+         Adapter      Vendor  Device                       SubSys  SubSys 
+ Index    Type          ID      ID    Pci Address          Ven ID  Dev ID 
+ -----  ------------  ------  ------  -----------------    ------  ------ 
+   0     SAS3008       1000h   97h    00h:01h:00h:00h      1000h   3090h 
+SAS3IRCU: Utility Completed Successfully.
+root@debian:/opt/SAS3IRCU# 
+root@debian:/opt/SAS3FLASH# chmod +x sas3flash 
+root@debian:/opt/SAS3FLASH# ./sas3flash -list
+Avago Technologies SAS3 Flash Utility
+Version 16.00.00.00 (2017.05.02) 
+Copyright 2008-2017 Avago Technologies. All rights reserved.
+
+  Adapter Selected is a Avago SAS: SAS3008(C0)
+
+  Controller Number              : 0
+  Controller                     : SAS3008(C0)
+  PCI Address                    : 00:01:00:00
+  SAS Address                    : 5d494e8-0-f1b2-8000
+  NVDATA Version (Default)       : 02.06.00.02
+  NVDATA Version (Persistent)    : 02.06.00.02
+  Firmware Product ID            : 0x2721 (IR)
+  Firmware Version               : 02.00.00.00
+  NVDATA Vendor                  : LSI
+  NVDATA Product ID              : SAS3008
+  BIOS Version                   : 08.05.00.00
+  UEFI BSD Version               : 02.00.00.00
+  FCODE Version                  : N/A
+  Board Name                     : SAS3008
+  Board Assembly                 : N/A
+  Board Tracer Number            : N/A
+
+  Finished Processing Commands Successfully.
+  Exiting SAS3Flash.
+
+
+
+
+диск: Samsung SSD 860 EVO 1TB
+
+CPU :  Intel(R) Xeon(R) CPU E5-2699 v3 @ 2.30GHz
+
+
+RANDOM READ 57.6k IOPS 
+ 
+root@debian:/mnt/sdb1/fio# dd if=/dev/zero of=/dev/sdd bs=1M count=100^C
+root@debian:/mnt/sdb1/fio# fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=test --filename=test --bs=4k --iodepth=64 --size=10000M --readwrite=randread
+test: (g=0): rw=randread, bs=(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine=libaio, iodepth=64
+fio-3.33
+Starting 1 process
+test: Laying out IO file (1 file / 10000MiB)
+Jobs: 1 (f=1): [r(1)][100.0%][r=225MiB/s][r=57.6k IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=16218: Thu Oct  2 12:38:55 2025
+  read: IOPS=57.5k, BW=225MiB/s (236MB/s)(9.77GiB/44519msec)
+   bw (  KiB/s): min=181664, max=240440, per=100.00%, avg=230088.54, stdev=7168.94, samples=89
+   iops        : min=45416, max=60110, avg=57522.16, stdev=1792.25, samples=89
+  cpu          : usr=12.20%, sys=43.54%, ctx=1359624, majf=0, minf=85
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.1%, 8=0.1%, 16=0.1%, 32=0.1%, >=64=100.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=2560000,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+   READ: bw=225MiB/s (236MB/s), 225MiB/s-225MiB/s (236MB/s-236MB/s), io=9.77GiB (10.5GB), run=44519-44519msec
+
+Disk stats (read/write):
+  sdb: ios=2547957/4, merge=1982/4, ticks=2817383/731, in_queue=2818296, util=88.13%
+
+
+вывод: результат отстой. из за медленного контролллера
+
+
+
+запустил тест сразу на двух дисках.
+резулттат один и тот же. 
+тоесть диски друг другу немешают.  с каждого читается RANDOM READ плюс минус 
+со скоростью 57.6k IOPS
+
+
+а вот тест RANDOM WRITE  r=59.3k IOPS
+
+o# fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=test --filename=test --bs=4k --iodepth=64 --size=10000M --readwrite=randread
+test: (g=0): rw=randread, bs=(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine=libaio, iodepth=64
+fio-3.33
+Starting 1 process
+Jobs: 1 (f=1): [r(1)][100.0%][r=232MiB/s][r=59.3k IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=16491: Thu Oct  2 12:45:39 2025
+  read: IOPS=59.3k, BW=232MiB/s (243MB/s)(9.77GiB/43139msec)
+   bw (  KiB/s): min=235976, max=239776, per=100.00%, avg=237420.47, stdev=377.66, samples=86
+   iops        : min=58994, max=59944, avg=59355.12, stdev=94.42, samples=86
+  cpu          : usr=13.23%, sys=42.01%, ctx=1703688, majf=0, minf=84
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.1%, 8=0.1%, 16=0.1%, 32=0.1%, >=64=100.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=2560000,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+   READ: bw=232MiB/s (243MB/s), 232MiB/s-232MiB/s (243MB/s-243MB/s), io=9.77GiB (10.5GB), run=43139-43139msec
+
+Disk stats (read/write):
+  sdc: ios=2555925/0, merge=3818/0, ticks=2734927/0, in_queue=2734928, util=83.69%
+
+
+вывод: контрроллер медленный . диски свою скорость не раскрывают.
+
+
+ДАЛЕЕ:
+я перешил контролллер на прошивку IT результатт тот же самый! RAND READ 59.9k IOPS !!
+тоесть пршивка невлияет IR или IT!
+
+
+===========
+
+ОБЩИЙ ВЫВОД НА ДАННЫЙ МОМЕНТ на счет контроллеров:
+
+ лучше всего выжимает голый AHCI порт. скажем 98 kIOPS (samsung 860) тоесть 100% от 
+   возможностей диска
+ потом с потерей в 2 раза 50-60 KIOPS выжимает LSI 2308\3008 
+ потом еще хуже smart array P410. он выжимает всего 26 kIOPS. (тоесть еще в 2 раза хуже)
+
+
+===========================

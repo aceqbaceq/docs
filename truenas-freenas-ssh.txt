@@ -1,0 +1,25 @@
+| truenas
+| freenas
+| ssh
+
+там засада в том что ssh сервис там работает не из стандартной папки.
+
+ссш там работает не из папки
+
+		/etc/ssh
+
+а из папки 
+
+		/usr/local/etc/ssh
+
+
+поэтому пеерзапуск этого сервиса на freebsd делается вот так
+
+	# service openssh reload
+
+
+об этом круто написано здесь
+
+https://www.truenas.com/community/threads/changing-ssh-configuration-via-cli-solution-until-reboot.91560/
+
+
