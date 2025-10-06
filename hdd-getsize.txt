@@ -1,0 +1,12 @@
+| hdd
+| ssd
+| disk 
+
+
+как узнать рамзер диска
+
+$ sudo blockdev /dev/sda
+[sudo] password for noroot: 
+[noroot@manjaro 8787]$ sudo blockdev --getsize64 /dev/sda
+250059350016
+
