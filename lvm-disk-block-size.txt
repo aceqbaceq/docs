@@ -1,0 +1,108 @@
+| lvm
+| extent
+
+
+мы берем физ диск.
+на нем создаем pv
+
+
+# pvdisplay
+  "/dev/nvme0n1" is a new physical volume of "2.00 GiB"
+  --- NEW Physical volume ---
+  PV Name               /dev/nvme0n1
+  VG Name               
+  PV Size               2.00 GiB
+  Allocatable           NO
+  PE Size               0   
+  Total PE              0
+  Free PE               0
+  Allocated PE          0
+  PV UUID               2Ff0nr-0mrV-TXCu-nX2q-MrPY-lqHS-MPiZUi
+
+
+потом на нем создаем vg
+
+в свойствах VG будет написано что он состоит из кусков
+экстентов по 4МБ
+
+
+  # vgdisplay
+  --- Volume group ---
+  VG Name               vg01
+  System ID             
+  Format                lvm2
+  Metadata Areas        1
+  Metadata Sequence No  1
+  VG Access             read/write
+  VG Status             resizable
+  MAX LV                0
+  Cur LV                0
+  Open LV               0
+  Max PV                0
+  Cur PV                1
+  Act PV                1
+  VG Size               <2.00 GiB
+  PE Size               4.00 MiB     <<<<======*****<<<<=====
+  Total PE              511
+  Alloc PE / Size       0 / 0   
+  Free  PE / Size       511 / <2.00 GiB
+  VG UUID               IeDLp6-JJFY-B1oW-MiQH-iYz3-rH3F-troWBJ
+   
+
+для вольюм группы линукс не создает никакое блочное устройство
+и 
+из него вырезаем LVOL
+
+
+  # lvdisplay
+  --- Logical volume ---
+  LV Path                /dev/vg01/lvol01
+  LV Name                lvol01
+  VG Name                vg01
+  LV UUID                Q38iOz-lW18-mExQ-WvUR-R16o-6BXh-zQvMjC
+  LV Write Access        read/write
+  LV Creation host, time debian12-c2, 2025-10-07 19:44:40 -0400
+  LV Status              available
+  # open                 0
+  LV Size                100.00 MiB
+  Current LE             25
+  Segments               1
+  Allocation             inherit
+  Read ahead sectors     auto
+  - currently set to     256
+  Block device           253:0
+
+
+
+в его свойствах указано что он состоит 
+
+Current LE             25
+
+из 25-ти эккстентов. но в приоде этих экстентов нет.
+это ни в коем случае не размер блока этого блочного устрйоства.
+
+для лвол лиункс создает уже блочное устройство
+и размер блока этого устрйова ядро берет таким же как у физ диска
+или дисков которые лежат в основе вольюм групп
+выше я показал что он 4096 
+и тогда блок сайз этоого блочного лвол тоже будет 4096
+и вот как это можно увидеть
+
+
+ # cat /sys/block/dm-0/queue/hw_sector_size 
+4096
+
+ # cat /sys/block/dm-0/queue/logical_block_size 
+4096
+
+таким образом  экстенты в свойствах VG это лишь хрень которая 
+озанчает что при создании LVOL из VG то можно выбирать размер кратным 
+размеру эксента тоесть кратным 4 МЕГАБАЙТА. вот какой смысл экстента. 
+он неимеет отншения к размеру каким кусками читает или пишет ядро
+на лвол или физ устроуство лежащее за ним
+
+
+
+
+
+

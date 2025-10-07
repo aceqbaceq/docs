@@ -1,0 +1,65 @@
+| qemu
+| nvme
+| ssd
+| block_size
+
+
+у нас получается жесткий диск на компе может иметь диск
+у котргого размер физ сектора равен 4096 байт
+ксати вот как это можно узнать
+
+  $ cat /sys/block/nvme0n1/queue/hw_sector_size 
+4096
+  $ cat /sys/block/nvme0n1/queue/logical_block_size 
+4096
+
+
+а вот когда мы внутрь кему суем файл то внутри кему 
+
+-drive file=hda.img,media=disk,if=virtio,format=qcow2,file.locking=on \
+
+то внутри вм этот вирт диск видится как хрень размером с физ сектором 512 байт
+
+я конечно незнаю влияет ли это на тот как потом кему пытается писать транзации
+на диск хоста
+но мне пришла идея сделат так чтобы внутри кему вирт диск видился тоже как 
+имеющий 4096 байт
+как мне сказала нейронка это ни для qcow ни для raw не сделать.
+а можно сделать только для виртуального nvme диска
+чеерез вот так
+
+-drive file=vdb.raw,format=raw,if=none,id=drv0 \
+-device nvme,drive=drv0,serial=deadbeef1234,logical_block_size=4096,physical_block_size=4096
+
+
+или полный вариант
+
+qemu-system-x86_64 -name deb2 -m 466M -boot d \
+-drive file=hda.img,media=disk,if=virtio,format=qcow2,file.locking=on \
+-drive file=vdb.raw,format=raw,if=none,id=drv0 \
+-device nvme,drive=drv0,serial=deadbeef1234,logical_block_size=4096,physical_block_size=4096 \
+-cpu host -enable-kvm -smp 1 -M q35 -device virtio-balloon -device VGA,vgamem_mb=8 -display none -netdev tap,id=mynet1,ifname=tap2,script=no,downscript=no -device virtio-net-pci,netdev=mynet1,mac=ba:ec:24:5c:02:02 -serial /dev/tty ; reset
+
+
+и тогда внтури вм мы видим
+
+# lsblk
+NAME    MAJ:MIN RM  SIZE RO TYPE MOUNTPOINTS
+...
+...
+nvme0n1 259:1    0    2G  0 disk 
+
+
+и вот размер физ блока 
+
+# cat /sys/block/nvme0n1/queue/hw_sector_size 
+4096
+
+# cat /sys/block/nvme0n1/queue/logical_block_size 
+4096
+
+
+
+
+
+
