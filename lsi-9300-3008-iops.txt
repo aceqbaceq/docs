@@ -1,0 +1,41 @@
+| lsi
+| 3008
+| 9300
+| iops
+
+
+вот такой контроллер   lsi 9300 на чипе 3008
+
+root@h4:~# sas3flash -list
+Avago Technologies SAS3 Flash Utility
+Version 16.00.00.00 (2017.05.02) 
+Copyright 2008-2017 Avago Technologies. All rights reserved.
+
+	Adapter Selected is a Avago SAS: SAS3008(C0)
+
+	Controller Number              : 0
+	Controller                     : SAS3008(C0)
+	PCI Address                    : 00:01:00:00
+	SAS Address                    : 5d494e8-0-f1b2-8000
+	NVDATA Version (Default)       : 0e.01.00.07
+	NVDATA Version (Persistent)    : 0e.01.00.07
+	Firmware Product ID            : 0x2221 (IT)
+	Firmware Version               : 16.00.10.00
+	NVDATA Vendor                  : LSI
+	NVDATA Product ID              : SAS9300-8i
+	BIOS Version                   : 08.37.00.00
+	UEFI BSD Version               : N/A
+	FCODE Version                  : N/A
+	Board Name                     : SAS3008
+	Board Assembly                 : N/A
+	Board Tracer Number            : N/A
+
+	Finished Processing Commands Successfully.
+	Exiting SAS3Flash.
+
+
+
+по моим тестам его макс мощность это 450k - 460k IOPS суммарная
+тоесть скажем если 10 ссд дисков вставить и начать их читать то на каждом
+он покажет 46.7k IOPS
+

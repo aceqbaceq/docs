@@ -1,0 +1,52 @@
+| ceph
+
+диск  INTEL SSDSC2KB480GZ
+контролллер 9300 (чип 3008 режим HBA)
+
+
+
+
+диск кэш на запист ВКЛЮЧЕН
+# hdparm -W1 /dev/sdf
+/dev/sdf:
+ setting drive write-caching to 1 (on)
+ write-caching =  1 (on)
+
+
+
+    fsync=1: резудьаьт w=7881 IOPS
+#  fio --ioengine=libaio --name=test --filename=/dev/sdf --direct=1 --bs=4k --iodepth=64 --rw=randwrite --fsync=1
+
+
+
+
+
+   sync=1: реузльтата w=49.0k IOPS
+#  fio --ioengine=libaio --name=test --filename=/dev/sdf --direct=1 --bs=4k --iodepth=64 --rw=randwrite --sync=1
+
+
+
+кэш на запись отключен 
+root@h4:~# hdparm -W0  /dev/sdf
+/dev/sdf:
+ setting drive write-caching to 0 (off)
+ write-caching =  0 (off)
+
+
+тогда результатт что sync=1 что fsync=1 СТАНОВИТЬСЯ ОДИН И ТОТЖЕ ~ 50.0 K IOPS !!!
+
+
+причем 50 k IOPS это не вина диска! это вина контролллера LSI 3008 режим HBA
+
+
+
+однако этот трюк все равно не помошает повыстить скорсть рандом врайт на цефе.
+всего 20 000 иопс на 1 поток. а увеличивать потоки тоже ничего недает
+
+# fio --randrepeat=1 --ioengine=rbd --direct=1 --gtod_reduce=1 --name=test --bs=4k --iodepth=64 --size=50000M --readwrite=randwrite --pool=pool3 --rbdname=img50g -numjobs=1
+test: (g=0): rw=randwrite, bs=(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine=rbd, iodepth=64
+fio-3.39
+Starting 1 process
+^Cbs: 1 (f=1): [w(1)][0.6%][w=72.6MiB/s][w=18.6k IOPS][eta 11m:44s]
+
+

@@ -1,0 +1,17 @@
+| freebsd
+| truenas
+| freenas
+| ssh
+
+у него ssh лежит в нестандартной папке
+
+
+		/usr/local/etc/ssh
+
+
+и рестарт этой службы идет через 
+
+# service openssh reload 
+Performing sanity check on openssh configuration.
+
+

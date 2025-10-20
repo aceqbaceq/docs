@@ -1,0 +1,11 @@
+| solaris
+
+solaris 10 
+
+как отклюыить загрузку граф режима
+
+
+#    svcadm disable svc:/application/graphical-login/cde-login:default
+
+
+

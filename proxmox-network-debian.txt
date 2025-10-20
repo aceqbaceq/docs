@@ -1,0 +1,171 @@
+| proxmox
+| network
+| interfaces
+
+
+root@hst5:~# 
+root@hst5:~# cat /etc/network/interfaces
+auto lo
+iface lo inet loopback
+
+
+
+
+iface enp129s0f0 inet manual
+
+auto vmbr0
+iface vmbr0 inet static
+    address 192.168.0.228/24
+    gateway 192.168.0.99
+    bridge-ports enp129s0f0
+    bridge-stp off
+    bridge-fd 0
+
+
+
+
+
+
+
+auto bond0
+iface bond0 inet manual
+    bond-slaves eno1 eno2
+    bond-miimon 100
+    bond-mode 802.3ad
+    bond-lacp-rate fast
+    bond-xmit-hash-policy layer3+4
+    mtu 9000
+
+auto vmbr1
+iface vmbr1 inet manual
+    bridge_ports bond0
+    bridge-stp off
+    bridge-fd 0
+    bridge_vlan_aware yes
+    bridge_vids 77 88 777
+    mtu 9000
+
+
+
+
+auto vmbr1.77
+iface vmbr1.77 inet static
+     address 10.0.0.13/24
+     mtu 9000
+
+# proxmox cluster traffic
+
+
+
+auto vmbr1.88
+iface vmbr1.88 inet static
+     address 10.10.10.13/24
+     mtu 9000
+
+# ceph полезная нагрузка для клиентов
+
+
+auto vmbr1.777
+iface vmbr1.777 inet static
+     address 10.26.2.13/24
+     mtu 9000
+
+# ceph служебная нагрузка
+
+
+
+
+source /etc/network/interfaces.d/*
+
+
+
+
+
+
+==============
+
+
+auto lo
+iface lo inet loopback
+
+
+
+
+iface enp129s0f0 inet manual
+
+auto vmbr0
+iface vmbr0 inet static
+    address 192.168.0.227/24
+    gateway 192.168.0.99
+    bridge-ports enp129s0f0
+    bridge-stp off
+    bridge-fd 0
+
+
+
+
+
+
+
+iface eno1 inet manual
+
+
+auto vmbr1
+iface vmbr1 inet manual
+    bridge_ports eno1
+    bridge-stp off
+    bridge-fd 0
+    bridge_vlan_aware yes
+    bridge_vids 77 88
+    mtu 9000
+
+
+
+
+
+auto vmbr1.77
+iface vmbr1.77 inet static
+     address 10.0.0.12/24
+     mtu 9000
+
+# proxmox cluster traffic
+
+
+
+auto vmbr1.88
+iface vmbr1.88 inet static
+     address 10.10.10.12/24
+     mtu 9000
+
+# ceph полезная нагрузка для клиентов
+
+
+
+
+
+# Загружаем модуль 8021q для VLAN (если не загружен)
+pre-up modprobe 8021q
+
+# Физический интерфейс без IP
+iface eno2 inet manual
+
+# VLAN интерфейс с идентификатором 777 на базе eno2
+auto eno2.777
+iface eno2.777 inet static
+    address 10.10.10.12/24
+    netmask 255.255.255.0   # замените на вашу маску
+    vlan-raw-device eno2
+    mtu 9000
+
+# ceph служебная нагрузка
+
+
+
+source /etc/network/interfaces.d/*
+
+
+
+
+
+===============
+

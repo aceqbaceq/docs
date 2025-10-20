@@ -1,0 +1,10 @@
+| lsi
+| avago
+| broadcom
+| 3008
+| 9300-8i
+
+где качать софт дрова
+
+https://www.broadcom.com/support/download-search?pg=Legacy+Products&pf=Legacy+Host+Bus+Adapters&pn=SAS+9300-8i+Host+Bus+Adapter&pa=&po=&dk=&pl=&l=false
+

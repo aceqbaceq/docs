@@ -97,6 +97,7 @@ Run status group 0 (all jobs):
   
 
 | sas3008
+| lsi
 | raid 10 x 4 SSD 960GB
 | iops
 | fio
@@ -1657,6 +1658,9 @@ Disk stats (read/write):
 
 
 HBA контроллер LSI 9217-8i  , 6Gb/s  (чипсет 2308)
+  ( не путать с другим чипсетом 2308_2 и картой SAS9207-8i !! ) 
+
+
 
 
 диск  INTEL SSDSC2KI256G8
@@ -1828,6 +1832,9 @@ Disk stats (read/write):
 
 ===========================
 
+| LSI
+| SAS3008
+
 
 КАРТА:
 root@debian:/opt/SAS3IRCU# ./sas3ircu list
@@ -1959,3 +1966,235 @@ Disk stats (read/write):
 
 
 ===========================
+
+lsi 9300 (sas 3008)
+диск Model Family:     Hitachi/HGST Ultrastar 7K4000
+Device Model:     HGST HUS724020ALA640
+
+
+лин чтение 150-170 МБ/с
+лин запись 150-170 МБ/с
+
+ранд рид 33 ИОПС
+ранд врайт 33 ИОПС
+
+
+
+пул из 8 таких дисков на zfs
+лин запись 460 МБ/с
+лин чтение 650 МБ/с
+ранд рид всего 150 ИОПС (почему то кадый диск выдает всего 18-30 иопс)
+ранд врайт  150 ИОПС (при этом видно что идут паразитные чтения перед записью
+нейронка говорит это норм. это он читает метаданные. типа без этого никак)
+
+
+
+==============================
+
+| lsi
+| sas2008
+| SAS9207-8i
+| Samsung SSD 860 EVO 1TB
+| INTEL SSDSC2KB480GZ
+
+
+вот такой чип
+
+root@pve:/opt/LSI# ./sas2ircu  list
+LSI Corporation SAS2 IR Configuration Utility.
+Version 20.00.00.00 (2014.09.18) 
+Copyright (c) 2008-2014 LSI Corporation. All rights reserved. 
+
+
+         Adapter      Vendor  Device                       SubSys  SubSys 
+ Index    Type          ID      ID    Pci Address          Ven ID  Dev ID 
+ -----  ------------  ------  ------  -----------------    ------  ------ 
+   0     SAS2308_2     1000h    87h   00h:02h:00h:00h      1028h   1f38h 
+SAS2IRCU: Utility Completed Successfully.
+
+
+
+вот такая карта
+
+root@pve:/opt/LSI# ./sas2flash -list
+LSI Corporation SAS2 Flash Utility
+Version 20.00.00.00 (2014.09.18) 
+Copyright (c) 2008-2014 LSI Corporation. All rights reserved 
+
+  Adapter Selected is a LSI SAS: SAS2308_2(D1) 
+
+  Controller Number              : 0
+  Controller                     : SAS2308_2(D1) 
+  PCI Address                    : 00:02:00:00
+  SAS Address                    : 500605b-1-2345-6777
+  NVDATA Version (Default)       : 14.01.00.06
+  NVDATA Version (Persistent)    : 14.01.00.06
+  Firmware Product ID            : 0x2214 (IT)
+  Firmware Version               : 20.00.07.00
+  NVDATA Vendor                  : LSI
+  NVDATA Product ID              : SAS9207-8i
+  BIOS Version                   : 07.39.02.00
+  UEFI BSD Version               : 07.27.01.01
+  FCODE Version                  : N/A
+  Board Name                     : SAS9207-8i
+  Board Assembly                 : N/A
+  Board Tracer Number            : N/A
+
+  Finished Processing Commands Successfully.
+  Exiting SAS2Flash.
+
+
+
+диск INTEL SSDSC2KB480GZ
+
+
+
+RAND READ [70.0k] IOPS
+
+root@pve:/opt/LSI# fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=test --filename=/dev/sdc --bs=4k --iodepth=64 --size=10000M --readwrite=randread
+test: (g=0): rw=randread, bs=(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine=libaio, iodepth=64
+fio-3.39
+Starting 1 process
+Jobs: 1 (f=1): [r(1)][100.0%][r=276MiB/s][r=70.6k IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=5018: Tue Oct 14 18:51:18 2025
+  read: IOPS=54.5k, BW=213MiB/s (223MB/s)(9.77GiB/46962msec)
+   bw (  KiB/s): min=159360, max=283448, per=99.79%, avg=217582.19, stdev=45479.13, samples=93
+   iops        : min=39840, max=70862, avg=54395.59, stdev=11369.74, samples=93
+  cpu          : usr=20.75%, sys=66.76%, ctx=311765, majf=0, minf=83
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.1%, 8=0.1%, 16=0.1%, 32=0.1%, >=64=100.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=2560000,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+   READ: bw=213MiB/s (223MB/s), 213MiB/s-213MiB/s (223MB/s-223MB/s), io=9.77GiB (10.5GB), run=46962-46962msec
+
+Disk stats (read/write):
+  sdc: ios=2550859/0, sectors=20427744/0, merge=2619/0, ticks=1441791/0, in_queue=1441791, util=99.84%
+
+
+для сраврния этот же диск на  такомже тесте на AHCI 6Gb порту выдает [76.9k] IOPS
+
+
+этот же контррллер этот же тест
+но диск 
+
+   Samsung SSD 860 EVO 1TB
+
+
+root@pve:/opt/fio# fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=test --filename=./test  --bs=4k --iodepth=64 --size=10000M --readwrite=randread
+test: (g=0): rw=randread, bs=(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine=libaio, iodepth=64
+fio-3.39
+Starting 1 process
+Jobs: 1 (f=1): [r(1)][100.0%][r=211MiB/s][r=54.1k IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=5367: Tue Oct 14 18:53:18 2025
+  read: IOPS=58.3k, BW=228MiB/s (239MB/s)(9.77GiB/43942msec)
+   bw (  KiB/s): min=121048, max=271056, per=99.87%, avg=232725.15, stdev=55396.98, samples=87
+   iops        : min=30262, max=67764, avg=58181.31, stdev=13849.20, samples=87
+  cpu          : usr=17.25%, sys=67.31%, ctx=140265, majf=0, minf=73
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.1%, 8=0.1%, 16=0.1%, 32=0.1%, >=64=100.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=2560000,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+   READ: bw=228MiB/s (239MB/s), 228MiB/s-228MiB/s (239MB/s-239MB/s), io=9.77GiB (10.5GB), run=43942-43942msec
+
+Disk stats (read/write):
+    dm-1: ios=2556265/17, sectors=20450120/562, merge=0/0, ticks=2001246/35, in_queue=2001281, util=99.82%, aggrios=2556019/16, aggsectors=20484096/562, aggrmerge=3997/1, aggrticks=2005842/29, aggrin_queue=2005872, aggrutil=72.56%
+  sda: ios=2556019/16, sectors=20484096/562, merge=3997/1, ticks=2005842/29, in_queue=2005872, util=72.56%
+
+
+
+для сраранеия этот же диск на AHCI порту выдает [98.4k] IOPS
+а на 3008 чипе выдает [57.6k] IOPS
+
+
+этотже контролер проверим лин чтение.
+диск INTEL SSDSC2KB480GZ  
+
+o# fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=test --filename=/dev/sdc  --bs=1M --iodepth=1 --size=10000M --readwrite=read
+test: (g=0): rw=read, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=libaio, iodepth=1
+fio-3.39
+Starting 1 process
+Jobs: 1 (f=1): [R(1)][100.0%][r=398MiB/s][r=398 IOPS][eta 00m:00s]
+( на AHCI этот диск выдает 361 MB/s)
+
+
+
+проверим лин чтение для     Samsung SSD 860 EVO 1TB
+
+# fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=test --filename=./test  --bs=1M --iodepth=1 --size=10000M --readwrite=read
+test: (g=0): rw=read, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=libaio, iodepth=1
+fio-3.39
+Starting 1 process
+Jobs: 1 (f=0): [f(1)][100.0%][r=450MiB/s][r=450 IOPS][eta 00m:00s]
+( на AHCI этот диск выдает 482 MB/s)
+
+
+
+
+итого на вот этом контролере
+ sas2008
+ SAS9207-8i
+
+из вот этого диска 
+диск INTEL SSDSC2KB480GZ  
+
+он выжимает 
+RAND READ [70.0k] IOPS   из максимально возможных  [76.9k] IOPS
+LIN READ r=398MiB/s  из такой же максимально возможной
+
+
+из вот этого диска 
+диск    Samsung SSD 860 EVO 1TB
+
+он выжимает 
+RAND READ [54.1k] IOPS   из максимально возможных  [98.4k] IOPS
+LIN READ r=450MiB/s      из максимально возможной  482 MB/s
+
+
+
+еще раз тестирую
+
+
+диск INTEL SSDSC2KB480GZ  
+  RAND READ 
+    fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=test --filename=./test --bs=4k --iodepth=64 --size=10000M --readwrite=randread
+        AHCI(linux):                    [84.9k] IOPS
+        sas2008(SAS9207-8i)(linux)      [69.9k] IOPS
+        sas2008(SAS9207-8i)(solaris)    [15.7K] IOPS   ***солярис полный провал!!***
+
+
+  LIN READ
+    fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=test --filename=/dev/sdc  --bs=1M --iodepth=1 --size=10000M --readwrite=read
+      AHCI(linux):                      403MiB/s
+      sas2008(SAS9207-8i)(linux)        401MiB/s
+      sas2008(SAS9207-8i)(solaris)      322.0MiB/s   ***солярис провал***
+
+
+
+
+диск Samsung SSD 860 EVO 1TB
+  RAND READ 
+    fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=test --filename=./test --bs=4k --iodepth=64 --size=10000M --readwrite=randread
+      AHCI(linux)                     [98.9k] IOPS
+      sas2008(SAS9207-8i)(linux)      [57.2k] IOPS
+      sas2008(SAS9207-8i)(solaris)    [16.8K] IOPS   ***солярис полный провал!!***
+
+
+
+  LIN READ
+    fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=test --filename=/dev/sdc  --bs=1M --iodepth=1 --size=10000M --readwrite=read
+      AHCI(linux):                    502MB/s
+      sas2008(SAS9207-8i)(linux)      484MB/s
+      sas2008(SAS9207-8i)(solaris)    449MiB/s   
+
+
+
+
+
+
+

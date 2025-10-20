@@ -1,0 +1,32 @@
+| firewalld
+
+  cat /usr/lib/firewalld/services/cockpit.xml
+
+  firewall-cmd --zone=public --list-ports
+  firewall-cmd --zone=public --list-all
+
+  firewall-cmd --zone=public --remove-service=cockpit --permanent
+  firewall-cmd --zone=public --list-all
+  firewall-cmd --zone=public --remove-port=9090/tcp
+  firewall-cmd --zone=public --remove-service=cockpit
+  firewall-cmd --zone=public --list-all
+  firewall-cmd --permanent --zone=public   --add-port=30048/tcp --add-port=30090/tcp --add-port=30916/tcp
+  firewall-cmd --permanent --zone=public --add-port=30080/tcp --add-port=31000/tcp --add-port=31009/tcp --add-port=30093/tcp
+  firewall-cmd --zone=public --list-all
+  firewall-cmd --zone=public   --add-port=30048/tcp --add-port=30090/tcp --add-port=30916/tcp
+  firewall-cmd --zone=public --add-port=30080/tcp --add-port=31000/tcp --add-port=31009/tcp --add-port=30093/tcp
+  firewall-cmd --zone=public --list-all
+  cat /etc/firewalld/zones/public.xml
+
+
+
+если стоит 
+
+		--permanent
+
+ то запись правил идет в конфиг  но налету ничо неменяет
+
+
+если убираем слово --permanent  то идет изменние правил текущих налету но  в конфиг 
+правило незапмсывается
+

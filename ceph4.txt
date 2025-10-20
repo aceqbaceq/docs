@@ -104,6 +104,179 @@ Starting 16 processes
 
 ничего недало
 
+===
+
+
+3 хоста 
+1 osd
+pg 128
+size 3
+
+LIN WR 
+
+# fio --randrepeat=1 --ioengine=rbd --direct=1 --gtod_reduce=1 --name=test --bs=4M --iodepth=64 --size=50000M --readwrite=write --pool=pool3 --rbdname=img50g -numjobs=1
+test: (g=0): rw=write, bs=(R) 4096KiB-4096KiB, (W) 4096KiB-4096KiB, (T) 4096KiB-4096KiB, ioengine=rbd, iodepth=64
+fio-3.39
+Starting 1 process
+Jobs: 1 (f=1): [W(1)][100.0%][w=256MiB/s][w=64 IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=10300: Tue Oct  7 21:40:10 2025
+  write: IOPS=99, BW=398MiB/s (417MB/s)(48.8GiB/125754msec); 0 zone resets
+   bw (  KiB/s): min=114688, max=606208, per=99.70%, avg=405911.97, stdev=63332.43, samples=251
+   iops        : min=   28, max=  148, avg=99.10, stdev=15.46, samples=251
+  cpu          : usr=14.82%, sys=0.97%, ctx=802, majf=12, minf=431866
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.1%, 8=0.1%, 16=0.1%, 32=0.3%, >=64=99.5%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=0,12500,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+  WRITE: bw=398MiB/s (417MB/s), 398MiB/s-398MiB/s (417MB/s-417MB/s), io=48.8GiB (52.4GB), run=125754-125754msec
+
+
+визуально диски загружены быи на 400МБ
+и  fio w=256MiB/s тоже показывад вобщето 400МБ/с по ходу пьесы
+
+
+
+
+
+RAND READ
+# fio --randrepeat=1 --ioengine=rbd --direct=1 --gtod_reduce=1 --name=test --bs=4k --iodepth=64 --size=50000M --readwrite=randread --pool=pool3 --rbdname=img50g -numjobs=1
+test: (g=0): rw=randread, bs=(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine=rbd, iodepth=64
+fio-3.39
+Starting 1 process
+^Cbs: 1 (f=1): [r(1)][16.9%][r=274MiB/s][r=70.1k IOPS][eta 02m:37s]
+fio: terminating on signal 2
+
+test: (groupid=0, jobs=1): err= 0: pid=12465: Tue Oct  7 21:42:15 2025
+  read: IOPS=67.9k, BW=265MiB/s (278MB/s)(8501MiB/32069msec)
+   bw (  KiB/s): min=249200, max=317016, per=100.00%, avg=271495.62, stdev=10718.30, samples=64
+   iops        : min=62300, max=79254, avg=67873.81, stdev=2679.53, samples=64
+  cpu          : usr=37.48%, sys=12.89%, ctx=413555, majf=2, minf=1295
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.1%, 8=0.1%, 16=0.1%, 32=0.1%, >=64=100.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=2176224,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+   READ: bw=265MiB/s (278MB/s), 265MiB/s-265MiB/s (278MB/s-278MB/s), io=8501MiB (8914MB), run=32069-32069msec
+
+чтение дисков по 80-90МБ/с виузульано
+
+
+
+root@h4:~# fio --randrepeat=1 --ioengine=rbd --direct=1 --gtod_reduce=1 --name=test --bs=4k --iodepth=64 --size=50000M --readwrite=randread --pool=pool3 --rbdname=img50g -numjobs=2
+test: (g=0): rw=randread, bs=(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine=rbd, iodepth=64
+...
+fio-3.39
+Starting 2 processes
+^Cbs: 2 (f=2): [r(2)][6.3%][r=470MiB/s][r=120k IOPS][eta 03m:28s]
+
+зашрузка чтения дисков 130-150МБ/с
+
+дальнейшее увеличкение numjobs на ипосы не влияло!
+
+
+LIN WRITE
+# fio --randrepeat=1 --ioengine=rbd --direct=1 --gtod_reduce=1 --name=test --bs=4M --iodepth=64 --size=50000M --readwrite=write --pool=pool3 --rbdname=img50g -numjobs=1
+test: (g=0): rw=write, bs=(R) 4096KiB-4096KiB, (W) 4096KiB-4096KiB, (T) 4096KiB-4096KiB, ioengine=rbd, iodepth=64
+fio-3.39
+Starting 1 process
+^Cbs: 1 (f=1): [W(1)][6.1%][w=404MiB/s][w=101 IOPS][eta 02m:04s]
+
+скорсть записи на диски виузаьно 400МБ/с
+
+
+RAND WRITE
+
+# fio --randrepeat=1 --ioengine=rbd --direct=1 --gtod_reduce=1 --name=test --bs=4k --iodepth=64 --size=50000M --readwrite=randwrite --pool=pool3 --rbdname=img50g -numjobs=1
+test: (g=0): rw=randwrite, bs=(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine=rbd, iodepth=64
+fio-3.39
+Starting 1 process
+^Cbs: 1 (f=1): [w(1)][4.5%][w=62.0MiB/s][w=15.9k IOPS][eta 12m:58s]
+
+
+скорсть записи на диски виузаьно 100МБ/с
+увелиение тубджбс до 6 ничего недает . иопсы теже
+
+
+до 256 PG нкдкт увелчить.
+
+дбавляет +3 oSD
+
+итого 
+
+3 сервера х 2 osd  х 256 PGS
+
+RAND READ 
+
+numjobs 1 , 70k iops
+numjobs 2 , 140k iops
+numjobs 3 , 170k iops
+numjobs 4 , 190k iops
+дальге прибавки нет
+
+
+RAND WRITE 20k IOPS , на нубджбс 1 , увеливение джобосов ведет только к дергаразации
+
+
+LIN WRITE 630MB\s  numjobs1
+
+
+
+
+увелчили исло PG до 256
+ 
+
+RAND READ   
+1 поток   90 000
+4 потока 200 000
+8 поток  216 000
+
+
+
+
+
+увеличваю число OSD до 9 штук. и PGS до 512
+дает то что на RAND READ при 
+
+   5 потоках дает 250 000 иопс. и все
+   8 потоках дает 270 000 иопс. и все
+
+прикло в том что на такой нагрузке цпу занят почти на 100%
+
+ Intel(R) Xeon(R) CPU E5-2699 v3 @ 2.30GHz  x 2 сокета
+
+хотя это всего натой ноде где я fio заупстил. на других нормал. на 15%
+
+
+
+если на всех трех хостах щапускаю
+fio --randrepeat=1 --ioengine=rbd --direct=1 --gtod_reduce=1 --name=test --bs=4k --iodepth=64 --size=50000M --readwrite=randread --pool=pool3 --rbdname=img50g -numjobs=5
+
+то на каждом получаю по 100 000 ИОПС (382МБ/с)
+
+потом я поставил все цпу в режиме high performance в биос
+и стало побыстрее
+
+# fio --randrepeat=1 --ioengine=rbd --direct=1 --gtod_reduce=1 --name=test --bs=4k --iodepth=64 --size=50000M --readwrite=randread --pool=pool3 --rbdname=img50g -numjobs=6
+test: (g=0): rw=randread, bs=(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine=rbd, iodepth=64
+...
+fio-3.39
+Starting 6 processes
+^Cbs: 6 (f=6): [r(6)][8.8%][r=1219MiB/s][r=312k IOPS][eta 03m:57s]
+
+и сетевая карта пашет клиентская  на 907985.9.0 КБ/с что якобы ~7.4Gb/s
+цпу на других ндах на 15-20 % пашут. а на ноде где фио цпу пашет на 90%
+
+пока что самый ужас это рандомная запись. она 21 000 ИОПС на 1 поток. а если 
+потоков больше то вобще ужас. она падает!
+
+наданный момент ГЛАВНЫЙ треш в том что у цеф чудовищно низкая скорость рандом
+записи. а если запустить на разых хостах то она еще и делаится на всех!
+
 
 
 
