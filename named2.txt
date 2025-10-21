@@ -1,0 +1,8 @@
+| named
+
+
+проверка коректности конфига
+	named-checkconf /etc/named.conf
+
+мягкая перезагрузка
+rndc reload

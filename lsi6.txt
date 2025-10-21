@@ -1,0 +1,11 @@
+| lsi 
+| links
+
+https://www.truesystem.ru/solutions/khranenie_danny/361566/#close
+
+https://www.storagereview.com/review/lsi-sas-9207-8i-e-host-bus-adapter-review
+
+https://www.oracle.com/webfolder/technetwork/hcl/data/components/details/lsi_logic/sol_11_11_11/9610.html
+
+https://www.oracle.com/webfolder/technetwork/hcl/data/components/details/lsi_logic/sol_10_1_13/10427.html
+

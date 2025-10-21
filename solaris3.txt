@@ -1,0 +1,53 @@
+| solaris
+
+ISO 
+https://fsck.technology/software/Sun%20Microsystems/Solaris%20Install%20Media/Sun%20Solaris%2010/Sun%20Solaris%2010%2008-2011%20%28U10%29/
+
+https://fsck.technology/software/Sun%20Microsystems/Solaris%20Install%20Media/Oracle%20Solaris%2011/Oracle%20Solaris%2011%2011-2011/
+
+
+lsi 9300 solaris поддрежка
+
+https://www.oracle.com/webfolder/technetwork/hcl/data/components/details/lsi_logic/sol_11_2/10534.html
+
+
+ISO solaaris 11.4
+
+https://github.com/vmactions/solaris-download/releases
+
+
+
+| работа с дисками
+
+http://emmanuel.iffly.free.fr/doku.php?id=solaris:solaris_scan_dev
+
+EFI
+https://blogs.oracle.com/solaris/post/solaris-identifying-efi-disks
+https://docs.oracle.com/cd/E23824_01/html/821-1459/disksprep-34.html
+
+
+https://docs.oracle.com/cd/E19253-01/817-5093/disksconcepts-1/index.html
+
+
+
+| opencsw
+
+https://www.opencsw.org/get-it/mirrors/
+
+https://www.krenger.ch/blog/solaris-10-opencsw/
+
+установка sssl сертифкаиата на солярис
+https://itadminguide.com/how-to-install-ssl-certificate-in-solaris/
+
+
+| поменять ip адрес
+
+https://unix.stackexchange.com/questions/44551/changing-the-ip-address-in-solaris-11
+https://loopback.org/kb/c/change-ip-address-on-solaris-11_8159250/
+
+| smartctl
+
+https://www.claudiokuenzler.com/blog/412/install-smartctl-smartmontools-on-solaris-opencsw-package
+
+
+

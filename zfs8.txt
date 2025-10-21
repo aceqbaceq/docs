@@ -1,0 +1,7 @@
+| zfs
+
+
+архиетктурат zfs
+https://wiki.gentoo.org/wiki/ZFS
+
+

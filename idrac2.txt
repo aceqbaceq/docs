@@ -1,0 +1,8 @@
+| idrac
+| phan
+| вентилятор
+
+https://angrysysadmins.tech/index.php/2022/01/grassyloki/idrac-7-8-lower-fan-noise-on-dell-servers/
+
+https://www.reddit.com/r/homelab/comments/14te7lm/dell_r720_fan_speed/
+

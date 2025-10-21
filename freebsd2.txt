@@ -1,0 +1,5 @@
+| freebsd
+| geom
+
+https://docs.freebsd.org/en/books/handbook/geom/
+
