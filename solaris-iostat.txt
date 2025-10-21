@@ -1,0 +1,35 @@
+| solaris
+| iostat
+| zfs
+
+
+если я хочу посмтреть нагрузку на диски
+то вот так круто
+
+-bash-3.00# iostat -M -n -x 5
+
+-M дает то что статистика позцывается в мегабайтах в сеунду а не килобайтах
+
+-n ознчаает что имя диска будет такое же как в format
+
+-x 5 будет оновлять данные каждые 5с. (кстати вот так -x5 он непонимает)
+
+
+
+                    extended device statistics              
+    r/s    w/s   Mr/s   Mw/s wait actv wsvc_t asvc_t  %w  %b device
+    4.1  112.7    0.1    9.1  0.0  0.2    0.0    2.0   0   9 c0t1d0
+   98.9    0.9    9.4    0.0  0.0  2.1    0.0   20.8   0  22 c0t0d0
+    0.0    0.0    0.0    0.0  0.0  0.0    0.0    0.0   0   0 rad01-cn02:vold(pid519)
+                    extended device statistics              
+    r/s    w/s   Mr/s   Mw/s wait actv wsvc_t asvc_t  %w  %b device
+    0.0  164.4    0.0   12.2  0.0  0.2    0.0    1.1   0  10 c0t1d0
+  112.5   11.0   12.5    0.1  0.0  3.2    0.0   25.7   0  36 c0t0d0
+    0.0    0.0    0.0    0.0  0.0  0.0    0.0    0.0   0   0 rad01-cn02:vold(pid519)
+                    extended device statistics              
+    r/s    w/s   Mr/s   Mw/s wait actv wsvc_t asvc_t  %w  %b device
+    0.0    0.0    0.0    0.0  0.0  0.0    0.0    0.0   0   0 c0t1d0
+    0.0    0.0    0.0    0.0  0.0  0.0    0.0    0.0   0   0 c0t0d0
+    0.0    0.0    0.0    0.0  0.0  0.0    0.0    0.0   0   0 rad01-cn02:vold(pid519)
+
+
