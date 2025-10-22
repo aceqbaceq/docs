@@ -1,0 +1,227 @@
+| kubernetes
+| k8
+| tls
+| ssl
+| cert
+
+
+вот мы берем "пропуск" в к8. а именно файл 
+
+
+~/.kube/admin.conf
+
+внутри него какаято вот такая портянка
+
+
+apiVersion: v1
+clusters:
+- cluster:
+    certificate-authority-data: LS...LS0K
+    server: https://kub2-01:6443
+  name: cluster.local
+contexts:
+- context:
+    cluster: cluster.local
+    user: kubernetes-admin
+  name: kubernetes-admin@cluster.local
+current-context: kubernetes-admin@cluster.local
+kind: Config
+preferences: {}
+users:
+- name: kubernetes-admin
+  user:
+    client-certificate-data: LS0t...tLS0K
+    client-key-data: LS0...S0tLQo=
+ 
+
+
+
+щас хочу отметить вот эту строку
+
+    server: https://kub2-01:6443
+
+
+
+в ней указано куда нужно звонить клиенту kubectl
+как видно звонит он на https это значит что конект идет по TLS протоколу. устаналивается
+tls шифрованный тонель. а уже внутри него пускаются HTTP пакеты.
+так вот при достукивании до TLS сервера он нам в ответ вышлет СЕРТИФИКАТ
+в этом сертификате есть поле CN
+так вот у нас TLS серером явлется кубернетес а точнее его комепонент api-server
+он сидит на tcp/6443 порту и он нам по TLS шлет сетимфимкат. так вот 
+чтобы у нас HTTP обмен через TLS начался то нужно чтобы URL который мы вбили в нашем
+TLS клиенте соотвествовал CN который нам в ответ вышлет сертифкат. или чтобы URL
+соовествтвал SAN полю в сертификикате. короче на примере вот что я говорю
+мы в клиенте вбили 
+
+
+
+           https://kub2-01:6443
+
+
+значит в сертифкатте в CN или в SAN должно быть  kub2-01 
+щас я это проверю
+
+
+$ openssl s_client -tls1_3 -connect kub2-01:6443 -showcerts
+
+Connecting to 172.16.80.2
+CONNECTED(00000003)
+Can't use SSL_get_servername
+depth=0 CN=kube-apiserver
+verify error:num=20:unable to get local issuer certificate
+verify return:1
+depth=0 CN=kube-apiserver
+verify error:num=21:unable to verify the first certificate
+verify return:1
+depth=0 CN=kube-apiserver
+verify return:1
+---
+Certificate chain
+ 0 s:CN=kube-apiserver
+   i:CN=kubernetes
+   a:PKEY: RSA, 2048 (bit); sigalg: sha256WithRSAEncryption
+   v:NotBefore: Jul 13 14:49:19 2025 GMT; NotAfter: Jul 13 14:54:19 2026 GMT
+-----BEGIN CERTIFICATE-----
+MIIDzTCCArWgAwIBAgIIGFNjYkGknS0wDQYJKoZIhvcNAQELBQAwFTETMBEGA1UE
+AxMKa3ViZXJuZXRlczAeFw0yNTA3MTMxNDQ5MTlaFw0yNjA3MTMxNDU0MTlaMBkx
+FzAVBgNVBAMTDmt1YmUtYXBpc2VydmVyMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A
+MIIBCgKCAQEAuEre56gOBgbBuKuPAUuOerxK7m/Sr4pNvK+rEnAZwRi1sr911PqM
+NW8bZrXuOH6UwiCVBImpQmIvK1Mj/wgO+MunD4pJlb5eTvxZ83j4wJ1RIYt978a6
+g4cpuj69NDxYZKdwcz0WSHVCGx46u/SAG8nabr3pCAdHjs+VCHoWTyesHeytn2eB
+kUZKr29w9CLaQ1qV6WX8m65vQZ/bsHs/OjqOoFP76lhHz06AR4b7q5PgASTuzxi2
+C49yeFMr6a0U0NJnfap64HjwBwuQ9k/YVh+nwYvI0AzdgIV/5ChkOFTkZuiCpxNn
+uj4R11D6jlQRFnnABZviFiPD0cRfGQY1xQIDAQABo4IBGzCCARcwDgYDVR0PAQH/
+BAQDAgWgMBMGA1UdJQQMMAoGCCsGAQUFBwMBMAwGA1UdEwEB/wQCMAAwHwYDVR0j
+BBgwFoAUBorUik7kh5e5nf5+sVOOJCFNkbgwgcAGA1UdEQSBuDCBtYIHa3ViMi0w
+MYIKa3ViZXJuZXRlc4ISa3ViZXJuZXRlcy5kZWZhdWx0ghZrdWJlcm5ldGVzLmRl
+ZmF1bHQuc3ZjgiRrdWJlcm5ldGVzLmRlZmF1bHQuc3ZjLmNsdXN0ZXIubG9jYWyC
+HWxiLWFwaXNlcnZlci5rdWJlcm5ldGVzLmxvY2Fsgglsb2NhbGhvc3SHBArpAAGH
+BKwQUAKHBH8AAAGHEAAAAAAAAAAAAAAAAAAAAAEwDQYJKoZIhvcNAQELBQADggEB
+AC3LYhkjfNfLoQj6WDBtdm/Tw+FEfncYYRW1Do1XOZPgPVkhglXTrOIZksrQoQvu
+xeCb/UdE/Tk0yxGi6mZzcG5AsjIq8CMLuB01NnvFRT1N5AR8TwqlxtrOTW2Ds+xY
+vVdw9DA2Ju1laJq6m8jD0AzVT2OJZLZodx9maKqlcD8+lmyfsg9op+MTJNjglMbE
+Bf64BcwQ0RzMWbHwJE2T9G5Ozeso4M0iyGQJmr/diGeeUnpyQwphwBm0kjTG44Eq
+Ll+lGc30gyoNKsE/3jHZ8Wwr6WV7tRzxPE6VXOI3BEqy9kPY8lAX9MzEm7g/v4vs
+isiRMImvgfIGbAK07JRDEiw=
+-----END CERTIFICATE-----
+---
+...
+...
+
+
+
+сохраняю вот этот текст в текст файл
+
+-----BEGIN CERTIFICATE-----
+MIIDzTCCArWgAwIBAgIIGFNjYkGknS0wDQYJKoZIhvcNAQELBQAwFTETMBEGA1UE
+AxMKa3ViZXJuZXRlczAeFw0yNTA3MTMxNDQ5MTlaFw0yNjA3MTMxNDU0MTlaMBkx
+FzAVBgNVBAMTDmt1YmUtYXBpc2VydmVyMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A
+MIIBCgKCAQEAuEre56gOBgbBuKuPAUuOerxK7m/Sr4pNvK+rEnAZwRi1sr911PqM
+NW8bZrXuOH6UwiCVBImpQmIvK1Mj/wgO+MunD4pJlb5eTvxZ83j4wJ1RIYt978a6
+g4cpuj69NDxYZKdwcz0WSHVCGx46u/SAG8nabr3pCAdHjs+VCHoWTyesHeytn2eB
+kUZKr29w9CLaQ1qV6WX8m65vQZ/bsHs/OjqOoFP76lhHz06AR4b7q5PgASTuzxi2
+C49yeFMr6a0U0NJnfap64HjwBwuQ9k/YVh+nwYvI0AzdgIV/5ChkOFTkZuiCpxNn
+uj4R11D6jlQRFnnABZviFiPD0cRfGQY1xQIDAQABo4IBGzCCARcwDgYDVR0PAQH/
+BAQDAgWgMBMGA1UdJQQMMAoGCCsGAQUFBwMBMAwGA1UdEwEB/wQCMAAwHwYDVR0j
+BBgwFoAUBorUik7kh5e5nf5+sVOOJCFNkbgwgcAGA1UdEQSBuDCBtYIHa3ViMi0w
+MYIKa3ViZXJuZXRlc4ISa3ViZXJuZXRlcy5kZWZhdWx0ghZrdWJlcm5ldGVzLmRl
+ZmF1bHQuc3ZjgiRrdWJlcm5ldGVzLmRlZmF1bHQuc3ZjLmNsdXN0ZXIubG9jYWyC
+HWxiLWFwaXNlcnZlci5rdWJlcm5ldGVzLmxvY2Fsgglsb2NhbGhvc3SHBArpAAGH
+BKwQUAKHBH8AAAGHEAAAAAAAAAAAAAAAAAAAAAEwDQYJKoZIhvcNAQELBQADggEB
+AC3LYhkjfNfLoQj6WDBtdm/Tw+FEfncYYRW1Do1XOZPgPVkhglXTrOIZksrQoQvu
+xeCb/UdE/Tk0yxGi6mZzcG5AsjIq8CMLuB01NnvFRT1N5AR8TwqlxtrOTW2Ds+xY
+vVdw9DA2Ju1laJq6m8jD0AzVT2OJZLZodx9maKqlcD8+lmyfsg9op+MTJNjglMbE
+Bf64BcwQ0RzMWbHwJE2T9G5Ozeso4M0iyGQJmr/diGeeUnpyQwphwBm0kjTG44Eq
+Ll+lGc30gyoNKsE/3jHZ8Wwr6WV7tRzxPE6VXOI3BEqy9kPY8lAX9MzEm7g/v4vs
+isiRMImvgfIGbAK07JRDEiw=
+-----END CERTIFICATE-----
+
+
+и смотрю его контент
+
+
+
+$ openssl x509 -text -noout -in ./cert.pem 
+
+Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number: 1752853953636506925 (0x1853636241a49d2d)
+        Signature Algorithm: sha256WithRSAEncryption
+        Issuer: CN=kubernetes
+        Validity
+            Not Before: Jul 13 14:49:19 2025 GMT
+            Not After : Jul 13 14:54:19 2026 GMT
+        Subject: CN=kube-apiserver
+        Subject Public Key Info:
+            Public Key Algorithm: rsaEncryption
+                Public-Key: (2048 bit)
+                Modulus:
+                    00:b8:4a:de:e7:a8:0e:06:06:c1:b8:ab:8f:01:4b:
+                    ...
+                    ...
+                    35:c5
+                Exponent: 65537 (0x10001)
+        X509v3 extensions:
+            X509v3 Key Usage: critical
+                Digital Signature, Key Encipherment
+            X509v3 Extended Key Usage: 
+                TLS Web Server Authentication
+            X509v3 Basic Constraints: critical
+                CA:FALSE
+            X509v3 Authority Key Identifier: 
+                06:8A:D4:8A:4E:E4:87:97:B9:9D:FE:7E:B1:53:8E:24:21:4D:91:B8
+            X509v3 Subject Alternative Name: 
+                DNS:kub2-01, DNS:kubernetes, DNS:kubernetes.default, DNS:kubernetes.default.svc, DNS:kubernetes.default.svc.cluster.local, DNS:lb-apiserver.kubernetes.local, DNS:localhost, IP Address:10.233.0.1, IP Address:172.16.80.2, IP Address:127.0.0.1, IP Address:0:0:0:0:0:0:0:1
+    Signature Algorithm: sha256WithRSAEncryption
+    Signature Value:
+        2d:cb:62:19:23:7c:d7:cb:a1:08:fa:58:30:6d:76:6f:d3:c3:...
+
+
+
+меня интерсует два поля
+поле CN
+
+	CN=kube-apiserver
+
+
+и поле SAN
+            X509v3 Subject Alternative Name: 
+                DNS:kub2-01, DNS:kubernetes, DNS:kubernetes.default, DNS:kubernetes.default.svc, DNS:kubernetes.default.svc.cluster.local, DNS:lb-apiserver.kubernetes.local, DNS:localhost, IP Address:10.233.0.1, IP Address:172.16.80.2, IP Address:127.0.0.1, IP Address:0:0:0:0:0:0:0:1
+
+
+и здесб мы видим kub2-01
+здесь мы видим по какими именами в http запросе мы можем по TLS обращаться к этому
+серверу а именно
+
+		https://kube-apiserver
+		https://kub2-01
+		https://kubernetes 
+		https://kubernetes.default
+		https://kubernetes.default.svc
+		https://kubernetes.default.svc.cluster.local
+		https://lb-apiserver.kubernetes.local
+		https://localhost 
+		https://:10.233.0.1 
+		https://172.16.80.2 
+		https://127.0.0.1 
+		https://0:0:0:0:0:0:0:1
+
+
+
+мне бльше всего вот это имя понраиваилось
+
+
+		https://kubernetes 
+
+
+получается я могу к любому кубер серверу обращаться под таким именем.
+главное чтобы в  /etc/hosts было его IP
+
+
+     /etc/hosts
+     1.2.3.4 			kubernetes
+
+
+

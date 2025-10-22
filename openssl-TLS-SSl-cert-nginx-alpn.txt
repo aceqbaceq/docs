@@ -1,0 +1,603 @@
+| TLS
+| SSl
+| cert
+| openssl
+| nginx
+| openssl
+| alpn
+
+
+
+
+
+
+
+здесь я рассотрю как создавать  приватные ключи.
+потом как создавать CA сертифкат
+как создавать сертифкат подписанный этим CA сертифкатом
+как засунуть в жинкс несколко сертифкатов и организовать несколько TLS
+сайтов на их баазе на одном порту 443 на базе ALPN
+
+
+
+
+посмтреть какие кривые доступны для openssl
+
+
+$ openssl ecparam -list_curves
+
+  secp112r1 : SECG/WTLS curve over a 112 bit prime field
+  secp112r2 : SECG curve over a 112 bit prime field
+  secp128r1 : SECG curve over a 128 bit prime field
+  secp128r2 : SECG curve over a 128 bit prime field
+  secp160k1 : SECG curve over a 160 bit prime field
+  secp160r1 : SECG curve over a 160 bit prime field
+  secp160r2 : SECG/WTLS curve over a 160 bit prime field
+  secp192k1 : SECG curve over a 192 bit prime field
+  secp224k1 : SECG curve over a 224 bit prime field
+
+
+я выбрад вот эту кривую
+  secp112r1 : SECG/WTLS curve over a 112 bit prime field
+
+
+
+генерируем приватный ключ 
+
+$ openssl ecparam  -name   secp112r1   -genkey -noout  -out /root/ec-priv.key
+
+
+
+# cat ~/ec-priv.key 
+-----BEGIN EC PRIVATE KEY-----
+MD4CAQEEDgl2q0Wk4bC7NEyPNyHMoAcGBSuBBAAGoSADHgAEBsyGm/k/v0JVuNwr
+lEAucHoOdfVcWLQEesw53A==
+-----END EC PRIVATE KEY-----
+
+
+
+посмтрим на его внутренности
+
+# openssl  pkey -text -noout -in ./ec-priv.key 
+
+Private-Key: (112 bit)
+priv:
+    09:76:ab:45:a4:e1:b0:bb:34:4c:8f:37:21:cc
+
+pub:
+    04:06:cc:86:9b:f9:3f:bf:42:55:b8:dc:2b:94:40:
+    2e:70:7a:0e:75:f5:5c:58:b4:04:7a:cc:39:dc
+
+ASN1 OID: secp112r1
+
+
+дествиетоьльено 
+09:76:ab:45:a4:e1:b0:bb:34:4c:8f:37:21:cc
+это 14 байт. или 14*8=112 бит
+
+
+выделяем из него пуб ключ в отдельный файл
+
+# openssl ec -in ec-priv.key  -pubout -out ec_pub.key
+
+
+# cat ec_pub.key 
+-----BEGIN PUBLIC KEY-----
+MDIwEAYHKoZIzj0CAQYFK4EEAAYDHgAEBsyGm/k/v0JVuNwrlEAucHoOdfVcWLQE
+esw53A==
+-----END PUBLIC KEY-----
+
+
+# openssl ec  -pubin  -text -noout -in ./ec_pub.key 
+read EC key
+Public-Key: (112 bit)
+pub:
+    04:06:cc:86:9b:f9:3f:bf:42:55:b8:dc:2b:94:40:
+    2e:70:7a:0e:75:f5:5c:58:b4:04:7a:cc:39:dc
+ASN1 OID: secp112r1
+
+
+
+содаем конфиг 
+
+# cat ca.conf 
+[req]
+distinguished_name = req_distinguished_name
+prompt = no
+
+[req_distinguished_name]
+C = RU
+ST = Moscow
+L = Moscow
+O = MyOrg
+CN = My Root CA
+
+
+создаем  CA скмопдписанный сертификат на основе нашего приватного ключа 
+и конфига
+
+
+
+
+# openssl req -new -x509 -key ec-priv.key  -out ca.crt -days 3650  -sha256 -extensions v3_ca -config /etc/ssl/openssl.cnf
+
+You are about to be asked to enter information that will be incorporated
+into your certificate request.
+What you are about to enter is what is called a Distinguished Name or a DN.
+There are quite a few fields but you can leave some blank
+For some fields there will be a default value,
+If you enter '.', the field will be left blank.
+-----
+Country Name (2 letter code) [AU]:RU
+State or Province Name (full name) [Some-State]:State-RU            
+Locality Name (eg, city) []:RU-Locality
+Organization Name (eg, company) [Internet Widgits Pty Ltd]:RU-Org
+Organizational Unit Name (eg, section) []:RU-Unit
+Common Name (e.g. server FQDN or YOUR name) []:CA Root cert MOY
+Email Address []:noreprly@no.ru
+
+
+
+сморрим на него
+root@docker:~/CERTIFICATES# openssl x509  -text -noout -in ./ca.crt 
+
+root@docker:~/CERTIFICATES# openssl x509  -text -noout -in ./ca.crt 
+
+Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number:
+            63:df:40:f9:50:c8:ec:ab:06:33:f2:9f:ea:6c:ac:b2:7c:26:26:6b
+        Signature Algorithm: ecdsa-with-SHA256
+        Issuer: C = RU, ST = State-RU, L = RU-Locality, O = RU-Org, OU = RU-Unit, CN = CA Root cert MOY, 
+emailAddress = noreprly@no.ru
+        Validity
+            Not Before: Oct 22 20:20:24 2025 GMT
+            Not After : Oct 20 20:20:24 2035 GMT
+        Subject: C = RU, ST = State-RU, L = RU-Locality, O = RU-Org, OU = RU-Unit, CN = CA Root cert MOY,
+ emailAddress = noreprly@no.ru
+        Subject Public Key Info:
+            Public Key Algorithm: id-ecPublicKey
+                Public-Key: (112 bit)
+                pub:
+                    04:06:cc:86:9b:f9:3f:bf:42:55:b8:dc:2b:94:40:
+                    2e:70:7a:0e:75:f5:5c:58:b4:04:7a:cc:39:dc
+                ASN1 OID: secp112r1
+        X509v3 extensions:
+            X509v3 Subject Key Identifier: 
+                A8:56:6F:E2:99:15:E8:0E:E7:77:C7:93:A2:51:21:69:18:AA:23:EC
+            X509v3 Authority Key Identifier: 
+                A8:56:6F:E2:99:15:E8:0E:E7:77:C7:93:A2:51:21:69:18:AA:23:EC
+            X509v3 Basic Constraints: critical
+                CA:TRUE
+    Signature Algorithm: ecdsa-with-SHA256
+    Signature Value:
+        30:20:02:0e:3c:0e:a7:0f:fa:29:1c:5a:bf:98:a8:88:25:2b:
+        02:0e:47:6a:5b:58:0a:ff:67:b1:51:8a:b0:c9:be:1e
+root@docker:~/CERTIFICATES# 
+
+
+вот его важная часть
+
+        Subject: C = RU, ST = State-RU, L = RU-Locality, O = RU-Org, OU = RU-Unit, CN = CA Root cert MOY,
+
+
+        X509v3 Basic Constraints: critical
+                CA:TRUE
+
+
+
+длаее я создаю пару ключей на базе RSA
+
+		$ openssl genrsa -out rsa_private.key 2048
+или
+        $ openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out rsa_private.key
+
+
+
+# openssl pkey  -text -in ./rsa_private.key  -noout
+Private-Key: (2048 bit, 2 primes)
+modulus:
+    00:ad:0a:57:a3:b3:60:cb:a2:63:71:77:b9:1d:fe:
+    aa:ad:50:24:d5:03:6d:84:c6:ca:60:23:5e:cb:91:
+    d4:54:58:88:ce:7e:91:4c:ae:31:5f:bd:da:31:17:
+    b9:cb:6a:bb:4c:09:d8:29:87:e6:ce:22:5a:cf:ed:
+    e9:4d:d9:aa:6f:cd:68:cd:45:f1:3a:5c:48:3d:fc:
+    7a:ce:b6:0a:a1:40:77:25:9d:e6:f8:18:45:09:d8:
+    fa:b9:c7:ce:3d:44:5e:f2:bb:c3:62:4f:6a:6e:a1:
+    af:d6:d8:8d:18:1b:ed:7c:bf:fe:38:84:49:d9:31:
+    64:e9:b3:dd:69:a9:66:28:53:af:dc:de:02:a0:46:
+    7b:39:ec:61:c3:ad:ce:16:d8:f9:86:8f:ac:d4:
+    ...
+    ...
+
+
+выделяю публичный ключ
+
+  # openssl pkey  -pubout -in ./rsa_private.key   -out ./rsa-pub.key
+
+
+
+теперь я на базе CA сертфкиата и RSA пары ключей 
+я хочу создать другой сертфикат
+
+для сертиката нужен CA сертификат с приватным ключаом от него
+и нужна пара ключей отдельных для нового сертифкиата и конфиг 
+где мы укажем CN и SAN нового сертификтата
+
+
+делаю конфиг, хочу чтобы в нем был SAN IP=127.0.0.1 и CN=vasya
+
+root@docker:~/CERTIFICATES/vasya# cat vasya.conf 
+[ req ]
+default_bits = 2048
+prompt = no
+default_md = sha256
+distinguished_name = dn
+req_extensions = req_ext
+
+[ dn ]
+CN = vasya
+
+[ req_ext ]
+subjectAltName = @alt_names
+
+[ alt_names ]
+IP.1 = 127.0.0.1
+
+
+делаю запрос на выпуск сертфиктата.
+дело в том что мы создаем тело будущего сертифката.суем туда все нужные поля
+суем туда публичный ключ. а потом все это шфируем приватным ключом.
+это и есть запрос CSR. спрвшиватся нахера шифровать? а потому что центр сертифкации
+хочет удоствояерться что запрос делает релаьно владаеле приватного ключа 
+от публичного ключа уаккаанного в запросе.
+
+ # openssl req -new -key ./rsa_private.key -out vasya.csr -config vasya.conf
+ 
+
+
+
+посмтрим его вид в текст виде
+
+# openssl req -in vasya.csr -text -noout -verify
+
+Certificate request self-signature verify OK
+Certificate Request:
+    Data:
+        Version: 1 (0x0)
+        Subject: CN = vasya
+        Subject Public Key Info:
+            Public Key Algorithm: rsaEncryption
+                Public-Key: (2048 bit)
+                Modulus:
+                    00:ad:0a:57:a3:b3:60:cb:a2:63:71:77:b9:1d:fe:
+                    aa:ad:50:24:d5:03:6d:84:c6:ca:60:23:5e:cb:91:
+                    ...
+                    ...
+                Exponent: 65537 (0x10001)
+        Attributes:
+            Requested Extensions:
+                X509v3 Subject Alternative Name: 
+                    IP Address:127.0.0.1
+    Signature Algorithm: sha256WithRSAEncryption
+    Signature Value:
+        94:97:c8:74:77:af:96:4b:e9:db:71:b0:43:cc:08:b0:3c:f3:
+        ...
+        ...
+
+
+видим CN и SAN
+
+в какойто степени CSR это такой же сертфикат только опдписан он не 
+приватным ключом CA серртивиката а  приватным ключом этого же публичного ключа!
+
+
+создаем на базе CSR сертфикат подписанный нашим CA
+
+# openssl x509 -req -in vasya.csr -CA ~/CERTIFICATES/CA/ca.crt -CAkey ~/CERTIFICATES/CA/ca-priv.key -CAcreateserial -out vasya.crt -days 365 -sha256 -extfile vasya.conf  -extensions req_ext
+
+
+смотрим что мы получилим
+
+
+root@docker:~/CERTIFICATES/vasya# openssl x509 -text -noout -in ./vasya.crt 
+
+Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number:
+            5a:3e:ac:e3:3c:ca:d2:85:77:d7:c7:ab:ce:b0:20:5e:09:f1:0e:e0
+        Signature Algorithm: ecdsa-with-SHA256
+        Issuer: C = RU, ST = State-RU, L = RU-Locality, O = RU-Org, OU = RU-Unit, CN = CA Root cert MOY, 
+emailAddress = noreprly@no.ru
+        Validity
+            Not Before: Oct 22 20:57:37 2025 GMT
+            Not After : Oct 22 20:57:37 2026 GMT
+        Subject: CN = vasya
+        Subject Public Key Info:
+            Public Key Algorithm: rsaEncryption
+                Public-Key: (2048 bit)
+                Modulus:
+                    00:ad:0a:57:a3:b3:60:cb:a2:63:71:77:b9:1d:fe:
+                    aa:ad:50:24:d5:03:6d:84:c6:ca:60:23:5e:cb:91:
+                    ...
+                    ...
+                Exponent: 65537 (0x10001)
+        X509v3 extensions:
+            X509v3 Subject Alternative Name: 
+                IP Address:127.0.0.1
+            X509v3 Subject Key Identifier: 
+                39:C1:EA:5F:2D:5E:F8:F6:1F:50:42:82:82:07:91:F8:74:C1:B6:7F
+            X509v3 Authority Key Identifier: 
+                A8:56:6F:E2:99:15:E8:0E:E7:77:C7:93:A2:51:21:69:18:AA:23:EC
+    Signature Algorithm: ecdsa-with-SHA256
+    Signature Value:
+        30:21:02:0e:62:ad:90:b1:8f:be:e5:61:53:50:c8:6c:9c:ba:
+
+
+
+здесь видно кто подписал сертификат
+        Issuer: C = RU, ST = State-RU, L = RU-Locality, O = RU-Org, OU = RU-Unit, CN = CA Root cert MOY, 
+
+
+видно чему равен CN сертфиктата
+
+        Subject: CN = vasya
+
+
+видно чему равен SAN сертификата
+            X509v3 Subject Alternative Name: 
+                IP Address:127.0.0.1
+
+
+
+теперь нунжнодобавить новый CA сертифкат в хранилище корневых сертифктаторв линукса
+копирую ca.crt в папку
+
+		/usr/local/share/ca-certificates/my-ca
+
+и запускаю
+
+		# update-ca-certificates
+
+
+длаее я по аналогии создаю сертификат для masha
+
+теперь я хочу на жинкс создат два сайта один для https://vasya
+а второй для https://masha
+
+     https://vasya
+     https://masha
+
+
+и получается при обращении на tcp/443 у нас жинкс через TLS будет 
+отдавать то сертифкат для masha а то для vasya
+
+# tree /etc/nginx/certs
+
+/etc/nginx/certs
+├── masha
+│    ├── masha.crt
+│    └── rsa_private.key
+└── vasya
+    ├── rsa_private.key
+    └── vasya.crt
+
+
+
+
+
+root@docker:/etc/nginx/certs/masha# cat /etc/nginx/sites-available/vasya
+
+
+
+server {
+
+	# SSL configuration
+	#
+ listen 443 ssl ;
+
+
+    ssl_certificate 	/etc/nginx/certs/vasya/vasya.crt;
+    ssl_certificate_key /etc/nginx/certs/vasya/rsa_private.key;
+
+
+
+
+	root /var/www/vasya;
+
+	index index.html ;
+
+	server_name vasya;
+
+	location / {
+		try_files $uri $uri/ =404;
+	}
+
+}
+
+
+
+root@docker:/etc/nginx/certs/masha# 
+root@docker:/etc/nginx/certs/masha# 
+root@docker:/etc/nginx/certs/masha# cat /etc/nginx/sites-available/masha
+
+
+
+server {
+
+	# SSL configuration
+	#
+ listen 443 ssl ;
+
+
+    ssl_certificate 	/etc/nginx/certs/masha/masha.crt;
+    ssl_certificate_key /etc/nginx/certs/masha/rsa_private.key;
+
+
+
+
+	root /var/www/masha;
+
+	index index.html ;
+
+	server_name masha;
+
+	location / {
+		try_files $uri $uri/ =404;
+	}
+
+}
+
+
+
+# tree /etc/nginx/sites-enabled/
+/etc/nginx/sites-enabled/
+├── default -> /etc/nginx/sites-available/default
+├── masha -> /etc/nginx/sites-available/masha
+└── vasya -> /etc/nginx/sites-available/vasya
+
+
+  # nginx -t
+  # nginx -s reload
+
+
+
+
+создаю две корневые ппки для сайтов
+
+	# tree /var/www/
+/var/www/
+├── masha
+│   └── index.html
+└── vasya
+    └── index.html
+
+
+еще делаем вот так
+
+
+ /etc/hosts
+ 127.0.0.1 		masha
+ 127.0.0.1 		vasya
+
+
+
+
+
+проверяю
+
+
+root@docker:/etc/nginx/certs/masha# curl -k https://vasya:443
+<!DOCTYPE html>
+<html>
+<head>
+<title>Welcome to nginx!</title>
+<style>
+html { color-scheme: light dark; }
+body { width: 35em; margin: 0 auto;
+font-family: Tahoma, Verdana, Arial, sans-serif; }
+</style>
+</head>
+<body>
+
+<p>vasya</p>
+
+</body>
+</html>
+root@docker:/etc/nginx/certs/masha# 
+root@docker:/etc/nginx/certs/masha# curl -k https://masha:443
+<!DOCTYPE html>
+<html>
+<head>
+<title>Welcome to nginx!</title>
+<style>
+html { color-scheme: light dark; }
+body { width: 35em; margin: 0 auto;
+font-family: Tahoma, Verdana, Arial, sans-serif; }
+</style>
+</head>
+<body>
+
+<p>masha</p>
+
+</body>
+</html>
+root@docker:/etc/nginx/certs/masha# 
+
+
+
+
+работает!
+
+а все почему? 
+потому что у TLS есть хрень ALPN.
+это параметр который предается при старте TLS контакта. и там указано какой сертифкат
+мы хотели бы увидеть.
+в openssl этот параметр называется -servername
+
+
+
+
+# openssl s_client -connect 127.0.0.1:443 -servername masha -showcerts
+
+CONNECTED(00000003)
+depth=1 C = RU, ST = State-RU, L = RU-Locality, O = RU-Org, OU = RU-Unit, CN = CA Root cert MOY, emailAddress = noreprly@no.ru
+verify error:num=67:CA certificate key too weak
+verify return:1
+depth=1 C = RU, ST = State-RU, L = RU-Locality, O = RU-Org, OU = RU-Unit, CN = CA Root cert MOY, emailAddress = noreprly@no.ru
+verify return:1
+depth=0 CN = masha
+verify return:1
+---
+Certificate chain
+ 0 s:CN = masha        <===!!!
+...
+...
+
+
+вижно что жинкс нам выдал нужный сртификат на машу
+также видно что наш корневой сертифкат тоже подтянулся
+
+
+
+# openssl s_client -connect 127.0.0.1:443 -servername vasya -showcerts
+CONNECTED(00000003)
+depth=1 C = RU, ST = State-RU, L = RU-Locality, O = RU-Org, OU = RU-Unit, CN = CA Root cert MOY, emailAddress = noreprly@no.ru
+verify error:num=67:CA certificate key too weak
+verify return:1
+depth=1 C = RU, ST = State-RU, L = RU-Locality, O = RU-Org, OU = RU-Unit, CN = CA Root cert MOY, emailAddress = noreprly@no.ru
+verify return:1
+depth=0 CN = vasya
+verify return:1
+---
+Certificate chain
+ 0 s:CN = vasya        <===!!!
+
+
+а теперь видно что жинкс нам выдал сертфикат на васю
+
+
+
+если же порпробовать неуказать -servername то openssl поругается
+и мы не полчим нужный рещузультат
+
+# openssl s_client -connect vasya:443  -showcerts
+CONNECTED(00000003)
+Can't use SSL_get_servername  (******)<===!!(*****)
+depth=1 C = RU, ST = State-RU, L = RU-Locality, O = RU-Org, OU = RU-Unit, CN = CA Root cert MOY, emailAddress = noreprly@no.ru
+verify error:num=67:CA certificate key too weak
+verify return:1
+depth=1 C = RU, ST = State-RU, L = RU-Locality, O = RU-Org, OU = RU-Unit, CN = CA Root cert MOY, emailAddress = noreprly@no.ru
+verify return:1
+depth=0 CN = masha
+verify return:1
+---
+Certificate chain
+ 0 s:CN = masha     (******)<===!!(*****)
+
+
+
+
+
