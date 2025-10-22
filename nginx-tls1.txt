@@ -1,0 +1,17 @@
+| nginx
+| TLS
+| SSL
+
+как сделать чтобы он откликался  только на TLS 1.3
+
+
+ssl_protocols TLSv1.3;
+
+
+проверка
+
+
+ $ openssl s_client -connect vasya:443 -servername vasya  -showcerts -tls1_1
+ $ openssl s_client -connect vasya:443 -servername vasya  -showcerts -tls1_3
+
+ 
