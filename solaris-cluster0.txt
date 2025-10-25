@@ -1,0 +1,10 @@
+| solaris
+| cluster
+
+посмтреть его сука ресурсы
+
+clresourcegroup status
+clresourcegroup show -v
+
+начало кротвой норы!
+
