@@ -1,0 +1,11 @@
+| esxtop
+| esxi
+
+запустил esxtop 
+а на экране мусор. 
+
+окзывается
+
+
+TERM=xterm esxtop
+

@@ -1,0 +1,14 @@
+| solaris
+| zfs
+| boot
+
+когда мы слайс на zfs мы синхронизировали зарезилвиоили
+то этого мало. еще нужно накатить бутблок bootblock
+делается это вот так
+
+
+
+   # installboot -F zfs /usr/platform/`uname -i`/lib/fs/zfs/bootblk /dev/rdsk/c0t1d0s0
+
+
+ 
