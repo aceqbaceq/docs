@@ -947,7 +947,12 @@ Original-Maintainer: Matthias Klose <doko@debian.org>
  The following signatures couldn't be verified because the public key is 
  not available: NO_PUBKEY 4F4EA0AAE5267A6C
 
-нужно импорторвать gpg ключ
+ВАЖНО! ВНАЧАЛЕ НУЖНО ПОСТАВИТЬ ПАКЕТ
+
+            # apt-get update
+            # apt-get install dirmngr
+
+И ТОЛЬКО ПОТОМ!! нужно импорторвать gpg ключ
 
 # apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 4F4EA0AAE5267A6C
 если пишет ошибку проверить что на хосте

@@ -1,0 +1,13 @@
+| pfsense 
+| freebsd
+
+как сбрсить прароль рута
+
+sibgkle mode режим
+
+  # zpool list
+  # zfs set readonly=false POOL/dataset
+  # mount -u /
+  # mount -a 
+
+

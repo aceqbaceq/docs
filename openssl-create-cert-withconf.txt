@@ -1,0 +1,36 @@
+| cert
+| openssl 
+| ssl
+
+
+как сгенерить сертификат
+
+
+1.содаем конфиг
+
+
+
+	$ cat csr.conf 
+[req]
+default_bits = 2048
+prompt = no
+default_md = sha1
+distinguished_name = dn
+
+[dn]
+CN = 10.253.11.60
+
+
+
+2.создаем запрос csr
+	openssl req -new -key ../private.key -out request.csr -config ./csr.conf
+
+
+3.создаем сертифкат
+	openssl x509 -req -days 365 -in ./request.csr -signkey ../private.key -out ./certificate.crt
+
+
+4.смотрим полуаенный серфтикат
+	openssl x509 -text -noout -in ./certificate.crt 
+
+

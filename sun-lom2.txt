@@ -1,0 +1,107 @@
+| sun 
+| lom
+| 4500
+
+
+есть хитрость чтобы заставить в консоли показывать операционку.
+нужно в настройках ОС это запрограмирвать. например воттак в grub (sun на базе intel)
+
+
+d_video_$target
+terminal_output console
+
+if sleep --verbose --interruptible 5; then
+        set timeout=0
+fi
+
+set default="0"
+
+menuentry "Oracle Solaris 11.2" {
+        search --no-floppy --file --set=root /.geranium.us.oracle.com-2014-06-24T14:36:00.881322
+        set kern=/platform/i86pc/kernel/amd64/unix
+        echo -n "Loading ${root}$kern: "
+        $multiboot $kern $kern 
+        set gfxpayload="1024x768x32;1024x768x16;800x600x16;640x480x16;640x480x15;640x480x32"
+        insmod gzio
+        echo -n "Loading ${root}/platform/i86pc/amd64/boot_archive: "
+        $module /platform/i86pc/amd64/boot_archive
+}
+
+menuentry "Oracle Solaris 11.2 ttya" {
+        search --no-floppy --file --set=root /.geranium.us.oracle.com-2014-06-24T14:36:00.881322
+        set kern=/platform/i86pc/kernel/amd64/unix
+        echo -n "Loading ${root}$kern: "
+        $multiboot $kern $kern -B console=ttya
+        set gfxpayload="1024x768x32;1024x768x16;800x600x16;640x480x16;640x480x15;640x480x32"
+        insmod gzio
+        echo -n "Loading ${root}/platform/i86pc/amd64/boot_archive: "
+        $module /platform/i86pc/amd64/boot_archive
+}
+
+menuentry "Oracle Solaris 11.2 ttyb" {
+        search --no-floppy --file --set=root /.geranium.us.oracle.com-2014-06-24T14:36:00.881322
+        set kern=/platform/i86pc/kernel/amd64/unix
+        echo -n "Loading ${root}$kern: "
+        $multiboot $kern $kern -B console=ttyb
+        set gfxpayload="1024x768x32;1024x768x16;800x600x16;640x480x16;640x480x15;640x480x32"
+        insmod gzio
+        echo -n "Loading ${root}/platform/i86pc/amd64/boot_archive: "
+        $module /platform/i86pc/amd64/boot_archive
+}
+
+if [ "$target" = "i386_pc" ]; then
+        menuentry "Boot from Hard Disk" {
+                set root=(hd0)
+                chainloader --force +1
+        }
+else
+        menuentry "Entry [Boot from Hard Disk] not supported on this firmware" {
+                echo "Not supported"
+        }
+fi
+
+
+if [ -f /boot/grub/custom.cfg ]; then
+        source /boot/grub/custom.cfg
+fi
+root@cmdb1:/boot/grub# 
+
+
+
+
+и еще нужно в eeprom записать
+
+# eeprom console="ttya"
+
+
+тут тоже непонятно. есть два порта ttya и ttyb . какой писат хуй знает.
+
+вот так проверить как сейчас
+
+root@cmdb1:/boot/grub# eeprom
+console=ttyb
+keyboard-layout=Unknown
+ata-dma-enabled=1
+atapi-cd-dma-enabled=1
+ttyb-rts-dtr-off=false
+ttyb-ignore-cd=true
+ttya-rts-dtr-off=false
+ttya-ignore-cd=true
+ttyb-mode=9600,8,n,1,-
+ttya-mode=9600,8,n,1,-
+lba-access-ok=1
+boot-file=/platform/i86pc/kernel/amd64/unix
+
+
+
+есть еще вариант
+
+
+
+# eeprom console="text"
+это типа выод на VGA порт.
+
+но вроде бы это всутпает в силу если перзагрузить весь сервер целиком (тоест даже не SP процессор!)
+надо все прояеверять!
+
+
