@@ -105,3 +105,29 @@ boot-file=/platform/i86pc/kernel/amd64/unix
 надо все прояеверять!
 
 
+
+
+типа пишем вот так
+
+root@cmdb1:~#   bootadm list-menu
+the location of the boot loader configuration files is: /rpool/boot/grub
+default 3
+console text
+timeout 30
+0 solaris-1
+1 solaris-1-backup-1
+2 solaris-1-backup-2
+3 Solaris bootenv rc
+
+
+видим 
+console text
+
+это походу значит что ядро загружено с выводом на VGA порт
+
+
+
+
+eeprom укывает куда биос/SP должен кидать сигнал при загрузщке
+grub указывает ядру когда он его запустит и оно загрузится куда кидать сигнал
+

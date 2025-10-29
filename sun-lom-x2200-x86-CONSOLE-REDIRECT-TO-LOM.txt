@@ -1,0 +1,233 @@
+| sun 
+| solaris
+| x2200
+| x86
+
+
+есть серверы SUN на базе x86 процесоров. 
+
+так вот задача есть - чтобы мы зашли в LOM
+и ввели там команду на просмотр консоли 
+и чтобы мы попали в консоль.
+на спарках это работает просто и легко. но тут нет.
+
+
+самая главная и важная инфо - нужно чтобы ядро соляриса делалло 
+выброс своего OUTPUT не на порт com1 а на порт com2! это и есть огромный секрет.
+
+
+порт com1 это физ порт серера и туда перенапрвлять бесползено.
+а чтобы этот поток увидел LOM нужно напрвлять поток на COM2
+это вирт ком порт который упирается в LOM и тогда он его видит.
+
+
+збавно то что чтобы эта шармнка щаработала совсем неважно что выставлено в биос компа!
+важно лишь чтобы ядро соляриса дедело выброс своего output на com2 а бисо вобще 
+роли его насройки не играют!
+
+
+
+если сервер на базе интел то у него по любому есть биос. так вот 
+неважно что где и как настроено но биос всегда оторажается на видеокатрте
+тоесть мониторе. поэтому если вы выключаили севрер а картинки на мниторе
+нет то либо сервер мертв либо сломана видеокарта.
+биос свегда отображается на мониторе.
+
+LOM на мониоторе не рисуется . он рисуется толко если к нему дключаться
+через serial port или ssh
+
+LOM стартует когда в сервер воткнрули шнур питания. 
+он один раз инцидизуиеся. а потом если делать ребуты на него это не влияет.
+в отличии от биоса который прогоняется прикажом ребуте
+
+ксььаьт в биосе LOM назыается BMC
+
+в биосе есть ебущие мозги сбивающие настройки про COM порт.
+одна назается Advanced- Remote Access Configuration
+там можно ее выключить или указать ком порт. что эта хрен делает.
+она на стадии загрузки  им работы кода биоса все что он на экране риусет графически также
+будет перенаправлено в форме текста на тот ком порт который мы указали.
+поэтому если мы хотим видеть через консоль LOM биос то нужно тут указать COM2
+
+еще настройка ебущая мозги это 
+Advanced - IPMI 2.0 Configuation - External COM port 
+варианты SYSTEM
+         BMC
+
+если выбрать system то у нас в данный ком1 порт будет слаться сигнал из ОС. (если она будет его слать)
+если выбрать BMC то в данный ком1 порт будет слаться сигнал из LOM. тоесть мы подкочаеся к этому
+порту ком1 миникомом и увиди приглашение LOM. тоесть если самой опрационке порт com1 никога не понадбится 
+то можно его заюзать для досутпа к LOM через серийный кабель и прогрмму миником. 
+
+ВНЕЗАВИМИСОМСТИ ОТ ЭТИХ НАСТРОЕК В БИОСЕ САМ ALOM ЧЕРЕЗ КОМАНДУ СВЯЗАННОУЮ С АКТИВАЦИЕЙ КОНСОЛИ (ЕЕ ВИД Я ПОКАЖУ
+НИЖУ) ВИДИТ ТОЛЬКО ВИРТУАЛЬНЫЙ ПОРТ COM2. ЛОМ НИХУЯ НЕ ВИДИТ COM1. ПОЭОМУ В СОЛЯРИСЕ НУЖНО ДЕЛАТЬ ПЕРЕНАРАВЛЕНИЕ
+ВЫВОДА НА COM2 И НИВ КОЕМ СЛУЧАЕ НИ НА COM1. ИНЧАЕ ALOM НИХУЯ НЕ УВИДИТ И НАМ НИЧЕГО НЕ ПОКАЖЕТ.
+
+
+как активироват доступ к консоли ( акадоступ к виртуалному COM2 порту) на сервере X2200
+старт консоли
+стоп конслии
+	start /SP/AgentInfo/console
+	stop /SP/AgentInfo/console
+
+
+
+
+теперь осталось раскзаа как в солярисе настроить перенапралвние ввывода на COM2
+
+кстаи вроде бы нельщя чтобы оддновременно вывод шел на экран и в ком порт. а вот линукс такое умеет
+
+итак как настрить солярис11
+
+	# eeprom console=ttyb
+
+при этом у нас создаться в грабе +1 меню ентри.
+
+
+	~# bootadm  list-menu
+the location of the boot loader configuration files is: /rpool/boot/grub
+default 1
+console serial
+timeout 30
+0 Oracle Solaris 11.2
+1 Solaris bootenv rc
+
+
+
+смотрим на ентри номер 1
+
+	# bootadm  list-menu  -i 1
+the location of the boot loader configuration files is: /rpool/boot/grub
+title: Solaris bootenv rc
+kernel: /platform/i86pc/kernel/amd64/unix
+kernel arguments: -B console=ttyb
+boot archive: /platform/i86pc/amd64/boot_archive
+ZFS root pool: rpool
+
+
+нас интерсует вот это 
+	kernel arguments: -B console=ttyb
+это значит что атупут ядра будет на COM2
+то что нужно!
+
+
+осталось толкьо проконстроливать чтобы дефолт энтри был номер 1
+
+	# bootadm set-menu default=1
+
+готово!
+
+
+
+я не оень понимаю но вобще то в грабе всегда есть три ентри
+
+root@solaris:~# cat /boot/grub/grub.cfg 
+# GRUB2 configuration file
+
+load_video_$target
+terminal_output console
+
+if sleep --verbose --interruptible 5; then
+        set timeout=0
+fi
+
+set default="0"
+
+menuentry "Oracle Solaris 11.2" {
+        search --no-floppy --file --set=root /.geranium.us.oracle.com-2014-06-24T14:36:00.881322
+        set kern=/platform/i86pc/kernel/amd64/unix
+        echo -n "Loading ${root}$kern: "
+        $multiboot $kern $kern 
+        set gfxpayload="1024x768x32;1024x768x16;800x600x16;640x480x16;640x480x15;640x480x32"
+        insmod gzio
+        echo -n "Loading ${root}/platform/i86pc/amd64/boot_archive: "
+        $module /platform/i86pc/amd64/boot_archive
+}
+
+menuentry "Oracle Solaris 11.2 ttya" {
+        search --no-floppy --file --set=root /.geranium.us.oracle.com-2014-06-24T14:36:00.881322
+        set kern=/platform/i86pc/kernel/amd64/unix
+        echo -n "Loading ${root}$kern: "
+        $multiboot $kern $kern -B console=ttya
+        set gfxpayload="1024x768x32;1024x768x16;800x600x16;640x480x16;640x480x15;640x480x32"
+        insmod gzio
+        echo -n "Loading ${root}/platform/i86pc/amd64/boot_archive: "
+        $module /platform/i86pc/amd64/boot_archive
+}
+
+menuentry "Oracle Solaris 11.2 ttyb" {
+        search --no-floppy --file --set=root /.geranium.us.oracle.com-2014-06-24T14:36:00.881322
+        set kern=/platform/i86pc/kernel/amd64/unix
+        echo -n "Loading ${root}$kern: "
+        $multiboot $kern $kern -B console=ttyb
+        set gfxpayload="1024x768x32;1024x768x16;800x600x16;640x480x16;640x480x15;640x480x32"
+        insmod gzio
+        echo -n "Loading ${root}/platform/i86pc/amd64/boot_archive: "
+        $module /platform/i86pc/amd64/boot_archive
+}
+
+if [ "$target" = "i386_pc" ]; then
+        menuentry "Boot from Hard Disk" {
+                set root=(hd0)
+                chainloader --force +1
+        }
+else
+        menuentry "Entry [Boot from Hard Disk] not supported on this firmware" {
+                echo "Not supported"
+        }
+fi
+
+
+if [ -f /boot/grub/custom.cfg ]; then
+        source /boot/grub/custom.cfg
+fi
+
+
+но на экране будет отобраено при загрузке только те ентри которые показал bootadm
+непонимаю но пока ладно/
+
+
+
+
+кстати
+
+ресет по питанию из LOM
+set /SP/SystemInfo/CtrlInfo PowerCtrl=reset
+
+включить питание из LOM
+set /SP/SystemInfo/CtrlInfo PowerCtrl=on
+
+выклюить питание нихуя нет комнды
+
+
+деволтоый креды от LOM 
+
+	root
+	changeme
+
+
+
+
+
+
+| solaris 11
+| reboot
+| powercycle
+
+есди в солрисе 11 набрать
+
+ # reboot
+
+то ресет сервера не будет. солярис лишь загрущзит в памят ядро и стартанет его заново.
+так что в биос сервера нам не ппоасть
+а чтобы был power reset нужно 
+
+
+ # init 0
+
+едиснвтенное то что в конце она ждет нажатия кнопки на клаве. 
+если ее ненажать то сервер нихрена неперегружается.
+он дожходит до псоледнгей точки и все. нихуя не делает.
+
+
+
