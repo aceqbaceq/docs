@@ -2,7 +2,29 @@
 
 
 проверка коректности конфига
-	named-checkconf /etc/named.conf
+	named-checkconf /etc/bind/named.conf
 
 мягкая перезагрузка
 rndc reload
+
+
+ОДНАКО! ни та ни другая  команда недостаточно для того чтобы думать что в конфигах нет
+проблем. к сожалению нужно делать доп провкрку для каждого файла зоны!
+
+    #  named-checkzone vasya.loc /etc/bind/zones/db.vasya.loc
+
+и только пробежавшись повсем зонам мы можем быть уверены что ошибок нет
+
+
+	# named-checkzone vasya.loc /etc/bind/zones/db.vasya.loc
+zone vasya.loc/IN: getaddrinfo(ns1.ftp.vasya.loc) failed: Temporary failure in name resolution
+zone vasya.loc/IN: getaddrinfo(ns2.ftp.vasya.loc) failed: Temporary failure in name resolution
+zone vasya.loc/IN: loaded serial 34
+OK
+
+
+
+
+кстати отсальная часть про DNS указана в bind*.txt файлах
+
+

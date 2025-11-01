@@ -1,0 +1,103 @@
+| pfsense
+| nat
+| nat 1:1
+
+
+есть задача.
+у нас есть wan порт. 
+
+из интернета на него прилетает пакет с dest ip 8.8.8.8 (для примера)
+и этого ип нет на wan порту.
+и  я хочу чтобы для этого пакета деаллся замена dest ip на 
+ип 192.168.2.10 компа из локальной сети который сидит за lAN портом пфсенс.
+
+это задается в NAT 1:1 закладке.
+
+важный прикол в том что еще раз подчеркну что WAN порт совеершенно не обязан 
+иметь ип 8.8.8.8  чтобы то работало.
+
+
+в итоге ни пфсенс неимеет этого ип. ни комп в локальной сети. а по факту
+все работает!
+и для этого на пфсенс ненужно ничего кроме как строки в NAT 1:1
+и разрешения в Rules файрволла.
+ненужен также и virtual ip чтобы это работало!
+
+
+ясобрал тествыц стенд и вначале у меня неработало. 
+потому что я на WAN порт назначил ип из диапазона локальных сетей.
+а в свойствах WAN порта внизу стоят две галочки
+
+1)
+Blocks traffic from IP addresses that are reserved for private networks per RFC 1918 (10/8, 172.16/12, 192.168/16) and unique local addresses per RFC 4193 (fc00::/7) as well as loopback addresses (127/8). This option should generally be turned on, unless this network interface resides in such a private address space, too.
+
+
+2) 
+Blocks traffic from reserved IP addresses (but not RFC 1918) or not yet assigned by IANA. Bogons are prefixes that should never appear in the Internet routing table, and so should not appear as the source address in any packets received.
+This option should only be used on external interfaces (WANs), it is not necessary on local interfaces and it can potentially block required local traffic.
+Note: The update frequency can be changed under System > Advanced, Firewall & NAT settings.
+
+
+и из зза этго и нерабтало.
+как только я убрал с ван порта приватный ип и навесил ип из интенрнета срразу
+все заработало!!!!!
+
+
+
+а это ка апомтреть статисткиу по трансяциям
+
+[2.7.2-RELEASE][root@pfSense.local]/root: pfctl -s state
+all icmp 7.7.7.2:31738 -> 7.7.7.1:31738       0:0
+all tcp 172.16.100.113:80 <- 172.16.100.1:42960       FIN_WAIT_2:FIN_WAIT_2
+all icmp 192.168.2.10:18203 (8.8.8.8:18203) <- 7.7.7.1:18203       0:0
+all icmp 7.7.7.1:18203 -> 192.168.2.10:18203       0:0
+all tcp 172.16.100.113:22 <- 172.16.100.1:36592       ESTABLISHED:ESTABLISHED
+[2.7.2-RELEASE][root@pfSense.local]/root: 
+[2.7.2-RELEASE][root@pfSense.local]/root: 
+[2.7.2-RELEASE][root@pfSense.local]/root: pfctl -v -s nat
+no nat proto carp all
+  [ Evaluations: 148       Packets: 0         Bytes: 0           States: 0     ]
+  [ Inserted: uid 0 pid 42714 State Creations: 0     ]
+nat-anchor "natearly/*" all
+  [ Evaluations: 148       Packets: 0         Bytes: 0           States: 0     ]
+  [ Inserted: uid 0 pid 42714 State Creations: 0     ]
+nat-anchor "natrules/*" all
+  [ Evaluations: 148       Packets: 0         Bytes: 0           States: 0     ]
+  [ Inserted: uid 0 pid 42714 State Creations: 0     ]
+nat on vtnet0 inet from 127.0.0.0/8 to any port = isakmp -> 7.7.7.2 static-port
+  [ Evaluations: 148       Packets: 0         Bytes: 0           States: 0     ]
+  [ Inserted: uid 0 pid 42714 State Creations: 0     ]
+nat on vtnet0 inet from 192.168.2.0/24 to any port = isakmp -> 7.7.7.2 static-port
+  [ Evaluations: 87        Packets: 0         Bytes: 0           States: 0     ]
+  [ Inserted: uid 0 pid 42714 State Creations: 0     ]
+nat on vtnet0 inet from 172.16.100.0/24 to any port = isakmp -> 7.7.7.2 static-port
+  [ Evaluations: 87        Packets: 0         Bytes: 0           States: 0     ]
+  [ Inserted: uid 0 pid 42714 State Creations: 0     ]
+nat on vtnet0 inet6 from ::1 to any port = isakmp -> (vtnet0) round-robin static-port
+  [ Evaluations: 88        Packets: 0         Bytes: 0           States: 0     ]
+  [ Inserted: uid 0 pid 42714 State Creations: 0     ]
+nat on vtnet0 inet from 127.0.0.0/8 to any -> 7.7.7.2 port 1024:65535
+  [ Evaluations: 88        Packets: 0         Bytes: 0           States: 0     ]
+  [ Inserted: uid 0 pid 42714 State Creations: 0     ]
+nat on vtnet0 inet from 192.168.2.0/24 to any -> 7.7.7.2 port 1024:65535
+  [ Evaluations: 87        Packets: 0         Bytes: 0           States: 0     ]
+  [ Inserted: uid 0 pid 42714 State Creations: 0     ]
+nat on vtnet0 inet from 172.16.100.0/24 to any -> 7.7.7.2 port 1024:65535
+  [ Evaluations: 87        Packets: 0         Bytes: 0           States: 0     ]
+  [ Inserted: uid 0 pid 42714 State Creations: 0     ]
+nat on vtnet0 inet6 from ::1 to any -> (vtnet0) port 1024:65535 round-robin
+  [ Evaluations: 88        Packets: 0         Bytes: 0           States: 0     ]
+  [ Inserted: uid 0 pid 42714 State Creations: 0     ]
+no rdr proto carp all
+  [ Evaluations: 74        Packets: 0         Bytes: 0           States: 0     ]
+  [ Inserted: uid 0 pid 42714 State Creations: 0     ]
+rdr-anchor "tftp-proxy/*" all
+  [ Evaluations: 74        Packets: 0         Bytes: 0           States: 0     ]
+  [ Inserted: uid 0 pid 42714 State Creations: 0     ]
+binat on vtnet0 inet from 192.168.2.10 to any -> 8.8.8.8
+  [ Evaluations: 224       Packets: 480       Bytes: 40320       States: 1     ]
+  [ Inserted: uid 0 pid 42714 State Creations: 2     ]
+[2.7.2-RELEASE][root@pfSense.local]/root: 
+
+
+
