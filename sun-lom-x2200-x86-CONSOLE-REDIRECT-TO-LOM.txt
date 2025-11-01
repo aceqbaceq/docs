@@ -208,6 +208,61 @@ set /SP/SystemInfo/CtrlInfo PowerCtrl=on
 
 
 
+ксати у спарков настройка eeprom выглядит по другому
+
+-bash-3.00# eeprom
+ttya-rts-dtr-off=false
+ttya-ignore-cd=true
+keyboard-layout=US-English
+reboot-command: data not available.
+security-mode=none
+security-password: data not available.
+security-#badlogins=0
+verbosity=min
+pci-mem64?=false
+diag-switch?=true
+local-mac-address?=true
+fcode-debug?=false
+scsi-initiator-id=7
+oem-logo: data not available.
+oem-logo?=false
+oem-banner: data not available.
+oem-banner?=false
+ansi-terminal?=true
+screen-#columns=200
+screen-#rows=34
+ttya-mode=9600,8,n,1,-
+output-device=virtual-console
+input-device=virtual-console
+auto-boot-on-error?=false
+load-base=16384
+auto-boot?=true
+network-boot-arguments=host-ip=10.255.254.42,router-ip=10.255.254.1,subnet-mask=255.255.255.0,hostname=rad01-cn02,file=http://10.253.12.44/cgi-bin/wanboot-cgi
+boot-command=boot
+boot-file: data not available.
+boot-device=disk0 disk1 net
+multipath-boot?=false
+boot-device-index=0
+use-nvramrc?=true
+nvramrc=devalias disk1 /pci@7c0/pci@0/pci@8/scsi@2/disk@1,0
+devalias disk0 /pci@7c0/pci@0/pci@8/scsi@2/disk@0,0
+/pci@7c0/pci@0/pci@8/scsi@2/disk@0,0 devalias disk1
+/pci@7c0/pci@0/pci@8/scsi@2/disk@1,0
+error-reset-recovery=boot
+
+
+
+тоесть нет такой строки как console
+но есть другое
+
+output-device=virtual-console
+input-device=virtual-console
+
+
+я так думаю щас
+
+
+
 
 
 | solaris 11

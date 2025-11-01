@@ -1,0 +1,76 @@
+| radius
+| pfsense
+
+он насртраивется в меню
+
+	 system - user manager - authenticated servers
+
+
+ ВНИМАНИе!! в версии пфсенс 2.4.4p3 я нашел мега баг. неверный линк на этот 
+ пункт меню там стоит system_usermanager_password...php который ведет на страницу смены пароля юзера
+ вместо ссылки на system_usermanager.php ВНИМАНИЕ!!
+
+
+
+на радиусе юзеры вбиваются вот сюда
+
+	 /etc/raddb/users
+
+пример юзера
+
+vasya            Crypt-Password := "$6$.7nZDtFqvxR/"
+              Class = "radius-group",
+              Cisco-AVPair += "shell:priv-lvl=15"
+
+
+значит как сюда хеш cформировать
+вот так
+
+   $ mkpasswd -m sha-512
+
+
+как проверть что логин пароль рабтает
+
+
+		$ radtest vasya "пароль" 127.0.0.1:1812 0 secret_клиента
+
+секрет клиента это непароль это хрень которая прописывается вот в этом файле
+
+
+
+		# grep -v '#' ./clients.conf
+
+
+
+client localhost {
+	ipaddr = 127.0.0.1
+	proto = *
+	require_message_authenticator = no
+
+
+
+	limit {
+		max_connections = 16
+		lifetime = 0
+		idle_timeout = 30
+	}
+}
+
+client localhost_ipv6 {
+	ipv6addr	= ::1
+	secret		= qqqq123
+}
+
+
+
+
+
+client 192.168.99.0/24 {
+        ipaddr          = 192.168.99.0/24
+        secret          = "qqqqq123"
+}
+
+
+как я понял радиус клиент кодга звнит на радиус сервер с такойто сети то возможно 
+они связваются на основе шаред сикрет друг с другом. хз
+
