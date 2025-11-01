@@ -1,0 +1,47 @@
+| ceph 
+| error
+| pg
+
+симптоом
+
+		# ceph -s
+  cluster:
+    id:     67bf77ff-87ea-483a-8b66-9a45c34f5cc6
+    health: HEALTH_ERR
+            1 scrub errors
+            Possible data damage: 1 pg inconsistent
+ 
+  services:
+    mon: 7 daemons, quorum hst3,hst4,hst6,hst7,hst2,hst1,hst5 (age 2w)
+    mgr: hst7(active, since 3M), standbys: hst5, hst4, hst1, hst3, hst6
+    osd: 24 osds: 24 up (since 11w), 24 in (since 11w)
+ 
+  data:
+    pools:   2 pools, 513 pgs
+    objects: 1.58M objects, 5.6 TiB
+    usage:   13 TiB used, 12 TiB / 25 TiB avail
+    pgs:     511 active+clean
+             1   active+clean+scrubbing+deep
+             1   active+clean+inconsistent
+ 
+  io:
+    client:   497 KiB/s rd, 21 MiB/s wr, 32 op/s rd, 1.83k op/s wr
+ 
+
+		#ceph health detail
+HEALTH_ERR 1 scrub errors; Possible data damage: 1 pg inconsistent
+[ERR] OSD_SCRUB_ERRORS: 1 scrub errors
+[ERR] PG_DAMAGED: Possible data damage: 1 pg inconsistent
+    pg 10.13f is active+clean+inconsistent, acting [23,20,2]
+
+
+
+ЛЕЧЕНИЕ
+	# ceph pg repair 10.13f
+instructing pg 10.13f on osd.23 to repair
+
+	#  ceph health detail
+HEALTH_OK
+
+
+

@@ -1,0 +1,11 @@
+| dns
+| bind 
+| named
+| xot
+| tls 
+
+статьяпро то как настрить ZONE transfer over tls
+
+	https://dnsprivacy.org/encrypted-zone-transfer/
+
+	

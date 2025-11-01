@@ -1,0 +1,11 @@
+| samba
+| smbd
+
+как посмтреть на samba сервере виндвс юзеров заведеднных
+
+		pdbedit -L
+
+как добавить +1 юзера
+
+		sudo smbpasswd -a username
+
