@@ -1,0 +1,8 @@
+| ssh
+| port forward
+| proxy
+
+
+    # IP="192.168.150.37";    ssh -N -L 443:$IP:443 -L 902:$IP:902 -L 903:$IP:903   vasya@100.100.0.159
+    
+    
