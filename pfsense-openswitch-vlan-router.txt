@@ -1,0 +1,767 @@
+| openswitch
+| pfsense
+| router
+| vlan
+
+задача. устанвоим опенсвич. несколько виртуалок qemu и пфсенс.
+и будем учиться переносить виланы с одного роутера(пфсенс) на второй роутер.
+
+
+ставим свич
+
+	# pacman -Sy openvswitch
+
+создаем свич
+
+	# ovs-vsctl add-br openswbr2
+
+
+считается что обычный линукс свич простой а опенсвич это сложно - полная хуйня.
+наоборот. опесвич это полная миоашка
+
+если на обычном свиче только один порт может иметь ИП на в опенсвиче дохрена
+портов могут иметь ИП.
+
+свич стартует за счет службы поэтому надо поставить на автозагрузку
+
+ 	# systemctl enable --now ovs-vswitchd
+ 	# systemctl enable --now ovsdb-server
+
+
+смоирим инфо
+
+# ovs-vsctl  show
+    Bridge openswbr2
+        Port openswbr2
+            Interface openswbr2
+                type: internal
+
+
+
+у опенсвич есть два типа портов это internal порт и неинетернал порт.
+интернал порт означает что это нефизический порт а порт который опенсвич сам создал
+он софтовый.
+
+если порт интенал то он так ясно и обозначается
+
+
+       Port openswbr2
+            Interface openswbr2
+                type: internal
+
+
+если порт неинтрнел то тогда это както вот так
+
+        Port vport109
+            trunks: [11, 20, 30, 40, 99]
+            Interface vport109
+
+если порт неинтрнел то это  значит что это тот порт который уже сусщетсвтует на 
+хосте и который мы подключили в свич. при этом этот порт тоже может быть софтовым
+но гавное это то что этот порт не был создан силами опенсвич.
+
+зачем нужен интрнел порт. на него можно повестьи ИП адрес. и получается с хоста 
+куданибудь пингануть.  этот порт нельзя будет использовать для qemu потому что он не
+явялется TUN портов. еще раз - инттенал порт заводится силами опенсвич для того чтобы 
+на него навесить ип адрес и с хоста подключться к сети того вилана который навешен 
+на этот интернал порт. 
+
+если мы создали порт (интенрнал) либо взяли ужесущсуштвующий порт и втсавли его в опенсвич (далее
+просто свич) то этот конфиг схоаранится после перезагрузки.
+
+если это инернал порт то навесить на него ип можно силами 
+
+     # ip -c a a ....
+
+но это не соахранится после перзагщуки.
+чтобы это сохранилось можно либо заюзать NetworkManager то он нихера неработает с опенсвич
+по крайней мере на манжаро.
+поэтому другой путь - сделать это через systemd-networkd.
+тоесть сам порт будет создан силами опенсвич при перезагрзуке.
+а ип на него навесит  systemd-netowrkd
+делается это вот так
+
+
+
+		# cat /etc/systemd/network/90-vport100.network 
+[Match]
+Name=vport100
+
+[Network]
+Address=192.168.1.2/29
+
+
+[Route]
+Destination=192.168.1.0/24
+Gateway=192.168.1.1
+
+
+как я уже сказал этот интернал порт негодится чтобы к нему подключить виртуалку.
+потому что она не TUN типа. 
+для этогонужно создать уже нашими силами TUN порт.
+сделать это можно либо чреез NetworkManager
+либо через systemd-netowrkd
+
+
+если через NetworkManager
+
+	# nmcli connection add   type tun  mode tap owner 1000 group 1000  ifname vport109  con-name vport109 autoconnect yes save yes ipv4.method disabled ipv6.method disabled; nmcli conn up vport109
+
+если через systemd-netowrkd
+
+	# cat /etc/systemd/network/90-vport101.netdev 
+[NetDev]
+Name=vport101
+Kind=tap
+
+	# cat /etc/systemd/network/90-vport102.network 
+[Match]
+Name=vport102
+
+[Network]
+DHCP=no
+
+[Link]
+Unmanaged=no
+RequiredForOnline=yes
+
+
+
+
+япредполчту чреез NM (NetowrkManager)
+
+	# export VVPORT="vvport2"; nmcli connection add   type tun  mode tap owner 1000 group 1000  ifname $VVPORT  con-name $VVPORT autoconnect yes save yes ipv4.method disabled ipv6.method disabled; nmcli conn up $VVPORT
+
+
+теперь подключаем этот порт в свич
+
+	# ovs-vsctl add-port openswbr2  $VVPORT
+
+делаем порт тип trunk
+и разрешаем тег влан 5
+	# ovs-vsctl set port $VVPORT vlan_mode=trunk
+	# ovs-vsctl set port $VVPORT trunks=[5]
+
+
+смотри что получилилось
+
+# ovs-vsctl show
+
+    Bridge openswbr2
+        Port vvport2
+            trunks: [5]
+            Interface vvport2
+        Port openswbr2
+            Interface openswbr2
+                type: internal
+
+
+посмтрим еще раз с другого угла ифно про прорт vvport2
+
+ #  ovs-vsctl --columns=name,tag,trunks,vlan_mode list port vvport2
+name                : vvport2
+tag                 : []
+trunks              : [5]
+vlan_mode           : trunk
+
+это я создал порт для LAN карты для пфсенс.
+
+теперь создадим карту WAN для пфсенс
+
+	#
+	export VVPORT="vvportWAN"; nmcli connection add   type tun  mode tap owner 1000 group 1000  ifname $VVPORT  con-name $VVPORT autoconnect yes save yes ipv4.method disabled ipv6.method disabled; nmcli conn up $VVPORT
+
+	ovs-vsctl add-port openswbr2  $VVPORT
+	ovs-vsctl set port $VVPORT vlan_mode=trunk
+	ovs-vsctl set port $VVPORT trunks=[99]
+	ovs-vsctl --columns=name,tag,trunks,vlan_mode list port $VVPORT
+
+name                : vvportWAN
+tag                 : []
+trunks              : [99]
+vlan_mode           : trunk
+
+
+если у нас есть виланы то нахер нам два порта две сет карты для пфсенс.
+потому что у пфсенс несморя на виланы есть центровая концепция что одна карта
+это WAN и на ней он запускает нат и файрволл. а вторая это лан и к ней по другому все
+применяеися. поэтому две карты.
+
+смотрим конфиг свича
+
+    Bridge openswbr2
+        Port vvport2
+            trunks: [5]
+            Interface vvport2
+        Port vvportWAN
+            trunks: [99]
+            Interface vvportWAN
+        Port openswbr2
+            Interface openswbr2
+                type: internal
+
+
+ тоесть унас один инернал порт. для того чтобы с хоста достуаться до веб морды
+ пфсенс. и два порта TUN для того чтобы на их базе зпустить ВМ и на ней поствить 
+ пфсенс.
+
+
+
+ запускаем вм
+
+ qemu-system-x86_64 \
+      -name pfsense3 \
+      -m 312M \
+      -boot d \
+      -cdrom dvd.iso \
+-device virtio-scsi-pci,id=scsi \
+-drive file=hda.img,format=qcow2,if=none,id=drive-virtio0 \
+-device scsi-hd,drive=drive-virtio0 \
+      -cpu host \
+      -enable-kvm \
+      -smp 1 \
+      -M q35 \
+      -device virtio-balloon \
+      -device VGA,vgamem_mb=8 \
+      -display sdl \
+      -netdev tap,id=mynet1,ifname=vvportWAN,script=no,downscript=no \
+      -device virtio-net-pci,netdev=mynet1,mac=ba:ec:24:5c:33:01 \
+      -netdev tap,id=mynet2,ifname=vvport2,script=no,downscript=no \
+      -device virtio-net-pci,netdev=mynet2,mac=ba:ec:24:5c:33:02 \
+      -serial /dev/tty ; reset
+
+тут  я вот что подчеркуну. про мак адреса
+	mac=ba:ec:24:5c:33:01
+	mac=ba:ec:24:5c:33:02
+
+это те мак адреса котоыре будет видеть софт внутри вм. тоесть кему софт 
+создает эмулирует сетевые карты которые он покзыает софту внутри вм. 
+под такими маками. тоесть такие маки мы увидим внури ос внутри вм.
+однако этим сет карты сещувтуют только внутри памяти qemu.
+по факту те сет карты к которым релаьно процесс кему подключен снаружи они 
+будут иметь совершенно другие маки. тоесть на хосте мы посмтрим на сет карты
+vvportWAN и vvport2 на хосте будут иметь другие маки. 
+так что это надо понимать.
+тоесть искать на хосте маки 
+	mac=ba:ec:24:5c:33:01
+	mac=ba:ec:24:5c:33:02
+бесполезно
+нахосте надо искать порты vvportWAN и vvport2 и смотреть какие маки они имеют.
+
+	 $ ip -c l sh dev vvportWAN
+197: vvportWAN: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc fq_codel master ovs-system state DOWN mode DEFAULT group default qlen 1000
+    link/ether 82:50:41:ae:da:dd brd ff:ff:ff:ff:ff:ff
+ 
+	$ ip -c l sh dev vvport2
+196: vvport2: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc fq_codel master ovs-system state DOWN mode DEFAULT group default qlen 1000
+    link/ether 36:b8:d7:ed:c6:7e brd ff:ff:ff:ff:ff:ff
+
+тоесть мы видим маки
+	82:50:41:ae:da:dd
+	36:b8:d7:ed:c6:7e
+
+возникает вопрос так какие маки будет иметь л2 фрейм от вируиалки кему?
+пакеты летящие из вм будут иметь маки проысанные при старте qemu.
+а вот эти маки
+	82:50:41:ae:da:dd
+	36:b8:d7:ed:c6:7e
+будут упакетов только если мы нашим этим TUN портам с хоста назначим ип адреса.
+вот так вот хитро!
+
+
+теперь  устанвлиываем пфсенс
+я поставил так что: 
+на лан порту я навесил vlan5 (192.168.2.1/29)
+на ван порту я навесил vlan99 и пока парится не стал.
+наша задача достуаться до веб морды
+
+
+
+
+
+смотрим на свич
+    Bridge openswbr2
+        Port vvport2
+            trunks: [5]
+            Interface vvport2
+        Port vvportWAN
+            trunks: [99]
+            Interface vvportWAN
+        Port openswbr2
+            Interface openswbr2
+                type: internal
+
+
+у него уже есть интернал порт.
+навесим на него ип средватми systmd-netorkd
+чтобы с него можно было ходит на веб морду пфсенс
+
+
+
+ # cat /etc/systemd/network/90-openswbr2.network 
+[Match]
+Name=openswbr2
+
+[Network]
+Address=192.168.2.2/29
+
+
+[Route]
+Destination=192.168.2.0/24
+Gateway=192.168.2.1
+
+
+
+	# systemctl restart systemd-netowrkd
+
+
+ # ip -c a s dev openswbr2  | grep "inet "
+    inet 192.168.2.2/29 brd 192.168.2.7 scope global openswbr2
+
+
+еще раз смотрим на интенал порт
+        Port openswbr2
+            Interface openswbr2
+                type: internal
+
+
+его надо сделать акцесным и навесить 5 vlan
+
+	# ovs-vsctl set port openswbr2 vlan_mode=access
+	# ovs-vsctl set port openswbr2 tag=[5]
+
+
+ # ovs-vsctl --columns=name,tag,trunks,vlan_mode list port openswbr2
+name                : openswbr2
+tag                 : 5
+trunks              : []
+vlan_mode           : access
+
+
+ # ping 192.168.2.1 -c2
+PING 192.168.2.1 (192.168.2.1) 56(84) bytes of data.
+64 bytes from 192.168.2.1: icmp_seq=1 ttl=64 time=1.07 ms
+64 bytes from 192.168.2.1: icmp_seq=2 ttl=64 time=0.462 ms
+
+все связь с хоста до веб морды пфсенс есть
+
+
+
+
+теперь небольшая разьяснаял про ип сети с маской 29
+
+  0    0   0   0    0   000
+ 128  64  32   16   8   (1-6)
+
+192.168.2.0+(1-6) =  192.168.2.(1-6)		
+192.168.2.8+(1-6) =  192.168.2.(9-14)		
+192.168.2.16+(1-6)=  192.168.2.(17-22)		
+192.168.2.24+(1-6)=  192.168.2.(25-30)		
+192.168.2.32+(1-6)=  192.168.2.(33-38)		
+192.168.2.40+(1-6)=  192.168.2.(41-46)		
+
+
+
+
+
+далее схема такая на пфсенс у нас на LAN карте будут виланы
+
+VLAN5   net 192.168.2.0/29   ip 192.168.2.(1-6)  (веб морда)
+VLAN10  net 192.168.2.8/29   ip 192.168.2.(9-14)
+VLAN20  net 192.168.2.16/29  ip 192.168.2.(17-22)
+VLAN30  net 192.168.2.24/29  ip 192.168.2.(25-30)
+
+
+при создании вланов в пфсенс в Interfaces-Assignemtns-VLANS нужно внимательно 
+смотерть какой родительский порт выбирется. а то можно легко выбрать WAN порт. 
+из за этого потом хер поменяешь налету. и нужно будет перегружать виртуалку!
+
+на пфсенс для каждого влан порта я задал ип
+
+VLAN5   ip 192.168.2.1/29 (web морда)
+VLAN10  ip 192.168.2.9/29
+VLAN20  ip 192.168.2.17/29
+VLAN30  ip 192.168.2.25/29
+
+
+таким образом с хоста с порта openswbr2 192.168.2.2/29 я имею 
+связь с веб мордой через 192.168.2.1/29 на пфсенс
+
+
+теперь  я создам три вирулктаки на дебиане 
+
+	hostVLAN10 
+		IP 192.168.2.10/29 VLAN10 
+
+	hostVLAN20 
+		IP 192.168.2.18/29 VLAN20 
+
+	hostVLAN30
+		IP 192.168.2.26/29 VLAN30 
+
+
+виланы я обепечу чеерез опенсвич . порты vvport3 vvport4 vvport5 будут акцесные
+
+	
+	export VVPORT=vvport3; nmcli connection add   type tun  mode tap owner 1000 group 1000  ifname $VVPORT  con-name $VVPORT autoconnect yes save yes ipv4.method disabled ipv6.method disabled; nmcli conn up $VVPORT
+
+	ovs-vsctl add-port openswbr2  $VVPORT
+	ovs-vsctl set port $VVPORT vlan_mode=access
+	ovs-vsctl set port $VVPORT tag=[10]
+	ovs-vsctl --columns=name,tag,trunks,vlan_mode list port $VVPORT
+
+
+	export VVPORT=vvport4; nmcli connection add   type tun  mode tap owner 1000 group 1000  ifname $VVPORT  con-name $VVPORT autoconnect yes save yes ipv4.method disabled ipv6.method disabled; nmcli conn up $VVPORT
+
+	ovs-vsctl add-port openswbr2  $VVPORT
+	ovs-vsctl set port $VVPORT vlan_mode=access
+	ovs-vsctl set port $VVPORT tag=[20]
+	ovs-vsctl --columns=name,tag,trunks,vlan_mode list port $VVPORT
+
+
+
+	export VVPORT=vvport5; nmcli connection add   type tun  mode tap owner 1000 group 1000  ifname $VVPORT  con-name $VVPORT autoconnect yes save yes ipv4.method disabled ipv6.method disabled; nmcli conn up $VVPORT
+
+	ovs-vsctl add-port openswbr2  $VVPORT
+	ovs-vsctl set port $VVPORT vlan_mode=access
+	ovs-vsctl set port $VVPORT tag=[30]
+	ovs-vsctl --columns=name,tag,trunks,vlan_mode list port $VVPORT
+
+в итоге поулчаетм такие порты на свиче
+
+ #      ovs-vsctl --columns=name,tag,trunks,vlan_mode list port vvport3
+name                : vvport3
+tag                 : 10
+trunks              : []
+vlan_mode           : access
+ #      ovs-vsctl --columns=name,tag,trunks,vlan_mode list port vvport4
+name                : vvport4
+tag                 : 20
+trunks              : []
+vlan_mode           : access
+ #      ovs-vsctl --columns=name,tag,trunks,vlan_mode list port vvport5
+name                : vvport5
+tag                 : 30
+trunks              : []
+vlan_mode           : access
+ # 
+
+
+
+ запускам три вруатлки вот такие
+
+ qemu-system-x86_64 -name host2A \
+                   -m 266M -boot d \
+                   -drive file=hda.img,media=disk,if=virtio,format=qcow2,file.locking=on \
+                   -cpu host -enable-kvm -smp 1 -M q35 \
+                   -device virtio-balloon -device VGA,vgamem_mb=8 -display none \
+                   -netdev tap,id=mynet1,ifname=vvport3,script=no,downscript=no \
+                   -device virtio-net-pci,netdev=mynet1,mac=ba:ec:24:5c:33:03 \
+                   -serial /dev/tty ; reset
+
+
+qemu-system-x86_64 -name host2B \
+                   -m 266M -boot d \
+                   -drive file=hda.img,media=disk,if=virtio,format=qcow2,file.locking=on \
+                   -cpu host -enable-kvm -smp 1 -M q35 \
+                   -device virtio-balloon -device VGA,vgamem_mb=8 -display none \
+                   -netdev tap,id=mynet1,ifname=vvport4,script=no,downscript=no \
+                   -device virtio-net-pci,netdev=mynet1,mac=ba:ec:24:5c:33:04 \
+                   -serial /dev/tty ; reset
+
+
+
+qemu-system-x86_64 -name host2C \
+                   -m 266M -boot d \
+                   -drive file=hda.img,media=disk,if=virtio,format=qcow2,file.locking=on \
+                   -cpu host -enable-kvm -smp 1 -M q35 \
+                   -device virtio-balloon -device VGA,vgamem_mb=8 -display none \
+                   -netdev tap,id=mynet1,ifname=vvport5,script=no,downscript=no \
+                   -device virtio-net-pci,netdev=mynet1,mac=ba:ec:24:5c:33:05 \
+                   -serial /dev/tty ; reset
+
+
+в итоге мы получаем три виртуалки (так как на свиче порты акцесные то на виртлукалах
+ненужно вырезать субинтерфейсы с виланами)
+
+host2A
+VLAN10  access
+
+auto enp0s
+iface enp0s3 inet static
+    address 192.168.2.10/29
+    gateway 192.168.2.9
+
+
+
+host2B
+VLAN20  access
+
+
+
+auto enp0s3
+iface enp0s3 inet static
+    address 192.168.2.18/29
+    gateway 192.168.2.17
+
+
+
+
+host2C
+VLAN30  access
+
+auto enp0s3
+iface enp0s3 inet static
+    address 192.168.2.26/29
+    gateway 192.168.2.25
+
+
+момент истины с хоста пытасю пинговать host2C
+
+
+$ ping 192.168.1.26 -c2
+PING 192.168.1.26 (192.168.1.26) 56(84) bytes of data.
+64 bytes from 192.168.1.26: icmp_seq=1 ttl=63 time=3.05 ms
+
+SUCCESS
+
+
+тоесть с хоста  с порта openswbr2 который 192.168.2.2\29 и котоый на опенсвич ацесный
+для VLAN5 сигнал летит на vvport2 опенвича где 5 вилан это транковый.
+и потом на пфсенс это все руотится и плюется на VLAN30 который тарнковый который
+опять же уходит на физ порт vvport2 на опенсвиче и далее через свич он летит
+на порт vvport5 который ацесный и несет вилан 30  и потом внутрь вм!воткак
+
+собиарем теперь второй роутер  routerB и на нем создаем VLAN11
+
+192.168.2.32+(1-6)=  192.168.2.(33-38)		VLAN11
+
+данный вилан  я натяну между роутерB и пфсенс как канал связи.
+
+и на роутерB я создам VLAN40 и создам +1ВМ hostD в этом вилане.
+
+VLAN40
+192.168.2.40+(1-6)=  192.168.2.(41-46)		VLAN40
+
+сам роутер получит ip 192.168.2.41
+а виртуалка получит 192.168.2.42
+
+и тогда будет схема связи между хостом и hostD будет такая
+
+
+хост            пфсенс                    routerB                hostD
+  (vlan5) ----- (vlan5)
+                (vlan10) 
+  				(vlan11) --------------  (vlan11)
+  				(vlan20)                 (vlan40)  -----------  (vlan40)
+  				(vlan30)                  
+
+
+переброс между вилаинами идет на счет роутига конечно
+
+
+	export VVPORT=vvport6; nmcli connection add   type tun  mode tap owner 1000 group 1000  ifname $VVPORT  con-name $VVPORT autoconnect yes save yes ipv4.method disabled ipv6.method disabled; nmcli conn up $VVPORT
+
+	ovs-vsctl add-port openswbr2  $VVPORT
+	ovs-vsctl set port $VVPORT vlan_mode=access
+	ovs-vsctl set port $VVPORT tag=[10]
+	ovs-vsctl --columns=name,tag,trunks,vlan_mode list port $VVPORT
+
+
+
+создаем routerB
+для него порт.
+и три вилана
+VLAN99  172.16.11.2/29   (под WAN)
+VLAN40 
+VLAN11
+
+
+	export VVPORT=vvport7; nmcli connection add   type tun  mode tap owner 1000 group 1000  ifname $VVPORT  con-name $VVPORT autoconnect yes save yes ipv4.method disabled ipv6.method disabled; nmcli conn up $VVPORT
+
+	ovs-vsctl add-port openswbr2  $VVPORT
+	ovs-vsctl set port $VVPORT vlan_mode=trunk
+	ovs-vsctl set port $VVPORT trunks=[11,40,99]
+	ovs-vsctl --columns=name,tag,trunks,vlan_mode list port $VVPORT
+
+
+создаем ВМ для routerB на базе этого порта
+
+
+qemu-system-x86_64 -name routerB \
+                   -m 266M -boot d \
+                   -drive file=hda.img,media=disk,if=virtio,format=qcow2,file.locking=on \
+                   -cpu host -enable-kvm -smp 1 -M q35 \
+                   -device virtio-balloon -device VGA,vgamem_mb=8 -display none \
+                   -netdev tap,id=mynet1,ifname=vvport7,script=no,downscript=no \
+                   -device virtio-net-pci,netdev=mynet1,mac=ba:ec:24:5c:33:07 \
+                   -serial /dev/tty ; reset
+
+
+
+итак на этом хосте
+
+
+
+auto enp0s3.99
+iface enp0s3.99 inet static
+    address 172.16.11.2/29
+    vlan_raw_device enp0s3
+    gateway 172.16.11.1
+
+
+
+auto enp0s3.11
+iface enp0s3.11 inet static
+    network 192.168.2.32
+    address 192.168.2.34/29
+    vlan_raw_device enp0s3
+    #VLAN5
+    up ip route add 192.168.2.0/29  via 192.168.2.33 
+    down ip route del 192.168.2.0/29  via 192.168.2.33
+    #VLAN10
+    up ip route add 192.168.2.8/29  via 192.168.2.33  
+    down ip route del 192.168.2.8/29  via 192.168.2.33 
+    #VLAN20
+    up ip route add 192.168.2.16/29 via 192.168.2.33  
+    down ip route del 192.168.2.16/29 via 192.168.2.33
+    #VLAN30
+    up ip route add 192.168.2.24/29 via 192.168.2.33 
+    down ip route del 192.168.2.24/29 via 192.168.2.33  
+
+
+
+
+auto enp0s3.40
+iface enp0s3.40 inet static
+    network 192.168.2.40
+    address 192.168.2.41/29
+    vlan_raw_device enp0s3
+
+
+
+
+и на пфсенс нужно пробросить маршрут в сеть на  VLAN40 и гейтвей 192.168.2.34
+через который можно вэту сеть попасть
+
+
+
+вот схема виланов и хостов
+
+
+VLAN5	  net 192.168.2.0/29 		pfsense 192.168.2.1 		хост    192.168.2.2
+VLAN10 	  net 192.168.2.8/29 		pfsense 192.168.2.9 		hostA   192.168.2.10
+VLAN20    net 192.168.2.16/29 		pfsense 192.168.2.16 		hostB   192.168.2.17
+VLAN30    net 192.168.2.24/29 		pfsense 192.168.2.25 		hostC   192.168.2.26 
+VLAN11    net 192.168.2.32/29  		pfsense 192.168.2.33 		routeB  192.168.2.34
+VLAN40    net 192.168.2.40/29 		routeB  192.168.2.41 	 	hostD 	192.168.2.42
+
+
+
+а вот еще раз картину вспоминаем
+
+
+хост            пфсенс                    routerB                hostD
+  (vlan5) ----- (vlan5)
+                (vlan10) 
+  				(vlan11) --------------  (vlan11)
+  				(vlan20)                 (vlan40)  -----------  (vlan40)
+  				(vlan30)                  
+
+
+делаю трейсроут
+# traceroute -I -d -n 192.168.2.2
+traceroute to 192.168.2.2 (192.168.2.2), 30 hops max, 60 byte packets
+ 1  192.168.2.41  0.758 ms  0.702 ms  0.690 ms    (роутерB)
+ 2  192.168.2.33  2.494 ms  2.487 ms  2.453 ms    (pfsense)
+ 3  192.168.2.2  3.562 ms  3.554 ms  3.547 ms     (хост компа)
+
+
+и вот видно что на пути пакет проходит три хопа
+
+
+
+а теперь выцарпаем VLAN30 и перенесем его на роутер2
+для этого:
+  1)на опенсвиче:
+    удаляем 30 вилан на порту пфсенс
+    приавляем 30 вилан на порту routerB
+  2) на пфсенс удаляем интерфейс с вилан30
+  прибалвяем маршурут на сеть вилана30 через роутерБ
+  3) на роутереБ:
+      заводим субинтфрейс виалан30 + ИП
+      убираем мршррут на сеть вилана30 через гейтвей
+
+
+поехали
+1)
+порт пфсенс
+ #      ovs-vsctl --columns=name,tag,trunks,vlan_mode list port vvport2
+name                : vvport2
+tag                 : []
+trunks              : [5, 10, 11, 20, 30]
+vlan_mode           : trunk
+ # 
+ #      ovs-vsctl set port vvport2 trunks=[5,11,10,20]
+ # 
+
+ #      ovs-vsctl --columns=name,tag,trunks,vlan_mode list port vvport7
+name                : vvport7
+tag                 : []
+trunks              : [11, 40, 99]
+vlan_mode           : trunk
+
+
+#      ovs-vsctl set port vvport7 trunks=[11,30,40,99]
+# 
+#      ovs-vsctl --columns=name,tag,trunks,vlan_mode list port vvport7
+name                : vvport7
+tag                 : []
+trunks              : [11, 30, 40, 99]
+vlan_mode           : trunk
+# 
+
+2)
+маршурут в сеть 192.168.2.24/29
+
+в итоге я все сдеал.
+захожу на hostC и пингую хост ноутбука
+
+# traceroute -I -d -n  192.168.2.2
+traceroute to 192.168.2.2 (192.168.2.2), 30 hops max, 60 byte packets
+ 1  192.168.2.25  0.493 ms  0.450 ms  0.442 ms   (routerB  vlan30)
+ 2  192.168.2.33  1.346 ms  1.342 ms  1.338 ms   (pfsense  vlan11)
+ 3  192.168.2.2  1.987 ms  1.983 ms  1.980 ms    (хост vlan5)
+
+тоесть путь пакета через роутеры
+ hostC --->routerB ---> pfsense ---> host
+
+
+тоесть все сработало
+
+
+тока оказалос что дебиан12 на routerB и его ifup сетевой мееджер почемуто 
+не смог успешно заососавть из конфига вот этот кусок про новый вилан30
+
+
+
+auto enp0s3.30
+iface enp0s3.30 inet static
+    network 192.168.2.24
+    address 192.168.2.25/29
+    vlan_raw_device enp0s3
+
+
+тоесть перезагрузка сететвго менедежера нихера ничего не давала.
+пришлось перезарузить routerB
+
+
+
+СЛЕДУЩИЙ ЭТАП - НАДО СОБОАТЬ ВСЕ КУСКИ КОДА КОТОЫРЕ РАДЗБРОСАНЫ ПО СУБЛАЙМ
+И СУЮДА ЗАСУНУТЬ. А ПОТОМ ДВИУНТЬ ДАЛЬЛЬШЕ ПО ПУНКТАМ
+!
+
+
+
+
+
