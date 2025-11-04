@@ -1,0 +1,115 @@
+| vlan
+| debian
+| ifupdown
+| systemd-networkd
+
+у нас есть порт 
+
+		enp0s3
+
+
+из него надо вырезать субинтфрейс 
+
+		enp0s3.11 
+
+чтобы туда совать тегированный трафик 
+на VLAN11 enp0s3.11
+
+
+
+
+в ipfupdown 
+это делается вот так просто
+
+
+
+	auto enp0s3.11
+	iface enp0s3.11 inet static
+    	network 192.168.2.32
+    	address 192.168.2.34/29
+    	vlan_raw_device enp0s3
+
+
+
+
+
+
+
+в systemd-networkd
+это делается ГОРАЗДО мудотнее
+нужно три файла
+
+
+10-enp0s3.network
+20-enp0s3.11.netdev
+20-enp0s3.11.network
+
+
+
+
+# cat 10-enp0s3.network 
+[Match]
+Name=enp0s3
+
+[Link]
+ActivationPolicy=up
+
+[Network]
+VLAN=enp0s3.11
+
+LinkLocalAddressing=no
+IPv6AcceptRA=no
+IPv6SendRA=no
+
+
+
+
+
+# cat 20-enp0s3.11.netdev 
+[NetDev]
+Name=enp0s3.11
+Kind=vlan
+
+[VLAN]
+Id=11
+
+
+
+
+
+# cat 20-enp0s3.11.network 
+[Match]
+Name=enp0s3.11
+
+[Network]
+Address=192.168.2.34/29
+IPv6AcceptRA=no
+LinkLocalAddressing=ipv4
+
+
+
+
+
+а если мы хотим на данный порт повесить DEFAULT GATEWAY 
+то он прописывается вот !!!
+
+
+
+
+# cat 20-enp0s3.11.network 
+[Match]
+Name=enp0s3.11
+
+[Network]
+Address=192.168.2.34/29
+IPv6AcceptRA=no
+LinkLocalAddressing=ipv4
+
+
+[Route]                  <=========!!!============
+Gateway=192.168.2.33     <=========!!!============
+Destination=0.0.0.0/0    <=========!!!============
+Metric=50                <=========!!!============
+
+
+

@@ -1,0 +1,138 @@
+| systemd-networkd
+| vrf
+
+если нам нужно несколько портов отдельить и созать для них 
+вируальаный роутер чтобы у них была своя идивидуальная татблица
+маршуртиацзии то это VRF
+
+создаем серсдватми systemd-netowrkd чтобы оно 
+выжило перезагрузку
+(ifupdown этого неумеет  . умеет якобы ifupdown2 или ifupdown-ng)
+
+
+эта хрень создать VRF и порт 
+	# cat 10-red.netdev 
+[NetDev]
+Name=red
+Kind=vrf
+
+[VRF]
+TableId=100
+
+
+эта хрень нужна чтобы этот порт автоматом стартовал
+
+# cat 10-vrf-red.network 
+[Match]
+Name=red
+
+[Link]
+ActivationPolicy=up
+
+
+теперь всего насвего нужно каждлму порту который мы хотим вставить в VRF
+помтеить что он туда входит.
+
+
+вот эта хуйня поднимает физ порт enp0s3
+и сообщает что на его базе будут вилан субпорты
+
+
+# cat 10-enp0s3.network 
+[Match]
+Name=enp0s3
+
+[Link]
+ActivationPolicy=up
+
+[Network]
+VLAN=enp0s3.11
+VLAN=enp0s3.30
+VLAN=enp0s3.40
+VLAN=enp0s3.99
+
+
+# Оставьте пустым для физического интерфейса IP, если он не должен иметь адрес
+LinkLocalAddressing=no
+IPv6AcceptRA=no
+IPv6SendRA=no
+
+вот они эти субпорты
+
+VLAN=enp0s3.11
+VLAN=enp0s3.30
+VLAN=enp0s3.40
+VLAN=enp0s3.99
+
+
+это уже пошел конктеный субпорт enp0s3.11
+для него нужно два файла
+
+# cat 20-enp0s3.11.netdev 
+[NetDev]
+Name=enp0s3.11
+Kind=vlan
+
+[VLAN]
+Id=11
+
+
+
+
+
+
+# cat 20-enp0s3.11.network 
+[Match]
+Name=enp0s3.11
+
+[Network]
+Address=192.168.2.34/29
+IPv6AcceptRA=no
+LinkLocalAddressing=ipv4
+VRF=red
+
+
+[Route]
+Gateway=192.168.2.33
+Destination=0.0.0.0/0
+Metric=50
+
+
+
+
+
+
+
+
+и в этом файле вот эта маленкая хуйня
+
+VRF=red
+
+
+сообщает что он будет входить в состав VRF
+вот и все!
+
+аналогично если мы хотим в VRF встсвить субпорт вилана 40
+
+
+
+root@routerB:/etc/systemd/network# cat 20-enp0s3.40.netdev 
+[NetDev]
+Name=enp0s3.40
+Kind=vlan
+
+[VLAN]
+Id=40
+
+
+root@routerB:/etc/systemd/network# cat 20-enp0s3.40.network 
+[Match]
+Name=enp0s3.40
+
+[Network]
+Address=192.168.2.41/29
+IPv6AcceptRA=no
+LinkLocalAddressing=ipv4
+VRF=red
+
+
