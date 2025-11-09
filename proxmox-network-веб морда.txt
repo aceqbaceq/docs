@@ -1,0 +1,27 @@
+| proxmox
+| ifupdown
+| ifupdown2
+| веб морда
+
+
+во первых если скачали ISO с проксмокс то он использует не ifupdown
+а ifupdown2
+и в его конфиг файле /etc/network/interfaces если там  в настроках порта
+стоят линии закометированные например 
+
+
+auto int0
+iface int0 inet static
+        address 192.168.2.50
+	netmask 255.255.255.248
+	gateway 192.168.2.49
+        ovs_type OVSIntPort
+        ovs_bridge vmbr0
+        #ovs_extra set port int0 tag=100
+	ovs_options tag=100
+
+
+то потом в веб морде прокмокса в разделе Host-System-Network в описании интерфейсов
+там все что у нас в коментах будет там видно в столбике "Comment" что очень удобно 
+и приколно!
+

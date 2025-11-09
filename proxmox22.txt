@@ -1,0 +1,56 @@
+| proxmox
+
+
+PORT="vvport-pr-host1";
+nmcli connection add   type tun  mode tap owner 1000 group 1000  ifname $PORT  con-name $PORT autoconnect yes save yes ipv4.method disabled ipv6.method disabled; nmcli conn up $PORT
+
+PORT="vvport-pr-host1";
+ovs-vsctl add-port openswbr2  $PORT
+ovs-vsctl set port $PORT vlan_mode=trunk
+ovs-vsctl set port $PORT trunks=[100,101,102]
+
+
+PORT="vvport-pr-host2";
+nmcli connection add   type tun  mode tap owner 1000 group 1000  ifname $PORT  con-name $PORT autoconnect yes save yes ipv4.method disabled ipv6.method disabled; nmcli conn up $PORT
+
+PORT="vvport-pr-host2";
+ovs-vsctl add-port openswbr2  $PORT
+ovs-vsctl set port $PORT vlan_mode=trunk
+ovs-vsctl set port $PORT trunks=[100,101,102]
+
+
+
+PORT="vvport-pr-host3";
+nmcli connection add   type tun  mode tap owner 1000 group 1000  ifname $PORT  con-name $PORT autoconnect yes save yes ipv4.method disabled ipv6.method disabled; nmcli conn up $PORT
+
+
+PORT="vvport-pr-host3";
+ovs-vsctl add-port openswbr2  $PORT
+ovs-vsctl set port $PORT vlan_mode=trunk
+ovs-vsctl set port $PORT trunks=[100,101,102]
+
+
+VLAN100    net 192.168.2.48/29 		хосты 49-54
+
+
+
+
+PORT="pfsense-pr-WAN";
+nmcli connection add   type tun  mode tap owner 1000 group 1000  ifname $PORT  con-name $PORT autoconnect yes save yes ipv4.method disabled ipv6.method disabled; nmcli conn up $PORT
+
+
+PORT="pfsense-pr-WAN";
+ovs-vsctl add-port openswbr2  $PORT
+ovs-vsctl set port $PORT vlan_mode=trunk
+ovs-vsctl set port $PORT trunks=[99]
+
+
+PORT="pfsense-pr-LAN";
+nmcli connection add   type tun  mode tap owner 1000 group 1000  ifname $PORT  con-name $PORT autoconnect yes save yes ipv4.method disabled ipv6.method disabled; nmcli conn up $PORT
+
+
+PORT="pfsense-pr-LAN";
+ovs-vsctl add-port openswbr2  $PORT
+ovs-vsctl set port $PORT vlan_mode=trunk
+ovs-vsctl set port $PORT trunks=[5,100,101,102]
+

@@ -1,0 +1,16 @@
+| vlan
+| ip
+
+руками поднять тегированный субинтерыейс VLAN
+
+ ip link add link enp0s3 name enp0s3.100 type vlan id 100
+ ip -c a a 192.168.2.52/29 dev enp0s3.100
+ ip -c l set enp0s3.100 up
+
+
+
+
+ ip link add link enp0s3 name enp0s3.102 type vlan id 102
+ ip -c a a 192.168.2.68/29 dev enp0s3.102
+ ip -c l set enp0s3.102 up
+
