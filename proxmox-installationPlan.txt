@@ -1,0 +1,10 @@
+| proxmox
+| план установки
+
+
+chrony
+опенсвич
+mtu 9000
+отдельный вилан под сеть коросинк
+отдельный вилан под миграции Datacenter-Options-Migration Settings
+
