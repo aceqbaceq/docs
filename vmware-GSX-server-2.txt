@@ -1,0 +1,52 @@
+| vmware server 2
+| vmware gsx
+
+какие подводные камни установки.
+
+
+GSX ставится по верх виндовс ОС.
+при попытке установить вначале получаем ошибку
+
+
+	“The System Administrator has set policies to prevent this installation
+
+
+чтобы это исправить нужно 
+
+Jason’s solution is thus:
+
+    Click Start
+    Click Run
+    gpedit.msc <enter>
+    Drill down to Computer configuration
+        Windows Settings
+            Security Settings
+                Software Restriction Policies
+    Right click Software Restriction Policies
+    Choose Create New Policies
+    On the right hand side, right click Enforcement
+    Choose Properties
+    Down below, choose All users except local administrators
+    Click OK
+    Close Group Policy
+    Open a Command Prompt
+    Run the command gpupdate /force <enter>
+    When local group policy is finished updating, re-run the VMware Server 2.0 setup
+
+
+
+решенеие нашел тут https://jephens.com/2009/01/14/installing-vmware-server-on-windows-2003-r2/
+
+
+вторая прблема при попытке устаовки
+
+The setup failed to generate the SSL keys necessary to run VMware Server
+
+это изза того что на сервер2003  в 2025 году протухли все корневые CA сертификаты.
+поэтому сгеерировать сертиифкат не получается. решение - переводи время на хосте на 2006 год!
+и все заработает!
+
+
+еще чтобы не ебаться нужно идти в "установка удаление программ" -компоненты виндовс
+и там ищем internet expolorer security enhanced и удалеяем его нахрен
+
