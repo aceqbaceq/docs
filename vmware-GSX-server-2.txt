@@ -50,3 +50,6 @@ The setup failed to generate the SSL keys necessary to run VMware Server
 еще чтобы не ебаться нужно идти в "установка удаление программ" -компоненты виндовс
 и там ищем internet expolorer security enhanced и удалеяем его нахрен
 
+
+что я понял из инстлации - GSX не заводит своиз юзеров он использует аутетицию винодовс юзеров.
+
