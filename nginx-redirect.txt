@@ -1,0 +1,46 @@
+| nginx 
+| redirect
+
+
+$  cat default 
+
+
+server {
+    listen 80;
+    server_name www.vasya.ru;
+
+
+
+    more_clear_headers 'Content-Type';
+    more_clear_headers 'Connection';
+    more_clear_headers 'Server';
+    add_header Retry-After '0';
+    add_header Set-Cookie "vasya.lohp.countryCode=RU; domain=.vasya.ru; path=/; Max-Age=3600";
+
+
+
+    error_page 308 /_use_https_;
+
+location = /_use_https_ {
+        internal;
+        return 200;
+    }
+
+
+    location / {   
+       return 301 https://www.vasya.ru$request_uri;
+    }
+
+}
+
+
+
+server {
+    listen 80 default_server;
+    server_name _;
+
+    return 444;
+}
+
+
+
