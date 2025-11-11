@@ -1,0 +1,31 @@
+| centos
+| yum 
+| error
+
+если при запуске yum мы полчучаем ошибку
+
+
+
+Failed to set locale, defaulting to C.UTF-8
+CentOS Stream 8 - AppStream                                                                                                                                                        0.0  B/s |   0  B     00:00    
+Errors during downloading metadata for repository 'appstream':
+  - Curl error (6): Couldn't resolve host name for http://mirrorlist.centos.org/?release=8-stream&arch=x86_64&repo=AppStream&infra=stock [Could not resolve host: mirrorlist.centos.org]
+Error: Failed to download metadata for repo 'appstream': Cannot prepare internal mirrorlist: Curl error (6): Couldn't resolve host name for http://mirrorlist.centos.org/?release=8-stream&arch=x86_64&repo=AppStream&infra=stock [Could not resolve host: mirrorlist.centos.org]
+[root@bft-zabbix2 ~]# dig -t A  mirrorlist.centos.org
+
+
+
+
+то нужно
+
+
+# Закомментировать все строки mirrorlist
+sed -i 's/^mirrorlist=/#mirrorlist=/g' /etc/yum.repos.d/*.repo
+
+# Раскомментировать строки baseurl
+sed -i 's/^#baseurl=/baseurl=/g' /etc/yum.repos.d/*.repo
+
+# Заменить mirror.centos.org на vault.centos.org в baseurl
+sed -i 's|mirror.centos.org|vault.centos.org|g' /etc/yum.repos.d/*.repo
+
+

@@ -1,0 +1,13 @@
+| pfsense 
+| openvpn
+
+
+качаем хрень с сертфикаатами которая нужная для входа на сервере
+
+vpn-openvpn-clientexport 
+
+листаем вниз ищем inlineconfirations и рядом с ним mostclients вот это и качаем 
+затем на компе
+
+openvpn ./скачанный_конфиг
+

@@ -1,0 +1,17 @@
+| ssh
+| port-forward
+| port forward
+
+
+ssh   vasya@hostA     -N -L 8080:hostB:80
+
+
+если у меня есть хост hostA который имеет связь с хостом hostB
+то можно сделать проброс (прокси) по ссш
+
+
+    localhost:8080  <----   hostB:80
+
+
+
+
