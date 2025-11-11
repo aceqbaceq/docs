@@ -8,9 +8,24 @@
  ip -c l set enp0s3.100 up
 
 
+в interfaces 
+это выгляди так
+
+auto enp0s3
+iface enp0s3 inet manual 
+
+auto enp0s3.104
+iface enp0s3.104 inet static
+        vlan-raw-device enp0s3
+	address 192.168.2.82/29
+	gateway 192.168.2.81
+	dns-nameservers 192.168.2.81
+
+
 
 
  ip link add link enp0s3 name enp0s3.102 type vlan id 102
  ip -c a a 192.168.2.68/29 dev enp0s3.102
  ip -c l set enp0s3.102 up
+
 
