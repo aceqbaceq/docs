@@ -1,0 +1,119 @@
+| proxmox
+| openswitch
+| lacp
+| bonding
+| vlan
+
+
+прмиер конфига
+
+
+
+auto lo
+iface lo inet loopback
+
+
+
+auto en01
+iface eno1 inet manual
+    mtu 9000
+
+auto eno2
+iface eno2 inet manual
+    mtu 9000
+
+
+auto bond0
+iface bond0 inet manual
+    ovs_bonds eno1  eno2
+    ovs_type OVSBond
+    ovs_bridge vmbr0
+    ovs_mtu 9000
+    ovs_options lacp=active bond_mode=balance-tcp
+
+
+
+
+auto vmbr0
+iface vmbr0 inet manual
+    ovs_type OVSBridge
+    ovs_ports bond0 vlan4023
+    ovs_mtu 9000
+#web morda
+
+
+
+auto vlan69
+iface vlan69 inet static
+    address 198.18.100.4/24
+    ovs_type OVSIntPort
+    ovs_bridge vmbr0
+    ovs_mtu 9000
+    ovs_options tag=69
+#prox migrate vlan
+
+
+
+
+auto vlan111
+iface vlan111 inet static
+    address 100.100.67.14/24
+    ovs_type OVSIntPort
+    ovs_bridge vmbr0
+    ovs_mtu 9000
+    ovs_options tag=111
+        up ip route add 10.253.12.59/32 via 100.100.67.1 dev vlan111
+        up ip route add 10.254.254.246/32 via 100.100.67.1 dev vlan111
+#TO FREENAS
+
+
+
+auto vlan777
+iface vlan777 inet static
+    address 10.1.0.4/24
+    ovs_type OVSIntPort
+    ovs_bridge vmbr0
+    ovs_mtu 9000
+    ovs_options tag=777
+#PROXMOX COROSYNC
+
+
+
+
+auto vlan3036
+iface vlan3036 inet static
+    address 100.65.0.30/24
+    ovs_type OVSIntPort
+    ovs_bridge vmbr0
+    ovs_mtu 9000
+    ovs_options tag=3036
+#TO ISCSI IT отдел
+
+
+
+
+auto vlan4023
+iface vlan4023 inet static
+    address 100.100.3.4/24
+    gateway 100.100.3.254
+    ovs_type OVSIntPort
+    ovs_bridge vmbr0
+    ovs_mtu 9000
+    ovs_options tag=4023
+#MGM
+
+
+
+
+
+
+
+
+
+
+source /etc/network/interfaces.d/*
+
+
+
+
+

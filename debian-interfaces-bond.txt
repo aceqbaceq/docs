@@ -1,0 +1,50 @@
+| debian
+| interfaces
+| bond
+
+
+вопрос как на классическом линукс бридже (софт свич)
+настроить lacp bond на базе двух физ портов  eno1 eno2 
+
+
+
+	# cat /etc/network/interfaces
+
+
+auto lo
+iface lo inet loopback
+
+iface eno1 inet manual
+
+iface eno2  inet manual
+
+auto bond0
+iface bond0 inet static
+	bond-slaves eno1 eno2
+	bond-mode 802.3ad
+        bond-miimon 100
+        bond-lacp-rate fast
+        bond-xmit-hash-policy  layer2+3
+
+
+auto bond0.4023
+iface bond0.4023 inet static
+   vlan-raw-devices bond0
+   address 100.100.3.4/24
+    gateway 100.100.3.254
+
+
+
+iface enp129s0f0 inet manual
+
+iface enp129s0f1 inet manual
+
+
+source /etc/network/interfaces.d/*
+
+
+
+причем как видно в этот бондинг входит транк VLAN4023 и на него вешается IP
+
+
+

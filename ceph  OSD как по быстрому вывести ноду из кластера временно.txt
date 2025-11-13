@@ -1,0 +1,55 @@
+| ceph
+| osd
+
+
+я хочу на короткое время вырубить ноду с OSD дисками.
+для этого я не хочу пол дня их выводить из кластера.
+
+я хочу запретить кластеру делать какие либо изменеияи миграции движухи
+если выключлисдсась парочка OSD
+
+тогда
+
+
+	#	ceph osd set noout
+
+
+	# ceph osd set norecover
+	#ceph osd set nobackfill
+
+потом на нужной ноде стопим OSD сервимсы
+
+# systemctl list-units --type=service | grep osd
+  ceph-osd@0.service                 loaded active running Ceph object storage daemon osd.0
+  ceph-osd@3.service                 loaded active running Ceph object storage daemon osd.3
+  ceph-osd@4.service                 loaded active running Ceph object storage daemon osd.4
+
+
+потом через 
+
+
+		# ceph -s
+
+
+убеждаемся что цеф не развалился.
+
+
+если на хосте есть монитор. то его стопим. смотрим что цеф неразвалился.
+
+потом гасим хост.
+
+
+потом когда рабты на хосет закончиоись. 
+
+загружаемся.
+
+и делаем
+
+
+	#	ceph osd unset noout
+
+
+	# ceph osd unset norecover
+	#ceph osd unset nobackfill
+
+
