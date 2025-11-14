@@ -1,0 +1,27 @@
+| pve
+| proxmox
+| cert
+| certificate
+| tls
+
+
+
+web серфткиат хоста  лежит в 
+
+		/etc/pve/nodes/pr2-h2/pve-ssl.pem
+
+
+обвноить если он закончился можно через
+
+	# pvecm updatecerts -f
+
+
+обновляется он на базе самоподпсианного CA ерфтикаита прококсска который лежит
+тут
+
+	/etc/pve/pve-root-ca.pem
+
+там же и приватный ассметричный ключ  pve-www.key
+
+
+
