@@ -1,0 +1,71 @@
+| proxmox
+| migration
+
+
+как мигрировать в режиме remote target 
+или remote migration
+
+
+https://www.untangled.eu/2025/06/migrating-vms-between-standalone-proxmox-servers-a-step-by-step-guide/
+
+
+
+пример 
+
+  # qm remote-migrate 100 601   'apitoken=PVEAPIToken=root@pam!migrate=abc8fd52-c9b0-4ad4-9de4-871745398430,host=192.168.2.98,fingerprint=3E:DE:B9:CC:55:EF:2A:CA:9E:83:90:B5:D1:88:D7:1C:D9:50:4F:52:BD:87:51:4B:A2:E2:86:59:BE:89:5F:17'   --target-bridge vmbr0   --target-storage local   --online 1
+
+
+полмлсе миграции исходная вм будет выклчена и будет залочена тоест исходную вм хост
+не удалеяет!
+
+нужно будет сделать
+
+qm unlock 100
+qm status 100
+
+и потом ее удалить
+
+
+
+
+есть одна засада 
+вот эти два параметра
+
+--target-bridge vmbr0   --target-storage local
+ 
+они типа обязательные. 
+это значит что все дисики будут скоароны на один сторадж. ну этто еще ничео.
+
+а вот --target-bridge vmbr0 жопа потому что  оно все сет карты ВМ на цееловом хосте
+засунет в один VMBR!!! а если они у нас по разным vmbrN воткнуты?
+
+И ТУТ  Я НАШЕЛ СУПЕРОПЦИЮ!!!
+
+ Mapping from source to target bridges. Providing only a single bridge ID maps all source bridges to that bridge. Providing the special value 1 will map each source bridge to itself.
+--target-storage <string>
+
+    Mapping from source to target storages. Providing only a single storage ID maps all source storages to that storage. Providing the special value 1 will map each source storage to itself.
+
+
+тоесть если сделать вот так
+
+        
+            --target-bridge 1
+
+то тогда при миоаграции он засунет порты вм в теже самые разные vmbrN !!!! это охуенно!
+
+тоеже самео и про это 
+
+            --target-storage 1
+
+
+но это мнеее актуально!!!
+
+
+нашел тут 
+
+        https://karloluiten.nl/proxmox-migrate-to-node-outside-of-cluster/
+
+
+я преровреил реалнтно так все и арработает!
+
