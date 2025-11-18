@@ -1,0 +1,125 @@
+
+bridge vlan show dev fwpr142p0
+port              vlan-id  
+fwpr142p0         1 PVID Egress Untagged
+                  2
+                  3
+                  4
+                  5
+                  6
+                  7
+                  8
+
+
+
+
+что значит эта хуйня.
+очень хитро.
+
+1 PVID Egress Untagged 
+
+это на самом деле значит  
+
+1: (PVID), (Egress Untagged)
+
+тоесть
+а] если в порт влетел нетегированный трафик то внутри свича ему присвоить тег 1. 
+итак PVID означает какой тег нужно назначть на влетаюзий нетегированный трафик. 
+b] если из свича вылетает наружу теированный трафик с влан 1 то тег с него снять.
+
+
+вот эта хуня
+                  2
+                  3
+                  4
+                  5
+                  6
+                  7
+                  8
+
+
+значит что такой тегированный трафик этот порт пропускает разрешает через себя.
+
+
+
+
+
+
+
+	# ovs-vsctl list port  ln_vnet1
+_uuid               : 98b6b7c1-3734-4da6-ba8f-5e77dc7af022
+bond_active_slave   : []
+bond_downdelay      : 0
+bond_fake_iface     : false
+bond_mode           : []
+bond_updelay        : 0
+cvlans              : []
+external_ids        : {}
+fake_bridge         : false
+interfaces          : [0cd359b3-1819-438e-82d2-ff7403b91422]
+lacp                : []
+mac                 : []
+name                : ln_vnet1
+other_config        : {qinq-ethtype="802.1q"}
+protected           : false
+qos                 : []
+rstp_statistics     : {}
+rstp_status         : {}
+statistics          : {}
+status              : {}
+tag                 : 3044
+trunks              : []
+vlan_mode           : dot1q-tunnel
+
+
+
+
+
+dot1q-tunnel = режим qinq 
+
+tag                 : 3044   = это задает какой тег будет вторым навешен для игресс трафика
+
+ 
+cvlans              : []     = это задает проверку первого тега. какой он должен быть. если пусто то любой
+
+
+
+
+
+
+
+
+
+		# ovs-vsctl  list port ln_vnet2
+_uuid               : ca7d9a35-5b76-48a2-97ec-70c9f20ed474
+bond_active_slave   : []
+bond_downdelay      : 0
+bond_fake_iface     : false
+bond_mode           : []
+bond_updelay        : 0
+cvlans              : []
+external_ids        : {}
+fake_bridge         : false
+interfaces          : [53a2098d-d01e-4944-8d13-4d93205bc588]
+lacp                : []
+mac                 : []
+name                : ln_vnet2
+other_config        : {}
+protected           : false
+qos                 : []
+rstp_statistics     : {}
+rstp_status         : {}
+statistics          : {}
+status              : {}
+tag                 : 3045
+trunks              : []
+vlan_mode           : []
+
+ 
+
+vlan_mode           : []    это значит порт акцесный. 
+
+tag                 : 3045   ингрессный трафик на входе преарвщщается в теговый ему навешивается тег 3045
+
+
+
