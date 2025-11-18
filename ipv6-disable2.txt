@@ -1,0 +1,13 @@
+| ipv6
+| linux
+| debian
+| sysctl
+
+
+как окткючить на хосте IPV6 для всех карточек
+
+
+net.ipv6.conf.all.disable_ipv6 = 1
+net.ipv6.conf.default.disable_ipv6 = 1
+
+

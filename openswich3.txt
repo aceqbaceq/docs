@@ -1,0 +1,17 @@
+| ovs-vsctl
+| OVS
+| openswitch
+
+
+вот такое будет ошибка
+
+ovs-vsctl set port pfsense-pr-LAN  trunks=[5, 100, 101, 102, 103, 104, 105, 106]
+
+
+а вот так будет работать
+
+ovs-vsctl set port pfsense-pr-LAN  trunks=[5,100,101,102,103,104,105,106]
+
+
+доблбаный пробел!
+

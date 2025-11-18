@@ -1,0 +1,12 @@
+| openssl
+| tls
+| certificate
+| check
+
+
+
+как проверить сертфикиат и всю цепочеку сертфикатов
+
+		# openssl verify -CAfile proxmox2-CA.pem   01.pem 
+
+		

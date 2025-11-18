@@ -53,3 +53,10 @@ The setup failed to generate the SSL keys necessary to run VMware Server
 
 что я понял из инстлации - GSX не заводит своиз юзеров он использует аутетицию винодовс юзеров.
 
+
+полезные ссыклки с которых можно чтото скачать
+
+https://unix.oppserver.net/vmware/win/
+
+https://images.linuxcontainers.org/images/debian/bullseye/amd64/cloud/20251110_05:55/
+

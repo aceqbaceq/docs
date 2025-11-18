@@ -1,0 +1,52 @@
+| proxmox
+| corosync
+
+
+  # cat /etc/pve/corosync.conf 
+
+
+logging {
+  debug: off
+  to_syslog: yes
+}
+
+
+
+nodelist {
+  node {
+    name: pr2-h1
+    nodeid: 1
+    quorum_votes: 1
+    ring0_addr: 192.168.2.104
+  }
+  node {
+    name: pr2-h2
+    nodeid: 2
+    quorum_votes: 1
+    ring0_addr: 192.168.2.105
+  }
+}
+
+
+
+quorum {
+  provider: corosync_votequorum
+}
+
+
+
+totem {
+  cluster_name: cl2
+  config_version: 2
+  interface {
+    linknumber: 0
+  }
+  ip_version: ipv4-6
+  link_mode: passive
+  secauth: on
+  version: 2
+}
+
+
+
+
