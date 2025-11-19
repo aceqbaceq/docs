@@ -1,0 +1,73 @@
+| proxmox
+| install
+| huawei
+| 7.0
+
+есть такой пиздец.
+если ставить proxmox v7 на сервер huawei то граф инсталятор падает в черный экран CLI
+и пишет что у него есть траблы с запуском графческого режима.
+что делать.
+а вот что
+
+нашел тут 
+
+    https://forum.proxmox.com/threads/generic-solution-when-install-gets-framebuffer-mode-fails.111577/
+
+
+тутже в командной строке черного экрана создаем папку
+
+
+		# mkdir /usr/share/X11/xorg.conf.d
+
+и файл с любым именем
+
+
+		# > /usr/share/X11/xorg.conf.d/vasya.conf
+
+
+и в нем через vi пишем конфиг 
+
+
+Section "Device"
+    Identifier "Card0"
+    Driver "fbdev"
+    BusID "pci0:01:0:0:"
+EndSection
+
+
+самая важная вот эта строка
+
+
+    BusID "pci0:01:0:0:"
+
+
+как ее узнать. это адрес vga карточки на шине PCI.
+чтобы ее узнать пишем
+
+  # lspci | grep -i vga
+
+  # lspci | grep -i vga
+06:00.0 VGA compatible controller: Advanced Micro Devices, Inc. [AMD/ATI] Raven Ridge [Radeon Vega Series / Radeon Vega Mobile Series] (rev c6)
+
+
+так вот  для такого адреса строчка будет вот такая
+
+
+    BusID "pci0:06:0:0:"
+
+
+где   pci0  это всегда фиксирванная часть  одно и тоже.
+
+
+а 06:00.0 (в lspci ) = 06:0:0: (busid)
+
+
+когда создали файл то даем команду
+
+  
+  # xinit
+
+
+и графиечсеский режим обязан успешно заупститься и что самое крутое что инсталятор обязан 
+продожить установку!!!
+
