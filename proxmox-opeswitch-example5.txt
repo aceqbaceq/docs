@@ -1,0 +1,58 @@
+| proxmox
+| ovs
+| example
+| openswitch
+
+
+пример конфига на базе openswitch
+
+auto lo
+iface lo inet loopback
+
+iface enp35s0 inet manual
+
+iface enp3s0f0u14u2c2 inet manual
+
+iface enp36s0 inet manual
+
+allow-vmbr0 vlan77
+iface vlan77 inet static
+    address  192.168.77.40
+    netmask  24
+    gateway  192.168.77.1
+    ovs_type OVSIntPort
+    ovs_bridge vmbr0
+    ovs_options tag=77
+
+allow-ovs vmbr0
+iface vmbr0 inet manual
+    ovs_type OVSBridge
+    ovs_ports bond0 vlan77
+
+
+
+пример того же самого через класичский линукс бридж
+
+
+
+auto bond0
+iface bond0 inet manual
+      bond-slaves enp35s0 enp36s0
+      bond-miimon 100
+      bond-mode 802.3ad
+      bond-xmit-hash-policy layer3+4
+
+auto vmbr0
+iface vmbr0 inet manual
+        bridge-ports bond0
+        bridge-stp off
+        bridge-fd 0
+        bridge-vlan-aware yes
+        bridge-vids 2-4094
+
+auto vmbr0.77
+iface vmbr0.77 inet static
+        address  192.168.77.40/24
+        gateway  192.168.77.1
+
+ 

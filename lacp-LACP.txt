@@ -1,0 +1,1282 @@
+| LACP
+| bonding
+| proxmox
+| openswitch
+| openvswitch
+
+шас  поговорим про LACP.
+
+есть так называемый bonding\ link aggregation
+он бывает разных видов. один из них LACP
+как я понял это самый навороченный вид. он требует поддержки от свича.
+комп и свич обмениваются lacp мессагами. возможно порты входящие в лацп можно добавлять
+и удаляь динамически.
+
+редхат пишет "Do not use LACP with OVS-based bonds, as this configuration is problematic and unsupported. " ссылка 
+  https://docs.redhat.com/en/documentation/red_hat_openstack_platform/8/html/director_installation_and_usage/appe-bonding_options
+
+тем не менее двигаем дальше.
+
+lacp можно создать на базе самого ядра линукс
+а можно создать на базе софта опенсвича
+так вот 
+вот прикльный pdf где обсуждают фичу lb_output которая касается лацп 
+если его создавать силами опенсвича
+	https://www.openvswitch.org/support/ovscon2019/day2/0944-Balance-TCP%20Performance%20Improvement.pdf
+
+
+эту сссылку я не использовал
+	https://wiki.debian.org/Bonding
+
+
+еще одна ссылка которуб мало использовал
+	https://brezular.com/2011/12/04/openvswitch-playing-with-bonding-on-openvswitch/
+
+
+
+
+мой ответ на форуме проксмокса
+	https://forum.proxmox.com/threads/using-openvswitch-lacp-bonds-on-a-3-node-cluster.164777/
+
+
+
+еще такой момент. если порт свича запрограирован в LACP (тоесть порт входит в групу LAG)
+и если со стороны карты компа нет правильных LACP PDU пакетов то свич данный порт блокирует.
+он не примет от компа фреймы. вот в чем прикол. чрез данный порт не будет идти поток L2 фреймов.
+поэтому либо комп наладить со своей стороны LACP хрень либо идет нахуй.
+
+в даннйо стате я будут говорить про сет насройки в разрезе менеджера сети ifupdown.
+так вот скажу что значать некоторые строки.
+если мы видим в конфиге  /etc/network/interfaces (в дальнешем interfaces)
+
+		auto eth0
+
+
+то это значит что мы ifupdown будет автоматом поднимать данный порт (сделать его UP) при загрузке
+либо при перезарузке сети (systemctl restart networking)
+тоесть ли такой строки нет в конфиге то после загрузки компа порт eth0 будет лежать.  
+
+строка
+
+	iface enp0s4 inet manual
+
+значит что мы говорим компу что после того как мы включили порт то ненужено ему пытаться
+проучить ИП через dhcp или както по другому. тоесть типа включи его не пытайся на него
+както вкорячить ип. ип ему при необходимости будет назначен руками. может быть . если нужно.
+
+
+если у нас дебиан с ifupdown то якобы нужен пакет  ifenslave он добавляет скрипты 
+чтобы коректно понимать и опускать бондинг порты.
+
+если стоит пакет ifupdown2 то якобы ifenslave ненужен и даже вреден.
+ибо ifupdown2 умеет сам работать с бондингом в плане его поднятия.
+
+если его всеже поставить то вот тут 
+
+	/usr/share/doc/ifenslave
+
+есть полезный ридми с опциями бондинга. и примеры конфигов разных бондингов.
+
+proxmox дистрибубитив как раз таки использует ifupdown2
+
+
+
+
+
+
+
+
+(!!)ТЕПЕРЬ НАКОНЕЦ Я ПРИВОЖУ КОНФИГ БОНДИНГА НА БАЗЕ LACP И НА БАЗЕ ЯДРА ЛИНУКС(!!)
+allow-bond0 enp0s4
+iface enp0s4 inet manual
+
+allow-bond0 enp0s5
+iface enp0s5  inet manual
+
+
+
+auto bond0
+iface bond0 inet manual
+    bond-slaves enp0s4 enp0s5
+    bond-miimon 100
+    bond-mode 802.3ad
+    bond-lacp-rate fast
+    bond-xmit-hash-policy layer3+4
+
+
+
+
+
+также работает и вот такой конфиг
+
+
+
+auto enp0s4
+iface enp0s4 inet manual
+
+auto enp0s5
+iface enp0s5  inet manual
+
+
+
+auto bond0
+iface bond0 inet manual
+    bond-slaves enp0s4 enp0s5
+    bond-miimon 100
+    bond-mode 802.3ad
+    bond-lacp-rate fast
+    bond-xmit-hash-policy layer3+4
+
+
+спрашивается а где же IP адрес. об этом ниже.
+
+а пока поясню строки
+
+bond-slaves enp0s4 enp0s5   = это указывает какие порты входят в состав бондинга
+
+bond-mode 802.3ad  = это режим бондинга LACP (есть и  другие режимы об этом позже)
+
+bond-miimon 100
+bond-lacp-rate fast
+bond-xmit-hash-policy layer3+4
+это параметры LACP
+в часности вот эта хуйня bond-xmit-hash-policy layer3+4 оне не влияет получится ли устано
+вить LACP контакт со свичем. она влияет на выбор ядром порта для исходящего пакета.
+тоест влияет на нашей стороне какой порт выбрать для очередного исходящего фрейма
+на той стороне свич может выбирать куда пихать исходящий (для свича) пакет на основе
+своего алгоритма.
+
+
+
+auto enp0s4  = это как я уже сказал затавляет нетворменеджер делать UP для порта.
+если этой строки нет то скажем порт бондинга у нас стартует то фактичекие порты
+через который гнать трафик выклчены. и нихуя незаработает
+
+
+iface enp0s5  inet manual  = это как я уже сказал собщает нетворменеджеру что данный
+порт для него ненужно пытаться получать IP через дхцп или еще както. ип этому порту
+если нужно позже нзначать руками
+
+
+allow-bond0 enp0s4  = проэту настройку я прочиитал в  	/usr/share/doc/ifenslave
+там написано что таким макаром это будет вот как работать. когда будет порт бондинга
+пеереводится в состояние UP то и этот порт тоже будет перевден в UP
+
+
+
+
+
+
+
+(!!)ТЕПЕРЬ. я покажу как проверить статусс нашего бондинга. чтобы нам понять.(!!)
+запустился наш LACP. есть ли LACP сессия со свичем или нихуя не работает.
+
+
+
+	# cat /proc/net/bonding/bond0 
+Ethernet Channel Bonding Driver: v6.14.8-2-pve
+
+Bonding Mode: IEEE 802.3ad Dynamic link aggregation
+Transmit Hash Policy: layer3+4 (1)
+MII Status: up
+MII Polling Interval (ms): 100
+Up Delay (ms): 0
+Down Delay (ms): 0
+Peer Notification Delay (ms): 0
+
+802.3ad info
+LACP active: on
+LACP rate: fast
+Min links: 0
+Aggregator selection policy (ad_select): stable
+System priority: 65535
+System MAC address: ba:22:33:1a:1a:01
+Active Aggregator Info:
+	Aggregator ID: 1
+	Number of ports: 2
+	Actor Key: 9
+	Partner Key: 42
+	Partner Mac Address: de:ce:ff:fb:88:4f
+
+Slave Interface: enp0s4
+MII Status: up
+Speed: 1000 Mbps
+Duplex: full
+Link Failure Count: 0
+Permanent HW addr: ba:22:33:1a:1a:01
+Slave queue ID: 0
+Aggregator ID: 1
+Actor Churn State: none
+Partner Churn State: none
+Actor Churned Count: 0
+Partner Churned Count: 0
+details actor lacp pdu:
+    system priority: 65535
+    system mac address: ba:22:33:1a:1a:01
+    port key: 9
+    port priority: 255
+    port number: 1
+    port state: 63
+details partner lacp pdu:
+    system priority: 65534
+    system mac address: de:ce:ff:fb:88:4f
+    oper key: 42
+    port priority: 65535
+    port number: 43
+    port state: 63
+
+Slave Interface: enp0s5
+MII Status: up
+Speed: 1000 Mbps
+Duplex: full
+Link Failure Count: 0
+Permanent HW addr: ba:22:33:2a:2a:01
+Slave queue ID: 0
+Aggregator ID: 1
+Actor Churn State: none
+Partner Churn State: none
+Actor Churned Count: 0
+Partner Churned Count: 0
+details actor lacp pdu:
+    system priority: 65535
+    system mac address: ba:22:33:1a:1a:01
+    port key: 9
+    port priority: 255
+    port number: 2
+    port state: 63
+details partner lacp pdu:
+    system priority: 65534
+    system mac address: de:ce:ff:fb:88:4f
+    oper key: 42
+    port priority: 65535
+    port number: 42
+    port state: 63
+
+
+
+
+что мы здесь видим
+Transmit Hash Policy: layer3+4 (1)
+это значит по какому алогрритму наш комп решает в какой порт совать исходящий фрейм
+
+802.3ad info
+LACP active: on
+LACP rate: fast
+это значит какой именно режим бондинга у нас собран
+
+Slave Interface: enp0s4
+Slave Interface: enp0s5
+это какие физ порты входит в состав бондинга
+
+
+
+
+details actor lacp pdu:   
+    system priority: 65535
+    system mac address: ba:22:33:1a:1a:01   *<<<<<<<<
+    port key: 9
+    port priority: 255
+    port number: 1
+    port state: 63
+details partner lacp pdu:
+    system priority: 65534
+    system mac address: de:ce:ff:fb:88:4f   *<<<<<<<<
+    oper key: 42
+    port priority: 65535
+    port number: 43
+    port state: 63
+
+
+
+здесь показана самая важная хрень. показан мак нашего порта
+и мак "партнера" тоесть порта на свиче. если LACP контакт со свичем не удался запустился
+то мак парнтера будут сплошные нули типа такого 
+
+    system mac address: 00:00:00:00:00:00   
+
+
+тоесть если мы виим нули значит LACP нихуя не заработал
+и нароброт если видим ненули значит lacp работает!
+
+
+следует заметить что обычный сетевой свич его порты неимеют нихуя никаких мак адерсов.
+он л2 прозрачен. но как только мы активруем на свиче lacp то его порты начинают
+изулчать мак адреса. хехе.
+
+
+
+
+
+
+
+
+
+
+ДАЛЕЕ.
+как видно из конфига мы укзываем порты входящие в бонд в параметрах бонда.
+
+auto bond0
+iface bond0 inet manual
+    bond-slaves enp0s4 enp0s5   *<<<<<<<
+    bond-miimon 100
+    bond-mode 802.3ad
+    bond-lacp-rate fast
+    bond-xmit-hash-policy layer3+4
+
+
+есть и другой способ. в бонде это не прописывать а прписывать это в свойствах 
+этих физ портов типа вот так
+
+
+auto eno1
+iface eno1 inet manual
+        bond-master bond0  *<<<<<
+        bond-mode 4
+
+auto eno2
+iface eno2 inet manual
+        bond-master bond0  *<<<<<
+        bond-mode 4
+
+auto bond0
+iface bond0 inet manual
+        bond-mode 4
+        bond-miimon 100
+        bond_downdelay 200
+        bond_updelay 200
+        bond-lacp-rate 1
+        bond-slaves none   *<<<<<
+
+
+
+я поробовал. но у меня почемуто такой вариант не сработал. разбирать не стал.
+я выделил важные строчки.
+
+
+
+
+
+
+
+
+
+ТЕПЕРЬ я хочу скзаать на счет того какие разные методе бондинга есть.
+это вот тут написано 
+
+		https://www.ibm.com/docs/en/linux-on-systems?topic=linuxonibm/com.ibm.linux.z.l0wlcb00/l0wlcb00_bondingmodes.htm
+
+
+итак
+
+
+mode 0 (balance-rr)
+    Round-robin policy. Transmits packets in sequential order from the first available slave through the last. This mode provides load balancing and fault tolerance.
+
+mode 1 (active-backup)
+    Active-backup policy. Establishes that only one slave in the bond is active. A different slave becomes active if, and only if, the active slave fails. The bond's MAC address is externally visible on only one port (network adapter) to avoid confusing the switch. This mode provides fault tolerance. The primary option affects the behavior of this mode.
+
+mode 2 (balance-xor)
+    Transmits based on the selected transmit hash policy, which can be altered via the xmit_hash_policy option. This mode provides load balancing and fault tolerance.
+
+mode 3 (broadcase)
+    Transmits everything on all slave interfaces. This mode provides fault tolerance.
+
+mode 4 (802.3ad)
+    IEEE 802.3ad Dynamic link aggregation policy. Creates aggregation groups that share the same speed and duplex settings. Utilizes all slaves in the active aggregator according to the 802.3ad specification.
+
+mode 5 (balance-tlb)
+    Adaptive transmit load balancing. Establishes channel bonding that does not require any special switch support. The outgoing traffic is distributed according to the current load (computed relative to the speed) on each slave. Incoming traffic is received by the current slave. If the receiving slave fails, another slave takes over the MAC address of the failed receiving slave. 
+
+mode 6 (balance-alb)
+    Adaptive load balancing. Includes balance-transmit load balancing plus receive-load balancing for IPv4 traffic, and does not require any special switch support. The receive-load balancing is achieved by ARP negotiation. The bonding driver intercepts the ARP replies sent by the local system on their way out and overwrites the source hardware address with the unique hardware address of one of the slaves in the bond. Thus, different peers use different hardware addresses for the server. 
+
+
+
+LACP это mode 4 (802.3ad)
+
+
+в конфиге можно указывать метод как угодно.
+можно вот так
+
+    bond-mode 802.3ad
+
+а можно вот так
+
+    bond-mode 4
+
+
+
+
+
+
+
+ТЕПЕРЬ.
+когда мы собрали бонд то это как бы обычный L2 порт (при желании +L3) 
+так что мы можем ему назначить ип(наконец то про ип!). вот так
+
+
+auto bond0
+iface bond0 inet manual
+    bond-slaves enp0s4 enp0s5
+    bond-miimon 100
+    bond-mode 802.3ad
+    bond-lacp-rate fast
+    bond-xmit-hash-policy layer3+4
+    address 192.168.2.98/29          *<<<<<<<<
+
+
+
+либо если мы хотим с порта высирать тегированный трафик то вот так
+
+
+auto bond0
+iface bond0 inet manual
+    bond-slaves enp0s4 enp0s5
+    bond-miimon 100
+    bond-mode 802.3ad
+    bond-lacp-rate fast
+    bond-xmit-hash-policy layer3+4
+
+
+auto bond0.108
+iface bond0.108 inet static
+	address 192.168.2.114/29
+	vlan_raw_device bond0
+
+
+
+
+а вот я привожу живой пример конфига из вируалки:
+
+
+
+allow-bond0 enp0s4
+iface enp0s4 inet manual
+
+allow-bond0 enp0s5
+iface enp0s5  inet manual
+
+
+
+auto bond0
+iface bond0 inet manual
+    bond-slaves enp0s4 enp0s5
+    bond-miimon 100
+    bond-mode 802.3ad
+    bond-lacp-rate fast
+    bond-xmit-hash-policy layer3+4
+
+
+
+auto bond0.108
+iface bond0.108 inet static
+	address 192.168.2.114/29
+	vlan_raw_device bond0
+
+
+
+
+
+
+
+ДАЛЕЕ
+по приколу я приведу еще те примеры конфигов которые указаны в доках от ifenslave
+
+/--/--/--/--/--/--/--/--/--/--/--/--/--/
+allow-hotplug wlan0
+iface wlan0 inet manual
+	bond-master bond0
+	bond-mode 1
+	bond-miimon 100
+	bond-give-a-chance 10
+	wpa-bridge bond0
+	wpa-key-mgmt WPA-PSK
+	wpa-proto WPA
+	wpa-group CCMP
+	wpa-ssid my-ssid
+	wpa-psk "my-secret-password"
+--/--/--/--/--/--/--/--/--/--/--/--/--/--/
+
+
+-----8<----------8<----------8<----------8<----------8<-----
+
+auto bond0
+iface bond0 inet dhcp
+	bond-slaves eth0 wlan0
+	bond-mode 1
+	bond-miimon 100
+	bond-primary eth0
+
+allow-bond0 wlan0
+iface wlan0 inet manual
+	bond-give-a-chance 10
+	wpa-bridge bond0
+	wpa-key-mgmt WPA-PSK
+	wpa-proto WPA
+	wpa-group CCMP
+	wpa-ssid my-ssid
+	wpa-psk "my-secret-password"
+
+-----8<----------8<----------8<----------8<----------8<-----
+
+
+-----8<----------8<----------8<----------8<----------8<-----
+
+auto bond0
+iface bond0 inet dhcp
+	bond-slaves eth0 eth1
+	bond-mode 1
+	bond-miimon 100
+	bond-primary eth0 eth1
+
+-----8<----------8<----------8<----------8<----------8<-----
+
+
+
+-----8<----------8<----------8<----------8<----------8<-----
+
+auto bond0
+iface bond0 inet dhcp
+	bond-slaves none
+	bond-mode 1
+	bond-miimon 100
+
+allow-hotplug eth0
+iface eth0 inet manual
+	bond-master bond0
+	bond-primary eth0 eth1
+
+allow-hotplug eth1
+iface eth1 inet manual
+	bond-master bond0
+	bond-primary eth0 eth1
+
+-----8<----------8<----------8<----------8<----------8<-----
+
+
+
+
+
+
+
+
+ДАЛЕЕ.
+щас покажу конфиг для бондинга типа ACTIVE+BACKUP
+
+
+
+auto enp0s4
+iface enp0s4 inet manual
+
+auto enp0s5
+iface enp0s5  inet manual
+
+
+
+auto bond0
+iface bond0 inet static
+    address 172.16.16.11
+    netmask 255.255.255.0
+    network 172.16.16.0
+    bond-slaves enp0s4      enp0s5
+    bond-mode active-backup   *<<<<<<<<<*
+    bond-miimon 100
+    bond-downdelay 200
+    bond-updelay 200
+
+
+
+
+вот еще другой вид бондинга
+
+auto bond0
+iface bond0 inet static
+    address 172.16.16.11
+    netmask 255.255.255.0
+    bond-slaves enp0s4 enp0s5
+    bond-mode 2      *<<<<<<<<<<*
+    bond-miimon 100
+
+
+
+
+
+
+
+
+
+
+
+
+
+ДАЛЕЕ.
+все это время мы говорили про бонд средствами ядра линукса.
+но есть и второй вариант - сделать бонд средствами опенсвича.
+если у нас установлен пакет опенсвича то мы можем взять два порта
+и содеинить их в бонд средствами его. это несколько другое.
+значит я с чем наебался когда его создавал.  когда я запускал вм 
+средствами qemu то я указал два порта с одинаковыми маками. 
+вот типа такого
+
+
+        -device virtio-net-pci,netdev=mynet1,mac=ba:22:24:1a:02:01 \
+        -netdev tap,id=mynet2,ifname=vvport-pr2-h1-2,script=no,downscript=no \
+        -device virtio-net-pci,netdev=mynet2,mac=ba:22:33:1a:1a:01 \
+        -netdev tap,id=mynet3,ifname=vvport-pr2-h1-3,script=no,downscript=no \
+
+это знатный проеб.
+
+есть еще одна наебка. порт обслуживается драйвером virtio
+
+	-device virtio-net-pci
+
+так вот такой драйвер внутри вм нихуя не сообщает какая скорость  у порта.
+и если мы внутри вм будем пытаться создать бонд то в логах будет идти ругань о том
+что не получается получть инфо о скорости порта.
+я не знаю критическая ли ошибка. но лучше это исправить. вот так
+
+    -device e1000,netdev=mynet1,mac=ba:22:24:1a:02:01 \
+
+тоесть замегит драйвер на драйвер e1000
+
+
+замечу что если бонд создан средставми ядра то данный порт можно сниффит чререз tcpdump
+хотя как правило он нихуя не покызвает ничего. и приходится сниффить именно физ карты
+которые его образуют.
+
+
+щас мы поговорим про создание бондинга за счет опенсвича.
+также скажу что при этом порт который будет создан его нельзя никак посмотреть через 
+ 
+ 	ip -c l sh
+
+и tcpdump поэтому тоже неработает на этом порту. хотя он в опенсвиче естесвтенно виден.
+итак теперт я покажу как нам сосздать bond средствами openswitch
+при условии что у нас сетевой менеджер это ifupdown2
+так вот пример бондинга LACP на базе опенсвича
+
+
+
+
+
+
+
+
+auto enp0s4
+iface enp0s4 inet manual
+
+auto enp0s5
+iface enp0s5  inet manual
+
+
+
+auto bond0
+iface bond0 inet manual
+    ovs_bonds    enp0s4  enp0s5
+    ovs_type OVSBond
+    ovs_bridge vmbr1
+    ovs_options lacp=active bond_mode=balance-tcp
+
+
+
+auto vmbr1
+iface vmbr1 inet manual
+    ovs_type OVSBridge
+    ovs_ports bond0  vlan108nfs
+
+
+
+
+auto vlan108nfs
+iface vlan108nfs inet static
+    address 192.168.2.114/29
+    ovs_type OVSIntPort
+    ovs_bridge vmbr1
+    ovs_options tag=108
+#proxmox NFS
+
+
+
+
+
+
+важно подменить что я использую
+
+	auto enpN
+
+вместо 
+
+	allow-bond0 ... 
+
+именно так. для опенсвич бонда нужно делать именно так!
+
+
+собсвтенно вот это запуск самого опенсвича
+
+
+auto vmbr1
+iface vmbr1 inet manual
+    ovs_type OVSBridge
+    ovs_ports bond0  vlan108nfs
+
+
+
+
+а вот наш бондинг 
+
+
+auto bond0
+iface bond0 inet manual
+    ovs_bonds    enp0s4  enp0s5
+    ovs_type OVSBond
+    ovs_bridge vmbr1
+    ovs_options lacp=active bond_mode=balance-tcp
+
+
+
+
+теперь как проерить что этот бондинг успено свызался по lacp со свичем.
+
+первая команда
+
+	# ovs-appctl bond/show bond0
+
+---- bond0 ----
+bond_mode: balance-tcp
+bond may use recirculation: yes, Recirc-ID : 2
+bond-hash-basis: 0
+lb_output action: disabled, bond-id: -1
+updelay: 0 ms
+downdelay: 0 ms
+next rebalance: 7312 ms
+lacp_status: negotiated
+lacp_fallback_ab: false
+active-backup primary: <none>
+active member mac: ba:22:33:2a:2a:01(enp0s5)
+
+member enp0s4: enabled    *<<<<<
+  may_enable: true        *<<<<<
+
+member enp0s5: enabled    *<<<<<
+  active member
+  may_enable: true        *<<<<<<
+
+
+
+стрелками я показал важное. если lacp не получаился то тут будет disabled
+
+
+и вторая команда
+
+
+	# ovs-appctl lacp/show bond0
+
+---- bond0 ----
+  status: active negotiated
+  sys_id: 2a:ab:77:31:1b:42
+  sys_priority: 65534
+  aggregation key: 1
+  lacp_time: slow
+
+member: enp0s4: current attached
+  port_id: 2
+  port_priority: 65535
+  may_enable: true
+
+  actor sys_id: 2a:ab:77:31:1b:42
+  actor sys_priority: 65534
+  actor port_id: 2
+  actor port_priority: 65535
+  actor key: 1
+  actor state: activity aggregation synchronized collecting distributing
+
+  partner sys_id: de:ce:ff:fb:88:4f
+  partner sys_priority: 65534
+  partner port_id: 43
+  partner port_priority: 65535
+  partner key: 42
+  partner state: activity timeout aggregation synchronized collecting distributing
+
+member: enp0s5: current attached
+  port_id: 1
+  port_priority: 65535
+  may_enable: true
+
+  actor sys_id: 2a:ab:77:31:1b:42
+  actor sys_priority: 65534
+  actor port_id: 1
+  actor port_priority: 65535
+  actor key: 1
+  actor state: activity aggregation synchronized collecting distributing
+
+  partner sys_id: de:ce:ff:fb:88:4f
+  partner sys_priority: 65534
+  partner port_id: 42
+  partner port_priority: 65535
+  partner key: 42
+  partner state: activity timeout aggregation synchronized collecting distributing
+
+
+
+
+
+и здесь самые важные строки это 
+
+	  partner sys_id: de:ce:ff:fb:88:4f
+ 	  partner sys_id: de:ce:ff:fb:88:4f
+
+
+они показывают mac адрес партера (тоесть свича) по lacp
+если они показывают нули то ничего незаработало.
+а если как щас значит все сработало.
+
+еще можно естественно создать бонд через CLI
+яниже оставлю куски а щас не времени это распиывать
+
+
+
+а вот еще как выглядит опенсвич
+
+root@pr2-h1:/# ovs-vsctl show
+b3a6e0b8-2941-4690-a6da-aaa67d2f2692
+    Bridge vmbr1
+        Port vlan108nfs
+            tag: 108
+            Interface vlan108nfs
+                type: internal
+        Port bond0
+            Interface enp0s5
+            Interface enp0s4
+
+
+
+можно посмотреть инфо о порте bond0 
+и об интерфейсах enp0s4 enp0s5
+входящих в этот порт. ( да прикол в том что портами на опенсвиче на самом деле
+обохначается группа однотипных интерфейсов)
+
+
+    # ovs-vsctl list port vmbr1
+_uuid               : 221daffb-87b7-4aa6-a611-281304a31156
+bond_active_slave   : []
+bond_downdelay      : 0
+bond_fake_iface     : false
+bond_mode           : []
+bond_updelay        : 0
+cvlans              : []
+external_ids        : {}
+fake_bridge         : false
+interfaces          : [fa796587-7161-46c0-b7a2-dc02896f01f3]
+lacp                : []
+mac                 : []
+name                : vmbr1
+other_config        : {}
+protected           : false
+qos                 : []
+rstp_statistics     : {}
+rstp_status         : {}
+statistics          : {}
+status              : {}
+tag                 : []
+trunks              : []
+vlan_mode           : []
+
+
+
+
+    # ovs-vsctl list interface enp0s4
+_uuid               : dedac132-cf85-414c-8bad-5dbc02a55a04
+admin_state         : up
+bfd                 : {}
+bfd_status          : {}
+cfm_fault           : []
+cfm_fault_status    : []
+cfm_flap_count      : []
+cfm_health          : []
+cfm_mpid            : []
+cfm_remote_mpids    : []
+cfm_remote_opstate  : []
+duplex              : full
+error               : []
+external_ids        : {}
+ifindex             : 3
+ingress_policing_burst: 0
+ingress_policing_kpkts_burst: 0
+ingress_policing_kpkts_rate: 0
+ingress_policing_rate: 0
+lacp_current        : true
+link_resets         : 0
+link_speed          : 1000000000
+link_state          : up
+lldp                : {}
+mac                 : []
+mac_in_use          : "ba:22:33:1a:1a:01"
+mtu                 : 1500
+mtu_request         : []
+name                : enp0s4
+ofport              : 2
+ofport_request      : []
+options             : {}
+other_config        : {}
+statistics          : {collisions=0, rx_bytes=146082, rx_crc_err=0, rx_dropped=0, rx_errors=0, rx_frame_err=0, rx_missed_errors=0, rx_multicast_packets=85, rx_over_err=0, rx_packets=1184, tx_bytes=457112, tx_dropped=0, tx_errors=0, tx_packets=3973, upcall_errors=0, upcall_packets=119}
+status              : {driver_name=e1000, driver_version="6.14.8-2-pve", firmware_version=""}
+type                : ""
+
+
+
+
+
+
+
+ДАЛЕЕ.
+тут я даюю еще один живой конфиг 
+
+
+
+auto lo
+iface lo inet loopback
+
+
+
+auto enp0s4
+iface enp0s4 inet manual
+
+auto enp0s5
+iface enp0s5  inet manual
+
+
+
+
+
+auto bond0
+iface bond0 inet manual
+    bond-slaves enp0s4 enp0s5
+    bond-miimon 100
+    bond-mode 802.3ad
+    bond-lacp-rate fast
+    bond-xmit-hash-policy layer3+4
+
+
+
+
+auto bond0.108
+iface bond0.108 inet static
+	address 192.168.2.114/29
+	vlan_raw_device bond0
+
+
+
+
+
+
+
+
+
+
+auto enp0s3
+iface enp0s3 inet manual
+	ovs_type OVSPort
+	ovs_bridge vmbr0
+	ovs_options vlan_mode=trunk
+
+
+
+auto vlan107
+iface vlan107 inet static
+	address 192.168.2.105/29
+	ovs_type OVSIntPort
+	ovs_bridge vmbr0
+	ovs_options tag=107
+#proxmox corosync net
+
+
+
+auto vlan106
+iface vlan106 inet static
+	address 192.168.2.98/29
+	gateway 192.168.2.97
+	ovs_type OVSIntPort
+	ovs_bridge vmbr0
+	ovs_options tag=106
+#proxmox API/WEB net
+
+
+
+
+auto vmbr0
+iface vmbr0 inet manual
+	ovs_type OVSBridge
+	ovs_ports enp0s3 vlan107  vlan106   vlan108nfs
+
+
+
+
+source /etc/network/interfaces.d/*
+
+
+
+
+тут еще полезные куски заметок непроработанные
+
+ovs-vsctl add-bond openswbr2 bond1 vvport-pr2-h1-2 vvport-pr2-h1-3 lacp=active bond_mode=balance-tcp
+ovs-vsctl set port bond1 lacp=active
+ovs-vsctl set port bond1 other-config:lacp-time=fast
+ovs-vsctl set port bond1 other-config:lacp-fallback-ab=true
+ovs-vsctl set port bond1 other-config:bond-detect-mode=miimon
+ovs-vsctl set port bond1 other-config:bond-miimon-interval=100
+ovs-vsctl set port bond1 other-config:bond-rebalance-interval=10000
+ovs-vsctl set port bond1 other-config:xmit_hash_policy=layer2+3
+ovs-vsctl set port bond1 other-config:lb-output-action=true
+
+
+ovs-vsctl set port bond1 vlan_mode=access
+ovs-vsctl set port bond1 tag=109
+
+ovs-vsctl list Interface
+
+
+
+ovs-appctl bond/show bond1
+ovs-appctl lacp/show bond1
+
+у меня были задублироанвы маки для в портах вируалки ! портыразыне а мак один!!!
+
+
+OVS бонд не виден с хоста через ip -c l sh !!!
+
+
+в итоге я анстптрить LACP на freenas правад там при этом неьзя настрить ттрановкаовый порт!
+только ацкесный!!
+
+
+я научился настрваить на хосте OVS BOND на вм это OVS bond или ядерный бонд.
+нужно еще найится чтоябы на хосте был ядерный бонд который вствавлен в OVS просто
+как порт!
+
+
+(!!!) я знаетно поебался с NFS шарой. без юзер маппинга вобще нихуя неработает!
+
+
+
+
+
+
+
+auto bond0
+iface bond0 inet static
+    bond-slaves  enp0s4   enp0s5
+    bond-mode 802.3ad
+        bond-miimon 100
+        bond-lacp-rate fast
+        bond-xmit-hash-policy  layer2+3
+	address 172.16.16.11/24
+
+
+
+
+трабл
+хост + qemu + opensw + linux = прбелма. 
+
+порт который видит хост тоесть опенсвич и порт который видит виртуалка это 
+два разных порта содеинных "веревкой" поэтомуна одной сторне веревки порт упал 
+а на втором он живой!
+
+
+                                           веревка
+     опенсвич ---- bond1 ---- port1 (хост) --------- qemu --- порт внутри вм
+
+
+     мы можем погасить port1 но порт внутри вм при этом об этом незнает. и он вклчен.
+
+
+
+
+
+
+
+
+
+зацени
+
+ovs-vsctl show
+
+        Port bond1
+            trunks: [109]
+            Interface vvport-pr2-h1-3
+            Interface vvport-pr2-h1-2
+
+
+     ест порты а есть интерфейсы!!! интерйфейсы входят в состав порта!
+я бы сказал что порт это группа интерфейсов. 
+
+поэтому
+
+ovs .. list port
+ovs .. list Interfaces
+
+
+
+[lenovo etc]# ovs-vsctl list port bond1
+_uuid               : 7abf7582-9fcb-4da3-ab86-42403b354523
+bond_active_slave   : "96:e3:2f:ba:c2:b7"
+bond_downdelay      : 0
+bond_fake_iface     : false
+bond_mode           : balance-tcp
+bond_updelay        : 0
+cvlans              : []
+external_ids        : {}
+fake_bridge         : false
+interfaces          : [d2ea524f-51e6-4533-a4ab-0034f7d7d0af, d397dd91-0df3-40e6-af79-a7002173cc37]
+lacp                : active
+mac                 : []
+name                : bond1
+other_config        : {lacp-time=fast, lb-output-action="true"}
+protected           : false
+qos                 : []
+rstp_statistics     : {}
+rstp_status         : {}
+statistics          : {}
+status              : {}
+tag                 : []
+trunks              : [109]
+vlan_mode           : trunk
+[lenovo etc]# 
+
+
+
+
+[lenovo etc]# 
+[lenovo etc]# ovs-vsctl list Interface  vvport-pr2-h1-3 
+_uuid               : d2ea524f-51e6-4533-a4ab-0034f7d7d0af
+admin_state         : up
+bfd                 : {}
+bfd_status          : {}
+cfm_fault           : []
+cfm_fault_status    : []
+cfm_flap_count      : []
+cfm_health          : []
+cfm_mpid            : []
+cfm_remote_mpids    : []
+cfm_remote_opstate  : []
+duplex              : full
+error               : []
+external_ids        : {}
+ifindex             : 219
+ingress_policing_burst: 0
+ingress_policing_kpkts_burst: 0
+ingress_policing_kpkts_rate: 0
+ingress_policing_rate: 0
+lacp_current        : true
+link_resets         : 13
+link_speed          : 10000000000
+link_state          : up
+lldp                : {}
+mac                 : []
+mac_in_use          : "9a:f0:87:f7:1e:d6"
+mtu                 : 1500
+mtu_request         : []
+name                : vvport-pr2-h1-3
+ofport              : 42
+ofport_request      : []
+options             : {}
+other_config        : {}
+statistics          : {collisions=0, rx_bytes=397394, rx_crc_err=0, rx_dropped=1, rx_errors=0, rx_frame_err=0, rx_missed_errors=0, rx_multicast_packets=0, rx_over_err=0, rx_packets=3901, tx_bytes=508258, tx_dropped=0, tx_errors=0, tx_packets=4890, upcall_errors=0, upcall_packets=1550}
+status              : {driver_name=tun, driver_version="1.6", firmware_version=""}
+type                : ""
+[lenovo etc]# 
+
+
+
+
+
+если порты вкему
+ -device virtio-net-pci,netdev=mynet2,mac=ba:24:24:1a:01:12 \
+
+набазе дарвер vitio то при создании внури вм LACP 
+мы получим дохуя вот акого
+
+
+Nov 22 09:19:09 truenas kernel: bond1: (slave enp0s5): failed to get link speed/duplex
+Nov 22 09:19:09 truenas kernel: bond1: (slave enp0s4): failed to get link speed/duplex
+Nov 22 09:19:09 truenas kernel: bond1: (slave enp0s5): failed to get link speed/duplex
+Nov 22 09:19:09 truenas kernel: bond1: (slave enp0s4): failed to get link speed/duplex
+Nov 22 09:19:09 truenas kernel: bond1: (slave enp0s5): failed to get link speed/duplex
+
+
+поэтому нужно в свтйова кему заменить дравер сетевой карты на e1000
+
+ -device e1000,netdev=mynet2,mac=ba:22:33:1a:1a:01 \
+
+
+
+
+ инфо о lacp для бонд на базе опенсвича
+
+ # ovs-appctl bond/show bond1
+# ovs-appctl lacp/show bond1
+
+а для инфо бонда на базе ядра по другому смотеть
+
+# cat /proc/net/bonding/bond0
+
+
+парамтер 
+  bond-xmit-hash-policy layer3+4
+ не влияет на сам факт устаанволения связти с пратнером.
+ он влияет лшь на то какой порт убдет использован для отправки исходящего пакета
+
+
+
+
+
+
+    Режимы bonding описаны в файле документации ядра Linux:
+    /usr/share/doc/kernel-doc-<version>/Documentation/networking/bonding.txt
+
+    На Debian Wiki и других ресурсах указаны описания режимов bonding:
+    mode=0 — balance-rr
+    mode=1 — active-backup
+    mode=2 — balance-xor
+    mode=3 — broadcast
+    mode=4 — 802.3ad (LACP)
+    mode=5 — balance-tlb
+    mode=6 — balance-alb
+
+
+
+
+создать bond LACP сердсвтами ядра
+
+ip link add bond0 type bond mode 802.3ad miimon 100
+ip link set eth0 master bond0
+ip link set eth1 master bond0
+
+ip link set eth0 up
+ip link set eth1 up
+ip link set bond0 up
+
+
+
+==
+
+[lenovo etc]# ovs-vsctl list port   bond1
+_uuid               : 7abf7582-9fcb-4da3-ab86-42403b354523
+bond_active_slave   : "96:e3:2f:ba:c2:b7"  <==== mac на той стороне у парнетра
+
+===
+
+
+
+
+
+теперь ссылки которые както могут быть полезными
+
+	https://blog.scottlowe.org/2012/10/19/link-aggregation-and-lacp-with-open-vswitch/
+
+	поленое описание темы опенвича на сайте проксоксаса
+		https://pve.proxmox.com/wiki/Open_vSwitch
+
+		всякие опции опенсвича в том числе и для бондинга которые можно вставить 
+		в interfaces
+			https://www.openvswitch.org/support/dist-docs/ovs-vswitchd.conf.db.5.txt
+

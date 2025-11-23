@@ -1,0 +1,191 @@
+| proxmox
+| openswitch
+| trunk
+| tagged
+
+
+задача. как сделать так чтобы внутрь вм (кему) передавать транковый тегированный трафик
+причем из заданного списка тегов.
+
+я искал искал и нашел вот тэтот тред
+
+	https://forum.proxmox.com/threads/restrict-guest-vm-802-1q-tagging.102117/
+
+
+а внем вот такой кусок
+
+	you can limit the number of vlans going to a vm, editing the vm config file : "netX: ....,trunks=2-4;6;8;9-10" .
+	It's not available in the gui currently.
+
+
+тоесть в проксокс веб морде осттвутует базовый такой важный базовый функционал!
+параметр tags он реально задает какой АКЦЕСС тег нужно присоваит потоку при вылете 
+трафика из вм внутрь порта свича. тоесть ели мы указыаем тег то порт становится 
+ацессным. если мы тег не указываем то порт становится транковым. и все транки доступны
+внутри вм.
+а если я хочу ограничть число доутспных транков для вм то нужно руками зайти в конфиг 
+вм и сделать ВОТ ТАК
+
+
+
+	# cat /etc/pve/nodes/pr2-h1/qemu-server/103.conf 
+...
+...
+net0: virtio=BC:24:11:38:AF:2E,bridge=vmbr0,firewall=1,trunks=15;24
+
+
+тоесть вот в этом 
+	
+		trunks=15;24
+
+самая фишка.
+это говорит проксоксу что порту будет транковый и указает разрешенные теги.
+
+гоча!
+
+
+вобще я открыл странно ебанутую систему как проксокс увязывает порт вм со основным 
+свичем.
+
+положим у нас есть основной свич vmbr0 и он опенсвич.
+мы в свойствах вм укзываем что мы хотим на этом свиче создать порт для вм. 
+
+
+		net0: virtio=BC:24:11:38:AF:2E,bridge=vmbr0,firewall=1,trunks=15;24
+
+
+казалось бы наверное он создает порт вытыкает его в свич. назнаачает этому порту
+свойства и всего то делов. 
+на саомм дееле хуйня полная. делает он это совсем по другому.
+он создает каскад простых линукс свичей. и ауже один из них втыукает в порт основного свича!
+это какойто пиздец. вот например  запускаю эту 103 вм. нахожу процесс qemu в памяти
+и вот такой кусок
+
+
+		ifname=tap103i0
+
+
+это имя порта который всунут внутрь ВМ. далее смотрим.
+
+# brctl show
+bridge name		bridge id			STP enabled		interfaces
+fwbr103i0		8000.1296139505c0	no				fwln103o0
+													tap103i0
+
+
+
+тоесть у нас создан класс линукс бридж. в него всунут порт от ВМ. тоесть если вм
+срет трафик то он влетает в этот свич дополниельный. потсмрим что это за свич он виален
+евейр или нет
+
+
+# cat /sys/class/net/fwbr103i0/bridge/vlan_filtering 
+0
+
+тоесть нет. это не вилан евейр свич. 
+как ни странно если в него пахать тегировный трафик то он его неотрабывет а рассматривет 
+его как обычный трафик и все такое. значит потом трафик летит в порт  fwln103o0
+
+посмтрим нет ли такого порта на опенсвиче
+
+
+
+		# ovs-vsctl show
+		    Bridge vmbr0
+        Port fwln103o0
+            trunks: [15, 24]
+            Interface fwln103o0
+                type: internal
+
+и он тут есть!
+и видно что он транковый и что разршенные теги это 15 и 24
+ровно как мы прописали вот тут
+
+		net0: virtio=BC:24:11:38:AF:2E,bridge=vmbr0,firewall=1,trunks=15;24
+
+
+но я вгооворю - непонятно нахуйя создавать доп свич. 
+я пооверял - если даже в рамках одной вм создать второй порт то поднего проксоксскс
+создать еще +1 линукс бридж! тоесть под каждый новый порт любой виртуалки хоть этой же 
+самой хоть другой он создает +1 отдеьный линукс бридж это пиздец. который уже втыкает в
+основной бридж в даннмо случае в vmbr0 openswitch. нахуя так делать непоянтно.
+
+посмтрим свойства порта и итерфейса потому что в опенсвиче это разное.
+порт это логическая группы интфреейсов. а интфрейс это уже реальный стетвой порт.
+
+
+
+
+root@pr2-h1:/# ovs-vsctl  list port fwln103o0
+_uuid               : ae73bd92-a183-41ef-856d-e11bfddbbe40
+bond_active_slave   : []
+bond_downdelay      : 0
+bond_fake_iface     : false
+bond_mode           : []
+bond_updelay        : 0
+cvlans              : []
+external_ids        : {}
+fake_bridge         : false
+interfaces          : [fe4208f3-8a85-4ec2-9794-7f84df46018f]
+lacp                : []
+mac                 : []
+name                : fwln103o0
+other_config        : {}
+protected           : false
+qos                 : []
+rstp_statistics     : {}
+rstp_status         : {}
+statistics          : {}
+status              : {}
+tag                 : []
+trunks              : [15, 24]
+vlan_mode           : []
+root@pr2-h1:/# 
+
+
+
+
+root@pr2-h1:/# ovs-vsctl  list interface fwln103o0
+_uuid               : fe4208f3-8a85-4ec2-9794-7f84df46018f
+admin_state         : up
+bfd                 : {}
+bfd_status          : {}
+cfm_fault           : []
+cfm_fault_status    : []
+cfm_flap_count      : []
+cfm_health          : []
+cfm_mpid            : []
+cfm_remote_mpids    : []
+cfm_remote_opstate  : []
+duplex              : []
+error               : []
+external_ids        : {}
+ifindex             : 19
+ingress_policing_burst: 0
+ingress_policing_kpkts_burst: 0
+ingress_policing_kpkts_rate: 0
+ingress_policing_rate: 0
+lacp_current        : []
+link_resets         : 1
+link_speed          : []
+link_state          : up
+lldp                : {}
+mac                 : []
+mac_in_use          : "a2:80:43:4b:9a:90"
+mtu                 : 1500
+mtu_request         : 1500
+name                : fwln103o0
+ofport              : 7
+ofport_request      : []
+options             : {}
+other_config        : {}
+statistics          : {collisions=0, rx_bytes=0, rx_crc_err=0, rx_dropped=0, rx_errors=0, rx_frame_err=0, rx_missed_errors=0, rx_multicast_packets=0, rx_over_err=0, rx_packets=0, tx_bytes=0, tx_dropped=0, tx_errors=0, tx_packets=0, upcall_errors=0, upcall_packets=0}
+status              : {driver_name=openvswitch}
+type                : internal
+root@pr2-h1:/# 
+
+
+
+пока на этом все.
+нет времени чтото еще расписывать.
+
