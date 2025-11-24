@@ -1,0 +1,80 @@
+| proxmox
+| openswitch
+| mtu
+
+важная хрень.
+если доя обычных портов мы пишем
+
+
+mtu 9000
+
+для для всех портов которые хводят в состав openswitch мы пишем СОВСЕМ ДРУГУЮ ЗРЕНЬ!
+
+		ovs_mtu 9000
+
+
+
+
+ПРИМЕР КОНИФГА
+
+
+
+auto lo
+iface lo inet loopback
+
+
+
+iface eno2 inet manual
+
+iface eno3 inet manual
+
+iface eno4 inet manual
+
+iface enp67s0f1 inet manual
+
+
+
+
+
+
+auto eno1
+iface eno1 inet manual
+	address 192.168.0.229/24
+	gateway 192.168.0.99
+
+
+
+
+
+
+
+auto enp67s0f0
+iface enp67s0f0 inet manual
+	ovs_type OVSPort
+	ovs_bridge vmbr0
+	ovs_mtu 9000        *<<<<*
+
+
+
+
+auto vmbr0
+iface vmbr0 inet manual
+	ovs_type OVSBridge
+	ovs_ports enp67s0f0
+	ovs_mtu 9000      *<<<<*
+
+auto vlan88
+iface vlan88 inet static
+    address 172.16.100.11/24
+    ovs_type OVSIntPort
+    ovs_bridge vmbr0
+    ovs_options tag=88
+    ovs_mtu 9000   *<<<<*
+#NFS
+
+
+
+
+
+
+
