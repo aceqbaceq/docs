@@ -11,11 +11,12 @@
 тогда
 
 
-	#	ceph osd set noout
+	ceph osd set noout
+	ceph osd set norecover
+	ceph osd set nobackfill
 
 
-	# ceph osd set norecover
-	#ceph osd set nobackfill
+
 
 потом на нужной ноде стопим OSD сервимсы
 

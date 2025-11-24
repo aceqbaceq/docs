@@ -1,0 +1,8 @@
+| cinnamon
+| restart
+
+как перегрузить но чтобы окна окткрылись которыебыли открыты
+
+ # killall cinnamon
+ $ cinnamon &
+ 

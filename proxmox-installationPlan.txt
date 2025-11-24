@@ -2,9 +2,53 @@
 | план установки
 
 
-chrony
-опенсвич
-mtu 9000
-отдельный вилан под сеть коросинк
-отдельный вилан под миграции Datacenter-Options-Migration Settings
+(+)chrony
+
+(+)опенсвич
+
+(+)mtu 9000
+(+)протестировать что все виланы (которым положено) успешно пингуются на нагрузке mtu 9000
+
+(+)отдельный вилан под сеть коросинк
+(+)отдельный вилан под миграции Datacenter-Options-Migration Settings
+
+(+) apt-get install -y mc  nmon sudo  
+
+(+) ipv6 отключить
+net.ipv6.conf.all.disable_ipv6 = 1
+net.ipv6.conf.default.disable_ipv6 = 1
+net.ipv6.conf.lo.disable_ipv6 = 1
+
+
+(+)вход по ssh только по ключам
+(+)запрет входа root
+
+(+) почистить /etc/apt от энтепррайз репозитариев
+
+
+(+)убрать апдейты пакетов системы
+	systemctl disable pve-daily-update.timer
+	systemctl stop pve-daily-update.timer
+
+
+
+(+)хостнеймы хостов в /etc/hosts на все хосты
+
+
+
+
+перенести настройки куда и как делаются бэкапы
+???
+100.100.1.20 fs2.dst fs2
+100.100.0.50 fs.dst fs 
+100.100.0.51 omv.dst omv
+100.100.1.244 pbs2.dst pbs2
+???
+
+
+
+
+
+убрать слушающий сокет веб морды со всех подряд карт и оставить только на вилане "API\WEB"
+
 
