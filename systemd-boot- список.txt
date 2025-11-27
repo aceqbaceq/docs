@@ -1,0 +1,43 @@
+| systemd
+
+как увидеьт какой сервис за ккаким стартовал
+
+в тектовмом виде
+
+	# systemd-analyze critical-chain
+The time after the unit is active or started is printed after the "@" character.
+The time the unit takes to start is printed after the "+" character.
+
+multi-user.target @10.284s
+└─tuned.service @8.056s +2.227s
+  └─network.target @8.054s
+    └─network.service @7.314s +739ms
+      └─NetworkManager-wait-online.service @6.951s +357ms
+        └─NetworkManager.service @6.760s +185ms
+          └─network-pre.target @6.759s
+            └─iptables.service @6.399s +355ms
+              └─ipset.service @6.165s +192ms
+                └─basic.target @6.163s
+                  └─sockets.target @6.163s
+                    └─dbus.socket @6.163s
+                      └─sysinit.target @6.161s
+                        └─systemd-update-utmp.service @6.143s +16ms
+                          └─auditd.service @5.881s +260ms
+                            └─systemd-tmpfiles-setup.service @5.804s +72ms
+                              └─rhel-import-state.service @5.711s +80ms
+                                └─local-fs.target @5.705s
+                                  └─boot.mount @1.837s +3.863s
+                                    └─local-fs-pre.target @1.820s
+                                      └─lvm2-monitor.service @1.014s +796ms
+                                        └─lvm2-lvmetad.service @1.107s
+                                          └─lvm2-lvmetad.socket @1.012s
+                                            └─-.slice
+
+
+
+в вдиде картинки 
+
+# systemd-analyze plot > boot.svg
+
+
+

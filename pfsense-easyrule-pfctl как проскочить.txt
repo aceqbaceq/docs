@@ -1,0 +1,52 @@
+| pfsense
+| easyrule
+| freebsd
+
+
+если мы долвабялем правило через 
+
+easyrule ...
+
+тооно длобавляется в самый низ.
+а если у нас в самом низу стояло правилоа block all
+то наш ищируле нам нихуя не поможет.
+
+поэтому толькео оастется выгрузить текущие pfctl приавла в файл.
+потом его тредактировать. и загрузить обратно.
+
+
+положим мы вынррузили файл.
+находим там место
+
+
+		anchor "userrules/*" all
+
+
+
+И ПЕРЕДНИМ вставляем 
+
+pass in quick on vmx0 inet proto icmp from any to (self) icmp-type echoreq keep state label "WAN ICMP allow"
+pass in quick on vmx0 proto tcp from any to (self) port = ssh flags S/SA keep state label "WAN SSH allow" 
+pass in quick on vmx0 proto tcp from any to (self) port = https flags S/SA keep state label "WAN HTTPS allow"
+pass in quick on vmx0 proto tcp from any to (self) port = http flags S/SA keep state label "WAN HTTP allow"
+
+
+ИТОГО
+
+
+...
+...
+pass in quick on vmx0 inet proto icmp from any to (self) icmp-type echoreq keep state label "WAN ICMP allow"
+pass in quick on vmx0 proto tcp from any to (self) port = ssh flags S/SA keep state label "WAN SSH allow" 
+pass in quick on vmx0 proto tcp from any to (self) port = https flags S/SA keep state label "WAN HTTPS allow"
+pass in quick on vmx0 proto tcp from any to (self) port = http flags S/SA keep state label "WAN HTTP allow"
+anchor "userrules/*" all
+...
+
+и нактатываем.
+
+и длолжно быть нам щастье
+
+
+
+
