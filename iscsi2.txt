@@ -2,3 +2,147 @@
 
 утилиата  scsi_id она лежит в /lib/udev
 поэтму ее нихуя не видно. этой папки нет в PATH
+
+
+
+здесь лежит iqn имя нашего хоста
+
+ cat /etc/iscsi/initiatorname.iscsi | grep -v '#'
+InitiatorName=iqn.1993-08.org.debian:01:a78ffb63588e
+
+
+это обнаружиывает все таргеты
+
+iscsiadm -m discovery -t sendtargets -p <IP-адрес или hostname>:3260
+
+
+потм вот так
+
+iscsiadm -m node --login
+
+systemctl enable --now iscsid open-iscsi
+
+
+apt install multipath-tools
+
+
+мулььтпаф
+
+# cat /etc/multipath.conf
+defaults {
+    user_friendly_names    yes
+        polling_interval        2
+        path_selector           "round-robin 0"
+	max_fds "max"
+        path_grouping_policy    multibus
+        path_checker            readsector0
+        getuid_callout          "/lib/udev/scsi_id -g -u -d /dev/%n"
+        rr_min_io               100
+        failback                immediate
+        no_path_retry           queue
+}
+blacklist {
+        wwid .*
+}
+blacklist_exceptions {
+        wwid "3600a098038304350472b4b414f7a654f"
+    property "(ID_SCSI_VPD|ID_WWN|ID_SERIAL)"
+}
+multipaths {
+  multipath {
+        wwid "3600a098038304350472b4b414f7a654f"
+        alias nasiscsi
+  }
+}
+
+
+
+iscsiadm -m node -p 100.65.0.10:3260 --login
+iscsiadm -m node -p 100.65.0.11:3260 --login  
+iscsiadm -m node -p 100.65.0.12:3260 --login
+iscsiadm -m node -p 100.65.0.13:3260 --login
+
+
+или
+
+iscsiadm -m node --loginall=all
+
+
+iscsiadm -m session     # активные iSCSI сессии
+lsblk                   # появятся sdb,sdc,sde,sdf
+multipath -F            # очистить старые maps
+multipath               # создать mpath устройство
+multipath -ll           # покажет nasiscsi с WWID 3600a098...
+
+
+/lib/udev/scsi_id -g -u -d /dev/sdb
+ls -l /dev/disk/by-id/ | grep -E "(sdb|sdc|sde|sdf)"
+multipath -v3 /dev/sdb
+
+
+создать маппимнг приундительно
+
+multipath -v2 3600a098038304350472b4b414f7a654f
+где wwn мы узнаем из /lib/udev/scsi_id -g -u -d /dev/sdb
+multipath -ll
+
+
+
+далее прикол. 
+на прокском создаем сторадж типа ISCI.
+но в соствах ставим галку disable.
+
+это нам дает то что за счет прокскскм мы при загуркузке  обарнаружуем луны iscsi.
+но не исползуем.
+далее мы руками на хосте за счет мульптипафа создаем с этих лунов мултипаф устрйоство.
+далее создаем рукками на базе этого мультипаф болчного устройсвтва LVM
+а потом его подключаем как LVM сторадж к прокскмксу. получается LVM over ISCSI
+
+
+
+вот прмиер стораджей прокскса вэтом слуаееве
+
+
+root@2hst1 .../iscsi/send_targets# cat /etc/pve/storage.cfg 
+
+
+lvmthin: local-lvm
+	disable
+	thinpool data
+	vgname pve
+	content images,rootdir
+
+lvm: nasiscsi
+	vgname vg_iscsi
+	content images,rootdir
+	nodes 2hst1,2hst3,2hst2
+	shared 1
+
+iscsi: iscsi1
+	disable
+	portal 100.65.0.10
+	target iqn.1992-08.com.netapp:sn.c7a6dadfaf2011eca6db00a098b327ad:vs.59
+	content none
+
+iscsi: iscsi2
+	disable
+	portal 100.65.0.11
+	target iqn.1992-08.com.netapp:sn.c7a6dadfaf2011eca6db00a098b327ad:vs.59
+	content none
+
+iscsi: iscsi3
+	disable
+	portal 100.65.0.12
+	target iqn.1992-08.com.netapp:sn.c7a6dadfaf2011eca6db00a098b327ad:vs.59
+	content none
+
+iscsi: iscsi4
+	disable
+	portal 100.65.0.13
+	target iqn.1992-08.com.netapp:sn.c7a6dadfaf2011eca6db00a098b327ad:vs.59
+	content none
+
+
+
+
+
