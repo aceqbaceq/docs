@@ -1,0 +1,9 @@
+@melonhaus you can use any Linux distribution with root shell or sudo and recent version of ethtool but I highly recommend to use Clonezilla as live environment (it has an option to enter shell and using old interface name convention ethX) and run something like:
+$ ./intel_x520_patcher.sh your_interface_here
+You can get interface name by invoking a command:
+$ ip -c a
+Or, you can use a very brute approach:
+
+$ sudo -i
+# YOLO=1 ./intel_x520_patcher.sh eth{0..255}
+While I can confirm its results in my environment, I can't confirm it'll work for you (thus it's your own responsibility)

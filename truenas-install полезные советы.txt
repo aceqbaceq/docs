@@ -12,3 +12,22 @@
 он будет херовом тучу времени поэтому если есть взоможность ЛУЧШЕ ГОРАЗДО ЛУЧШЕ ставится с флэшки. тогда
 просто мгновенно!
 
+
+| truenas
+| freenas
+| setup
+| install
+
+когда ставим эту прогу то важно вычисить диски а это порой сделать нетак то просто.
+особенно если на дисках был zfs он будет заебывать и мешать.
+ 
+грузимся с флэшки трунас. щелкаем shell
+и вот как надо очистить диски там
+
+
+wipefs -a /dev/sdX
+sgdisk --zap-all /dev/sdX
+dd if=/dev/zero of=/dev/sdX bs=512 count=10
+dd if=/dev/zero of=/dev/sdX bs=512 seek=$(($(blockdev --getsz /dev/sdX) - 4096)) count=1M
+parted -s /dev/sdX mklabel gpt
+
