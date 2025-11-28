@@ -31,3 +31,38 @@ dd if=/dev/zero of=/dev/sdX bs=512 count=10
 dd if=/dev/zero of=/dev/sdX bs=512 seek=$(($(blockdev --getsz /dev/sdX) - 4096)) count=1M
 parted -s /dev/sdX mklabel gpt
 
+
+
+хорошо иметь LSI HBA карту 
+потому что трунас имеет утилитиу sas2ircu 
+через которую удобно искать в каком гнезде сидит диск на морде
+
+
+    6  smartctl -x /dev/sdh
+    7  sas2ircu 
+    8  sas2ircu  list
+    9  sas2ircu  0 display
+   10  sas2ircu  0 display | grep Z1X2WAYA0000W4513NKB
+   11  sas2ircu  0 display | grep Z1X2WAYA
+   12  sas2ircu  0 display | grep Z1X2WAYA -A10 -B10
+
+
+
+
+
+Device is a Hard disk
+  Enclosure #                             : 2
+  Slot #                                  : 12                           ***<<<<<****
+  SAS Address                             : 500e004-a-aaaa-aa0c
+  State                                   : Ready (RDY)
+  Size (in MB)/(in sectors)               : 457862/937703087
+  Manufacturer                            : ATA     
+  Model Number                            : INTEL SSDSC2KB48
+  Firmware Revision                       : 0100
+  Serial No                               : BTYI224200A5480BGN
+  GUID                                    : 55cd2e4155d598e7
+  Protocol                                : SATA
+  Drive Type                              : SATA_SSD
+
+
+
