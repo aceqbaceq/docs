@@ -29,6 +29,12 @@ wipefs -a /dev/sdX
 sgdisk --zap-all /dev/sdX
 dd if=/dev/zero of=/dev/sdX bs=512 count=10
 dd if=/dev/zero of=/dev/sdX bs=512 seek=$(($(blockdev --getsz /dev/sdX) - 4096)) count=1M
+wipefs -a /dev/sdh
+wipefs -a /dev/sdh1
+dd if=/dev/zero of=/dev/sdh bs=1M count=1024 status=progress
+sync
+blkid /dev/sdh          # ПУСТО
+udevadm info /dev/sdh | grep ID_FS_TYPE  # ПУСТО ✅
 parted -s /dev/sdX mklabel gpt
 
 
@@ -64,5 +70,139 @@ Device is a Hard disk
   Protocol                                : SATA
   Drive Type                              : SATA_SSD
 
+
+
+| spare
+
+
+есть такая хуяня что текущая версия ттунас 25 она не позволяет через веб морду
+добавлять к пулу более чем 1 запасной spare диск.
+значит его нужнодоавбить руками.
+
+для этого нужно на диске создать руками GPT label
+
+root@freenas-5:/home/truenas_admin# parted /dev/sdl
+GNU Parted 3.5
+Using /dev/sdl
+Welcome to GNU Parted! Type 'help' to view a list of commands.
+(parted) mklabel gpt                                                      
+Warning: The existing disk label on /dev/sdl will be destroyed and all data on this disk will be lost. Do you want to continue?
+Yes/No? Yes                                                               
+(parted) ^C                                                               
+
+
+потом надо на нем создать руками партишен точно такого размера
+как у всех других дисков
+
+вы/янясем параетры раздела у диска который уже входит в пул
+
+# parted /dev/sdd
+GNU Parted 3.5
+Using /dev/sdd
+Welcome to GNU Parted! Type 'help' to view a list of commands.
+(parted) unit s                                                           
+(parted) p                                                                
+Model: SEAGATE ST2000NM0023 (scsi)
+Disk /dev/sdd: 3907029168s
+Sector size (logical/physical): 512B/512B
+Partition Table: gpt
+Disk Flags: 
+
+Number  Start  End          Size         File system  Name  Flags
+ 1      2048s  3902836735s  3902834688s  zfs
+
+(parted) ^C                                                               
+
+
+создаем такой же партишен на нашем диске
+
+root@freenas-5:/home/truenas_admin# parted /dev/sdl
+GNU Parted 3.5
+Using /dev/sdl
+Welcome to GNU Parted! Type 'help' to view a list of commands.
+(parted) mkpart
+Partition name?  []?                                                      
+File system type?  [ext2]? zfs                                            
+Start? 2048s                                                              
+End? 3902836735s                                                          
+Warning: The resulting partition is not properly aligned for best performance: 2048s % 32767s != 0s
+Ignore/Cancel? Ignore                                                     
+(parted) q                                                                
+Information: You may need to update /etc/fstab.
+
+
+далее в линуксе трунас добавляет дискив пул на основе UUID партишена.
+так что мы должны узнать эту хрень
+
+root@freenas-5:/home/truenas_admin# udevadm info /dev/sdl1
+...
+...
+E: ID_PART_TABLE_TYPE=gpt
+E: ID_PART_ENTRY_SCHEME=gpt
+E: ID_PART_ENTRY_UUID=32f42ea3-119a-446b-b937-ef0899fff6cd    <<<<<<******<<<<<<****
+E: ID_PART_ENTRY_TYPE=6a898cc3-1dd2-11b2-99a6-080020736631
+
+
+также надо проверить что у нас нет ниакой хрени в параметре FS (анпример там могут соаться
+следы от прошлой ФС типа вот такого )
+
+
+root@freenas-4:/home/truenas_admin# udevadm info /dev/sdh1 | grep FS
+E: ID_FS_TYPE=ceph_bluestore
+E: ID_FS_USAGE=other
+E: ID_PART_ENTRY_OFFSET=2048
+
+нам таого ненадо. надо вычимить диск и повторить все заново
+
+
+# 1. Уничтожить ВСЕ метаданные
+wipefs -a /dev/sdh
+wipefs -a /dev/sdh1
+
+# 2. Занулить первые 1GB (GPT + BlueStore superblock)
+dd if=/dev/zero of=/dev/sdh bs=1M count=1024 status=progress
+sync
+
+# 3. Проверить — чистый диск
+blkid /dev/sdh          # ПУСТО
+udevadm info /dev/sdh | grep ID_FS_TYPE  # ПУСТО ✅
+
+
+вобшем все сделали занвоо.
+выяснили теперь UUID партишена
+
+E: ID_PART_ENTRY_UUID=32f42ea3-119a-446b-b937-ef0899fff6cd    <<<<<<******<<<<<<****
+E: ID_PART_ENTRY_TYPE=6a898cc3-1dd2-11b2-99a6-080020736631
+
+
+добавляем спейр к пулу
+
+root@freenas-5:/home/truenas_admin# zpool add POOL-01 spare 32f42ea3-119a-446b-b937-ef0899fff6cd
+root@freenas-5:/home/truenas_admin# zpool status -v
+  pool: POOL-01
+ state: ONLINE
+config:
+
+  NAME                                      STATE     READ WRITE CKSUM
+  POOL-01                                   ONLINE       0     0     0
+    mirror-0                                ONLINE       0     0     0
+      34e1c504-06bb-4671-9e5e-cfc7af16feff  ONLINE       0     0     0
+      15dd579f-a2d6-4d38-b442-ab1332a5a88a  ONLINE       0     0     0
+    mirror-1                                ONLINE       0     0     0
+      3a0eb2e4-ab84-4a92-97c4-14f8f7bbe4e5  ONLINE       0     0     0
+      ad99474b-95ce-4678-996b-c914164bc48e  ONLINE       0     0     0
+    mirror-2                                ONLINE       0     0     0
+      78642382-d4df-40a1-af48-5b94598fa2f6  ONLINE       0     0     0
+      8f62a60b-1532-4a49-9f59-efc73fafcbdd  ONLINE       0     0     0
+    mirror-3                                ONLINE       0     0     0
+      a4030d18-8ddc-4bd8-a15f-6bd6eb09a4da  ONLINE       0     0     0
+      a757966f-c636-476b-851f-92354ae24ce8  ONLINE       0     0     0
+  logs  
+    mirror-4                                ONLINE       0     0     0
+      48c3d4c8-5357-47d2-aa39-4979e536c021  ONLINE       0     0     0
+      df03090e-de65-4767-b435-fea4b1e0628e  ONLINE       0     0     0
+  spares
+    a145cbef-ef92-4614-bbaa-4cfb7b060e0e    AVAIL   
+    32f42ea3-119a-446b-b937-ef0899fff6cd    AVAIL      <<<<<*******<<<<<<*
 
 
