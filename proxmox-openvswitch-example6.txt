@@ -1,0 +1,195 @@
+
+
+
+auto lo
+iface lo inet loopback
+
+
+
+
+#################################################################################
+#			BOND0	10G	виланы виртуалок			#
+
+auto eno1
+iface eno1 inet manual
+    mtu 9000
+
+auto eno2
+iface eno2 inet manual
+    mtu 9000
+
+
+auto bond0
+iface bond0 inet manual
+    ovs_bonds eno1  eno2
+    ovs_type OVSBond
+    ovs_bridge vmbr0
+    ovs_mtu 9000
+    ovs_options lacp=active bond_mode=balance-tcp
+
+
+
+
+auto vmbr0
+iface vmbr0 inet manual
+    ovs_type OVSBridge
+    ovs_ports bond0  vlan111 vlan3036   vlan4023 
+    ovs_mtu 9000
+#web morda
+
+
+
+
+
+
+auto vlan111
+iface vlan111 inet static
+    address 100.100.67.14/24
+    ovs_type OVSIntPort
+    ovs_bridge vmbr0
+    ovs_options tag=111
+        up ip route add 10.253.12.59/32 via 100.100.67.1 dev vlan111
+        up ip route add 10.254.254.246/32 via 100.100.67.1 dev vlan111
+    ovs_mtu 1500
+# на этом порту нет смысла ставить мту больше потому что с этого же ип идет конект до фринаса 10.253.12.59 а на нем стоит мту 1500
+#TO OLD FREENAS-1(sedna)
+
+
+
+
+
+auto vlan3036
+iface vlan3036 inet static
+    address 100.65.0.34/24
+    ovs_type OVSIntPort
+    ovs_bridge vmbr0
+    ovs_mtu 9000
+    ovs_options tag=3036
+#TO ISCSI IT отдел
+
+
+
+
+auto vlan4023
+iface vlan4023 inet static
+    address 100.100.3.4/24
+    gateway 100.100.3.254
+    ovs_type OVSIntPort
+    ovs_bridge vmbr0
+    ovs_mtu 1500
+    ovs_options tag=4023
+#MGM SSH/WEB
+
+
+
+
+
+#			BOND0							#
+#################################################################################
+
+
+
+
+
+#################################################################################
+#			BOND1	10G	NFS					#
+
+
+auto enp3s0f0
+iface enp3s0f0 inet manual
+    mtu 9000
+
+
+auto enp3s0f1
+iface enp3s0f1 inet manual
+    mtu 9000
+
+
+
+auto bond1
+    iface bond1 inet manual
+    bond-slaves enp3s0f0  enp3s0f1
+    bond-miimon	100
+    bond-mode 802.3ad
+    bond-lacp-rate fast
+    bond-xmit-hash-policy layer3+4
+    mtu 9000
+
+auto bond1.33
+iface bond1.33 inet static
+    address 100.68.33.250/24
+    vlan_raw_device bond1
+    mtu 9000
+#NFS
+
+
+
+auto bond1.69
+iface bond1.69 inet static
+    address 198.18.100.4/24
+    vlan_raw_device bond1
+    mtu 9000
+#PROXMOX LIVE MIGRATION VLAN
+
+
+
+
+
+
+
+#			BOND1							#
+#################################################################################
+
+
+
+
+
+
+#################################################################################
+#			BOND2	1G						#
+
+
+
+auto enp129s0f0
+iface enp129s0f0 inet manual
+    mtu 9000
+
+
+auto enp129s0f1
+iface enp129s0f1 inet manual
+    mtu 9000
+
+
+
+auto bond2
+    iface bond2 inet manual
+    bond-slaves enp129s0f0  enp129s0f1
+    bond-miimon	100
+    bond-mode 802.3ad
+    bond-lacp-rate fast
+    bond-xmit-hash-policy layer3+4
+    mtu 9000
+
+
+
+auto bond2.777
+iface bond2.777 inet static
+    address 10.2.0.4/24
+    vlan_raw_device bond2
+    mtu 9000
+#PROXMOX COROSYNC
+
+
+
+#			BOND2							#
+#################################################################################
+
+
+
+
+
+source /etc/network/interfaces.d/*
+
+
+
+

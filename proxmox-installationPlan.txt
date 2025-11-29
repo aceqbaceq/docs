@@ -2,39 +2,108 @@
 | план установки
 
 
-(+)chrony
 
-(+)опенсвич
 
-(+)mtu 9000
-(+)протестировать что все виланы (которым положено) успешно пингуются на нагрузке mtu 9000
 
-(+)отдельный вилан под сеть коросинк
-(+)отдельный вилан под миграции Datacenter-Options-Migration Settings
+(+)запускаем сеть пока еще пакета опенсвич нет
+auto eno1
+iface eno1 inet manual
 
-(+) apt-get install -y mc  nmon sudo  
+auto eno2
+iface eno2  inet manual
 
-(+) ipv6 отключить
+auto bond0
+iface bond0 inet static
+	bond-slaves eno1 eno2
+	bond-mode 802.3ad
+        bond-miimon 100
+        bond-lacp-rate fast
+        bond-xmit-hash-policy  layer2+3
+
+
+auto bond0.4023
+iface bond0.4023 inet static
+   vlan-raw-devices bond0
+   address 100.100.3.4/24
+    gateway 100.100.3.254
+
+
+
+
+
+(+)конктисмся по ссш и 
+ставим пакет опенсвича и другие мин необходимые пакеты
+ apt-get update
+ apt-get install -y mc  nmon sudo  openvswitch-switch kexec-tools
+
+
+(+)заводим юзера ssh vasya
+коприкем ключ для васи
+заодим этот хост у себя на лэптопе в ~/.ssh/config
+
+
+
+(+)копируем конфиг для сети котрый испольщует опенсвич
+исправляем ип адреса. накатываем.
+перезагружемася через kexec 
+
+	kexec -l /boot/vmlinuz-6.14.8-2-pve  --initrd=/boot/initrd.img-6.14.8-2-pve --reuse-cmdline
+	kexec -e
+
+
+
+(+)проверить что по всем ип сетям проходит 9000  (либо 1500 там где это так есть)
+   протестировать что все виланы (которым положено) успешно пингуются на нагрузке mtu 9000
+	 ping -c 4 -M do -s 8972 172.16.10.228
+
+
+
+
+chrony
+
+
+
+
+
+отдельный вилан под сеть коросинк
+отдельный вилан под миграции Datacenter-Options-Migration Settings
+
+ipv6 отключить
+/etc/sysctl.d/99.conf
 net.ipv6.conf.all.disable_ipv6 = 1
 net.ipv6.conf.default.disable_ipv6 = 1
 net.ipv6.conf.lo.disable_ipv6 = 1
+прмиенить sysctl --system
 
 
-(+)вход по ssh только по ключам
-(+)запрет входа root
 
-(+) почистить /etc/apt от энтепррайз репозитариев
+вход по ssh только по ключам
+запрет входа root
+
+почистить /etc/apt от энтепррайз репозитариев
 
 
-(+)убрать апдейты пакетов системы
+убрать апдейты пакетов системы
 	systemctl disable pve-daily-update.timer
 	systemctl stop pve-daily-update.timer
 
 
 
-(+)хостнеймы хостов в /etc/hosts на все хосты
+хостнеймы хостов в /etc/hosts на все хосты
 
 
+69 vlan который для LIVE MIGRATION виртуалок. его нужнонетолько на хосте в свойствах сети настрить
+но инужно в веб морде прокскса его прописать что он для миграции. и проверить путем миграции вм
+
+
+=============================================================
+
+
+
+ПОДКЛЮЧИТЬ ISCSI СТОРАДЖ
+
+
+провреить что на новый хост подключились все стораджи
 
 
 перенести настройки куда и как делаются бэкапы

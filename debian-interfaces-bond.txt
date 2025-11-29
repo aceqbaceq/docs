@@ -14,8 +14,10 @@
 auto lo
 iface lo inet loopback
 
+auto eno1
 iface eno1 inet manual
 
+auto eno2
 iface eno2  inet manual
 
 auto bond0
@@ -34,9 +36,10 @@ iface bond0.4023 inet static
     gateway 100.100.3.254
 
 
-
+auto  enp129s0f0
 iface enp129s0f0 inet manual
 
+auto enp129s0f1
 iface enp129s0f1 inet manual
 
 

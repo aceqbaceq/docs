@@ -80,4 +80,16 @@ root=UUID=33584f90-54b8-4f09-b51b-d01c68e0d8cc rw cryptdevice=UUID=f47969fd-f4eb
 
 
 
+update
+последяння инфо от нейрокнки
+
+# Установка (Debian/Ubuntu/Proxmox)
+apt install kexec-tools
+
+# Подготовка нового ядра (из текущего GRUB)
+kexec -l /boot/vmlinuz-$(uname -r) --initrd=/boot/initrd.img-$(uname -r) --reuse-cmdline
+
+# Перезагрузка только ядра (5-10 сек)
+kexec -e
+
 

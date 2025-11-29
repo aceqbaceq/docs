@@ -57,3 +57,26 @@ https://archlinux.org/news/deprecation-of-etcsysctlconf/
 
   /etc/sysctl.d/
 
+
+| sysctl
+| debian  13
+
+симпомты
+
+oot@2hst4:/etc/sysctl.d# sysctl  -p
+sysctl: cannot open "/etc/sysctl.conf": No such file or directory
+
+
+решение
+
+# 1. Загрузить ВСЕ файлы sysctl (рекомендуется)
+sysctl --system
+
+# 2. Создать свой файл в /etc/sysctl.d/
+echo "net.ipv6.conf.all.disable_ipv6 = 1" | sudo tee /etc/sysctl.d/10-disable-ipv6.conf
+sysctl --system  # Применить
+
+# 3. Если нужен /etc/sysctl.conf — создайте пустой
+touch /etc/sysctl.conf
+sysctl -p  # Теперь заработает
+
