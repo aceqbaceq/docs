@@ -1,0 +1,176 @@
+| zfs
+
+покдлючть spare
+
+удалиьт spare
+
+покдлчить к миррор
+
+удлить из mirror
+
+
+полезные команлы
+
+   18  zpool remove POOL-01 7fe785bf-299c-49e5-b92b-f974d901824c
+   19  zpool list
+   20  zpool status -v POOL-01
+   21  zpool add spare POOL-01 7fe785bf-299c-49e5-b92b-f974d901824c
+   22  zpool add  POOL-01 spare 7fe785bf-299c-49e5-b92b-f974d901824c
+   23  zpool status -v POOL-01
+   24  zpool remove   POOL-01 9f2b3967-4df2-44d7-97a8-0aa4c0053345
+   25  zpool status -v POOL-01
+   26  sas2ircu 0 display
+   27  sas2ircu 0 display | grep Z1X2RSVT00009444V3B1)
+   28  sas2ircu 0 display | grep Z1X2RSVT00009444V3B1
+   29  sas2ircu 0 display | grep Z1X2RSV
+   30  sas2ircu 0 display | grep Z1X2RSV -A10 -B10
+   31  smartctl -x /dev/sdj
+   32  zpool status -v 
+   33  zpool detach POOL-01 048b8139-3d9e-41f3-8a84-3a1203c7569d
+   34  zpool status -v 
+   35  zpool status -v 
+   36  sas2ircu 0 display | grep Z1X2RSVT00009444V3B1
+   37  sas2ircu 0 display | grep Z1X2RSVT0000944
+   38  sas2ircu 0 display | grep Z1X2RSVT00009
+   39  sas2ircu 0 display | grep Z1X2RSVT000
+   40  sas2ircu 0 display | grep Z1X2RSVT0
+   41  sas2ircu 0 display | grep Z1X2RSV
+   42  sas2ircu 0 display | grep Z1X2RSV -B8
+   43  zpool status -v 
+   44  zpool status -v 
+   45  zpool status -v 
+   46  zpool status -v 
+   47  zpool detach POOL-01 b11d1e32-6c8d-4557-a657-2a61899f1193
+   48  zpool attch  POOL-01 b9272b00-1bb6-4841-b02d-5571754c816c         b11d1e32-6c8d-4557-a657-2a61899f1193
+   49  zpool attach  POOL-01 b9272b00-1bb6-4841-b02d-5571754c816c         b11d1e32-6c8d-4557-a657-2a61899f1193
+   50  zpool status -v 
+   51  udevadm info /dev/sdj1
+   52  udevadm info /dev/sdj1 | grep ID_PART_ENTRY_UUID
+   53  udevadm info /dev/sdk1 | grep ID_PART_ENTRY_UUID
+   54  zpool add POOL-01 spare 9f2b3967-4df2-44d7-97a8-0aa4c0053345
+   55  zpool add POOL-01 spare 1bba47fe-e9fd-4c26-b1ec-036322c3977a
+   56  zpool status -v
+   57  history | tail -n 40
+
+
+поиск чрез sas2ircu
+
+
+
+
+как отклчить диск и как его в конечном итоге найти в каком слоте на морде сервера он воткнут
+
+root@freenas-4[/etc/sysctl.d]# zpool status -v
+  pool: POOL-01
+ state: ONLINE
+config:
+
+   NAME                                      STATE     READ WRITE CKSUM
+   POOL-01                                   ONLINE       0     0     0
+     mirror-0                                ONLINE       0     0     0
+       85cd363a-69d7-40ca-b4fe-cea7f130877e  ONLINE       0     0     0
+       97a303a8-9e7f-47ce-8e91-1a11599b19af  ONLINE       0     0     0
+     mirror-1                                ONLINE       0     0     0
+       c026dfe5-8639-44cd-bfaa-d5d7d335c264  ONLINE       0     0     0
+       4a496766-faca-4f73-849d-8799beeef156  ONLINE       0     0     0
+     mirror-2                                ONLINE       0     0     0
+       4abf9873-767f-4184-828e-8eef24fdffb5  ONLINE       0     0     0
+       87f3913a-babd-4b7f-ad44-47c7c2cc61cb  ONLINE       0     0     0
+     mirror-3                                ONLINE       0     0     0
+       91742397-afcd-4b74-8441-7b6f09063a97  ONLINE       0     0     0
+       a3ba1f1c-e37e-4086-9b2a-35d23b9becaf  ONLINE       0     0     0
+   logs  
+     mirror-4                                ONLINE       0     0     0
+       b654d837-6ab1-4aac-859d-74c98a83118d  ONLINE       0     0     0
+       957574fd-0e7b-46bc-85e0-2de4a51a679f  ONLINE       0     0     0
+   spares
+     e3bb3913-540b-47cd-963f-14243f765061    AVAIL   
+     e69109ad-7594-47e1-8ff7-6b7d2f9dbebf    AVAIL   
+
+errors: No known data errors
+
+  pool: boot-pool
+ state: ONLINE
+config:
+
+   NAME        STATE     READ WRITE CKSUM
+   boot-pool   ONLINE       0     0     0
+     mirror-0  ONLINE       0     0     0
+       sda3    ONLINE       0     0     0
+       sdf3    ONLINE       0     0     0
+
+errors: No known data errors
+root@freenas-4[/etc/sysctl.d]# udevadm info   /dev/disk/by-partuuid/e69109ad-7594-47e1-8ff7-6b7d2f9dbebf | grep /dev
+P: /devices/pci0000:00/0000:00:02.2/0000:04:00.0/host0/port-0:0/expander-0:0/port-0:0:15/end_device-0:0:15/target0:0:15/0:0:15:0/block/sdh/sdh1
+E: DEVPATH=/devices/pci0000:00/0000:00:02.2/0000:04:00.0/host0/port-0:0/expander-0:0/port-0:0:15/end_device-0:0:15/target0:0:15/0:0:15:0/block/sdh/sdh1
+E: DEVNAME=/dev/sdh1
+E: DEVLINKS=/dev/disk/by-id/wwn-0x5000cca24ed060e3-part1 /dev/disk/by-id/ata-HGST_HUS724020ALA640_PN2181P5H50Y4X-part1 /dev/disk/by-partuuid/e69109ad-7594-47e1-8ff7-6b7d2f9dbebf /dev/disk/by-path/pci-0000:04:00.0-sas-exp0x500e004aaaaaaa3f-phy10-lun-0-part1 /dev/disk/by-diskseq/23-part1
+root@freenas-4[/etc/sysctl.d]# udevadm info   /dev/disk/by-partuuid/e69109ad-7594-47e1-8ff7-6b7d2f9dbebf | grep /dev/s
+E: DEVNAME=/dev/sdh1
+root@freenas-4[/etc/sysctl.d]# 
+root@freenas-4[/etc/sysctl.d]# smartctl -x /dev/sdh | head
+smartctl 7.4 2023-08-01 r5530 [x86_64-linux-6.12.33-production+truenas] (local build)
+Copyright (C) 2002-23, Bruce Allen, Christian Franke, www.smartmontools.org
+
+=== START OF INFORMATION SECTION ===
+Model Family:     Hitachi/HGST Ultrastar 7K4000
+Device Model:     HGST HUS724020ALA640
+Serial Number:    PN2181P5H50Y4X
+LU WWN Device Id: 5 000cca 24ed060e3
+Firmware Version: MF6OA8B0
+User Capacity:    2,000,398,934,016 bytes [2.00 TB]
+root@freenas-4[/etc/sysctl.d]# sas2ircu 0 display | grep PN2181P
+  Serial No                               : PN2181P5H50Y4X
+root@freenas-4[/etc/sysctl.d]# sas2ircu 0 display | grep PN2181P -B 4
+  Size (in MB)/(in sectors)               : 1907729/3907029167
+  Manufacturer                            : ATA     
+  Model Number                            : HGST HUS724020AL
+  Firmware Revision                       : A8B0
+  Serial No                               : PN2181P5H50Y4X
+root@freenas-4[/etc/sysctl.d]# sas2ircu 0 display | grep PN2181P -B 9
+Device is a Hard disk
+  Enclosure #                             : 2
+  Slot #                                  : 10
+  SAS Address                             : 500e004-a-aaaa-aa0a
+  State                                   : Ready (RDY)
+  Size (in MB)/(in sectors)               : 1907729/3907029167
+  Manufacturer                            : ATA     
+  Model Number                            : HGST HUS724020AL
+  Firmware Revision                       : A8B0
+  Serial No                               : PN2181P5H50Y4X
+root@freenas-4[/etc/sysctl.d]# zpool remove POOL-01 e69109ad-7594-47e1-8ff7-6b7d2f9dbebf
+root@freenas-4[/etc/sysctl.d]# 
+root@freenas-4[/etc/sysctl.d]# 
+root@freenas-4[/etc/sysctl.d]# zpool status -v                                                                        
+  pool: POOL-01
+ state: ONLINE
+config:
+
+   NAME                                      STATE     READ WRITE CKSUM
+   POOL-01                                   ONLINE       0     0     0
+     mirror-0                                ONLINE       0     0     0
+       85cd363a-69d7-40ca-b4fe-cea7f130877e  ONLINE       0     0     0
+       97a303a8-9e7f-47ce-8e91-1a11599b19af  ONLINE       0     0     0
+     mirror-1                                ONLINE       0     0     0
+       c026dfe5-8639-44cd-bfaa-d5d7d335c264  ONLINE       0     0     0
+       4a496766-faca-4f73-849d-8799beeef156  ONLINE       0     0     0
+     mirror-2                                ONLINE       0     0     0
+       4abf9873-767f-4184-828e-8eef24fdffb5  ONLINE       0     0     0
+       87f3913a-babd-4b7f-ad44-47c7c2cc61cb  ONLINE       0     0     0
+     mirror-3                                ONLINE       0     0     0
+       91742397-afcd-4b74-8441-7b6f09063a97  ONLINE       0     0     0
+       a3ba1f1c-e37e-4086-9b2a-35d23b9becaf  ONLINE       0     0     0
+   logs  
+     mirror-4                                ONLINE       0     0     0
+       b654d837-6ab1-4aac-859d-74c98a83118d  ONLINE       0     0     0
+       957574fd-0e7b-46bc-85e0-2de4a51a679f  ONLINE       0     0     0
+   spares
+     e3bb3913-540b-47cd-963f-14243f765061    AVAIL   
+
+errors: No known data errors
+
+
+
+получается вот этот вот диск e69109ad-7594-47e1-8ff7-6b7d2f9dbebf  (это его partUUID)
+сидит на сервере на морде в слоте номер    10  (слоты нумеруются с нуля)
+

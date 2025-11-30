@@ -2335,3 +2335,53 @@ root@pve:/mnt/pve/NFS-2/fio#
 
 
 =====================================================================
+
+сервер huawei v2 RAM 256GB
+
+
+ПУЛ:
+8xHDD(2TB) mirror (по два диска)
+
+
+ТЕСТ:
+RANDOM RW  [r=642,w=228 IOPS]
+# fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=test --filename=/dev/sdb --bs=4k --iodepth=64 --readwrite=randrw --rwmixread=75
+test: (g=0): rw=randrw, bs=(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine=libaio, iodepth=64
+fio-3.33
+Starting 1 process
+^Cbs: 1 (f=1): [m(1)][0.2%][r=2568KiB/s,w=912KiB/s][r=642,w=228 IOPS][eta 01d:02h:11m:51s] 
+
+
+
+ПУЛ:
+8xHDD(2TB) mirror (по два диска)
++L2ARC 480GB INTEL SSDSC2KB480GZ 
+
+
+ТЕСТ:
+RANDOM RW  [r=2841,w=965 IOPS]
+# fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=test --filename=/dev/sdb  --bs=4k --iodepth=64   --readwrite=randrw --rwmixread=75
+test: (g=0): rw=randrw, bs=(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine=libaio, iodepth=64
+fio-3.33
+Starting 1 process
+^Cbs: 1 (f=1): [m(1)][4.2%][r=11.1MiB/s,w=3860KiB/s][r=2841,w=965 IOPS][eta 06h:27m:09s] 
+
+
+ПУЛ:
+8xHDD(2TB) mirror (по два диска)
++PHUSION VDEV 480GB INTEL SSDSC2KB480GZ 
+
+
+ТЕСТ:
+RANDOM RW  [r=2841,w=965 IOPS]
+# fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=test --filename=/dev/sdb  --bs=4k --iodepth=64   --readwrite=randrw --rwmixread=75
+test: (g=0): rw=randrw, bs=(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine=libaio, iodepth=64
+fio-3.33
+Starting 1 process
+^Cbs: 1 (f=1): [m(1)][2.8%][r=6292KiB/s,w=2040KiB/s][r=1573,w=510 IOPS][eta 11h:53m:35s]  
+
+
+из чего я делаю вывод если выбор стоит добавить L2ARC или PHUSION 
+лучше добаить L2ARC и будет прибавка в скорости чтения в х5раз и в записи как ни странно в х5раз
+
+===============================
