@@ -1,0 +1,39 @@
+| wifi 
+| linux
+| troubleshoot
+
+если хочется пощупать как сбея чуствуе вай подклчение на компе.
+то вот как делай
+используй wpa_cli
+
+
+
+	# wpa_cli -g /run/wpa_supplicant/wlp2s0 
+
+где  -g /run/wpa_supplicant/wlp2s0  это сокет на работающий процесс wpa_supplicant
+
+
+поадаем в чтото типа монитор здоровтя.
+сидим и ждем. и если чтото нето то наэкране будут поввлтся мессаги
+
+
+<3>CTRL-EVENT-SIGNAL-CHANGE above=0 signal=-77 noise=-97 txrate=0
+<3>CTRL-EVENT-SCAN-STARTED 
+
+<3>CTRL-EVENT-SIGNAL-CHANGE above=1 signal=-62 noise=-97 txrate=0
+<3>CTRL-EVENT-SCAN-RESULTS 
+
+
+а также можно узнать статус вот так
+
+> status
+bssid=8a:07:8a:23:04:c5
+freq=5745
+ssid=iphone
+id=0
+mode=station
+wifi_generation=5
+...
+...
+
+охуеть как удобно и нформативно

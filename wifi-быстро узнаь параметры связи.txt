@@ -1,0 +1,18 @@
+| wifi
+| быстро узнать
+
+
+# iw dev wlp2s0 link
+Connected to 8a:07:8a:23:04:c5 (on wlp2s0)
+	SSID: iphone
+	freq: 2462.0
+	RX: 250616790 bytes (323046 packets)
+	TX: 23374211 bytes (96576 packets)
+	signal: -38 dBm
+	rx bitrate: 72.2 MBit/s MCS 7 short GI
+	bss flags: short-preamble short-slot-time
+	dtim period: 2
+	beacon int: 100
+
+
+как быстро узнаь в линуксе параметры вайфая
