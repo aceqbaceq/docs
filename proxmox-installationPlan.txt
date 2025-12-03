@@ -59,16 +59,19 @@ iface bond0.4023 inet static
 
 
 
-chrony
+(+)chrony
+apt-get install -y chrony &&  systemctl enable --now chrony && chronyc tracking
 
 
 
 
 
-отдельный вилан под сеть коросинк
+(+)отдельный вилан под сеть коросинк и отдельная физ карта
+
 отдельный вилан под миграции Datacenter-Options-Migration Settings
 
-ipv6 отключить
+
+(+)ipv6 отключить
 /etc/sysctl.d/99.conf
 net.ipv6.conf.all.disable_ipv6 = 1
 net.ipv6.conf.default.disable_ipv6 = 1
@@ -80,20 +83,44 @@ net.ipv6.conf.lo.disable_ipv6 = 1
 вход по ssh только по ключам
 запрет входа root
 
-почистить /etc/apt от энтепррайз репозитариев
+(+)почистить /etc/apt от энтепррайз репозитариев
 
 
-убрать апдейты пакетов системы
+(+)убрать апдейты пакетов системы
 	systemctl disable pve-daily-update.timer
 	systemctl stop pve-daily-update.timer
 
 
 
-хостнеймы хостов в /etc/hosts на все хосты
+(+)хостнеймы хостов в /etc/hosts на все хосты
+
+
+(+)убрать прослушуку 8006 (web морда pveproxy)со всех карт и оставить только на одном вилане
+	# cat /etc/default/pveproxy 
+	LISTEN_IP="100.100.3.4"
+	PORT="8006"
+
+	systemctl restart pveproxy
+
+
+убратьт тоже самое для spiceproxy
+	/etc/default/spiceproxy 
+	LISTEN_IP="100.100.3.4"
+	PORT="8006"
+
+	systemctl restart spiceproxy
+	
+
+
+
+rpcbind сделать биндинг тольк на localhost (пока нихуя не получилось)
 
 
 69 vlan который для LIVE MIGRATION виртуалок. его нужнонетолько на хосте в свойствах сети настрить
 но инужно в веб морде прокскса его прописать что он для миграции. и проверить путем миграции вм
+
+
+подключаем ноду к кластеру
 
 
 =============================================================
@@ -120,4 +147,13 @@ net.ipv6.conf.lo.disable_ipv6 = 1
 
 убрать слушающий сокет веб морды со всех подряд карт и оставить только на вилане "API\WEB"
 
+
+==
+treucore у него друние парамтеры NFS
+
+100.68.33.3:/mnt/POOL-01/PROXMOX-2 on /mnt/pve/NFS-FREENAS-3 type nfs4 (rw,relatime,vers=4.2,rsize=1048576,wsize=1048576,namlen=255,hard,proto=tcp,timeo=600,retrans=2,sec=sys,clientaddr=100.68.33.248,local_lock=none,addr=100.68.33.3)
+100.68.33.2:/mnt/POOL-01/PROXMOX-2 on /mnt/pve/NFS-FREENAS-2 type nfs4 (rw,relatime,vers=4.2,rsize=1048576,wsize=1048576,namlen=255,hard,proto=tcp,timeo=600,retrans=2,sec=sys,clientaddr=100.68.33.248,local_lock=none,addr=100.68.33.2)
+100.68.33.4:/mnt/POOL-01/PROXMOX-2 on /mnt/pve/NFS-FREENAS-4 type nfs4 (rw,relatime,vers=4.2,rsize=1048576,wsize=1048576,namlen=255,hard,proto=tcp,timeo=600,retrans=2,sec=sys,clientaddr=100.68.33.248,local_lock=none,addr=100.68.33.4)
+100.68.33.5:/mnt/POOL-01/PROXMOX-2 on /mnt/pve/NFS-FREENAS-5 type nfs4 (rw,relatime,vers=4.2,rsize=131072,wsize=131072,namlen=255,hard,proto=tcp,timeo=600,retrans=2,sec=sys,clientaddr=100.68.33.248,local_lock=none,addr=100.68.33.5)
+root@2hst6:/home/krivosheeva# 
 

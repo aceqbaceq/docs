@@ -3,6 +3,23 @@
 | iops
 
 
+
+| offset
+
+
+# ./fio-3-28-115 --rw=read --bs=1m --direct=1 --ioengine=libaio --size=10G\
+  --group_reporting --filename=/dev/tank/bucket --name=job1 --offset=0G\
+  --name=job2 --offset=10G --name=job3 --offset=20G --name=job4 --offset=30G\
+  --name=job5 --offset=40G --name=job6 --offset=50G --name=job7 --offset=60G\
+  --name=job8 --offset=70G
+  (...)
+    read: IOPS=4174, BW=4175MiB/s (4378MB/s)(80.0GiB/19622msec)
+
+
+
+| общая часть
+
+
 root@2hst1 .../temp/fio# fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=test --filename=test --bs=4k --iodepth=64 --size=32000M --readwrite=randread --rwmixread=75
 test: (g=0): rw=randread, bs=(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine=libaio, iodepth=64
 fio-3.25
@@ -2337,19 +2354,293 @@ root@pve:/mnt/pve/NFS-2/fio#
 =====================================================================
 
 сервер huawei v2 RAM 256GB
+HBA карта 
+  Controller                     : SAS2308_2(D1) 
+  Firmware Product ID            : 0x2214 (IT)
+  NVDATA Vendor                  : LSI
+  NVDATA Product ID              : SAS9207-8i
+  Board Name                     : LSISAS2308
+
 
 
 ПУЛ:
+record set 128KB
 8xHDD(2TB) mirror (по два диска)
 
 
+
 ТЕСТ:
-RANDOM RW  [r=642,w=228 IOPS]
-# fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=test --filename=/dev/sdb --bs=4k --iodepth=64 --readwrite=randrw --rwmixread=75
+LINEAR WRITE (1 поток)
+# fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=test --filename=/dev/sda  --bs=4M --iodepth=1  --size=2G  --readwrite=write
+
+  TRUENAS 25 LINUX   [46.7MiB/s]
+  FREENAS 13 FREEBSD [35.0MiB/s]
+
+тут победил линукс
+
+
+LINEAR WRITE (64 поток)
+# fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=test --filename=/dev/sda  --bs=4M --iodepth=64  --size=2G  --readwrite=write
+
+  TRUENAS 25 LINUX   [83.6MiB/s]
+  FREENAS 13 FREEBSD [22.4MiB/s]
+
+тут победил линукс
+
+
+LINEAR READ (1 поток)
+по сути это тест чтения из ARC
+# fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=test --filename=/dev/sda  --bs=4M --iodepth=1  --size=20G  --readwrite=read
+
+  TRUENAS 25 LINUX   [547MiB/s]
+  FREENAS 13 FREEBSD [354MiB/s]
+
+тут победил линукс
+
+
+
+LINEAR READ (64 поток)
+по сути это тест чтения из ARC
+fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=test --filename=/dev/sda  --bs=4M --iodepth=64  --size=20G  --readwrite=read
+
+  TRUENAS 25 LINUX   [1161MiB/s]
+  FREENAS 13 FREEBSD [1176MiB/s]
+
+тут победил фрибсд
+
+
+
+RANDOM READ (1 поток)
+fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=test --filename=/dev/sda --bs=4k --size=1G --iodepth=1 --readwrite=randread
+
+  TRUENAS 25 LINUX   [IOPS=3856]
+  FREENAS 13 FREEBSD [IOPS=6204]
+
+тут победил фрибсд
+
+
+
+RANDOM READ (64 поток)
+-gtod_reduce=1 --name=test --filename=/dev/sda --bs=4k --size=10G --iodepth=64 --readwrite=randread
+
+  TRUENAS 25 LINUX   [IOPS=25.1k]
+  FREENAS 13 FREEBSD [IOPS=81.2k]
+
+тут победил фрибсд
+
+
+
+
+RANDOM WRITE (1 поток)
+fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=test --filename=/dev/sda --bs=4k --size=20M --iodepth=1 --readwrite=randwrite
+
+  TRUENAS 25 LINUX   [IOPS=93]
+  FREENAS 13 FREEBSD [IOPS=48]
+
+тут победил линукс
+
+
+
+RANDOM WRITE (64 поток)
+ fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=test --filename=/dev/sda --bs=4k --size=400M --iodepth=64 --readwrite=randwrite
+
+  TRUENAS 25 LINUX   [IOPS=1192]
+  FREENAS 13 FREEBSD [IOPS=654]
+
+тут победил линукс
+
+
+
+RANDOM RW (64 потока)
+fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=test --filename=/dev/sda --bs=4k --size=600M --iodepth=64  --readwrite=randrw --rwmixread=75
+
+  TRUENAS 25 LINUX   [read IOPS=2503, write=833]
+  FREENAS 13 FREEBSD [read IOPS=1575, write=524]
+
+тут победил линукс
+
+
+
+СУММАРНО: я все отдаю победу фрибсд
+
+
+
+
+
+
+
+
+
+
+
+
+
+Добавляю SLOG
+ПУЛ:
+record set 128KB
+8xHDD(2TB) mirror (по два диска)
++SLOG 480GB INTEL SSDSC2KB480GZ  (mirror из двух штук)
+
+
+
+LINEAR WRITE (64 поток)
+# fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=test --filename=/dev/sda  --bs=4M --iodepth=64  --size=20G  --readwrite=write
+
+  TRUENAS 25 LINUX   [359MiB/s]  (для сравнения без SLOG было [83.6MiB/s])
+  FREENAS 13 FREEBSD [273MiB/s]  (для сравнения без SLOG было [22.4MiB/s])
+
+видим что добавлка slog дает прибавку в скорости в x5-x10раз
+
+тут победил линукс
+
+
+
+RANDOM WRITE (64 поток)
+fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=test --filename=/dev/sda --bs=4k --size=5G --iodepth=64 --readwrite=randwrite
+
+  TRUENAS 25 LINUX   [IOPS=3551] (для сравнения без SLOG было [IOPS=1192])
+  FREENAS 13 FREEBSD [IOPS=5537] (для сравнения без SLOG было [IOPS=654])
+
+видим что добавление slog дает прибавку в х3-х10раз
+
+тут победил фрибсд
+
+
+
+
+
+
+ТЕСТ:
+LINEAR WRITE [383MiB\s]  
+# fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=test --filename=/dev/sdb  --bs=4M --iodepth=64  --size=10G  --readwrite=write
+test: (g=0): rw=write, bs=(R) 4096KiB-4096KiB, (W) 4096KiB-4096KiB, (T) 4096KiB-4096KiB, ioengine=libaio, iodepth=64
+fio-3.33
+Starting 1 process
+Jobs: 1 (f=0): [f(1)][100.0%][w=384MiB/s][w=96 IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=884: Sun Nov 30 13:24:33 2025
+  write: IOPS=95, BW=383MiB/s (402MB/s)(10.0GiB/26706msec); 0 zone resets
+   bw (  KiB/s): min=40960, max=434176, per=98.30%, avg=385951.40, stdev=50259.63, samples=53
+   iops        : min=   10, max=  106, avg=94.23, stdev=12.27, samples=53
+  cpu          : usr=0.89%, sys=0.37%, ctx=2712, majf=0, minf=7
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.2%, 8=0.3%, 16=0.6%, 32=1.2%, >=64=97.5%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=0,2560,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+  WRITE: bw=383MiB/s (402MB/s), 383MiB/s-383MiB/s (402MB/s-402MB/s), io=10.0GiB (10.7GB), run=26706-26706msec
+
+Disk stats (read/write):
+  sdb: ios=51/10150, merge=0/0, ticks=15/6483057, in_queue=6483073, util=99.10%
+
+
+
+тоесть добавление SLOG уведиичисло лин скрость записи в x3раза
+
+
+
+тотже тест но на трунас трукор который на фрибсд
+ТЕСТ:
+LINEAR WRITE [BW=320MiB/s]  
+root@stor5:/home/er# fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=test --filename=/dev/sdb  --bs=4M --iodepth=64  --size=10G  --readwrite=write
+test: (g=0): rw=write, bs=(R) 4096KiB-4096KiB, (W) 4096KiB-4096KiB, (T) 4096KiB-4096KiB, ioengine=libaio, iodepth=64
+fio-3.33
+Starting 1 process
+Jobs: 1 (f=1): [W(1)][100.0%][w=228MiB/s][w=57 IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=574: Sun Nov 30 15:57:30 2025
+  write: IOPS=80, BW=320MiB/s (336MB/s)(10.0GiB/31995msec); 0 zone resets
+   bw (  KiB/s): min=40960, max=548864, per=99.07%, avg=324689.27, stdev=85934.82, samples=63
+   iops        : min=   10, max=  134, avg=79.27, stdev=20.98, samples=63
+  cpu          : usr=0.86%, sys=0.22%, ctx=665, majf=0, minf=8
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.2%, 8=0.3%, 16=0.6%, 32=1.2%, >=64=97.5%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=0,2560,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+  WRITE: bw=320MiB/s (336MB/s), 320MiB/s-320MiB/s (336MB/s-336MB/s), io=10.0GiB (10.7GB), run=31995-31995msec
+
+Disk stats (read/write):
+  sdb: ios=51/10227, merge=0/0, ticks=7/7833665, in_queue=7833672, util=99.24%
+
+
+далее я запустил вот такой тест
+  # dd if=/dev/urandom  of=/dev/sdb bs=4M status=progress
+
+на двух одинаковых абсолюнтно системах.(одинаковые сервера и одинаковые пулы)
+но одна из них это трунас25 набазе линукс и сторадж примаунчен по NFS4.2
+  12691963904 bytes (13 GB, 12 GiB) copied, 60 s, 211 MB/s
+при это скорость скачет. то 211 то 214 то 220
+а вторая трунас core13 на базе фрибсд и сторадж примаунчен по NFS3
+и скорсть держится просто железная
+  12691963904 bytes (13 GB, 12 GiB) copied, 60 s, 261 MB/s
+и только через 10 минут он плавно упал до 259МБ/с , но поток держит очень стабильно
+а потом  я подключился к этому фрибсд трунас кору через NFS V4 и он уже стал показвыат скорость
+  12691963904 bytes (13 GB, 12 GiB) copied, 60 s, 301 MB/s   (!!)
+причем стабильно без каких либо рывков
+причем взомжно можно лить еще быстрее просто такак urandom то я уперся в скорость цпу одного ядра.
+
+
+
+ТЕСТ:
+RANDOM RW  [r=2529,w=847 IOPS]
+# fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=test --filename=/dev/sdb  --bs=4k --iodepth=64   --readwrite=randrw --rwmixread=75 --runtime=120
 test: (g=0): rw=randrw, bs=(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine=libaio, iodepth=64
 fio-3.33
 Starting 1 process
-^Cbs: 1 (f=1): [m(1)][0.2%][r=2568KiB/s,w=912KiB/s][r=642,w=228 IOPS][eta 01d:02h:11m:51s] 
+Jobs: 1 (f=1): [m(1)][100.0%][r=5236KiB/s,w=1904KiB/s][r=1309,w=476 IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=893: Sun Nov 30 13:29:00 2025
+  read: IOPS=2529, BW=9.88MiB/s (10.4MB/s)(1187MiB/120126msec)
+   bw (  KiB/s): min= 3984, max=33888, per=100.00%, avg=10126.03, stdev=8809.10, samples=240
+   iops        : min=  996, max= 8472, avg=2531.50, stdev=2202.27, samples=240
+  write: IOPS=847, BW=3390KiB/s (3471kB/s)(398MiB/120126msec); 0 zone resets
+   bw (  KiB/s): min= 1248, max=11616, per=100.00%, avg=3392.60, stdev=2925.09, samples=240
+   iops        : min=  312, max= 2904, avg=848.15, stdev=731.27, samples=240
+  cpu          : usr=2.28%, sys=4.66%, ctx=271286, majf=0, minf=9
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.1%, 8=0.1%, 16=0.1%, 32=0.1%, >=64=100.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=303830,101800,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+   READ: bw=9.88MiB/s (10.4MB/s), 9.88MiB/s-9.88MiB/s (10.4MB/s-10.4MB/s), io=1187MiB (1244MB), run=120126-120126msec
+  WRITE: bw=3390KiB/s (3471kB/s), 3390KiB/s-3390KiB/s (3471kB/s-3471kB/s), io=398MiB (417MB), run=120126-120126msec
+
+Disk stats (read/write):
+  sdb: ios=303696/101715, merge=0/0, ticks=4506113/3155963, in_queue=7662076, util=99.97%
+
+
+почемуто увеличмлся read iops, а write iops увеличился в х2раза
+
+
+тоже самое на трукор фрибсд
+ТЕСТ:
+RANDOM RW  [r=10.4k,w=3444 IOPS] (!!!!)
+root@stor5:/home/er# 
+root@stor5:/home/er# fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=test --filename=/dev/sdb  --bs=4k --iodepth=64   --readwrite=randrw --rwmixread=75 --runtime=120
+test: (g=0): rw=randrw, bs=(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine=libaio, iodepth=64
+fio-3.33
+Starting 1 process
+^Cbs: 1 (f=1): [m(1)][21.7%][r=40.7MiB/s,w=13.5MiB/s][r=10.4k,w=3444 IOPS][eta 01m:34s]
+fio: terminating on signal 2
+
+просто рвет лиункс
+
+
+
+добавляю L2ARC
+ПУЛ:
+8xHDD(2TB) mirror (по два диска)
++SLOG 480GB INTEL SSDSC2KB480GZ  (mirror из двух штук)
++L2ARC 480GB INTEL SSDSC2KB480GZ
+
+
+
+
+
 
 
 
@@ -2373,7 +2664,7 @@ Starting 1 process
 
 
 ТЕСТ:
-RANDOM RW  [r=2841,w=965 IOPS]
+RANDOM RW  [r=1573,w=510 IOPS]
 # fio --randrepeat=1 --ioengine=libaio --direct=1 --gtod_reduce=1 --name=test --filename=/dev/sdb  --bs=4k --iodepth=64   --readwrite=randrw --rwmixread=75
 test: (g=0): rw=randrw, bs=(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine=libaio, iodepth=64
 fio-3.33
@@ -2385,3 +2676,194 @@ Starting 1 process
 лучше добаить L2ARC и будет прибавка в скорости чтения в х5раз и в записи как ни странно в х5раз
 
 ===============================
+
+
+AHCI
+диск ST380811AS
+тестируею просто как блочное устрйотвао ada2 (никкой фс пока еще нет)
+
+LIN READ 1 pototok  68.0MiB/s
+# fio --randrepeat=1 --ioengine=psync --direct=1 --gtod_reduce=1 --name=test --filename=/dev/ada2  --bs=4M --iodepth=1  --size=20G  --readwrite=read
+
+
+
+LIN READ 6 pototok  159.0MiB/s
+# fio --randrepeat=1 --ioengine=psync --direct=1 --gtod_reduce=1 --name=test --filename=/dev/ada2  --bs=4M --iodepth=1  --size=20G  --readwrite=read --numjobs=6
+
+
+
+LIN WRITE 1 potok  44.0MiB/s
+# fio --randrepeat=1 --ioengine=psync --direct=1 --gtod_reduce=1 --name=test --filename=/dev/ada2  --bs=4M --iodepth=1  --size=20G  --readwrite=write
+
+при записи болше потоков нет смысла давать
+
+
+
+
+RAND READ 1 potok   130 IOPS
+
+# fio --randrepeat=1 --ioengine=psync --direct=1 --gtod_reduce=1 --name=test --filename=/dev/ada2 --bs=4k --size=1G --iodepth=1 --readwrite=randread
+
+
+RAND READ 6 potok   177 IOPS
+
+
+
+
+RAND WRITE 1 potok   244 IOPS
+
+RAND WRITE 6 potok   244 IOPS
+
+
+
+
+
+
+пеереходим к ФС  и датасетам
+датасет POOL-01/ds1-128K  
+        с рекордсайз 128К
+
+# dd if=/dev/urandom of=/POOL-01/ds1-128K/fio.dat bs=10M count=1000 status=progress
+  10475274240 bytes (10 GB, 9990 MiB) transferred 216.169s, 48 MB/s 
+
+
+датасет POOL-01/ds1-16K  
+        с рекордсайз 16К
+
+
+ # dd if=/dev/urandom of=/POOL-01/ds1-16K/fio.dat  bs=10M count=1000 status=progress
+  10454302720 bytes (10 GB, 9970 MiB) transferred 206.049s, 51 MB/s 
+1000+0 records in
+1000+0 records out
+10485760000 bytes transferred in 206.795741 secs (50705880 bytes/sec)
+
+
+видно счто скорости не отлиаются. что ожидаемо. потому что при записи все блоки ложатся
+рядом другс друогрм и на диск летят уже макрозапросы на запись. 
+
+
+такеже видно что скорсть запси совпдает когда мы деали тоже самое но в сырое устройствао /dev/ada2
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+root@fr:~ # dd if=/dev/urandom bs=129K count=1 of=/POOL-01/ds1-128K/t1.dat
+1+0 records in
+1+0 records out
+132096 bytes transferred in 0.223978 secs (589772 bytes/sec)
+root@fr:~ # 
+root@fr:~ # zdb POOL-01/ds1-128K -O t1.dat
+^C
+root@fr:~ # ls -i /POOL-01/ds1-128K/t1.dat 
+128 /POOL-01/ds1-128K/t1.dat
+root@fr:~ # zdb -ddddd POOL-01/ds1-128K  128
+^C
+root@fr:~ # 
+root@fr:~ # zdb -ddddd POOL-01/ds1-128K  128
+Dataset POOL-01/ds1-128K [ZPL], ID 82, cr_txg 18, 9.77G, 9 objects, rootbp DVA[0]=<0:20102000:1000> DVA[1]=<0:400c0000:1000> [L0 DMU objset] fletcher4 uncompressed unencrypted LE contiguous unique double size=1000L/1000P birth=792L/792P fill=9 cksum=000000127f1a41e7:0000310d4041d42b:00452baaeaf56abf:4505ac86c91e5b13
+
+    Object  lvl   iblk   dblk  dsize  dnsize  lsize   %full  type
+       128    2   128K   128K   264K     512   256K  100.00  ZFS plain file
+                                               168   bonus  System attributes
+  dnode flags: USED_BYTES USERUSED_ACCOUNTED USEROBJUSED_ACCOUNTED 
+  dnode maxblkid: 1
+  path  /t1.dat
+  uid     0
+  gid     0
+  atime Wed Dec  3 21:44:51 2025
+  mtime Wed Dec  3 21:44:51 2025
+  ctime Wed Dec  3 21:44:51 2025
+  crtime  Wed Dec  3 21:44:51 2025
+  gen 792
+  mode  100644
+  size  132096
+  parent  34
+  links 1
+  pflags  40800000004
+Indirect blocks:
+               0 L1  0:7e0d0b000:1000 20000L/1000P F=2 B=792/792 cksum=0000008a1055c177:0001f8e9783a42f0:039e04881bc455af:6f998cb7a9e6e034
+               0  L0 0:200b8000:20000 20000L/20000P F=1 B=792/792 cksum=00003fe244f8f8d5:0fff1f0d050b8d04:7393811299ba483b:002826f1577fa6d3
+           20000  L0 0:200d8000:20000 20000L/20000P F=1 B=792/792 cksum=00000083017f37d0:00413ecee08a7013:3f6dc51befcd721f:97564c0d7d9a0ebb
+
+    segment [0000000000000000, 0000000000040000) size  256K
+
+root@fr:~ # 
+root@fr:~ # dd if=/dev/urandom bs=17K count=1 of=/POOL-01/ds1-16K/t2.dat
+1+0 records in
+1+0 records out
+17408 bytes transferred in 0.000139 secs (125097912 bytes/sec)
+root@fr:~ # 
+root@fr:~ # ls -i /POOL-01/ds1-16K/t2.dat 
+3 /POOL-01/ds1-16K/t2.dat
+root@fr:~ # 
+root@fr:~ # zdb -ddddd POOL-01/ds1-16K  3
+Dataset POOL-01/ds1-16K [ZPL], ID 90, cr_txg 23, 9.82G, 9 objects, rootbp DVA[0]=<0:7e0d34000:1000> DVA[1]=<0:8008f000:1000> [L0 DMU objset] fletcher4 uncompressed unencrypted LE contiguous unique double size=1000L/1000P birth=830L/830P fill=9 cksum=0000001010bbfbcf:00002b96b8401d5c:003f06069ee60b2f:406c88b76c56e9a6
+
+    Object  lvl   iblk   dblk  dsize  dnsize  lsize   %full  type
+         3    2   128K    16K    40K     512    32K  100.00  ZFS plain file
+                                               168   bonus  System attributes
+  dnode flags: USED_BYTES USERUSED_ACCOUNTED USEROBJUSED_ACCOUNTED 
+  dnode maxblkid: 1
+  path  /t2.dat
+  uid     0
+  gid     0
+  atime Wed Dec  3 21:49:32 2025
+  mtime Wed Dec  3 21:49:32 2025
+  ctime Wed Dec  3 21:49:32 2025
+  crtime  Wed Dec  3 21:49:32 2025
+  gen 830
+  mode  100644
+  size  17408
+  parent  34
+  links 1
+  pflags  40800000004
+Indirect blocks:
+               0 L1  0:e2134b000:1000 20000L/1000P F=2 B=830/830 cksum=00000088011c83ca:0001f0ccf3b0b99c:038e02430fb013c5:5a7e4794462e127e
+               0  L0 0:7e0cea000:4000 4000L/4000P F=1 B=830/830 cksum=000007f34c07b8f9:004052918a339357:58705b8f51f31591:45bc9fa6fff2aa6a
+            4000  L0 0:7e0ce6000:4000 4000L/4000P F=1 B=830/830 cksum=000000803bafb030:0007c3d05cc320bc:3c383ca009ad19cc:88f03314d87278b8
+
+    segment [0000000000000000, 0000000000008000) size   32K
+
+root@fr:~ # 
+
+
+
+полное подврждение ттогго как работает рекордсайз
+
+
+
+как приавлно создать даатсет для тестов fio
+
+ #  zfs create  -o compression=off -o  primarycache=metadata  -o secondarycache=metadata -o recordsize=4KiB  POOL-02/ds2-4K
+
+
+
+(!!!) на даный момент я оанражил поразительную вещь. если у нас есть датасет с рекордсайз=А
+и я читаю линейно с такиже размером блока запроса с него то число иопс в фио совпадает с числом иопс в 
+гстат. а если я читаю рандомно то число иопс в фио падает в 2 раза чем число иопс которое читается с диксска.
+при том что среднее число блока запроса если поедлить срупут на число иопсов в гстат осатется все равно 
+раным рекодрсайз! тоесть зфс при чтении каждого полезного блока данных читает еще и чтото паразиитное этого же 
+размера! я поумал можетэто какоето вырываниение несовпдает. но я создал пул с ашифт=9. и создал его 
+на базе просто диска без всяких партиций. и ситуация такаяже саамая. приче неважно какой рекодрсет хотьт 128к
+хотьь 16к хоть 4к. ...пц ккойто непонятный. нейронка утведрлает что арк некещиуерует все мтаданные а только 
+метаднынеуровня1. а их там может быть 6 уровней. и они считаютс с диска. и то что при рандомном чтении
+зфс читает адрес где искать блок. непонятно пока где правада...
+
+
+
+
+
