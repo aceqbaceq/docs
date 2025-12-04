@@ -1,0 +1,29 @@
+| omnios
+
+
+создать статик ip
+
+
+# dladm show-phys
+
+ipadm create-if e1000g0
+
+ipadm create-addr -T static -a 10.56.33.51/24 e1000g0/v4static
+
+route -p add default 10.56.33.1
+
+echo 'nameserver 10.56.33.1' >> /etc/resolv.conf
+
+cp /etc/nsswitch.conf{,.bak}
+
+cp /etc/nsswitch.{dns,conf}
+
+# set ntp client
+# instalar el cliente de ntp
+
+cp /etc/inet/ntp.conf.sample /etc/inet/ntp.conf
+ntpdate 0.pool.ntp.org
+svcadm enable ntp
+
+отсюда 
+https://gist.github.com/gialnet/09518e3f9d6f7a4290e7

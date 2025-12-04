@@ -3736,3 +3736,79 @@ HPET  - самый навроченный. самый точный.
 ====
 
 
+
+root@truenas-0-233[~]# gpart destroy -F ada1
+ada1 destroyed
+
+root@truenas-0-233[~]# gpart create -s gpt ada1
+ada1 created
+
+root@truenas-0-233[~]# gpart add -b 2048 -t freebsd-zfs -i 1 ada1
+
+
+
+root@truenas-0-233[~]# gpart show ada1
+=>        40  3907029088  ada1  GPT  (1.8T)
+          40        2008        - free -  (1.0M)
+        2048  3907027080     1  freebsd-zfs  (1.8T)
+
+
+
+root@truenas-0-233[~]# gpart list ada1
+Geom name: ada1
+modified: false
+state: OK
+fwheads: 16
+fwsectors: 63
+last: 3907029127
+first: 40
+entries: 128
+scheme: GPT
+Providers:
+1. Name: ada1p1
+   Mediasize: 2000397864960 (1.8T)
+   Sectorsize: 512
+   Stripesize: 0
+   Stripeoffset: 1048576
+   Mode: r0w0e0
+   efimedia: HD(1,GPT,a1766594-d147-11f0-8e60-14dae9dc008a,0x800,0xe8e08088)
+   rawuuid: a1766594-d147-11f0-8e60-14dae9dc008a
+   rawtype: 516e7cba-6ecf-11d6-8ff8-00022d09712b
+   label: (null)
+   length: 2000397864960
+   offset: 1048576
+   type: freebsd-zfs
+   index: 1
+   end: 3907029127
+   start: 2048
+Consumers:
+1. Name: ada1
+   Mediasize: 2000398934016 (1.8T)
+   Sectorsize: 512
+   Mode: r0w0e0
+
+
+
+]# ls -1 /dev/gptid/
+48ba50a5-d141-11f0-a759-14dae9dc008a%  a1766594-d147-11f0-8e60-14dae9dc008a%
+
+
+root@truenas-0-233[~]# zpool create -o ashift=12 POOL-01  /dev/gptid/a1766594-d147-11f0-8e60-14dae9dc008a
+root@truenas-0-233[~]# 
+root@truenas-0-233[~]# zpool status -v POOL-01
+  pool: POOL-01
+ state: ONLINE
+config:
+
+	NAME                                          STATE     READ WRITE CKSUM
+	POOL-01                                       ONLINE       0     0     0
+	  gptid/a1766594-d147-11f0-8e60-14dae9dc008a  ONLINE       0     0     0
+
+errors: No known data errors
+root@truenas-0-233[~]# 
+
+
+
+
+====
+
