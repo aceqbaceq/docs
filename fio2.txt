@@ -2678,41 +2678,60 @@ Starting 1 process
 ===============================
 
 
-AHCI
-диск ST380811AS
+контроллер:
+  AHCI  6Gb/s
+
+диск 
+  Model Family:     Hitachi/HGST Ultrastar 7K4000
+  Device Model:     HGST HUS724020ALA640
+
+
+
 тестируею просто как блочное устрйотвао ada2 (никкой фс пока еще нет)
 
-LIN READ 1 pototok  68.0MiB/s
+
+
+LIN READ 1 pototok  160.0MiB/s
 # fio --randrepeat=1 --ioengine=psync --direct=1 --gtod_reduce=1 --name=test --filename=/dev/ada2  --bs=4M --iodepth=1  --size=20G  --readwrite=read
 
 
+LIN READ 2 pototok  320.0MiB/s
+# fio --randrepeat=1 --ioengine=psync --direct=1 --gtod_reduce=1 --name=test --filename=/dev/ada2  --bs=4M --iodepth=1  --size=20G  --readwrite=read --numjobs=2
 
-LIN READ 6 pototok  159.0MiB/s
-# fio --randrepeat=1 --ioengine=psync --direct=1 --gtod_reduce=1 --name=test --filename=/dev/ada2  --bs=4M --iodepth=1  --size=20G  --readwrite=read --numjobs=6
-
-
-
-LIN WRITE 1 potok  44.0MiB/s
-# fio --randrepeat=1 --ioengine=psync --direct=1 --gtod_reduce=1 --name=test --filename=/dev/ada2  --bs=4M --iodepth=1  --size=20G  --readwrite=write
-
-при записи болше потоков нет смысла давать
+LIN READ 6 pototok  520.0MiB/s
 
 
 
 
-RAND READ 1 potok   130 IOPS
-
-# fio --randrepeat=1 --ioengine=psync --direct=1 --gtod_reduce=1 --name=test --filename=/dev/ada2 --bs=4k --size=1G --iodepth=1 --readwrite=randread
-
-
-RAND READ 6 potok   177 IOPS
 
 
 
+LIN WRITE 1 potok  161.0MiB/s
+ fio --randrepeat=1 --ioengine=psync --direct=1 --gtod_reduce=1 --name=test --filename=/dev/ada1  --bs=4M --iodepth=1  --runtime=30  --readwrite=write  --numjobs=1  --group_reporting
 
-RAND WRITE 1 potok   244 IOPS
 
-RAND WRITE 6 potok   244 IOPS
+LIN WRITE 6 potok  260.0MiB/s
+
+
+
+
+
+
+
+
+
+RAND READ 1 potok   83 IOPS
+#  fio --randrepeat=1 --ioengine=psync --direct=1 --gtod_reduce=1 --name=test --filename=/dev/ada1  --bs=4k --iodepth=1  --runtime=30  --readwrite=randread  --numjobs=1  --group_reporting
+
+RAND READ 6 potok   120 IOPS
+
+
+
+
+
+RAND WRITE 1 potok   157 IOPS
+RAND WRITE 6 potok   147 IOPS
+
 
 
 
@@ -2720,29 +2739,325 @@ RAND WRITE 6 potok   244 IOPS
 
 
 пеереходим к ФС  и датасетам
-датасет POOL-01/ds1-128K  
+
+
+
+датасет /boot-pool/ds2-4K
+        с рекордсайз 4К
+
+
+датасет /boot-pool/ds2-128K
         с рекордсайз 128К
 
-# dd if=/dev/urandom of=/POOL-01/ds1-128K/fio.dat bs=10M count=1000 status=progress
-  10475274240 bytes (10 GB, 9990 MiB) transferred 216.169s, 48 MB/s 
 
 
-датасет POOL-01/ds1-16K  
-        с рекордсайз 16К
+root@truenas-0-233[~]# gpart create -s gpt ada1
+ada1 created
+root@truenas-0-233[~]# gpart add -b 2048 -t freebsd-zfs -i 1 ada1
+ada1p1 added
+root@truenas-0-233[~]# gpart list ada1
+Geom name: ada1
+modified: false
+state: OK
+fwheads: 16
+fwsectors: 63
+last: 3907029127
+first: 40
+entries: 128
+scheme: GPT
+Providers:
+1. Name: ada1p1
+   Mediasize: 2000397864960 (1.8T)
+   Sectorsize: 512
+   Stripesize: 0
+   Stripeoffset: 1048576
+   Mode: r0w0e0
+   efimedia: HD(1,GPT,e84959e0-d14b-11f0-8e60-14dae9dc008a,0x800,0xe8e08088)
+   rawuuid: e84959e0-d14b-11f0-8e60-14dae9dc008a
+   rawtype: 516e7cba-6ecf-11d6-8ff8-00022d09712b
+   label: (null)
+   length: 2000397864960
+   offset: 1048576
+   type: freebsd-zfs
+   index: 1
+   end: 3907029127
+   start: 2048
+Consumers:
+1. Name: ada1
+   Mediasize: 2000398934016 (1.8T)
+   Sectorsize: 512
+   Mode: r0w0e0
+
+root@truenas-0-233[~]# zpool create -o ashift=12 POOL-01  /dev/gptid/e84959e0-d14b-11f0-8e60-14dae9dc008a 
+root@truenas-0-233[~]# 
+root@truenas-0-233[~]# 
+root@truenas-0-233[~]# 
+root@truenas-0-233[~]# zfs create  -o compression=off -o  primarycache=metadata  -o secondarycache=metadata -o recordsize=4KiB  POOL-01/ds2-4K
+root@truenas-0-233[~]# zfs create  -o compression=off -o  primarycache=metadata  -o secondarycache=metadata -o recordsize=128KiB  POOL-01/ds2-128K
+root@truenas-0-233[~]# 
+root@truenas-0-233[~]# zfs get recordsize POOL-01/ds2-4K
+NAME            PROPERTY    VALUE    SOURCE
+POOL-01/ds2-4K  recordsize  4K       local
+root@truenas-0-233[~]# zfs get recordsize POOL-01/ds2-128K
+NAME              PROPERTY    VALUE    SOURCE
+POOL-01/ds2-128K  recordsize  128K     local
+root@truenas-0-233[~]# 
 
 
- # dd if=/dev/urandom of=/POOL-01/ds1-16K/fio.dat  bs=10M count=1000 status=progress
-  10454302720 bytes (10 GB, 9970 MiB) transferred 206.049s, 51 MB/s 
-1000+0 records in
-1000+0 records out
-10485760000 bytes transferred in 206.795741 secs (50705880 bytes/sec)
+
+
+
+# dd if=/dev/urandom of=/POOL-01/ds2-128K/fio.dat bs=10M count=1000 status=progress
+  10370416640 bytes (10 GB, 9890 MiB) transferred 62.015s, 167 MB/s 
+
+
+# dd if=/dev/urandom of=/POOL-01/ds2-4K/fio.dat bs=10M count=1000 status=progress
+  10443816960 bytes (10 GB, 9960 MiB) transferred 79.001s, 132 MB/s 
+
+
+отключкение arc для данных отключает только то что он неисплзуется как кеш при чтении
+однако это не выключает такую вещь что при записи на этот же датасет данные буферизуются
+где то там в памяти.  тоесть 167 МБ/с это нескорст ьзаписи на диск. это скрость записи в буфер.
+скорост записи на диск НИЖЕ!
+
 
 
 видно счто скорости не отлиаются. что ожидаемо. потому что при записи все блоки ложатся
 рядом другс друогрм и на диск летят уже макрозапросы на запись. 
 
 
-такеже видно что скорсть запси совпдает когда мы деали тоже самое но в сырое устройствао /dev/ada2
+
+
+(ВААЖННОО!!)
+итутя нашел конкттный пиздец программы fio если я использую --bs=4k
+то фио считет что 4096 байт
+а если я пишу --bs=4KiB то этот дебил считает что  4000 байт!!!
+И ЭТО ПИЗДЕЦ. птому что это своврешнно не правилно. скорее должно было наобротрот!
+и полуается то что запрос идет оффсетами в 4000 байт которые никак не выровнены по границе ЗФС блока который 4096
+байт. и част данных лежит в одном блокеФС А ЧАСТЬ во втором! поэому чтоы считать 4000байт для нас зфс нужно
+считать ДВА БЛОКА ФС. тоесть мы имеем двукратную порею скросососости!!!! gstat будет покызвает что  с диска
+читается в 2 раза болше иопсов и срупуату чем мы увидим в фио!  
+вобщем это никга не использщуй!!!! 
+
+вот как я это узнал 
+
+# 
+root@truenas-0-233[~]#  fio --randrepeat=1 --ioengine=psync --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-01/ds2-4K/fio.dat  --bs=4k --iodepth=1  --runtime=30  --readwrite=read  --numjobs=1  --group_reporting    
+
+
+
+test: (g=0): rw=read, bs=(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine=psync, iodepth=1
+
+
+в выводе мы видим   4096B-4096B
+
+
+а теперь второй вариант 
+
+]#  fio --randrepeat=1 --ioengine=psync --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-01/ds2-4K/fio.dat  --bs=4KiB --iodepth=1  --runtime=30  --readwrite=read  --numjobs=1  --group_reporting 
+
+test: (g=0): rw=read, bs=(R) 4000B-4000B, (W) 4000B-4000B, (T) 4000B-4000B, ioengine=psync, iodepth=1
+fio-3.28
+
+
+
+уже видим 4000B-4000B 
+
+
+это ПРОСТО ПЗДЕЦ
+
+
+
+
+
+
+                      --bs=4KiB      <====******==== неиспользуя НИКОГДА!!
+
+
+                      --bs=4k   === ПРАВИЛЬНЫЙ ВАРИТАНТ!!
+
+
+
+
+
+продожлаем тесты
+
+
+LIN READ 1 potok,  пул  ds2-4K
+ 
+(размер блока чтения 4К  )   (точное совпадение иопсов 14.0k IOPS в gstat и fio !!)
+(этот тест я делаю тлокьо чтобы проверить что иопсы совпадают что вырваниеваение меджду блоками 
+офсетов файла и блокамиФС совпдадает)
+#  fio --randrepeat=1 --ioengine=psync --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-01/ds2-4K/fio.dat  --bs=4k --iodepth=1  --runtime=30  --readwrite=read  --numjobs=1  --group_reporting  
+test: (g=0): rw=read, bs=(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine=psync, iodepth=1
+fio-3.28
+Starting 1 process
+Jobs: 1 (f=1): [R(1)][100.0%][r=54.7MiB/s][r=14.0k IOPS][eta 00m:00s]
+
+
+(размер блока чтения 4M  )  [160 MB/s]
+  fio --randrepeat=1 --ioengine=psync --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-01/ds2-4K/fio.dat  --bs=4M --iodepth=1  --runtime=30  --readwrite=read  --numjobs=1  --group_reporting 
+
+test: (g=0): rw=read, bs=(R) 4096KiB-4096KiB, (W) 4096KiB-4096KiB, (T) 4096KiB-4096KiB, ioengine=psync, iodepth=1
+fio-3.28
+Starting 1 process
+Jobs: 1 (f=1): [R(1)][51.6%][r=160MiB/s][r=40 IOPS][eta 00m:30s] 
+
+
+при этом видно что gstat читает диск со средней размеро блока 44КБ 
+тоесть зфс агрегирует запросынадиск в крупные куски
+
+
+
+
+LIN READ 1 potok,  пул  ds2-128K
+   [r=1280 IOPS] (точное совпдаение иопсов в фио и гстат !!)
+#  fio --randrepeat=1 --ioengine=psync --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-01/ds2-128K/fio.dat  --bs=128k --iodepth=1  --runtime=30  --readwrite=read  --numjobs=1  --group_reporting
+
+test: (g=0): rw=read, bs=(R) 128KiB-128KiB, (W) 128KiB-128KiB, (T) 128KiB-128KiB, ioengine=psync, iodepth=1
+fio-3.28
+Starting 1 process
+Jobs: 1 (f=1): [R(1)][100.0%][r=160MiB/s][r=1280 IOPS][eta 00m:00s]
+
+
+[r=160MiB/s]
+#  fio --randrepeat=1 --ioengine=psync --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-01/ds2-128K/fio.dat  --bs=4M --iodepth=1  --runtime=30  --readwrite=read  --numjobs=1  --group_reporting  
+
+test: (g=0): rw=read, bs=(R) 4096KiB-4096KiB, (W) 4096KiB-4096KiB, (T) 4096KiB-4096KiB, ioengine=psync, iodepth=1
+fio-3.28
+Starting 1 process
+Jobs: 1 (f=1): [R(1)][49.2%][r=160MiB/s][r=39 IOPS][eta 00m:32s] 
+
+
+
+из чего видно что наодноптомчном линейном чтеннии сокрсть с обоих рекордсайзов соврешенно одинаковая!
+
+
+делаем тоже самое но на 6 потоков
+
+
+
+LIN READ 6 potok,  пул  ds2-4K  
+[r=90.7MiB/s]
+#  fio --randrepeat=1 --ioengine=psync --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-01/ds2-4K/fio.dat  --bs=4M --iodepth=1  --runtime=30  --readwrite=read  --numjobs=6  --group_reporting    --offset=0   --offset_increment=200M 
+
+test: (g=0): rw=read, bs=(R) 4096KiB-4096KiB, (W) 4096KiB-4096KiB, (T) 4096KiB-4096KiB, ioengine=psync, iodepth=1
+...
+fio-3.28
+Starting 6 processes
+Jobs: 3 (f=3): [R(1),_(2),R(2),_(1)][32.5%][r=90.7MiB/s][r=22 IOPS][eta 01m:21s]
+test: (groupid=0, jobs=6): err= 0: pid=2716: Thu Dec  4 23:50:57 2025
+  read: IOPS=24, BW=97.7MiB/s (102MB/s)(3792MiB/38829msec)
+
+
+тут хитрая настройка 
+--offset=0   --offset_increment=200M 
+она засталяет фио наичнаять делать запрос не от нулевого офсета а каждый вркер стартует со совего!
+а тополучетс дебилизм кждый воркер читает с одного офсета. в итоге  всем вокрерам с диска в одно и тоже
+время нужен один итот же кусок! пэтому диск читает кусок. и каждый  получает что хотел. и мы видим охиренный 
+срупут в фио. а это хуйня. это нето сколкьо на диске был срупут. поэтому нужно завтсивть фио каждому воркеру
+выдать изнчально офссет в ражной части диска!
+
+
+LIN READ 6 potok,  пул  ds2-128K
+[r=104MiB/s]
+
+тоесть тоже самое. тоесть никакой рзаницы между рекордсайзами нет пока что.
+
+
+
+
+
+
+
+
+
+теперь рандом риды
+RAND READ 1 potok,  пул  ds2-4K  
+[IOPS=149] что в точнончости совпадает что покзывает gstat . полное совдаание!
+#  fio --randrepeat=1 --ioengine=psync --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-01/ds2-4K/fio.dat  --bs=4k --iodepth=1  --runtime=30  --readwrite=randread  --numjobs=1  --group_reporting    
+
+test: (g=0): rw=randread, bs=(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine=psync, iodepth=1
+fio-3.28
+Starting 1 process
+Jobs: 1 (f=1): [r(1)][100.0%][r=630KiB/s][r=157 IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=2799: Thu Dec  4 23:57:22 2025
+  read: IOPS=149, BW=596KiB/s (611kB/s)(17.5MiB/30032msec)
+
+
+
+RAND READ 1 potok,  пул  ds2-128K  
+[IOPS=133 IOPS]
+#  fio --randrepeat=1 --ioengine=psync --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-01/ds2-128K/fio.dat  --bs=4k --iodepth=1  --runtime=30  --readwrite=randread  --numjobs=1  --group_reporting    
+
+test: (g=0): rw=randread, bs=(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine=psync, iodepth=1
+fio-3.28
+Starting 1 process
+Jobs: 1 (f=1): [r(1)][0.2%][r=533KiB/s][r=133 IOPS][eta 05h:29m:04s]
+
+при этом на гстат срупут 18МБ/с . оно и понятно с лиска кажлый раз считыется не 4К а 128К
+
+
+
+тоесть число ипосввов одинаковое. тлоко датасет с рекордсайзом 128к при этом офигенно засирает срупут 
+порта диска. тоесть вместо 630КБ/с у нас читается 18-20МБ/с
+
+
+тоже самое но на 6 потоков. тут уже офсет еннужен для воркеров.
+
+
+
+
+
+RAND READ 6 potok,  пул  ds2-4K     [255 IOPS]
+RAND READ 6 potok,  пул  ds2-128K   [204 IOPS]
+
+в целом никакной разница. толкьо разнциа в том что впервом случае с диска читается 1МБ/с а во втором 20МБ/с
+
+
+
+вопрос что покзыает zpool iostat? статситику чего?
+пока что я вижу что он  покзазывает сатистику сколкьо было считано с дисков реално тоесть то что 
+показыает gstat  (пока это так совпдает. но уменя отключен arc . )
+
+
+
+
+теперь ЗАПИСЬ
+
+
+LIN WRITE 1 potok
+#  fio --randrepeat=1 --ioengine=psync --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-01/ds2-4K/fio.dat  --bs=4M --iodepth=1  --runtime=30  --readwrite=write  --numjobs=1  --group_reporting    
+
+test: (g=0): rw=write, bs=(R) 4096KiB-4096KiB, (W) 4096KiB-4096KiB, (T) 4096KiB-4096KiB, ioengine=psync, iodepth=1
+fio-3.28
+Starting 1 process
+bs: 1 (f=1): [W(1)][35.5%][w=156MiB/s][w=38 IOPS][eta 00m:20s]
+
+
+#  fio --randrepeat=1 --ioengine=psync --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-01/ds2-128K/fio.dat  --bs=4M --iodepth=1  --runtime=30  --readwrite=write  --numjobs=1  --group_reporting    
+
+test: (g=0): rw=write, bs=(R) 4096KiB-4096KiB, (W) 4096KiB-4096KiB, (T) 4096KiB-4096KiB, ioengine=psync, iodepth=1
+fio-3.28
+Starting 1 process
+^Cbs: 1 (f=1): [W(1)][22.6%][w=152MiB/s][w=37 IOPS][eta 00m:24s]
+
+вобщем разницы никакой
+
+
+RAND WRITE
+
+здест я пока опстаноился. непнятно то что рандо врайт в итоге зфс прврадащет на диске в
+линеар врайт. это понятно непонятно то что на 4к датасете если я пишу блоками по 4к из фио то 
+по мне должен содапвдат срупут на гстат  и фио а он несовпдатает!
+
+и еще видно четко вот что - если пишем 4к блоками из фио на датасет где рекодрсайз 128К
+то идет бещеное чтение с датасета. потому что чтобы запист 4к вблок128к на новое место 
+его нужно счиать. мдфиицровать и толко потом писать!
+
+
+исходя из тгого что вижу пока я невижу смысла брать датасет с реекордсайз 128к. когда точно также
+и еще лучше работает датасет с рекдрсдаесайз 4К
 
 
 
@@ -2760,6 +3075,18 @@ RAND WRITE 6 potok   244 IOPS
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+это про другое:
 
 root@fr:~ # dd if=/dev/urandom bs=129K count=1 of=/POOL-01/ds1-128K/t1.dat
 1+0 records in
@@ -2870,5 +3197,40 @@ root@fr:~ #
 
 вобще судя по тесту на линукс zfs такой потери иопсов нету! ее там вобще нету. 
 яделаю рандом риды и точн такие иопсы я вижу в фио!
+
+
+получсет что 
+
+0)
+   Debian GNU/Linux 12 (bookworm)
+   ZFS: Loaded module v2.3.4-1, ZFS pool version 5000, ZFS filesystem version 5
+# modinfo zfs | grep version
+version:        2.3.4-1
+srcversion:     CD55446054D9A6B35134F5A
+vermagic:       6.12.33-production+truenas SMP preempt mod_unload modversions 
+# zpool version
+zfs-2.3.4-1
+zfs-kmod-2.3.4-1
+# zdb  -C zroot
+
+MOS Configuration:
+        version: 5000
+
+
+1)
+  на TrueNAS-13.0-U6.8
+  на базе 13.1-RELEASE-p9
+  где установлен zfs # dmesg | grep -i zfs 
+                        ZFS filesystem version: 5
+                        ZFS storage pool version: features support (5000)
+
+2)
+  12.0-RELEASE
+  # dmesg | grep -i zfs 
+    ZFS filesystem version: 5
+    ZFS storage pool version: features support (5000)
+
+3) omniOS 
+
 
 
