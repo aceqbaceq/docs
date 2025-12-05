@@ -3,6 +3,52 @@
 | iops
 
 
+общая плезная инфо
+в fio есть разные "движки"
+
+root@truenas-0-233[~]# fio  --enghelp
+Available IO engines:
+  cpuio
+  mmap
+  sync
+  psync
+  vsync
+  pvsync
+  null
+  net
+  ftruncate
+  filecreate
+  filestat
+  filedelete
+  exec
+  posixaio
+  rdma
+
+
+они отличаются тем что 
+
+
+psync   O_DIRECT  
+
+sync    O_SYNC  
+
+vsync  O_SYNC 
+
+pvsync   O_DIRECT + O_SYNC 
+
+
+| smartctl
+| sata
+| 6 Gb/s
+| 3 Gb/s
+| 12 Gb/s
+
+как узнатьна лиукске на каком порту 3\6\12 Gb\s сидит наш диск
+
+# smartctl -x /dev/disk/by-partuuid/f642d05c-527c-4bb8-b7f7-38bfe07efe0a | grep SATA
+SATA Version is:  SATA 3.0, 6.0 Gb/s (current: 6.0 Gb/s)
+
+
 
 | offset
 
@@ -14,6 +60,141 @@
   --name=job8 --offset=70G
   (...)
     read: IOPS=4174, BW=4175MiB/s (4378MB/s)(80.0GiB/19622msec)
+
+
+| zfs
+
+полезные комнады для fio
+
+ #  zfs create  -o compression=off -o  primarycache=metadata  -o secondarycache=metadata -o recordsize=4KiB  POOL-02/ds2-4K
+ 
+ # zfs get recordsize POOL-02/ds2-4K
+
+ # dd if=/dev/urandom bs=1M count=$(( 10 * 1024 )) of=/POOL-03-MIRROR-SSD/ds2-128K/fio.dat status=progress
+
+
+# fio --randrepeat=1 --ioengine=psync --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-04/ds2-128K/fio.dat  --bs=$((128 *1024)) --iodepth=1  --size=10G  --readwrite=randwrite --numjobs=1  --group_reporting --loop=5
+
+# gstat 
+# arcstat 1
+
+
+
+|
+
+| zfs
+| SEAGATE ST2000NM0023 0003
+| HGST HUS724020ALA640
+
+
+сравнеие двух дисков 
+
+
+1: SEAGATE ST2000NM0023 0003
+2: HGST HUS724020ALA640
+
+тест делаю на файле fio.dat 10G которыйлежит на 
+zfs dataset 128K 
+fio.dat  сильно фрагментрован
+
+
+1:
+# fio --randrepeat=1  --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-1-DISK/ds2-128K/fio.dat  --bs=$((128 *1024)) --ioengine=posixaio     --iodepth=1  --runtime=20  --readwrite=read  --numjobs=1  --group_reporting
+
+test: (g=0): rw=read, bs=(R) 128KiB-128KiB, (W) 128KiB-128KiB, (T) 128KiB-128KiB, ioengine=posixaio, iodepth=1
+fio-3.28
+Starting 1 process
+Jobs: 1 (f=1): [R(1)][100.0%][r=89.9MiB/s][r=719 IOPS][eta 00m:00s]
+
+
+
+
+2:
+# fio --randrepeat=1  --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-01/ds2-128K/fio.dat  --bs=$((128 *1024)) --ioengine=posixaio     --iodepth=1  --runtime=20  --readwrite=read  --numjobs=1  --group_reporting
+test: (g=0): rw=read, bs=(R) 128KiB-128KiB, (W) 128KiB-128KiB, (T) 128KiB-128KiB, ioengine=posixaio, iodepth=1
+fio-3.28
+Starting 1 process
+Jobs: 1 (f=1): [R(1)][7.1%][r=39.4MiB/s][r=314 IOPS][eta 04m:33s] 
+test: (groupid=0, jobs=1): err= 0: pid=9633: Fri Dec  5 23:18:28 2025
+  read: IOPS=292, BW=36.6MiB/s (38.4MB/s)(736MiB/20111msec)
+
+
+разница офигеть
+
+1:
+-5[/]# fio --randrepeat=1  --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-1-DISK/ds2-128K/fio.dat  --bs=$((128 *1024)) --ioengine=posixaio     --iodepth=2  --runtime=20  --readwrite=read  --numjobs=1  --group_reporting
+
+test: (g=0): rw=read, bs=(R) 128KiB-128KiB, (W) 128KiB-128KiB, (T) 128KiB-128KiB, ioengine=posixaio, iodepth=2
+fio-3.28
+Starting 1 process
+Jobs: 1 (f=1): [R(1)][100.0%][r=101MiB/s][r=810 IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=59054: Fri Dec  5 12:24:02 2025
+  read: IOPS=755, BW=94.5MiB/s (99.1MB/s)(1896MiB/20066msec)
+
+
+2:
+# fio --randrepeat=1  --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-01/ds2-128K/fio.dat  --bs=$((128 *1024)) --ioengine=posixaio     --iodepth=2  --runtime=20  --readwrite=read  --numjobs=1  --group_reporting
+test: (g=0): rw=read, bs=(R) 128KiB-128KiB, (W) 128KiB-128KiB, (T) 128KiB-128KiB, ioengine=posixaio, iodepth=2
+fio-3.28
+Starting 1 process
+Jobs: 1 (f=1): [R(1)][6.2%][r=34.6MiB/s][r=276 IOPS][eta 05m:16s]  
+test: (groupid=0, jobs=1): err= 0: pid=9643: Fri Dec  5 23:19:24 2025
+  read: IOPS=254, BW=31.8MiB/s (33.3MB/s)(640MiB/20131msec)
+
+  разница офигеть
+
+
+1:
+# 
+root@freenas-5[/]# fio --randrepeat=1  --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-1-DISK/ds2-128K/fio.dat  --bs=$((128 *1024)) --ioengine=posixaio     --iodepth=4  --runtime=20  --readwrite=read  --numjobs=1  --group_reporting
+
+test: (g=0): rw=read, bs=(R) 128KiB-128KiB, (W) 128KiB-128KiB, (T) 128KiB-128KiB, ioengine=posixaio, iodepth=4
+fio-3.28
+Starting 1 process
+Jobs: 1 (f=1): [R(1)][100.0%][r=105MiB/s][r=842 IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=59064: Fri Dec  5 12:25:02 2025
+  read: IOPS=810, BW=101MiB/s (106MB/s)(2032MiB/20045msec)
+
+
+2:
+]# fio --randrepeat=1  --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-01/ds2-128K/fio.dat  --bs=$((128 *1024)) --ioengine=posixaio     --iodepth=4  --runtime=20  --readwrite=read  --numjobs=1  --group_reporting
+test: (g=0): rw=read, bs=(R) 128KiB-128KiB, (W) 128KiB-128KiB, (T) 128KiB-128KiB, ioengine=posixaio, iodepth=4
+fio-3.28
+Starting 1 process
+Jobs: 1 (f=1): [R(1)][100.0%][r=38.6MiB/s][r=308 IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=9655: Fri Dec  5 23:20:23 2025
+  read: IOPS=283, BW=35.4MiB/s (37.1MB/s)(712MiB/20110msec)
+
+
+
+
+
+1:
+# fio --randrepeat=1  --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-1-DISK/ds2-128K/fio.dat  --bs=$((128 *1024)) --ioengine=posixaio     --iodepth=32  --runtime=20  --readwrite=read  --numjobs=1  --group_reporting
+
+test: (g=0): rw=read, bs=(R) 128KiB-128KiB, (W) 128KiB-128KiB, (T) 128KiB-128KiB, ioengine=posixaio, iodepth=32
+fio-3.28
+Starting 1 process
+Jobs: 1 (f=1): [R(1)][100.0%][r=127MiB/s][r=1017 IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=59068: Fri Dec  5 12:25:59 2025
+  read: IOPS=979, BW=122MiB/s (128MB/s)(2456MiB/20049msec)
+
+
+2:
+# fio --randrepeat=1  --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-01/ds2-128K/fio.dat  --bs=$((128 *1024)) --ioengine=posixaio     --iodepth=32  --runtime=20  --readwrite=read  --numjobs=1  --group_reporting
+test: (g=0): rw=read, bs=(R) 128KiB-128KiB, (W) 128KiB-128KiB, (T) 128KiB-128KiB, ioengine=posixaio, iodepth=32
+fio-3.28
+Starting 1 process
+Jobs: 1 (f=1): [R(1)][9.0%][r=50.8MiB/s][r=406 IOPS][eta 03m:32s] 
+test: (groupid=0, jobs=1): err= 0: pid=9665: Fri Dec  5 23:21:25 2025
+  read: IOPS=367, BW=45.9MiB/s (48.1MB/s)(928MiB/20218msec)
+
+
+
+вывод SEAGATE ST2000NM0023 0003 это диск просто УРАГАН
+вывод2: есть диски которые небоятся глубокого iodepth и на нем прям выстреливают. а есть которые почти никак
+        неумеют  соптимизироать поиск запрсов из извесной очереди. тупо видимо ищут поооччереди.
+
 
 
 
@@ -2676,7 +2857,99 @@ Starting 1 process
 лучше добаить L2ARC и будет прибавка в скорости чтения в х5раз и в записи как ни странно в х5раз
 
 ===============================
+хороший тест диска  <INTEL SSDSC2KB480GZ 7CV10100  480ГБ 6Gb/s
 
+
+
+контроллер
+  AHCI  6Gb/s
+
+
+диск
+<INTEL SSDSC2KB480GZ 7CV10100  480ГБ 6Gb/s
+
+тестируею просто как блочное устрйотвао ada2 (никкой фс пока еще нет)
+врайет кеш на диске включен
+
+
+
+
+
+LIN READ 1 pototok  330.0MiB/s
+#  fio --randrepeat=1 --ioengine=psync --direct=1 --gtod_reduce=1 --name=test --filename=/dev/ada1  --bs=4M --iodepth=1  --runtime=30  --readwrite=read
+
+
+
+
+
+LIN READ 2 pototok  445.0MiB/s
+#  fio --randrepeat=1 --ioengine=psync --direct=1 --gtod_reduce=1 --name=test --filename=/dev/ada1  --bs=4M --iodepth=1  --runtime=30  --readwrite=read --numjobs=2  --offset=0   --offset_increment=200M   --group_reporting
+
+LIN READ 3 pototok  276.0MiB/s
+
+LIN READ 6 pototok  284.0MiB/s
+
+LIN READ 6 pototok  300.0MiB/s  iodepth=64
+
+странно что на этом диске не получается выжать 550МБ/с
+
+
+
+
+
+
+
+
+
+LIN WRITE 1 potok  416 MiB/s
+fio --randrepeat=1 --ioengine=psync --direct=1 --gtod_reduce=1 --name=test --filename=/dev/ada1  --bs=4M --iodepth=1  --runtime=30  --readwrite=write  --numjobs=1  --group_reporting
+
+
+LIN WRITE 2 potok  455.0MiB/s
+fio --randrepeat=1 --ioengine=psync --direct=1 --gtod_reduce=1 --name=test --filename=/dev/ada1  --bs=4M --iodepth=1  --runtime=30  --readwrite=write --numjobs=2  --offset=0   --offset_increment=200M   --group_reporting 
+
+LIN WRITE 6 potok  431.0MiB/s
+
+
+
+
+
+
+
+RAND READ 1 potok   21.6k IOPS
+#  fio --randrepeat=1 --ioengine=psync --direct=1 --gtod_reduce=1 --name=test --filename=/dev/ada1  --bs=4k --iodepth=1  --runtime=30  --readwrite=randread  --numjobs=1  --group_reporting --offset=0   --offset_increment=200M
+
+RAND READ 2 potok   38.2k IOPS
+
+RAND READ 8 potok   75.4k IOPS 
+
+RAND READ 10 potok  95.4k IOPS  (373 MB/s)
+
+RAND READ 12 potok 100.0k IOPS  (391 MB/s)
+
+RAND READ 14 potok 102.0k IOPS  (397 MB/s)
+
+RAND READ 16 potok 102.0k IOPS  (397 MB/s) потолок
+
+
+
+
+
+
+
+RAND WRITE 1 potok   27.2k IOPS
+ fio --randrepeat=1 --ioengine=psync --direct=1 --gtod_reduce=1 --name=test --filename=/dev/ada1  --bs=4k --iodepth=1  --runtime=30  --readwrite=randwrite  --numjobs=1  --group_reporting
+
+
+RAND WRITE 14 potok  88.8k IOPS
+
+RAND WRITE 18 potok  90.5k IOPS  потолок
+
+голый диск закончили тестировать
+
+
+
+==============================
 
 контроллер:
   AHCI  6Gb/s
@@ -2692,13 +2965,13 @@ Starting 1 process
 
 
 LIN READ 1 pototok  160.0MiB/s
-# fio --randrepeat=1 --ioengine=psync --direct=1 --gtod_reduce=1 --name=test --filename=/dev/ada2  --bs=4M --iodepth=1  --size=20G  --readwrite=read
+#  fio --randrepeat=1 --ioengine=psync --direct=1 --gtod_reduce=1 --name=test --filename=/dev/ada1  --bs=4M --iodepth=1  --runtime=30  --readwrite=read
 
 
-LIN READ 2 pototok  320.0MiB/s
-# fio --randrepeat=1 --ioengine=psync --direct=1 --gtod_reduce=1 --name=test --filename=/dev/ada2  --bs=4M --iodepth=1  --size=20G  --readwrite=read --numjobs=2
+LIN READ 2 pototok  100.0MiB/s
+#  fio --randrepeat=1 --ioengine=psync --direct=1 --gtod_reduce=1 --name=test --filename=/dev/ada1  --bs=4M --iodepth=1  --runtime=30  --readwrite=read --numjobs=2  --offset=0   --offset_increment=200M  
 
-LIN READ 6 pototok  520.0MiB/s
+LIN READ 6 pototok  100.0MiB/s
 
 
 
@@ -2707,12 +2980,13 @@ LIN READ 6 pototok  520.0MiB/s
 
 
 LIN WRITE 1 potok  161.0MiB/s
- fio --randrepeat=1 --ioengine=psync --direct=1 --gtod_reduce=1 --name=test --filename=/dev/ada1  --bs=4M --iodepth=1  --runtime=30  --readwrite=write  --numjobs=1  --group_reporting
+fio --randrepeat=1 --ioengine=psync --direct=1 --gtod_reduce=1 --name=test --filename=/dev/ada1  --bs=4M --iodepth=1  --runtime=30  --readwrite=write  --numjobs=1  --group_reporting
 
 
-LIN WRITE 6 potok  260.0MiB/s
+LIN WRITE 2 potok  150.0MiB/s
+fio --randrepeat=1 --ioengine=psync --direct=1 --gtod_reduce=1 --name=test --filename=/dev/ada1  --bs=4M --iodepth=1  --runtime=30  --readwrite=write --numjobs=2  --offset=0   --offset_increment=200M   --group_reporting 
 
-
+LIN WRITE 6 potok  118.0MiB/s
 
 
 
@@ -2723,14 +2997,19 @@ LIN WRITE 6 potok  260.0MiB/s
 RAND READ 1 potok   83 IOPS
 #  fio --randrepeat=1 --ioengine=psync --direct=1 --gtod_reduce=1 --name=test --filename=/dev/ada1  --bs=4k --iodepth=1  --runtime=30  --readwrite=randread  --numjobs=1  --group_reporting
 
-RAND READ 6 potok   120 IOPS
+RAND READ 6 potok   125 IOPS
 
 
 
 
 
-RAND WRITE 1 potok   157 IOPS
-RAND WRITE 6 potok   147 IOPS
+RAND WRITE 1 potok   190 IOPS
+ fio --randrepeat=1 --ioengine=psync --direct=1 --gtod_reduce=1 --name=test --filename=/dev/ada1  --bs=4k --iodepth=1  --runtime=30  --readwrite=randwrite  --numjobs=1  --group_reporting
+
+RAND WRITE 6 potok   190 IOPS
+
+голый диск закончили тестировать
+
 
 
 
@@ -2739,15 +3018,17 @@ RAND WRITE 6 potok   147 IOPS
 
 
 пеереходим к ФС  и датасетам
+(важно зфс не отключает на диске write cache buffer!)
 
+создал 4 датасета( с рекордсайзами 4К 32К 128К 1024К)
 
+POOL-01/ds2-1024K                                           10.0G  1.72T     10.0G  /POOL-01/ds2-1024K
+POOL-01/ds2-128K                                            9.77G  1.72T     9.77G  /POOL-01/ds2-128K
+POOL-01/ds2-32K                                             10.0G  1.72T     10.0G  /POOL-01/ds2-32K
+POOL-01/ds2-4K                                              9.98G  1.72T     9.98G  /POOL-01/ds2-4K
 
-датасет /boot-pool/ds2-4K
-        с рекордсайз 4К
+на каждом из них файл 10ГБ
 
-
-датасет /boot-pool/ds2-128K
-        с рекордсайз 128К
 
 
 
@@ -2815,15 +3096,13 @@ root@truenas-0-233[~]#
   10443816960 bytes (10 GB, 9960 MiB) transferred 79.001s, 132 MB/s 
 
 
-отключкение arc для данных отключает только то что он неисплзуется как кеш при чтении
-однако это не выключает такую вещь что при записи на этот же датасет данные буферизуются
+это мне показало что отключкение arc для данных отключает только то что он неисплзуется как кеш при чтении
+данных однако это не выключает такую вещь что при записи на этот же датасет данные буферизуются
 где то там в памяти.  тоесть 167 МБ/с это нескорст ьзаписи на диск. это скрость записи в буфер.
 скорост записи на диск НИЖЕ!
 
 
 
-видно счто скорости не отлиаются. что ожидаемо. потому что при записи все блоки ложатся
-рядом другс друогрм и на диск летят уже макрозапросы на запись. 
 
 
 
@@ -2842,7 +3121,7 @@ root@truenas-0-233[~]#
 вот как я это узнал 
 
 # 
-root@truenas-0-233[~]#  fio --randrepeat=1 --ioengine=psync --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-01/ds2-4K/fio.dat  --bs=4k --iodepth=1  --runtime=30  --readwrite=read  --numjobs=1  --group_reporting    
+fio --randrepeat=1 --ioengine=psync --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-01/ds2-4K/fio.dat  --bs=4k --iodepth=1  --runtime=30  --readwrite=read  --numjobs=1  --group_reporting    
 
 
 
@@ -2880,10 +3159,457 @@ fio-3.28
 
 
 
-продожлаем тесты
+ПРОДОЛЖАЕМ ТЕСТЫ
+итак имеем датасеты
 
 
-LIN READ 1 potok,  пул  ds2-4K
+POOL-01/ds2-1024K                                           10.0G  1.72T     10.0G  /POOL-01/ds2-1024K
+POOL-01/ds2-128K                                            9.77G  1.72T     9.77G  /POOL-01/ds2-128K
+POOL-01/ds2-32K                                             10.0G  1.72T     10.0G  /POOL-01/ds2-32K
+POOL-01/ds2-4K                                              9.98G  1.72T     9.98G  /POOL-01/ds2-4K
+
+
+я создал там на каждом файл fio.dat 10GB
+но далее я в каждый файл еше прогнал несклько рандом врайт записей для того чтобы зфс на основе COW
+повыдирал блоки из фйалов и разбросал их рандомно по диску. потому что в реаьной жизни еще раз скажу что
+при записи в диск зфм постоянно проирзводит запись блоков в новые места на диске. и файлы офигеть как
+разрываются фрагментируются. поэтому я привел файлы к макс натуральному виду
+поехали теперь делтаь тесты
+
+
+вначале я для каждого датасета прогоню тест ранд чтения. который мне покжает что чтение с диска (gstat)
+идет именно тем же числом иопсов что я вижу в fio
+
+
+# fio --randrepeat=1 --ioengine=psync --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-01/ds2-4K/fio.dat  --bs=$((4*1024)) --iodepth=1  --runtime=20  --readwrite=read  --numjobs=1  --group_reporting     
+итд. для каждого датасета. все подтвердилдось.
+
+
+
+
+теперь уже пойдут полезные реальные тесты на скорость
+
+LINEAR READ 
+
+LIN READ 1 potok,  пул  ds2-4K   27.8MiB/s
+# fio --randrepeat=1 --ioengine=psync --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-01/ds2-4K/fio.dat  --bs=$((4 *1024 *1024)) --iodepth=1  --runtime=20  --readwrite=read  --numjobs=1  --group_reporting    
+
+при этом я открыл что средний размер чтения с диска 32КБ. тоесть ощущение что зфс кладет 4К ФСблоки на новое место 
+в группы по 8штук. нейронка сказала это так называемы gang blocks
+
+LIN READ 1 potok,  пул  ds2-32K   27.8MiB/s
+здесь как ни странно средний размер чтения сдиска 48К.
+arcstat показывает что чтения метаданныех с диск нет. тоесь чтения идут только полезных данных
+
+    time  read  miss  miss%  dmis  dm%  pmis  pm%  mmis  mm%  size     c  avail
+16:56:12  1.9K   928     49   928   49     0    0     0    0  306M  1.1G   3.8G
+16:56:13  2.1K  1.0K     49  1.0K   49     0    0     0    0  306M  1.1G   3.8G
+16:56:14  2.5K  1.2K     49  1.2K   49     0    0     0    0  306M  1.1G   3.8G
+
+
+LIN READ 1 potok,  пул  ds2-128K    47.4MiB/s
+здесь уже все понятно тут средний размер чтения с диска 128К
+
+LIN READ 1 potok,  пул  ds2-1024K    79.5MiB/s
+здесь уже все понятно тут средний размер чтения с диска 1024К
+
+
+ИТОГО 
+
+LINEAR READ 1 potok
+
+LIN READ 1 potok,  пул  ds2-4K     27.8MiB/s
+
+LIN READ 1 potok,  пул  ds2-32K    27.8MiB/s
+
+LIN READ 1 potok,  пул  ds2-128K   47.4MiB/s
+
+LIN READ 1 potok,  пул  ds2-1024K  79.5MiB/s
+
+
+из чего я делаю выводы - даже при громадном рекордсете 1МБ у нас лин скорсть чтения в 2 раза падает
+по сравнению если мы читали бы с голого диска(160МБ/с для голого диска). это все за счет того что зфс файлы сильно фрагментирует. станадртный рекрордсет 128К приводит к тому что сокрсть в 3.4 раза падает по сравению со скоростю голого диска. (это все конечн верно только для ситуации когда у нас пул на базе шпиндельных дисков. с ссд другая ситуация будет). скорость падает еще в 2 раза для рекордсетов 16К и 4К. 
+да уж... даже для громадного рекордсета 128К и то мы наблюдаем чудовщиное падение скорсти в 3.4 раза по сравнениею
+с голым диском. 
+тоесь с точки зрения лин чтения даже 1МБ кусок и то в  2 раза нам проседает скорость. 128К проседает  скорость 
+в 3.4 раза. а нам же даже 128К это большой рекорсайз блок. потому что он в других операциях нам налажает в скорости.
+с ссд таких проблем небудет потому что там нет механической головки которая медленно шарится между треками. это
+имнно пробелма шпинделей.
+
+
+далее я решил еще посмтрет на этой же задаче как работает МИРРОР в зфс. и какая будет сокрость.
+я создал пул на базе двух дисков таких же в миррор.  и на нем датасет из 128к рекордсет.
+
+далее запустил тест    
+
+  
+#  fio --randrepeat=1 --ioengine=psync --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-02-MIRROR/ds2-128K/fio.dat  --bs=$((128 *1024)) --iodepth=1  --runtime=60  --readwrite=read  --numjobs=1  --group_reporting 
+test: (g=0): rw=read, bs=(R) 128KiB-128KiB, (W) 128KiB-128KiB, (T) 128KiB-128KiB, ioengine=psync, iodepth=1
+fio-3.28
+Starting 1 process
+Jobs: 1 (f=1): [R(1)][100.0%][r=79.9MiB/s][r=639 IOPS][eta 00m:00s]
+
+важны момент iodepth=1 
+так как у нас иодепф равен 1 то это значит что наш фио пуляет один запрос и потом ждет ответа и пока ответа 
+нет он новые запросы не пуляет. так вот в gstat видно что оба диска имеюит бузи тайм 50% что логично.
+
+dT: 1.010s  w: 1.000s
+ L(q)  ops/s    r/s   kBps   ms/r    w/s   kBps   ms/w   %busy Name
+    0    255    255  32703    2.0      0      0    0.0   51.2| ada1
+    0      0      0      0    0.0      0      0    0.0    0.0| ada0
+    0      0      0      0    0.0      0      0    0.0    0.0| ada2
+    0      0      0      0    0.0      0      0    0.0    0.0| ada2p1
+    0      0      0      0    0.0      0      0    0.0    0.0| ada2p2
+    0      0      0      0    0.0      0      0    0.0    0.0| gptid/48ba50a5-d141-11f0-a759-14dae9dc008a
+    0      0      0      0    0.0      0      0    0.0    0.0| ada0p1
+    0    209    209  26745    2.0      0      0    0.0   41.4| ada3
+
+
+тоесть что происходит. на зфс прилеает запрос. он его пихает на первый диск в мироре. в это время второй
+отдыхает. и фио тоже ждет ответ не шлет ничего. потом зфс шлет обратно ответ. фио шлет новый заапрос 
+зфс пиахает запрос на второй диск а первый отдыахет. поэтому 50% бузи тайм.
+то есть за тестовый период полвина времени работает один диск и полвину другой. в итоге если смотреть 
+в gstat то чтобы понять какой срупут приодит  в fio нужно сложить срупуты обоих дисков в мирроре.
+в нашем случае это 32703+26745=60MB/s  выше я выделил [r=79.9MiB/s] . это не среднее значение это мгнвоенное.
+хотя картинка gstat она тоже мгновенная. вобшем если один поток прилает на миррор то срупуты двух дисков
+нужно склдыать чтобы получит пнятие о птотоке который приходит на фио. 
+кстати неважно какой бизит показывают диски в мирроре. чтобы понять скокьо срупута уходит с миррора сумарно
+на фио надо просто складывать срупуты двух дисков. вот так просто.
+
+вот скажем картинка
+
+
+dT: 1.005s  w: 1.000s
+ L(q)  ops/s    r/s   kBps   ms/r    w/s   kBps   ms/w   %busy Name
+    0      0      0      0    0.0      0      0    0.0    0.0| da0
+    0      0      0      0    0.0      0      0    0.0    0.0| da1
+    6    441    440  56268   14.5      0      0    0.0   90.2| da2
+    6    416    415  53086   15.0      0      0    0.0   94.4| da3
+   20    528    523  66962   26.0      4     16  177.2   99.8| da4
+   14    522    519  66453   24.0      2      8  312.3  100.0| da5
+    0    435    434  55505    9.2      0      0    0.0   79.8| da6
+    5    426    423  54104    8.7      2      8  132.7   75.0| da7
+    0    342    342  43793    5.6      0      0    0.0   50.5| da8
+    0    386    386  49394    6.4      0      0    0.0   59.5| da9
+    0      0      0      0    0.0      0      0    0.0    0.0| da10
+    0      0      0      0    0.0      0      0    0.0    0.0| da11
+
+
+эти 8 диск обединены в пары 4 зекрал которые обидение в 4 страйпа.
+так вот сумарный срупут в фио это просто сумма со всех этихдисков
+
+# fio --randrepeat=1 --direct=1 --gtod_reduce=1 --name=test --filename=/mnt/POOL-01/ds2-128K/fio.dat  --bs=$((1024 *1024)) --ioengine=posixaio      --iodepth=16  --runtime=60  --readwrite=read --numjobs=1  --group_reporting
+test: (g=0): rw=read, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=posixaio, iodepth=16
+fio-3.28
+Starting 1 process
+^Cbs: 1 (f=1): [R(1)][24.1%][r=421MiB/s][r=420 IOPS][eta 00m:22s]
+fio: terminating on signal 2
+
+
+все логично. 
+приходит мысль а что если сделать иодепф=2 тогда по идее фио шлет сразу два запроса и ждет оввета.
+зфс по идее может один запрос сунуть на один диск а ворой запрос на второй диск. и они по идее должны
+одоновременно найти овтет или почти . и увелчить срупут в x1.5-2 раза
+движок  psync неопзволяет выставиьт иодепф больше 1. тогда я беру движок posixaio (о движках читай в самом верху)
+выставояю iodepth=2 и смотрю что будет
+
+бузи тайм у меня ставиновится 87.5% что логично
+dT: 1.002s  w: 1.000s
+ L(q)  ops/s    r/s   kBps   ms/r    w/s   kBps   ms/w   %busy Name
+    1    289    289  37052    3.3      0      0    0.0   87.5| ada1
+    0      0      0      0    0.0      0      0    0.0    0.0| ada0
+    0      0      0      0    0.0      0      0    0.0    0.0| ada2
+    0      0      0      0    0.0      0      0    0.0    0.0| ada2p1
+    0      0      0      0    0.0      0      0    0.0    0.0| ada2p2
+    0      0      0      0    0.0      0      0    0.0    0.0| gptid/48ba50a5-d141-11f0-a759-14dae9dc008a
+    0      0      0      0    0.0      0      0    0.0    0.0| ada0p1
+    1    233    233  29770    4.1      0      0    0.0   87.5| ada3
+
+
+
+а вот что со срупутом
+#  fio --randrepeat=1 --ioengine=posixaio --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-02-MIRROR/ds2-128K/fio.dat  --bs=$((128 *1024)) --iodepth=2  --runtime=60  --readwrite=read  --numjobs=1  --group_reporting 
+test: (g=0): rw=read, bs=(R) 128KiB-128KiB, (W) 128KiB-128KiB, (T) 128KiB-128KiB, ioengine=posixaio, iodepth=2
+fio-3.28
+Starting 1 process
+Jobs: 1 (f=1): [R(1)][43.0%][r=77.6MiB/s][r=620 IOPS][eta 01m:21s] 
+
+важный моент iodepth=2 , для этого приходистя заменит ioengine на posixaio
+он не стал больше нифига . а даже стал меньше. 
+
+
+вот я еще провел два теста
+
+здесь gstat показывает 54% бузи тайм
+     BW=74.2MiB/s
+# fio --randrepeat=1 --ioengine=psync --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-02-MIRROR/ds2-128K/fio.dat  --bs=$((1024 *1024)) --iodepth=1  --runtime=120  --readwrite=read  --numjobs=1  --group_reporting 
+test: (g=0): rw=read, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=psync, iodepth=1
+fio-3.28
+Starting 1 process
+Jobs: 1 (f=1): [R(1)][100.0%][r=68.5MiB/s][r=68 IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=7258: Fri Dec  5 20:43:44 2025
+  read: IOPS=74, BW=74.2MiB/s (77.8MB/s)(8958MiB/120700msec)
+
+
+
+здесь gstat покзывает 94% busytime
+     BW=73.3MiB/s
+# fio --randrepeat=1  --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-02-MIRROR/ds2-128K/fio.dat  --bs=$((1024 *1024)) --ioengine=posixaio  --iodepth=2  --runtime=120  --readwrite=read  --numjobs=1  --group_reporting 
+test: (g=0): rw=read, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=posixaio, iodepth=2
+fio-3.28
+Starting 1 process
+Jobs: 1 (f=1): [R(1)][100.0%][r=79.5MiB/s][r=79 IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=7300: Fri Dec  5 20:46:48 2025
+  read: IOPS=73, BW=73.3MiB/s (76.9MB/s)(8830MiB/120446msec)
+
+
+сосвтвтенно видно что скорость не увеличисилоась нихрена ни в х1.5 ни в х2 раза. (это шпиндель. на ссд  все по другому)
+
+
+дальше я увеличил очередь до 10
+    BW=99.2MiB/s
+# fio --randrepeat=1  --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-02-MIRROR/ds2-128K/fio.dat  --bs=$((1024 *1024)) --ioengine=posixaio  --iodepth=10  --runtime=120  --readwrite=read  --numjobs=1  --group_reporting 
+test: (g=0): rw=read, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=posixaio, iodepth=10
+fio-3.28
+Starting 1 process
+Jobs: 1 (f=1): [R(1)][100.0%][r=103MiB/s][r=103 IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=7425: Fri Dec  5 20:57:32 2025
+  read: IOPS=99, BW=99.2MiB/s (104MB/s)(10.0GiB/103227msec)
+
+
+результат стал повыше. почему. потому что в очередь запросов диску запрсвыается сразу куча запросов.
+и он уже сразу знает что ему надо найти. и старется по мере прокрутки головки пособирать ответы. тоесть когда
+запросы прилетат по одному то он каждый раз заново ищет. а тут у него уже заренее известен план поиска
+на 10 запросов вперед. 
+
+
+
+дальше я провел ряд эскприментов и пиришел к выводу что зфс вот как рабтает с миррором на режиме четния.
+
+
+
+
+тоестт вот иодепф=1
+
+root@truenas-0-233[~]# fio --randrepeat=1 --ioengine=psync --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-03-MIRROR-SSD/ds2-128K/fio.dat  --bs=$((128 *1024)) --iodepth=1  --runtime=20  --readwrite=read --numjobs=1  --group_reporting
+test: (g=0): rw=read, bs=(R) 128KiB-128KiB, (W) 128KiB-128KiB, (T) 128KiB-128KiB, ioengine=psync, iodepth=1
+fio-3.28
+Starting 1 process
+Jobs: 1 (f=1): [R(1)][100.0%][r=142MiB/s][r=1136 IOPS][eta 00m:00s]
+
+
+а вот иодейфпфпаф=2
+(заметь важный момент я заменил энжин на posixaio потому что енжин psync он неумеет работаьт с iodepth>1)
+
+root@truenas-0-233[~]# fio --randrepeat=1 --ioengine=posixaio --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-03-MIRROR-SSD/ds2-128K/fio.dat  --bs=$((128 *1024)) --iodepth=2  --runtime=20  --readwrite=read --numjobs=1  --group_reporting
+test: (g=0): rw=read, bs=(R) 128KiB-128KiB, (W) 128KiB-128KiB, (T) 128KiB-128KiB, ioengine=posixaio, iodepth=2
+fio-3.28
+Starting 1 process
+Jobs: 1 (f=1): [R(1)][100.0%][r=274MiB/s][r=2188 IOPS][eta 00m:00s]
+
+
+тоесть не смотря на тупуую логику загрузки реквестами дисков в мирроре - ссд контроллер рулит. и мы полчаем
+охуенный профит.
+
+более того дадим очередь =32 
+
+]# fio --randrepeat=1 --ioengine=posixaio --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-03-MIRROR-SSD/ds2-128K/fio.dat  --bs=$((128 *1024)) --iodepth=32  --runtime=20  --readwrite=read --numjobs=1  --group_reporting
+test: (g=0): rw=read, bs=(R) 128KiB-128KiB, (W) 128KiB-128KiB, (T) 128KiB-128KiB, ioengine=posixaio, iodepth=32
+fio-3.28
+Starting 1 process
+^Cbs: 1 (f=1): [R(1)][33.3%][r=447MiB/s][r=3573 IOPS][eta 00m:14s]
+
+вот такой аолгоритм рабоы с миррором  у зфс в режиме четния.
+в режиме записи все понятно. все ркквесты одновренно пихабтся на оба диска потому что нам надо чтобы 
+на них хранилось одно и тоже. тут вопросов нет
+
+смешно то что при такой логике тогда нпнятно почему зфс непихает запрос на оба диска когда иодепф=1.
+тут у них мозгов както хватило. 
+
+
+еще вот что щас посмтрим. 
+я буду менять не иодепф а число ворекеров. посмтрим будет ли профит на чтение когда иодепф=1 а воркеров=2
+окзывается все тоже самое никаого профита! что логично. какая разница зфс прилетело к ней два запроса
+от одного процесса или от двух
+
+вот у нас эталон
+# fio --randrepeat=1 --ioengine=psync --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-02-MIRROR/ds2-128K/fio.dat  --bs=$((128 *1024)) --iodepth=1  --runtime=20  --readwrite=read --numjobs=1  --group_reporting
+test: (g=0): rw=read, bs=(R) 128KiB-128KiB, (W) 128KiB-128KiB, (T) 128KiB-128KiB, ioengine=psync, iodepth=1
+fio-3.28
+Starting 1 process
+Jobs: 1 (f=1): [R(1)][100.0%][r=93.5MiB/s][r=748 IOPS][eta 00m:00s]
+
+а вот наш кейс
+
+# fio --randrepeat=1 --ioengine=psync --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-02-MIRROR/ds2-128K/fio.dat  --bs=$((128 *1024)) --iodepth=1  --runtime=20  --readwrite=read --numjobs=2  --group_reporting --offset=0   --offset_increment=200M  
+test: (g=0): rw=read, bs=(R) 128KiB-128KiB, (W) 128KiB-128KiB, (T) 128KiB-128KiB, ioengine=psync, iodepth=1
+...
+fio-3.28
+Starting 2 processes
+^Cbs: 2 (f=2): [R(2)][76.2%][r=68.1MiB/s][r=544 IOPS][eta 00m:05s]
+fio: terminating on signal 2
+
+test: (groupid=0, jobs=2): err= 0: pid=6609: Fri Dec  5 19:38:48 2025
+  read: IOPS=533, BW=66.6MiB/s (69.9MB/s)(1060MiB/15907msec)
+
+
+dT: 1.001s  w: 1.000s
+ L(q)  ops/s    r/s   kBps   ms/r    w/s   kBps   ms/w   %busy Name
+    0    299    299  38234    3.2      0      0    0.0   95.3| ada1
+    0      0      0      0    0.0      0      0    0.0    0.0| ada0
+    0      0      0      0    0.0      0      0    0.0    0.0| ada2
+    0      0      0      0    0.0      0      0    0.0    0.0| ada2p1
+    0      0      0      0    0.0      0      0    0.0    0.0| ada2p2
+    0      0      0      0    0.0      0      0    0.0    0.0| gptid/48ba50a5-d141-11f0-a759-14dae9dc008a
+    0      0      0      0    0.0      0      0    0.0    0.0| ada0p1
+    0    299    299  38234    3.2      0      0    0.0   95.3| ada1p1
+    1    247    247  31585    3.9      0      0    0.0   96.6| ada3
+
+
+скорсь даже упала!
+то зфс тупо кинул два запроса на оба диска. потом ждет ответы. а потом ждет когда же диски дркурруят свой
+поиск который зфс уже ненужен. 
+с ссд конечно такой потери скорости не будет. будет увеличение. но не зачсет зфс а за счет ссд контроллрера 
+внутри диск.
+
+так я думаю с миррором разобрлись. он не про скорость он про надежность.
+считай что реаьно он работает точно на такой же скорости как ОДИН диск. зфс откзыается использовать два диска
+на режиме чтения как страйп. она тупо все запросы дублирует на оба диска а там трава не расти!
+
+итак говря коротко зфс воббще не юзает примущество двух дисков. и по скрости мимррор работает как 1 диск
+в случае шпинделей!!! и работает как страйп в случае ссд(на операциях чтения)!!
+
+
+
+правильная строчка для LINEAR READ на многотоке.
+# fio --randrepeat=1 --ioengine=posixaio --direct=1 --gtod_reduce=1 --name=test --filename=/mnt/POOL-01/ds2-128K/fio.dat  --bs=$((1024 *1024)) --iodepth=8  --runtime=120  --readwrite=read --numjobs=1  --group_reporting --offset=0   --offset_increment=200M
+
+
+
+
+
+а вот неочень понятный резуьтат. тоже железо (ну диски такиеже шиндели только не hgst а SEAGATE ST2000NM0023 0003 
+но качественно я должен бы бл получить тот же самый рещультат с миррором что мы только что обсудили 
+но повчемуто тут несколкьо по другому.
+итак есть пул из 4-ех зеркал обьдиненных в страйп
+
+
+пуляю иодепф=1
+это дает то что просто у нас запрос посывлается на олдно из зеркал а остаотльные зеркала просто тупо отдыхают.
+ну а как мы помним запрос прилеетвший на зекрало работает со сокростью диска в зеркале.
+итак получаем скорсть чтения файла с фс с одного диска.
+
+
+root@freenas-5[~]# fio --randrepeat=1 --direct=1 --gtod_reduce=1 --name=test --filename=/mnt/POOL-01/ds2-128K/fio.dat  --bs=$((1024 *1024)) --ioengine=posixaio      --iodepth=1  --runtime=60  --readwrite=read --numjobs=1  --group_reporting --offset=0   --offset_increment=200M
+test: (g=0): rw=read, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=posixaio, iodepth=1
+fio-3.28
+Starting 1 process
+Jobs: 1 (f=1): [R(1)][100.0%][r=143MiB/s][r=143 IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=57036: Fri Dec  5 09:58:19 2025
+  read: IOPS=104, BW=104MiB/s (109MB/s)(6270MiB/60074msec)
+
+тоесть BW=104MiB/s
+
+
+теперь добавляем иодепф. это дает то что у нас два запроса одноврменно пихаются на два разых зеркала.
+пэтому  у нас скорость должна вырасти в х1.5 - х2 раза
+
+# fio --randrepeat=1 --direct=1 --gtod_reduce=1 --name=test --filename=/mnt/POOL-01/ds2-128K/fio.dat  --bs=$((1024 *1024)) --ioengine=posixaio      --iodepth=2  --runtime=60  --readwrite=read --numjobs=1  --group_reporting --offset=0   --offset_increment=200M
+test: (g=0): rw=read, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=posixaio, iodepth=2
+fio-3.28
+Starting 1 process
+Jobs: 1 (f=1): [R(1)][100.0%][r=232MiB/s][r=231 IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=57054: Fri Dec  5 09:59:35 2025
+  read: IOPS=164, BW=165MiB/s (173MB/s)(9918MiB/60168msec)
+
+
+тоесть BW=165MiB/s
+тоесть да. теория совплаа с праккиеой. но это пока теория касающаяся страйпа.
+
+
+так как унас в страйпе 4 vdev то между iodeph=1 и iodepth=4 у нас долна скорсость расти линейно.
+
+
+# fio --randrepeat=1 --direct=1 --gtod_reduce=1 --name=test --filename=/mnt/POOL-01/ds2-128K/fio.dat  --bs=$((1024 *1024)) --ioengine=posixaio      --iodepth=3  --runtime=60  --readwrite=read --numjobs=1  --group_reporting --offset=0   --offset_increment=200M
+test: (g=0): rw=read, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=posixaio, iodepth=3
+fio-3.28
+Starting 1 process
+Jobs: 1 (f=1): [R(1)][100.0%][r=262MiB/s][r=261 IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=57064: Fri Dec  5 10:00:43 2025
+  read: IOPS=223, BW=223MiB/s (234MB/s)(10.0GiB/45900msec)
+
+тоесть BW=223MiB/s
+
+
+
+
+# fio --randrepeat=1 --direct=1 --gtod_reduce=1 --name=test --filename=/mnt/POOL-01/ds2-128K/fio.dat  --bs=$((1024 *1024)) --ioengine=posixaio      --iodepth=4  --runtime=60  --readwrite=read --numjobs=1  --group_reporting --offset=0   --offset_increment=200M
+test: (g=0): rw=read, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=posixaio, iodepth=4
+fio-3.28
+Starting 1 process
+Jobs: 1 (f=1): [R(1)][97.4%][r=343MiB/s][r=343 IOPS][eta 00m:01s]
+test: (groupid=0, jobs=1): err= 0: pid=57085: Fri Dec  5 10:01:33 2025
+  read: IOPS=264, BW=265MiB/s (278MB/s)(10.0GiB/38689msec)
+
+
+тоесть  BW=265MiB/s
+
+
+тоесть итого 
+iodepth=1 BW=104MiB/s
+iodepth=4 BW=265MiB/s
+
+ну вобщем выросло и значаительно хотя хотелост бы больше.
+
+
+а вот дальше я делаю  iodepht=8
+это значит что на кажде зеркало прилает 2 запроса сразу. бизитайм дисков в зеркале ставнится 94%
+но прироса перфомранса мы больше не должны увидеть ровно так как это было ранее наверху когда у нас 
+миррор и я делаю иодпеф=2
+смотрим
+
+
+
+# fio --randrepeat=1 --direct=1 --gtod_reduce=1 --name=test --filename=/mnt/POOL-01/ds2-128K/fio.dat  --bs=$((1024 *1024)) --ioengine=posixaio      --iodepth=8  --runtime=60  --readwrite=read --numjobs=1  --group_reporting --offset=0   --offset_increment=200M
+test: (g=0): rw=read, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=posixaio, iodepth=8
+fio-3.28
+Starting 1 process
+Jobs: 1 (f=1): [R(1)][100.0%][r=450MiB/s][r=449 IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=57097: Fri Dec  5 10:02:29 2025
+  read: IOPS=370, BW=371MiB/s (389MB/s)(10.0GiB/27638msec)
+
+и на удивление BW=371MiB/s резулатат вырос да еще как. почему непонятно
+
+
+
+увеичиваю еще иодепфс до 16 
+это значит на один мироро будет пулятся 4 запроса сразу.
+опять же по идее не долэжно все круто улучшится
+
+# fio --randrepeat=1 --direct=1 --gtod_reduce=1 --name=test --filename=/mnt/POOL-01/ds2-128K/fio.dat  --bs=$((1024 *1024)) --ioengine=posixaio      --iodepth=16  --runtime=60  --readwrite=read --numjobs=1  --group_reporting --offset=0   --offset_increment=200M
+test: (g=0): rw=read, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=posixaio, iodepth=16
+fio-3.28
+Starting 1 process
+Jobs: 1 (f=1): [R(1)][95.8%][r=510MiB/s][r=510 IOPS][eta 00m:01s]
+test: (groupid=0, jobs=1): err= 0: pid=57123: Fri Dec  5 10:05:20 2025
+  read: IOPS=437, BW=438MiB/s (459MB/s)(10.0GiB/23393msec)
+
+
+однако оно еще улучшилсь и зачиенльно BW=438MiB/s !
+
+я полагаю что тестовый файл слишком линейно лежит на диске. 
+щас я ппробую его разорвать на раскиданные части и повтортть эксприепнтмент.
+
+
+
+
+
+$$$$$$$$$$$$$$$$
+
+
+
+
+
  
 (размер блока чтения 4К  )   (точное совпадение иопсов 14.0k IOPS в gstat и fio !!)
 (этот тест я делаю тлокьо чтобы проверить что иопсы совпадают что вырваниеваение меджду блоками 
@@ -2893,6 +3619,15 @@ test: (g=0): rw=read, bs=(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioen
 fio-3.28
 Starting 1 process
 Jobs: 1 (f=1): [R(1)][100.0%][r=54.7MiB/s][r=14.0k IOPS][eta 00m:00s]
+
+
+# fio --randrepeat=1 --ioengine=psync --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-01/ds2-4K/fio.dat  --bs=$((1024*1024)) --iodepth=1  --runtime=40  --readwrite=read  --numjobs=1  --group_reporting    
+test: (g=0): rw=read, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=psync, iodepth=1
+fio-3.28
+Starting 1 process
+Jobs: 1 (f=1): [R(1)][12.0%][r=33.7MiB/s][r=33 IOPS][eta 05m:02s] 
+
+
 
 
 (размер блока чтения 4M  )  [160 MB/s]
@@ -3177,6 +3912,7 @@ root@fr:~ #
 
  #  zfs create  -o compression=off -o  primarycache=metadata  -o secondarycache=metadata -o recordsize=4KiB  POOL-02/ds2-4K
 
+ # dd if=/dev/urandom bs=1M count=$(( 10 * 1024 )) of=/POOL-03-MIRROR-SSD/ds2-128K/fio.dat status=progress
 
 
 (!!!) на даный момент я оанражил поразительную вещь. если у нас есть датасет с рекордсайз=А

@@ -3740,6 +3740,22 @@ HPET  - самый навроченный. самый точный.
 root@truenas-0-233[~]# gpart destroy -F ada1
 ada1 destroyed
 
+если же он выдаст ошибку
+# gpart destroy -F ada1                                       
+gpart: arg0 'ada1': Invalid argument
+
+это значит на диске нет никакой label (таблицы разделов) 
+поэому и удалять нечего. 
+это можно еще вот так проверить
+
+# gpart show ada1
+
+gpart: No such geom: ada1.
+
+
+тода можно сразу переходить к следуюещему шагу
+
+
 root@truenas-0-233[~]# gpart create -s gpt ada1
 ada1 created
 

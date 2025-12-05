@@ -1,0 +1,28 @@
+| zdb
+| zfs
+
+если он выбется еи нехоче делать 
+
+
+root@freenas-5[/]# zdb -C POOL-01
+zdb: can't open 'POOL-01': No such file or directory
+root@freenas-5[/]# 
+
+
+это значит что файл zpool.cache 
+лежит в нестаднаттаттной папкке.
+решение
+
+# zdb  -U /data/zfs/zpool.cache   -C POOL-01
+
+MOS Configuration:
+        version: 5000
+        name: 'POOL-01'
+        state: 0
+        txg: 17075
+        pool_guid: 260493455820710349
+
+
+
+
+и сразу все равботает!
