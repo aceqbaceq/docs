@@ -1,0 +1,10 @@
+| pstree
+
+
+чтобы он линии не резал -l
+
+# pstree -Asptl 2646769
+systemd(1)---systemd(1074)---gnome-terminal-(1773)---bash(2645708)---sudo(2645730)---sudo(2645735)---bash(2645736)---mc(2646767)---bash(2646769)
+
+
+
