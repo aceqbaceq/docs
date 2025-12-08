@@ -1,0 +1,102 @@
+ifconfig re0 mtu 9000
+
+=========
+
+root@truenas[~]# netstat -w 1 -I re0
+            input            re0           output
+   packets  errs idrops      bytes    packets  errs      bytes colls
+        10     0     0        660         10     0       1492     0
+        26     0     0       1716         27     0       4679     0
+        17     0     0       1174         18     0       2356     0
+        22     0     0       1452         22     0       3330     0
+        13     0     0        894         13     0       2286     0
+        14     0     0        924         14     0       2166     0
+        12     0     0        828         20     0       3064     0
+        11     0     0        824         21     0       3455     0
+
+
+=================
+
+
+
+
+
+systat  -vm 1
+
+
+
+
+      users    Load
+   Mem usage:    %Phy   %Kmem                           VN PAGER   SWAP PAGER
+Mem:      REAL           VIRTUAL                        in   out     in   out
+       Tot   Share     Tot    Share     Free   count
+Act                                            pages
+All                                                       ioflt  Interrupts
+Proc:                                                     cow         total
+  r   p   d    s   w   Csw  Trp  Sys  Int  Sof  Flt       zfod
+                                                          ozfod
+                                                         %ozfod
+  . %Sys    . %Intr   . %User   . %Nice   . %Idle         daefr
+|    |    |    |    |    |    |    |    |    |    |       prcfr
+                                                          totfr
+                                           dtbuf          react
+Namei     Name-cache   Dir-cache           maxvn          pdwak
+   Calls    hits   %    hits   %           numvn          pdpgs
+                                           frevn          intrn
+                                                          wire
+Disks  ada0  ada1 pass0 pass1 pass2                       act
+KB/t                                                      inact
+tps                                                       laund
+MB/s                                                      free
+%busy                                                     buf
+
+
+===========
+
+arcstat 1
+
+zsh: command not found: 1
+root@truenas[~]# arcstat 1
+    time  read  miss  miss%  dmis  dm%  pmis  pm%  mmis  mm%  size     c  avail
+09:27:00     0     0      0     0    0     0    0     0    0  287M  676M   1.6G
+09:27:01     0     0      0     0    0     0    0     0    0  287M  676M   1.6G
+
+=====
+
+[root@truenas ~]# iostat -t da -d   1
+            ada0             ada1 
+ KB/t  tps  MB/s  KB/t  tps  MB/s 
+ 64.5   48   3.0   197   25   4.8 
+  0.0    0   0.0   0.0    0   0.0 
+  0.0    0   0.0   8.0   66   0.5 
+  0.0    0   0.0   0.0    0   0.0 
+  0.0    0   0.0   0.0    0   0.0 
+
+=========
+
+
+gstat
+
+
+dT: 1.029s  w: 1.000s
+ L(q)  ops/s    r/s   kBps   ms/r    w/s   kBps   ms/w   %busy Name
+    0      0      0      0    0.0      0      0    0.0    0.0| ada0
+    0      0      0      0    0.0      0      0    0.0    0.0| ada1
+    0      0      0      0    0.0      0      0    0.0    0.0| ada1p1
+    0      0      0      0    0.0      0      0    0.0    0.0| ada1p2
+    0      0      0      0    0.0      0      0    0.0    0.0| gptid/285b499b-d308-11f0-91b2-f0def19938c3
+
+
+
+==============
+
+mount -t nfs4 -o rw,vers=4.2,rsize=131072,wsize=131072,sync,noac,nolock,actimeo=0,lookupcache=none,hard 10.254.254.2:/ds2-64K /mnt/NFS
+
+
+
+ mount | grep nfs
+10.254.254.2:/ds2-64K on /mnt/NFS type nfs4 (rw,relatime,sync,vers=4.2,rsize=131072,wsize=131072,namlen=255,acregmin=0,acregmax=0,acdirmin=0,acdirmax=0,hard,noac,fatal_neterrors=none,proto=tcp,timeo=600,retrans=2,sec=sys,clientaddr=10.254.254.1,lookupcache=none,local_lock=none,addr=10.254.254.2)
+
+
+
+=====
