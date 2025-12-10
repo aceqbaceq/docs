@@ -1,0 +1,32 @@
+| zfs
+| полезняшка
+
+
+если я делаю 
+
+   zpool -C pool_name
+
+или 
+
+   zdb ...
+
+и в обоих случаях зфс шлет нахер
+
+это значит что на дефолтовом месте нет файла zpool.cache
+
+пока неочень понимаю что в этом файле. 
+первым шагом нужно его поискать на диске.
+а если его нет то его можно создать на лету.
+
+  240  zpool set cachefile=/data/zfs/zpool.cache boot-pool
+
+после этого можно в командах его указат чрез -U
+после этого все наши команды зараотат
+
+  zdb -U /data/zfs/zpool.cache  -C boot-pool
+  243  ls -i /boot-pool/ds2-16K/fio.dat 
+  244  zdb -ddddd boot-pool/ds2-16K 3 | head -n 40
+  245  zdb -U /data/zfs/zpool.cache -ddddd boot-pool/ds2-16K 3 | head -n 40
+  246  history | tail -n 30
+
+
