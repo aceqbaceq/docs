@@ -26,6 +26,109 @@ Wt Cache Reorder: Enabled
 якобы 8MB Buffer Cache (оперативка)
 
 
+
+
+вот этот ноутбучный диск 
+=== START OF INFORMATION SECTION ===
+Model Family:     Western Digital Blue Mobile
+Device Model:     WDC WD10JPVX-08JC3T5
+Serial Number:    WD-WXG1E6498ZYE
+LU WWN Device Id: 5 0014ee 6af883e8d
+Firmware Version: 05.01A05
+User Capacity:    1,000,204,886,016 bytes [1.00 TB]
+Sector Sizes:     512 bytes logical, 4096 bytes physical
+Rotation Rate:    5400 rpm
+Device is:        In smartctl database [for details use: -P show]
+ATA Version is:   ACS-2 (minor revision not indicated)
+SATA Version is:  SATA 3.0, 6.0 Gb/s (current: 3.0 Gb/s)
+Local Time is:    Wed Dec 10 14:04:48 2025 PST
+SMART support is: Available - device has SMART capability.
+SMART support is: Enabled
+AAM feature is:   Unavailable
+APM feature is:   Disabled
+Rd look-ahead is: Enabled
+Write cache is:   Enabled
+DSN feature is:   Unavailable
+ATA Security is:  Disabled, frozen [SEC2]
+Wt Cache Reorder: Enabled
+
+
+его скорость линейного чтения на голом блочном устройстве   106 MB/s
+
+
+а вот скорость линейного чтения из файла который записан на zfs dataset
+с разными рекордсайзами. плюс каждый файл был максимально разорван на куски через cow
+путем рандомврайта по всему телу.  чтения шло размером 1МБ (заказ в фио) в независимости 
+от размера рекордсайза
+
+fio --randrepeat=1 --ioengine=psync --direct=1 --gtod_reduce=1 --name=test --filename=/boot-pool/ds2-16K/fio.dat  --bs=$(( 1024 *1024)) --iodepth=1  --runtime=45  --readwrite=read --numjobs=1  --group_reporting
+
+
+
+
+i=1024
+  BW=44.2MiB/s 
+
+
+i=512
+  BW=39.1MiB/s 
+
+
+i=256
+  BW=22.6MiB/s 
+
+
+i=128
+  BW=18.9MiB/s 
+
+
+i=64
+  BW=14.3MiB/s
+
+
+
+i=32
+  BW=7.6MiB/s 
+
+i=16
+  BW=4.2MiB/s 
+
+
+i=8
+  BW=2.4MiB/s
+
+
+i=4
+  BW=1.5MiB/s
+
+
+
+итого видно что на 128К у нас остается 18% от голой скорости блочного устройства.
+а если мы хотим в 2 раза болше то нужно увеличичвать рекордсайз до 512К
+
+
+
+далее продолжение 
+
+
+хочу скказат вот что - чем больше размер файла мы создаем. его размер его тела.
+и чем меньше у нас блокФС тем больше нужно вложенность в b-tree метаданных дереве
+в котором записано где искать на диске очередной блокФС. поэтому можно заметить такой момент
+что для файла 10ГБ и блокаФС(рекордсайз) 4К чтобы прочесть 1 блокФС полезных данных то 
+нужносчитать с диска 3 или 4 блока (по 4К) метаданных. поэтому можно заметить такой прикол
+если мы читаем с диска блоками 4К с датасета с рекордсайзом 4К то у нас в фио трафик
+срупута равен N а реально с диска считывается 3*N или 4*N. вот это в этом дело. если 
+в арк нет всех метаданных то он будет читаь их с диска.  поэтому чем меньше у нас рекордсайз
+у датасета и чем больше по размеру файл тем больше по факту места на диске будет занимать
+не сам файл а его метаданные! тоесть чтобы хранить на диске файл 10ГБ по факту на диске
+будет занято 30-40ГБ места! вот такое огромная потеря полезного места на диске!
+
+
+
+
+
+
+
 вначале про iodepth
 что это такое.
 это когда прога какимто макаром запульнула к ядру а оно в свою очеред к диску сразу 
