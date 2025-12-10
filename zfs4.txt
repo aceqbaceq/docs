@@ -1062,6 +1062,8 @@ root@rawflowdb4:/#  zpool add store spare c0t5000C500B1BECC82d0
 iostat -En выводит диски котоыреыжху же нет!
 якобы вот решение
 
-devfsadm -Cvc disk 5000c50066c7d4f8
+devfsadm -Cvc disk
 
-ПРРВЕРИТЬ
+ПРРВЕРИТЬ. проверил. фаонтомные диски не удаляет.
+
+
