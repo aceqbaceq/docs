@@ -1,0 +1,11 @@
+| zfs
+| linux
+| arc
+
+проверить лимит и выставить его
+
+root@2hst8:/HST-STOR-LOCAL/fio# echo 96714060800 > /sys/module/zfs/parameters/zfs_arc_max
+root@2hst8:/HST-STOR-LOCAL/fio# 
+root@2hst8:/HST-STOR-LOCAL/fio# cat /sys/module/zfs/parameters/zfs_arc_max
+96714060800
+

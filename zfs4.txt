@@ -1,5 +1,12 @@
 rofl4
 
+КАК МЕНЯТЬ ДИСК НА СОЛЯРИСЕ
+
+
+СМОТРИМ ПУЛ
+НА КАКОМ ДИСКЕ ОШИБКИ
+
+
 root@rawflowdb4:/# zpool status -v store                  
   pool: store
  state: DEGRADED
@@ -73,9 +80,8 @@ errors: No known data errors
 
 
 
-
-
-
+НАПРИМЕР БУДЕМ МЕНЯТЬ ДИСК c0t5000CCA369D53642d0
+ДОПОЛНИТЕЛЬНО СМОТРИМ НА ОТЧЕТ ОБ ОШИБКАХ В IOSTAT
 
 root@rawflowdb4:/# dmesg | grep c0t5000C50066CC38DBd0
 root@rawflowdb4:/# iostat -En | grep c0t5000C50066CC38DBd0
@@ -264,13 +270,19 @@ Illegal Request: 1 Predictive Failure Analysis: 0
 ====
 
 
-zpool replace store c0t5000CCA369DCC6F7d0   c0t5000C50066CC42C9d0
+ПОДКЛЮЧАЕМ СПЕЙР ДИСК ЧТОБЫ НА НЕГО НАЧАЛИ КОПИРОВАТЬСЯ ДАННЫЕ
+важно понимать что пока проблемы диск находится в пуле то с него тоже будут идти
+считывания так что ошибки продоажаться. но лучше будет два диска в мирроре чем один
+лушче дождться конца резилвеоринга
 
+zpool replace store c0t5000CCA369D53642d0   c0t5000C50066CC38DBd0
 
-====
+первый аргумент это старый диск которйы херовый а второй аргумент аргумент который хорооший новый
+получим на экране
+
            spare-0                  DEGRADED     0     0   161
-              c0t5000CCA369D53642d0  DEGRADED    91     0   271  too many errors
-              c0t5000C50066CC38DBd0  ONLINE       0     0   338
+              c0t5000CCA369D53642d0  DEGRADED    91     0   271  too many errors    **<<< болльной диск
+              c0t5000C50066CC38DBd0  ONLINE       0     0   338                     **<<< диск который его заменит
             spare-1                  DEGRADED   326     0     0
               c0t5000C50066C7D4F8d0  FAULTED      0     0     0  too many errors
               c0t5000C50078E40AAAd0  ONLINE       0     0   326
@@ -279,9 +291,28 @@ zpool replace store c0t5000CCA369DCC6F7d0   c0t5000C50066CC42C9d0
 
 
 
+==
+
+КОГДА РЕЗИЛВЕРИНГ ЗАКОНЧИТСЯ ТО УДАЛЯЕМ БОЛЬНОЙ ДИСК ИЗ ПУЛА
+  # zpool detach STORE c0t5000CCA369D53642d0
 
 
-      to get command specific help
+
+теперь про имя диска c0t5000CCA369D53642d0
+
+у него 
+
+c0 = это номер контроллера куда он воткнут
+d0 = это номер диска по счету который сидит на этом контроллере
+5000CCA369D53642= а вот это disk GUID
+
+5000CCA369D53642
+
+онто нам и нужен.потому что sas2ircu как раз таки идентифицирует диски по их GUID
+поэтому берем диск GUID и через sas2ircu ищем в какой слот он воткнут на морде сервера
+
+
+
 root@rawflowdb4:/# sas2ircu 0 display
 LSI Corporation SAS2 IR Configuration Utility.
 Version 12.00.00.00 (2011.11.08) 
@@ -867,6 +898,7 @@ root@rawflowdb4:/#
 
 
 
+на основе GUID нужный нам диск это 
 
 
 
@@ -888,26 +920,134 @@ Device is a Hard disk
 
 
 
-
+ЗНАЧИТ СЛОТ МЫ УЗНАЛИ. НО ЧТОБЫ ПЕРЕСТРАХОВАТЬСЯ ПОДСВЕТИМ ЭТОТ ДИСК В СЛОТЕ
 ПОДСВЕТКА
 	# sas2ircu 0 locate 3:1  ON
 
 
-удаление из пула
-	zpool detach store c0t5000C5003F0ACEE0d0
+(!!)ВАЖНАЯ ПОДЬЕБКА - по крайнеймере на серверах супермикро номер слота который покзывает утилита sas2ircu и 
+                      номер слота который реально на морде супермикро ЭТО СОВЕРШЕННО РАЗНЫЕ ВЕЩИ. ОНИ ВОБЩЕ МОГУТ НЕ
+                      СОВПАДАТЬ. ПОЭТОМУ ПРИ ВЫТАСКИВАНИИ ДИСКА НУЖНО ОРИЕНТИРОВАТЬСЯ ТОЛЬЛКО НА КРАСНУЮ ЛАМПОЧКУ НА ДИСКЕ.
+                      ИНАЧЕ МОЖНО ЛЕГКО ВЫТАЩИТЬ СОВЕРШЕННО НЕТОТ ДИСК.
 
-# cfgadm -al | grep -i 5000C5003F0ACEE0  
-c3::w5000c5003f0acee0,0        disk-path    connected    configured   unknown
+
+удаление из пула если еще не удалили
+	 # zpool detach store c0t5000cca369d53642d0
+
+
+ТЕПЕРЬ НУЖНО СКАЗАТЬ СОЛЯРИСУ ЧТО МЫ НАШ БОЛЬНОЙ ДИСК БУДЕМ ФИЗИЧЕСКИ УДАЛЯТЬ
+# cfgadm -al | grep -i 5000cca369d53642  
+c3::w5000cca369d53642,0        disk-path    connected    configured   unknown
 
 #УДАЛЕНИЕ ДИСКА ИЗ /DEV SOLARISA
-	# cfgadm -c unconfigure c3::w5000c5003f0acee0,0
+	# cfgadm -c unconfigure c3::w5000cca369d53642,0
+
+результат
+  c3::w5000cca369d53642,0        disk-path    connected    unconfigured unknown
 
 
-ВЫТАСКИВАЕМ
+ВЫТАСКИВАЕМ ПЛОХОЙ ДИСК
+ВСТАВЛЯЕМ НОВЫЙ ДИСК
+ВОЗВРАЩАЕМСЯ К КОМПУ И СМОТРИМ ЛОГИ
+
+
+при вытаскивании в dmesg соляриса появеляется записи
+   genunix: [ID 408114 kern.info] /scsi_vhci/disk@g5000c50035e9e8b4 (sd25) offline
+   genunix: [ID 483743 kern.info] /scsi_vhci/disk@g5000c50035e9e8b4 (sd25) multipath status: failed: path 23 mpt_sas2/disk@w5000c50035e9e8b4,0 is offline
+   genunix: [ID 518930 kern.warning] WARNING: preconfig failed: disk
+    scsi: [ID 243001 kern.info] /pci@0,0/pci8086,340e@7/pci1000,3020@0 (mpt_sas0):
+    mptsas_handle_event_sync: IOCLogInfo=0x31170000
+    scsi: [ID 243001 kern.info] /pci@0,0/pci8086,340e@7/pci1000,3020@0 (mpt_sas0):
+    mptsas_handle_event: IOCLogInfo=0x31170000
+
+
+
+а при вставке нового диска в dmesg  появится
+      mptsas_access_config_page: IOCStatus=0x22 IOCLogInfo=0x30030116
+ scsi: [ID 583861 kern.info] sd58 at scsi_vhci0: unit-address g5000cca24ed10ae6: g5000cca24ed10ae6
+ genunix: [ID 936769 kern.info] sd58 is /scsi_vhci/disk@g5000cca24ed10ae6
+ genunix: [ID 408114 kern.info] /scsi_vhci/disk@g5000cca24ed10ae6 (sd58) online
+ genunix: [ID 483743 kern.info] /scsi_vhci/disk@g5000cca24ed10ae6 (sd58) multipath status: degraded: path 40 mpt_sas2/disk@w5000cca24ed10ae6,0 is online
 
 
 
 
+тут я замечу что если в zpool и iostat у нас диск имеет вид 
+    c0t5000cca369d53642d0
+в cfgadm имеет вид 
+    w5000cca369d53642
+а в dmseg он имеет вид
+    g5000cca369d53642
+в sas2ircu имеет вид
+    5000cca369d53642
+
+если мы обозначим 5000cca369d53642 как GUID то тогда диск имеет вид
+
+  zpool     c0tGUID
+  iostat    c0tGUID
+  cfgadm    wGUID
+  dmesg     gGUID
+  sas2ircu  GUID
+
+комнда format вот как показыает диск
+    18. c0t5000C50035E79BE1d0 <ATA-ST2000NM0011-SN02-1.82TB>
+          /scsi_vhci/disk@g5000c50035e79be1
+
+тоесть она показывает диск в виде c0tGUID и gGUID
+
+
+
+
+
+
+после того как диск удалили инфо о нем все еще сохраняется в системе
+# iostat -En | grep -i 5000C50035E9E8B4
+c0t5000C50035E9E8B4d0 Soft Errors: 13 Hard Errors: 14 Transport Errors: 37 
+
+# cfgadm -al | grep -i 5000C50035E9E8B4
+c3::w5000c50035e9e8b4,0        disk-path    connected    unconfigured unknown
+
+поидее вот эта команда должна удалить в папке /dev/ файлы относящиеся к вытащенному диску
+  # devfsadm -Cvc disk
+
+однако почемуто не помогает.
+
+
+
+ОБНУЛЯЕМ СЧЕТЧИКИ ОШИБОК НА ПУЛЕ
+
+# zpool cleat POOL_NAME
+
+
+
+ДОБАВЛЯЕМ НОВЫЙ ДИСК В ZPOOL
+
+диск имеет GUID=5000CCA24ED10AE6
+тогда
+
+якобы создаем спец файлы в /dev/dsk для нового диска
+
+    # devfsadm -i sd
+
+и добавляем в пул
+
+    # zpool add store spare  /dev/dsk/c0t5000CCA24ED10AE6d0
+
+
+ВСЕ. ГОТОВО.
+
+
+
+
+
+
+
+
+
+
+
+
+ДОБАВКА:
 
 
 
