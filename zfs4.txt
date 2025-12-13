@@ -1,7 +1,52 @@
-rofl4
+| zfs
+| rowflowdb3
+| rowflowdb2
+| rowflowdb4
+| замена диска
+| solaris
 
+
+(!!!) ВНИМАНИЕ  (!!!)    (!!!) ВНИМАНИЕ  (!!!)  (!!!) ВНИМАНИЕ  (!!!)
+(!!!) ВНИМАНИЕ  (!!!)    (!!!) ВНИМАНИЕ  (!!!)  (!!!) ВНИМАНИЕ  (!!!)
+(!!!) ВНИМАНИЕ  (!!!)    (!!!) ВНИМАНИЕ  (!!!)  (!!!) ВНИМАНИЕ  (!!!)
+
+на солярисе (по крайней мере 10)  если мы вытащили диск из компа то все равно
+и в cfgadm -al и в iostat -En он продолжает быть виден! devfsadm никак не выпилывает /dev/dsk от этого
+диска. поэтому в системе остаются диски ФАНТОМЫ !!!
+как их идентифицировать. запускаем
+
+  # iostat -En
+
+диски которые фантомы будут иметь вид 
+
+     sdN
+
+а не c0t0......
+
+например 
+
+
+c0t5000CCA369F0B314d0 Soft Errors: 0 Hard Errors: 0 Transport Errors: 0     ***<<<<<< НАСТОЯЩИЙ ДИСК 
+Vendor: ATA      Product: Hitachi HDS72302 Revision: AA10 Serial No:  
+Size: 2000.40GB <2000398933504 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 0 Recoverable: 0 
+Illegal Request: 1 Predictive Failure Analysis: 0 
+
+sd41             Soft Errors: 0 Hard Errors: 15 Transport Errors: 20         ***<<<<<< ФАНТОМ ДИСК 
+Vendor: ATA      Product: Hitachi HDS72302 Revision: AA10 Serial No:  
+Size: 2000.40GB <2000398933504 bytes>
+Media Error: 12 Device Not Ready: 0 No Device: 3 Recoverable: 0 
+Illegal Request: 1 Predictive Failure Analysis: 0 
+
+
+(!!!) ВНИМАНИЕ  (!!!)    (!!!) ВНИМАНИЕ  (!!!)  (!!!) ВНИМАНИЕ  (!!!)
+(!!!) ВНИМАНИЕ  (!!!)    (!!!) ВНИМАНИЕ  (!!!)  (!!!) ВНИМАНИЕ  (!!!)
+(!!!) ВНИМАНИЕ  (!!!)    (!!!) ВНИМАНИЕ  (!!!)  (!!!) ВНИМАНИЕ  (!!!)
+
+
+
+ОСНОВНОЙ ТЕКСТ:
 КАК МЕНЯТЬ ДИСК НА СОЛЯРИСЕ
-
 
 СМОТРИМ ПУЛ
 НА КАКОМ ДИСКЕ ОШИБКИ

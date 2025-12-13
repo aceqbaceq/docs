@@ -1,0 +1,132 @@
+| ubuntu 
+| ext4
+| lvm
+| grub
+| initrd
+| initramfs
+
+
+что призошло - рут раздел имеет xfs но один чел вставил в /etc/default/grub 
+вот такую строку
+
+GRUB_VASYA_OPTS="ipv6.disable=1 rootflags=data=writeback transparent_hugepage=never"
+
+
+нас интересует вот этот кусок
+
+     rootflags=data=writeback
+
+опция rootflags= ядра служит для того что мы сообщаем ядру параметры монтирования корневой ФС, такие параметры которые
+немогут быт изменены через remount.
+так вот здесь указвыаются опции mount для конкретной ФС. если это ext4 то можно вставить ееные настройки
+  
+     rootflags=data=writeback
+
+
+но если корневая фс это xfs то не поймет прикола и пошлет нахуй. а именно.
+вот мы вставили эту строку в grub конфиг.
+потом мы обнвоили grub
+
+   # update-grub
+
+он нам сформировал /boot/grub/grub.cfg
+
+
+....
+linux	/vmlinuz-5.15.0-163-generic root=/dev/dm-1 ro  ipv6.disable=1 rootflags=data=writeback transparent_hugepage=never quiet lvm
+...
+
+
+и вот ядро грузится и собирется смонтирвать корнвую фс и драйвер xfs видит опцию монтирования   
+			data=writeback
+и охуевает и на экране пишеи я не поняла что за хуйня data
+и дальше ядро выпадает в initramfs
+
+
+
+я же внчале подумал что есть какая то проблема загрузки за счет lvm
+кстати вот такой скрипт для убунты ибо раньше она непонимала что в initrd нужно включить все нужные lvm штуки
+
+
+/etc/initramfs-tools/scripts/local-top/forcelvm
+
+
+#!/bin/sh
+PREREQ=""
+prereqs()
+{
+   echo "$PREREQ"
+}
+case $1 in
+prereqs)
+   prereqs
+   exit 0
+   ;;
+esac
+. /scripts/functions
+# Begin real processing below this line
+
+# This was necessary because ubuntu's LVM autodetect is completely broken. This
+# is the only line they needed in their script. It makes no sense.
+# How was this so hard for you to do, Ubuntu?!?!?
+lvm vgchange -ay
+
+
+
+# chmod +x `/etc/initramfs-tools/scripts/local-top/forcelvm`
+
+# update-initramfs -u -k all
+
+# update-grub
+
+
+
+если все прошло верно то призагрузке ядра 
+должно проскочить сообщение что vg0 успешно загружен типа  того.
+
+нашел тут https://askubuntu.com/questions/551446/cant-find-lvm-root-dropped-back-to-initramfs
+
+
+кстати у убунты в меню есть пункт в GRUB это Recovery mode.
+очень прикольная штука. это непросто сингл юзер режим. это реально я успешно загрузился. ввел пароль рута 
+и у меня были уже примонтрованы все ФС.  оттуда же я смог стартанул ssh (правда в этом режиме нельзя зайти ни под кем кроме рута
+и то если в sshd_config это разрешено). в общем отличный ремонтный режим сразу из коробки! также для ремонта можно заакачать 
+debian live iso
+
+
+так вот если мы выпали в inintramfs это значит ядро несмогло смонтрровать root fs 
+и можно руками все это примонтировать (хотя есть режим Recoverymode где руккми ничего делать нанадо)
+
+
+итак описываю сесанас работы с initrmafs режимом
+
+
+# modprobe dm-mod
+# modprobe lvm
+# lvm vgchange -ay vg0
+# mount /dev/mapper/vg0-lv--0 /root
+# mount --rbind /dev /root/dev
+# mount --rbind /proc /root/proc
+# mount --rbind /sys /root/sys
+# mount --rbind /run /root/run
+mount все точки монтрования котоыре унас были в fstab
+
+# chroot /root /bin/bash
+
+делаем дела
+потом например 
+
+# update-initramfs -u -k 5.15.0-163-generic
+# update-grub
+# grub-install /dev/sda
+
+
+
+еще раз в моем случае пролема в этой строчке в параметрах загрузки яддра
+
+    rootflags=data=writeback
+
+
+она относится к параметрам маунта ext4 а на рутФС стоит XFS 
+поэтмо ядро и немогло приманутить рутФС.
+
