@@ -1,0 +1,41 @@
+| sync
+| async
+
+
+запрос на запись в синхронном режиме
+
+dd if=/dev/urandom bs=1M count=1000   of=/dev/zvol/boot-pool/zvol-128K  oflag=sync status=progress
+
+
+говоря другими словами 
+truss  dd if=/dev/urandom bs=1M count=1 of=/dev/zvol/boot-pool/zvol-128K  oflag=sync
+openat(AT_FDCWD,"/dev/zvol/boot-pool/zvol-128K",O_RDWR|O_FSYNC|O_CREAT|O_TRUNC,0666) = 4 (0x4)
+
+когда мы рабоетаем с файлом с флагом O_FSYNC бувално дает то что  наш запрос он не просто
+влетает в пейдж кеш и там остатеся и ос потом когда то сует его на диск.
+нащ запроснепросто долтетает до write buffer cache внутри диска! нет  нихуя!
+наш запрос какимто макаром долетает прям до пластин диска! вот что это значит!
+
+как проверить.
+запускаем
+
+
+dd if=/dev/urandom bs=1M count=1000   of=/dev/zvol/boot-pool/zvol-128K  oflag=sync status=progress
+получаем 18МБ\с
+
+потом вырубаем на диске кеш на запись
+
+
+
+
+smartctl --set=wcache,off /dev/ada1
+
+
+запукаем еще раз
+
+
+dd if=/dev/urandom bs=1M count=1000   of=/dev/zvol/boot-pool/zvol-128K  oflag=sync status=progress
+
+полеучаем теже самые 18МБ\с !!!!!!
+
+
