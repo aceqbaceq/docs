@@ -1,0 +1,19 @@
+| freebsd
+| strace
+| trace
+
+аналог strace в фрибсл
+
+# Тест O_SYNC записи
+sudo truss -e -o sync.log ./test_sync
+
+# Только нужные вызовы
+sudo truss -e write,open,fdatasync -o sync.log ./test_sync
+
+# С временем
+sudo truss -t write,open,fdatasync -D -o sync.log ./test_sync
+
+
+и офигеешь от того как мало вывзоов делает BSD libs по сравнению с linux glibc !
+
+
