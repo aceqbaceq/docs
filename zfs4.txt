@@ -942,7 +942,6 @@ root@rawflowdb4:/#
 
 
 
-
 на основе GUID нужный нам диск это 
 
 
@@ -964,8 +963,9 @@ Device is a Hard disk
   Drive Type                              : SATA_HDD
 
 
-
-ЗНАЧИТ СЛОТ МЫ УЗНАЛИ. НО ЧТОБЫ ПЕРЕСТРАХОВАТЬСЯ ПОДСВЕТИМ ЭТОТ ДИСК В СЛОТЕ
+НО! прикол! на корпусах суперимкро номер слота указнный тут НИХУЯ НЕ СОВПАДАЕТ С НОМЕРОМ СЛОТАМ
+НАПИСАННЫМ НА КОРПУСЕ! ПОЭТОМУ ПЕРЕХОДИМ К ШАГУ КОГДА МЫ ПОДСВЕЧИВАЕМ.
+ПОДСВЕТИМ ЭТОТ ДИСК В СЛОТЕ
 ПОДСВЕТКА
 	# sas2ircu 0 locate 3:1  ON
 
@@ -991,12 +991,93 @@ c3::w5000cca369d53642,0        disk-path    connected    configured   unknown
   c3::w5000cca369d53642,0        disk-path    connected    unconfigured unknown
 
 
-ВЫТАСКИВАЕМ ПЛОХОЙ ДИСК
+ОСТАЛОСЬ ВЫТАЩИТЬ ДИСК.
+ПЕРЕД ТЕМ КАК ЭТО СДЕЛАТЬ ПОЛЕЗНО ВЫЯСНИТЬ КАК У ДИСКА ИМЯ В ВИДЕ sdN
+потому что в логах при вытаскаивании будет написано 
+
+   genunix: [ID 408114 kern.info] /scsi_vhci/disk@g5000c50035e9e8b4 (sd25) offline
+   genunix: [ID 483743 kern.info] /scsi_vhci/disk@g5000c50035e9e8b4 (sd25) multipath status: failed: path 23 mpt_sas2/disk@w5000c50035e9e8b4,0 is offline
+   genunix: [ID 518930 kern.warning] WARNING: preconfig failed: disk
+    scsi: [ID 243001 kern.info] /pci@0,0/pci8086,340e@7/pci1000,3020@0 (mpt_sas0):
+    mptsas_handle_event_sync: IOCLogInfo=0x31170000
+    scsi: [ID 243001 kern.info] /pci@0,0/pci8086,340e@7/pci1000,3020@0 (mpt_sas0):
+    mptsas_handle_event: IOCLogInfo=0x31170000
+
+поэтому для подстравхоквки полезно знать какой у него sdN имя
+я нормального способа незнаю. 
+есть только вот такой. 
+запускаем два вида iostat
+
+    # iostat -En
+c0t5000C50078C224ACd0 Soft Errors: 26 Hard Errors: 0 Transport Errors: 0 
+Vendor: ATA      Product: ST2000NM0033-9ZM Revision: GA0A Serial No:  
+Size: 2000.40GB <2000398933504 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 0 Recoverable: 26 
+Illegal Request: 1 Predictive Failure Analysis: 0 
+c0t5000C50066FB5A29d0 Soft Errors: 65 Hard Errors: 0 Transport Errors: 0 
+Vendor: ATA      Product: ST2000NM0033-9ZM Revision: SN03 Serial No:  
+Size: 2000.40GB <2000398933504 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 0 Recoverable: 65 
+Illegal Request: 1 Predictive Failure Analysis: 0 
+c0t5000C5007BB8BC2Ad0 Soft Errors: 13 Hard Errors: 0 Transport Errors: 0 
+Vendor: ATA      Product: ST2000NM0033-9ZM Revision: GA0A Serial No:  
+Size: 2000.40GB <2000398933504 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 0 Recoverable: 13 
+Illegal Request: 1 Predictive Failure Analysis: 0 
+c0t5000CCA24ED0BB5Ed0 Soft Errors: 14 Hard Errors: 0 Transport Errors: 0 
+Vendor: ATA      Product: HGST HUS724020AL Revision: A8B0 Serial No:  
+Size: 2000.40GB <2000398933504 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 0 Recoverable: 14 
+Illegal Request: 1 Predictive Failure Analysis: 0 
+c0t5000CCA24ED10AE6d0 Soft Errors: 0 Hard Errors: 0 Transport Errors: 0 
+Vendor: ATA      Product: HGST HUS724020AL Revision: A8B0 Serial No:  
+Size: 2000.40GB <2000398933504 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 0 Recoverable: 0 
+Illegal Request: 1 Predictive Failure Analysis: 0 
+
+  # iostat -E
+sd53      Soft Errors: 0 Hard Errors: 0 Transport Errors: 0 
+Vendor: ATA      Product: ST2000NM0033-9ZM Revision: GA06 Serial No:  
+Size: 2000.40GB <2000398933504 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 0 Recoverable: 0 
+Illegal Request: 1 Predictive Failure Analysis: 0 
+sd54      Soft Errors: 26 Hard Errors: 0 Transport Errors: 0 
+Vendor: ATA      Product: ST2000NM0033-9ZM Revision: GA0A Serial No:  
+Size: 2000.40GB <2000398933504 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 0 Recoverable: 26 
+Illegal Request: 1 Predictive Failure Analysis: 0 
+sd55      Soft Errors: 65 Hard Errors: 0 Transport Errors: 0 
+Vendor: ATA      Product: ST2000NM0033-9ZM Revision: SN03 Serial No:  
+Size: 2000.40GB <2000398933504 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 0 Recoverable: 65 
+Illegal Request: 1 Predictive Failure Analysis: 0 
+sd56      Soft Errors: 13 Hard Errors: 0 Transport Errors: 0 
+Vendor: ATA      Product: ST2000NM0033-9ZM Revision: GA0A Serial No:  
+Size: 2000.40GB <2000398933504 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 0 Recoverable: 13 
+Illegal Request: 1 Predictive Failure Analysis: 0 
+sd57      Soft Errors: 14 Hard Errors: 0 Transport Errors: 0 
+Vendor: ATA      Product: HGST HUS724020AL Revision: A8B0 Serial No:  
+Size: 2000.40GB <2000398933504 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 0 Recoverable: 14 
+Illegal Request: 1 Predictive Failure Analysis: 0 
+sd58      Soft Errors: 0 Hard Errors: 0 Transport Errors: 0 
+Vendor: ATA      Product: HGST HUS724020AL Revision: A8B0 Serial No:  
+Size: 2000.40GB <2000398933504 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 0 Recoverable: 0 
+Illegal Request: 1 Predictive Failure Analysis: 0 
+
+
+так вот потом берем имя например   c0t5000CCA24ED0BB5Ed0 и смотрим какой у него порядковый
+номер по счету сверух вниз
+а потом заходим во второй файл и ищем этот же порядоковый номер 
+например этот второй снизу значит его имя в другом файле sd57
+ВОТ ТЕПЕРЬ ИДЕМ И ВЫТАСКИВАЕМ ПЛОХОЙ ДИСК
 ВСТАВЛЯЕМ НОВЫЙ ДИСК
 ВОЗВРАЩАЕМСЯ К КОМПУ И СМОТРИМ ЛОГИ
 
 
-при вытаскивании в dmesg соляриса появеляется записи
+как уже сказал при вытаскивании в dmesg соляриса появеляется записи
    genunix: [ID 408114 kern.info] /scsi_vhci/disk@g5000c50035e9e8b4 (sd25) offline
    genunix: [ID 483743 kern.info] /scsi_vhci/disk@g5000c50035e9e8b4 (sd25) multipath status: failed: path 23 mpt_sas2/disk@w5000c50035e9e8b4,0 is offline
    genunix: [ID 518930 kern.warning] WARNING: preconfig failed: disk
@@ -1006,6 +1087,7 @@ c3::w5000cca369d53642,0        disk-path    connected    configured   unknown
     mptsas_handle_event: IOCLogInfo=0x31170000
 
 
+смотрим и сверяем тотли диск вытащили
 
 а при вставке нового диска в dmesg  появится
       mptsas_access_config_page: IOCStatus=0x22 IOCLogInfo=0x30030116
@@ -1039,7 +1121,9 @@ c3::w5000cca369d53642,0        disk-path    connected    configured   unknown
           /scsi_vhci/disk@g5000c50035e79be1
 
 тоесть она показывает диск в виде c0tGUID и gGUID
+кстаи GUID диска можно найти еще в 
 
+  #smartctl -x /dev/rdsk/c0t5000CCA24ED10AE6d0
 
 
 
@@ -1080,11 +1164,6 @@ c3::w5000c50035e9e8b4,0        disk-path    connected    unconfigured unknown
 
 
 ВСЕ. ГОТОВО.
-
-
-
-
-
 
 
 

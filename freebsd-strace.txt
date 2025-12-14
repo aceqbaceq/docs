@@ -1,0 +1,12 @@
+| freebsd
+| strace
+
+аналог
+
+truss -f dd if=/dev/urandom of=/dev/zvol/POOL-01/zvol-01-128K bs=1M count=1
+
+...
+ openat(AT_FDCWD,"/dev/zvol/POOL-01/zvol-01-128K",O_RDWR|O_CREAT|O_TRUNC,0666) = 4 (0x4)
+
+
+при этом можно охует наскько фрибсд glibc или как его там намнго менгьше делает сисколлов чем линуксовский!

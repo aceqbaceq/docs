@@ -1,0 +1,17 @@
+| FC
+| fibrechannel
+
+
+вкклюит врай кеш
+sdparm --set=WCE=1 /dev/sdc
+
+
+узнать скорсть порта
+# cat /sys/class/fc_host/host
+host6/ host7/ 
+# cat /sys/class/fc_host/host6/speed 
+2 Gbit
+# cat /sys/class/fc_host/host7/speed 
+unknown
+
+
