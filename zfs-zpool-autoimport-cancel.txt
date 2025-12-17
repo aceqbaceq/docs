@@ -1,0 +1,8 @@
+| zfs
+| zpool
+| import
+
+отменить автомипоорт пула при загркзке
+
+ zpool set cachefile=none POOL-03
+ 

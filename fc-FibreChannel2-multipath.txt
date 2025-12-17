@@ -1,0 +1,113 @@
+| linux
+| FC 
+| multipath
+| acer
+| altos
+
+есть такая полка FC 
+
+		ACER ALTOS 200F
+
+это 2004 год
+у нее 16 дырок sata 
+режим JBOD тоесть в ос видны все 16 дисков
+скорее всего 3Gb/s только
+
+у нее сзади всалвятеся бекплейн на 2 FC порта по 2Gb/s каждый.
+
+я вот что выяснил - что вот такой беклпейн имеет огарнчиение по  срупут 200МБ/с причем неважно 
+с одного порта мы это снимем или через мултипаф с двух через round rbind. это узкое место.
+
+в этту же полку можно встваит второй бекплейн. ( сеще двумя fc портами).
+так вот если вотакнуть из компа один провод водин бекплейн а второй во второй.
+то через мультипаф можно выжать по 200МБ.с   скаждого бепклпейна итого суммарно 400МБ/с
+
+теперь что касется иопсов.
+
+эта полка принимает далеко нелюбой SATA SSD диск. 
+уменя она нормально отнеслась к дискам:
+
+   samsung 860 EVO  1TB
+   INTEL SSD DC 3310 256GB
+
+и соверешннено категорически полка не приняла диск
+
+  intel ssd d3-s4520 480GB
+
+если я его вставляю то она начинает писать в логах на хосте линукса куда полка подключаена вот такое
+
+
+Dec 15 23:52:37 test kernel: I/O error, dev sdl, sector 35608 op 0x0:(READ) flags 0x80700 phys_seg 17 prio class 2
+Dec 15 23:52:37 test kernel: qla2xxx [0000:02:00.0]-301f:6: Dropped frame(s) detected (0x2e000 of 0xfe000 bytes).
+Dec 15 23:52:37 test kernel: sd 6:0:3:0: [sdl] tag#1352 FAILED Result: hostbyte=DID_ERROR driverbyte=DRIVER_OK cmd_age=0s
+Dec 15 23:52:37 test kernel: sd 6:0:3:0: [sdl] tag#1352 Sense Key : Aborted Command [current] 
+Dec 15 23:52:37 test kernel: sd 6:0:3:0: [sdl] tag#1352 <<vendor>>ASC=0x88 ASCQ=0x3 
+Dec 15 23:52:37 test kernel: sd 6:0:3:0: [sdl] tag#1352 CDB: Read(10) 28 00 00 00 da 78 00 07 f0 00
+
+Dec 15 23:52:37 test kernel: I/O error, dev sdl, sector 55928 op 0x0:(READ) flags 0x80700 phys_seg 17 prio class 2
+Dec 15 23:52:38 test kernel: qla2xxx [0000:02:00.0]-301f:6: Dropped frame(s) detected (0x86000 of 0xfe000 bytes).
+Dec 15 23:52:38 test kernel: sd 6:0:3:0: [sdl] tag#30 FAILED Result: hostbyte=DID_ERROR driverbyte=DRIVER_OK cmd_age=0s
+Dec 15 23:52:38 test kernel: sd 6:0:3:0: [sdl] tag#30 Sense Key : Aborted Command [current] 
+Dec 15 23:52:38 test kernel: sd 6:0:3:0: [sdl] tag#30 <<vendor>>ASC=0x88 ASCQ=0x3 
+Dec 15 23:52:38 test kernel: sd 6:0:3:0: [sdl] tag#30 CDB: Read(10) 28 00 00 01 12 08 00 07 f0 00
+
+
+вот такой прикол
+
+
+
+теперь на скорости иопсов те ssd с которым полка всетаки дружит.
+опытным путем выяснено что . на один диск она выжимает 4200 IOPS
+причем неважно к одному бекплейня я подключен хостом или к двум беплкейнаам через мултипаф. это неважно.
+
+также я выяснил что она выдает по 4200 IOPS на кадый отдельный диск. тоесть это не на полку целиком.
+если ссд дисков несколкьо то на каждый она выжмет по 4200 IOPS
+
+тоесть по иопасам эта полка вобще хлам. по линейному срупуту на одном бекплейне онарабоатает на уровне 1.5 современного диска.
+вот такой отчет. 
+
+
+
+
+
+
+теперь настройки мультипафа:
+
+
+
+root@test:/home/krivosheeva# cat /etc/multipath.conf
+defaults {
+    user_friendly_names yes
+    find_multipaths yes
+    path_selector "round-robin 0"
+    path_grouping_policy multibus
+    rr_min_io 1
+    no_path_retry fail
+}
+
+devices {
+    device {
+        vendor "INTEL|SEAGATE"
+        product "*"
+        path_selector "round-robin 0"
+        path_grouping_policy multibus
+        rr_min_io 1
+        hardware_handler "0"
+        no_path_retry 5
+    }
+}
+
+
+
+
+
+
+# cat /etc/modprobe.d/qla2xxx.conf 
+options qla2xxx ql2xmaxqdepth=2048 ql2xmaxframesz=2048 ql2xmvasynctoatio=1
+root@test:/home/krivosheeva# 
+
+
+
+# multipath -r
+# multipath -ll
+

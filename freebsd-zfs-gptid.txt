@@ -1,0 +1,43 @@
+| freebsd
+| gptid
+| zfs
+
+
+при содаии зфс пула оченьполезно создавать его на базе partition uuid
+в фрибсл это gptid
+
+для начала нужно 
+
+root@fr-1:~ # cat /boot/loader.conf
+kern.geom.label.disk_ident.enable="1"
+kern.geom.label.gptid.enable="1"
+
+
+
+reboot
+
+теперь беремем диск
+
+ gpart desroy -F /dev/da25
+
+ gpart create -s gpt /dev/da25
+
+ теперь важно создать раздел. без наличия раздела никакой gptid неповится что логично. разделов то нет.
+
+ gpart add -b 2048 -t freebsd-boot da25
+
+
+ вот теерь все готвово
+
+ root@fr-1:~ # gpart list  da25 | grep uuid
+   rawuuid: 12a12257-db8b-11f0-b229-105172252e4d
+root@fr-1:~ # 
+root@fr-1:~ # ls -1 /dev/gptid/12a12257-db8b-11f0-b229-105172252e4d 
+/dev/gptid/12a12257-db8b-11f0-b229-105172252e4d
+
+
+
+тепрь на базе этого можно сздавтаь пул
+
+zpool create POOL-02 /dev/gptid/12a12257-db8b-11f0-b229-105172252e4d
+

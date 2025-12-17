@@ -1,0 +1,19 @@
+| freebsd
+| lagg
+
+
+ifconfig_igb0="up"
+ifconfig_igb1="up"
+ifconfig_ix0="up mtu 9000"
+ifconfig_ix1="up mtu 9000"
+
+cloned_interfaces="lagg0 lagg1 vlan55 vlan11"
+
+ifconfig_lagg0="laggproto lacp laggport igb0 laggport igb1"
+ifconfig_lagg1="laggproto lacp laggport ix0 laggport ix1"
+
+# ← ВСЁ В ОДНОЙ СТРОКЕ как в примере!
+ifconfig_vlan55="inet 100.69.55.5 netmask 255.255.255.0 vlan 55 vlandev lagg0"
+ifconfig_vlan11="inet 100.69.11.5 netmask 255.255.255.0 vlan 11 vlandev lagg1"
+
+defaultrouter="100.69.55.1"
