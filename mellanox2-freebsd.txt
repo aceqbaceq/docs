@@ -1,0 +1,15 @@
+| mellanox
+| freebsd
+
+карта
+   CX 353 A 
+   P/N MCX353A-FCBT REV A3
+
+
+чтобы в фрибсл эта карта пояивлоась в списке сетевых портов то нужно
+
+
+echo 'mlx4en_load="YES"' >> /boot/loader.conf
+echo 'mlx4_core_load="YES"' >> /boot/loader.conf
+
+

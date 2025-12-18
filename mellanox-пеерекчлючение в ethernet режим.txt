@@ -3,31 +3,44 @@
 по дефолту они иду в режиме inifinibabd
 и их нужно пекрключаь в режим ethernet
 
-мне версия которая для дебин в виде .DEB пакета не помогла.
-а помгло то что я скчал самую последнюю вериссию с гитхба
-
-	https://github.com/Mellanox/mstflint
+одна опция сделаь на лету. но после перзагурзки все вернется
 
 
-потом делал по ридим. нужно скониугррурировать и откомпилировать его. 
-далее можно не устаналивать через make install
-а сразу просто найти тамже готовые бинарнкии и их запускать
+взял здест
 
-находим карту меланов через lspci ее адрес 
-замтем
+https://github.com/harvester/harvester/issues/2694
 
 
-# mstconfig -d 01:00.0 q | grep LINK_TYPE
-         LINK_TYPE_P1                        VPI(3)          
-         LINK_TYPE_P2                        VPI(3)
+Options 1:
+
+In order to change the port mode without the script (Inbox support):
+
+echo “mode” >/sys/bus/pci/devices/”pci device”/mlx4_port1
+
+echo “mode” >/sys/bus/pci/devices/”pci device”/mlx4_port2
+
+For Example:
+
+# lspci | grep Mellanox
+
+01:00.0 InfiniBand: Mellanox Technologies MT26428 [ConnectX IB QDR, PCIe 2.0 5GT/s] (rev b0)
+
+#echo ib > /sys/bus/pci/devices/0000\:01\:00.0/mlx4_port1
+
+#echo eth > /sys/bus/pci/devices/0000\:01\:00.0/mlx4_port2
+
+Note: This option is not persistent.
 
 
- теперь пернключапем ее в эзернер
 
-# sudo mstconfig -d 01:00.0 set LINK_TYPE_P1=2 LINK_TYPE_P2=2
+тоесть по lspci находим адреса меланоекс карты
+а потому просто в ее порт хуярим тот режим который хотим!
 
-еси все окей то он предлждить перезагрузку. 
+#echo eth > /sys/bus/pci/devices/0000\:01\:00.0/mlx4_port2
 
-перегружаемся . готово. ищем карту в спсмке эзернет портов
+
+
+второй способ уэе чтобы навсегда. но он сложнее
+
 
 
