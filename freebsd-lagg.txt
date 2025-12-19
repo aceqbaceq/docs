@@ -2,6 +2,30 @@
 | lagg
 
 
+для начала как запрограмирвать lagg+vlan+ip через cli
+
+
+# LAGG:
+ifconfig lagg0 create
+ifconfig lagg0 up laggproto lacp laggport mlx5en0 laggport mlx5en1
+
+# VLAN:
+ifconfig vlan10 create vlan 10 vlandev lagg0 up
+
+# IP:
+ifconfig vlan10 192.168.10.10/24
+
+# Роут:
+route add default 192.168.10.1
+
+
+
+
+
+а теперь через rc.conf
+
+
+
 ifconfig_igb0="up"
 ifconfig_igb1="up"
 ifconfig_ix0="up mtu 9000"
