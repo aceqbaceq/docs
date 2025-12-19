@@ -2,6 +2,8 @@
 | lagg
 
 
+
+
 для начала как запрограмирвать lagg+vlan+ip через cli
 
 
@@ -19,12 +21,56 @@ ifconfig vlan10 192.168.10.10/24
 route add default 192.168.10.1
 
 
+/etc/resolv.conf
+nameserver 8.8.8.8
+
+
+pkg install bash
+pkg install mc
+
 
 
 
 а теперь через rc.conf
 
+конфиг для сервера iscsi
 
+
+
+ifconfig_igb0="up"
+ifconfig_igb1="up"
+ifconfig_ix0="up mtu 9000"
+ifconfig_ix1="up mtu 9000"
+
+
+cloned_interfaces="lagg0 lagg1  vlan55  vlan11"
+
+
+
+ifconfig_lagg0="up laggproto lacp laggport igb0 laggport igb1 description '1G' "
+# vlan 55 SSH
+ifconfig_vlan55="vlan 55 vlandev lagg0 100.69.55.5/24 description 'SSH'  "
+
+
+ifconfig_lagg1="up laggproto lacp laggport ix0  laggport ix1 description '40G' "
+# vlan 11 ISCSI
+ifconfig_vlan11="vlan 11 vlandev lagg1 100.69.11.5/24 description 'ISCSI' "
+
+
+defaultrouter="100.69.55.254"
+
+
+
+
+перезапускаем сеть
+
+	# service netif restart
+	# service routing restart 
+
+
+
+
+===================
 
 ifconfig_igb0="up"
 ifconfig_igb1="up"
@@ -60,6 +106,11 @@ ifconfig_vlan11="vlan 11 vlandev lagg3 100.69.11.1/24 description 'ISCSI' "
 
 
 defaultrouter="100.69.55.254"
+
+
+
+
+
 
 
 

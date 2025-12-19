@@ -1,0 +1,10 @@
+| ping 
+| freebsd
+
+как послатвь 9000 мту пинг
+
+[root@fr-5 ~]# ping -D -s 8972 100.69.11.1 
+PING 100.69.11.1 (100.69.11.1): 8972 data bytes
+8980 bytes from 100.69.11.1: icmp_seq=0 ttl=64 time=0.445 ms
+8980 bytes from 100.69.11.1: icmp_seq=1 ttl=64 time=0.131 ms
+

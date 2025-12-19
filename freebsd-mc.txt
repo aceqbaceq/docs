@@ -1,0 +1,18 @@
+| freebsd
+| mc
+
+после установки mc
+
+   # pkg install mc
+
+нужно постваить баш
+
+   # pkg install bash
+
+и чтобы mc неругался нужно 
+
+   # chsh -s /usr/local/bin/bash
+
+logoff logon 
+и теперь mc олжен наормально запускать в фробибсд
+
