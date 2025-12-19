@@ -6,14 +6,192 @@ ifconfig_igb0="up"
 ifconfig_igb1="up"
 ifconfig_ix0="up mtu 9000"
 ifconfig_ix1="up mtu 9000"
+ifconfig_mce0="up mtu 9000"
+ifconfig_mce1="up mtu 9000"
+ifconfig_mlxen0="up mtu 9000"
+ifconfig_mlxen2="up mtu 9000"
 
-cloned_interfaces="lagg0 lagg1 vlan55 vlan11"
 
-ifconfig_lagg0="laggproto lacp laggport igb0 laggport igb1"
-ifconfig_lagg1="laggproto lacp laggport ix0 laggport ix1"
+cloned_interfaces="lagg0 lagg1 lagg2 lagg3  vlan55 vlan34 vlan33 vlan11"
 
-# ← ВСЁ В ОДНОЙ СТРОКЕ как в примере!
-ifconfig_vlan55="inet 100.69.55.5 netmask 255.255.255.0 vlan 55 vlandev lagg0"
-ifconfig_vlan11="inet 100.69.11.5 netmask 255.255.255.0 vlan 11 vlandev lagg1"
 
-defaultrouter="100.69.55.1"
+
+ifconfig_lagg0="up laggproto lacp laggport igb0 laggport igb1 description '1G' "
+# vlan 55 SSH
+ifconfig_vlan55="vlan 55 vlandev lagg0 100.69.55.1/24 description 'SSH'  "
+
+ifconfig_lagg1="up laggproto lacp laggport ix0 laggport ix1 description '10G' "
+# vlan 34 BACKUP
+ifconfig_vlan34="vlan 34 vlandev lagg1 100.68.34.1/24 description 'BACKUP'  "
+
+
+ifconfig_lagg2="up laggproto lacp laggport mce0 laggport mce1 description '40G' "
+# vlan 33 NFS
+ifconfig_vlan33="vlan 33 vlandev lagg2 100.68.33.1/24 description 'NFS' "
+
+
+ifconfig_lagg3="up laggproto lacp laggport mlxen0  laggport mlxen2 description '40G' "
+# vlan 11 ISCSI
+ifconfig_vlan11="vlan 11 vlandev lagg3 100.69.11.1/24 description 'ISCSI' "
+
+
+defaultrouter="100.69.55.254"
+
+
+
+
+а вот так карты
+
+
+
+ix0: flags=1008843<UP,BROADCAST,RUNNING,SIMPLEX,MULTICAST,LOWER_UP> metric 0 mtu 9000
+	options=4e53fbb<RXCSUM,TXCSUM,VLAN_MTU,VLAN_HWTAGGING,JUMBO_MTU,VLAN_HWCSUM,TSO4,TSO6,LRO,WOL_UCAST,WOL_MCAST,WOL_MAGIC,VLAN_HWFILTER,VLAN_HWTSO,RXCSUM_IPV6,TXCSUM_IPV6,HWSTATS,MEXTPG>
+	ether a4:dc:be:f1:2d:36
+	media: Ethernet autoselect (10Gbase-Twinax <full-duplex,rxpause,txpause>)
+	status: active
+	nd6 options=29<PERFORMNUD,IFDISABLED,AUTO_LINKLOCAL>
+ix1: flags=1008843<UP,BROADCAST,RUNNING,SIMPLEX,MULTICAST,LOWER_UP> metric 0 mtu 9000
+	options=4e53fbb<RXCSUM,TXCSUM,VLAN_MTU,VLAN_HWTAGGING,JUMBO_MTU,VLAN_HWCSUM,TSO4,TSO6,LRO,WOL_UCAST,WOL_MCAST,WOL_MAGIC,VLAN_HWFILTER,VLAN_HWTSO,RXCSUM_IPV6,TXCSUM_IPV6,HWSTATS,MEXTPG>
+	ether a4:dc:be:f1:2d:36
+	hwaddr a4:dc:be:f1:2d:37
+	media: Ethernet autoselect (10Gbase-Twinax <full-duplex,rxpause,txpause>)
+	status: active
+	nd6 options=29<PERFORMNUD,IFDISABLED,AUTO_LINKLOCAL>
+igb0: flags=1008843<UP,BROADCAST,RUNNING,SIMPLEX,MULTICAST,LOWER_UP> metric 0 mtu 1500
+	options=4e507bb<RXCSUM,TXCSUM,VLAN_MTU,VLAN_HWTAGGING,JUMBO_MTU,VLAN_HWCSUM,TSO4,TSO6,LRO,VLAN_HWFILTER,VLAN_HWTSO,RXCSUM_IPV6,TXCSUM_IPV6,HWSTATS,MEXTPG>
+	ether 90:e2:ba:94:83:dc
+	media: Ethernet autoselect (1000baseT <full-duplex>)
+	status: active
+	nd6 options=29<PERFORMNUD,IFDISABLED,AUTO_LINKLOCAL>
+igb1: flags=1008843<UP,BROADCAST,RUNNING,SIMPLEX,MULTICAST,LOWER_UP> metric 0 mtu 1500
+	options=4e507bb<RXCSUM,TXCSUM,VLAN_MTU,VLAN_HWTAGGING,JUMBO_MTU,VLAN_HWCSUM,TSO4,TSO6,LRO,VLAN_HWFILTER,VLAN_HWTSO,RXCSUM_IPV6,TXCSUM_IPV6,HWSTATS,MEXTPG>
+	ether 90:e2:ba:94:83:dc
+	hwaddr 90:e2:ba:94:83:dd
+	media: Ethernet autoselect (1000baseT <full-duplex>)
+	status: active
+	nd6 options=29<PERFORMNUD,IFDISABLED,AUTO_LINKLOCAL>
+lo0: flags=1008049<UP,LOOPBACK,RUNNING,MULTICAST,LOWER_UP> metric 0 mtu 16384
+	options=680003<RXCSUM,TXCSUM,LINKSTATE,RXCSUM_IPV6,TXCSUM_IPV6>
+	inet 127.0.0.1 netmask 0xff000000
+	inet6 ::1 prefixlen 128
+	inet6 fe80::1%lo0 prefixlen 64 scopeid 0x5
+	groups: lo
+	nd6 options=21<PERFORMNUD,AUTO_LINKLOCAL>
+mce0: flags=1008843<UP,BROADCAST,RUNNING,SIMPLEX,MULTICAST,LOWER_UP> metric 0 mtu 9000
+	options=66ef07bb<RXCSUM,TXCSUM,VLAN_MTU,VLAN_HWTAGGING,JUMBO_MTU,VLAN_HWCSUM,TSO4,TSO6,LRO,VLAN_HWFILTER,NV,VLAN_HWTSO,LINKSTATE,RXCSUM_IPV6,TXCSUM_IPV6,HWSTATS,HWRXTSTMP,MEXTPG,VXLAN_HWCSUM,VXLAN_HWTSO>
+	ether 98:03:9b:c6:ba:b4
+	media: Ethernet 40Gbase-CR4 <full-duplex,rxpause,txpause>
+	status: active
+	nd6 options=29<PERFORMNUD,IFDISABLED,AUTO_LINKLOCAL>
+mce1: flags=1008843<UP,BROADCAST,RUNNING,SIMPLEX,MULTICAST,LOWER_UP> metric 0 mtu 9000
+	options=66ef07bb<RXCSUM,TXCSUM,VLAN_MTU,VLAN_HWTAGGING,JUMBO_MTU,VLAN_HWCSUM,TSO4,TSO6,LRO,VLAN_HWFILTER,NV,VLAN_HWTSO,LINKSTATE,RXCSUM_IPV6,TXCSUM_IPV6,HWSTATS,HWRXTSTMP,MEXTPG,VXLAN_HWCSUM,VXLAN_HWTSO>
+	ether 98:03:9b:c6:ba:b4
+	hwaddr 98:03:9b:c6:ba:b5
+	media: Ethernet 40Gbase-CR4 <full-duplex,rxpause,txpause>
+	status: active
+	nd6 options=29<PERFORMNUD,IFDISABLED,AUTO_LINKLOCAL>
+mlxen0: flags=1008843<UP,BROADCAST,RUNNING,SIMPLEX,MULTICAST,LOWER_UP> metric 0 mtu 9000
+	options=ed07bb<RXCSUM,TXCSUM,VLAN_MTU,VLAN_HWTAGGING,JUMBO_MTU,VLAN_HWCSUM,TSO4,TSO6,LRO,VLAN_HWFILTER,VLAN_HWTSO,LINKSTATE,RXCSUM_IPV6,TXCSUM_IPV6,HWSTATS>
+	ether e4:1d:2d:b9:36:90
+	media: Ethernet autoselect (40Gbase-CR4 <full-duplex,rxpause,txpause>)
+	status: active
+	nd6 options=29<PERFORMNUD,IFDISABLED,AUTO_LINKLOCAL>
+mlxen2: flags=1008843<UP,BROADCAST,RUNNING,SIMPLEX,MULTICAST,LOWER_UP> metric 0 mtu 9000
+	options=ed07bb<RXCSUM,TXCSUM,VLAN_MTU,VLAN_HWTAGGING,JUMBO_MTU,VLAN_HWCSUM,TSO4,TSO6,LRO,VLAN_HWFILTER,VLAN_HWTSO,LINKSTATE,RXCSUM_IPV6,TXCSUM_IPV6,HWSTATS>
+	ether e4:1d:2d:b9:36:90
+	hwaddr 00:02:c9:1b:ab:00
+	media: Ethernet autoselect (40Gbase-CR4 <full-duplex,rxpause,txpause>)
+	status: active
+	nd6 options=29<PERFORMNUD,IFDISABLED,AUTO_LINKLOCAL>
+lagg0: flags=1008843<UP,BROADCAST,RUNNING,SIMPLEX,MULTICAST,LOWER_UP> metric 0 mtu 1500
+	description: 1G
+	options=4e507bb<RXCSUM,TXCSUM,VLAN_MTU,VLAN_HWTAGGING,JUMBO_MTU,VLAN_HWCSUM,TSO4,TSO6,LRO,VLAN_HWFILTER,VLAN_HWTSO,RXCSUM_IPV6,TXCSUM_IPV6,HWSTATS,MEXTPG>
+	ether 90:e2:ba:94:83:dc
+	hwaddr 00:00:00:00:00:00
+	laggproto lacp lagghash l2,l3,l4
+	laggport: igb0 flags=1c<ACTIVE,COLLECTING,DISTRIBUTING>
+	laggport: igb1 flags=1c<ACTIVE,COLLECTING,DISTRIBUTING>
+	groups: lagg
+	media: Ethernet autoselect
+	status: active
+	nd6 options=29<PERFORMNUD,IFDISABLED,AUTO_LINKLOCAL>
+lagg1: flags=1008843<UP,BROADCAST,RUNNING,SIMPLEX,MULTICAST,LOWER_UP> metric 0 mtu 9000
+	description: 10G
+	options=4e53fbb<RXCSUM,TXCSUM,VLAN_MTU,VLAN_HWTAGGING,JUMBO_MTU,VLAN_HWCSUM,TSO4,TSO6,LRO,WOL_UCAST,WOL_MCAST,WOL_MAGIC,VLAN_HWFILTER,VLAN_HWTSO,RXCSUM_IPV6,TXCSUM_IPV6,HWSTATS,MEXTPG>
+	ether a4:dc:be:f1:2d:36
+	hwaddr 00:00:00:00:00:00
+	laggproto lacp lagghash l2,l3,l4
+	laggport: ix0 flags=1c<ACTIVE,COLLECTING,DISTRIBUTING>
+	laggport: ix1 flags=1c<ACTIVE,COLLECTING,DISTRIBUTING>
+	groups: lagg
+	media: Ethernet autoselect
+	status: active
+	nd6 options=29<PERFORMNUD,IFDISABLED,AUTO_LINKLOCAL>
+lagg2: flags=1008843<UP,BROADCAST,RUNNING,SIMPLEX,MULTICAST,LOWER_UP> metric 0 mtu 9000
+	description: 40G
+	options=66ef07bb<RXCSUM,TXCSUM,VLAN_MTU,VLAN_HWTAGGING,JUMBO_MTU,VLAN_HWCSUM,TSO4,TSO6,LRO,VLAN_HWFILTER,NV,VLAN_HWTSO,LINKSTATE,RXCSUM_IPV6,TXCSUM_IPV6,HWSTATS,HWRXTSTMP,MEXTPG,VXLAN_HWCSUM,VXLAN_HWTSO>
+	ether 98:03:9b:c6:ba:b4
+	hwaddr 00:00:00:00:00:00
+	laggproto lacp lagghash l2,l3,l4
+	laggport: mce0 flags=1c<ACTIVE,COLLECTING,DISTRIBUTING>
+	laggport: mce1 flags=1c<ACTIVE,COLLECTING,DISTRIBUTING>
+	groups: lagg
+	media: Ethernet autoselect
+	status: active
+	nd6 options=29<PERFORMNUD,IFDISABLED,AUTO_LINKLOCAL>
+lagg3: flags=1008843<UP,BROADCAST,RUNNING,SIMPLEX,MULTICAST,LOWER_UP> metric 0 mtu 9000
+	description: 40G
+	options=ed07bb<RXCSUM,TXCSUM,VLAN_MTU,VLAN_HWTAGGING,JUMBO_MTU,VLAN_HWCSUM,TSO4,TSO6,LRO,VLAN_HWFILTER,VLAN_HWTSO,LINKSTATE,RXCSUM_IPV6,TXCSUM_IPV6,HWSTATS>
+	ether e4:1d:2d:b9:36:90
+	hwaddr 00:00:00:00:00:00
+	laggproto lacp lagghash l2,l3,l4
+	laggport: mlxen0 flags=1c<ACTIVE,COLLECTING,DISTRIBUTING>
+	laggport: mlxen2 flags=1c<ACTIVE,COLLECTING,DISTRIBUTING>
+	groups: lagg
+	media: Ethernet autoselect
+	status: active
+	nd6 options=29<PERFORMNUD,IFDISABLED,AUTO_LINKLOCAL>
+vlan55: flags=1008843<UP,BROADCAST,RUNNING,SIMPLEX,MULTICAST,LOWER_UP> metric 0 mtu 1500
+	description: SSH
+	options=4600703<RXCSUM,TXCSUM,TSO4,TSO6,LRO,RXCSUM_IPV6,TXCSUM_IPV6,MEXTPG>
+	ether 90:e2:ba:94:83:dc
+	inet 100.69.55.1 netmask 0xffffff00 broadcast 100.69.55.255
+	groups: vlan
+	vlan: 55 vlanproto: 802.1q vlanpcp: 0 parent interface: lagg0
+	media: Ethernet autoselect
+	status: active
+	nd6 options=29<PERFORMNUD,IFDISABLED,AUTO_LINKLOCAL>
+vlan34: flags=1008843<UP,BROADCAST,RUNNING,SIMPLEX,MULTICAST,LOWER_UP> metric 0 mtu 9000
+	description: BACKUP
+	options=4600703<RXCSUM,TXCSUM,TSO4,TSO6,LRO,RXCSUM_IPV6,TXCSUM_IPV6,MEXTPG>
+	ether a4:dc:be:f1:2d:36
+	inet 100.68.34.1 netmask 0xffffff00 broadcast 100.68.34.255
+	groups: vlan
+	vlan: 34 vlanproto: 802.1q vlanpcp: 0 parent interface: lagg1
+	media: Ethernet autoselect
+	status: active
+	nd6 options=29<PERFORMNUD,IFDISABLED,AUTO_LINKLOCAL>
+vlan33: flags=1008843<UP,BROADCAST,RUNNING,SIMPLEX,MULTICAST,LOWER_UP> metric 0 mtu 9000
+	description: NFS
+	options=4680703<RXCSUM,TXCSUM,TSO4,TSO6,LRO,LINKSTATE,RXCSUM_IPV6,TXCSUM_IPV6,MEXTPG>
+	ether 98:03:9b:c6:ba:b4
+	inet 100.68.33.1 netmask 0xffffff00 broadcast 100.68.33.255
+	groups: vlan
+	vlan: 33 vlanproto: 802.1q vlanpcp: 0 parent interface: lagg2
+	media: Ethernet autoselect
+	status: active
+	nd6 options=29<PERFORMNUD,IFDISABLED,AUTO_LINKLOCAL>
+vlan11: flags=1008843<UP,BROADCAST,RUNNING,SIMPLEX,MULTICAST,LOWER_UP> metric 0 mtu 9000
+	description: ISCSI
+	options=680703<RXCSUM,TXCSUM,TSO4,TSO6,LRO,LINKSTATE,RXCSUM_IPV6,TXCSUM_IPV6>
+	ether e4:1d:2d:b9:36:90
+	inet 100.69.11.1 netmask 0xffffff00 broadcast 100.69.11.255
+	groups: vlan
+	vlan: 11 vlanproto: 802.1q vlanpcp: 0 parent interface: lagg3
+	media: Ethernet autoselect
+	status: active
+	nd6 options=29<PERFORMNUD,IFDISABLED,AUTO_LINKLOCAL>
+
+
+
+
