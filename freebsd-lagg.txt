@@ -40,7 +40,55 @@ defaultrouter="100.69.55.254"
 
 
 
-а вот так карты
+или вот  такой вариант
+ifconfig_igb0="up"
+ifconfig_igb1="up"
+ifconfig_ix0="up mtu 9000"
+ifconfig_ix1="up mtu 9000"
+ifconfig_mce0="up mtu 9000"
+ifconfig_mce1="up mtu 9000"
+ifconfig_mlxen0="up mtu 9000"
+ifconfig_mlxen2="up mtu 9000"
+
+
+cloned_interfaces="lagg0 lagg1 lagg2 lagg3  vlan55 vlan34 vlan33 vlan11"
+
+
+
+ifconfig_lagg0="laggproto lacp laggport igb0 laggport igb1 description '1G' "
+ifconfig_lagg1="laggproto lacp laggport ix0 laggport ix1 description '10G' "
+ifconfig_lagg2="laggproto lacp laggport mce0 laggport mce1 description '40G' "
+ifconfig_lagg3="laggproto lacp laggport mlxen0  laggport mlxen2 description '40G' "
+
+
+# vlan 55 SSH
+ifconfig_vlan55="inet 100.69.55.1 netmask 255.255.255.0  vlan 55 vlandev lagg0   description 'SSH'  "
+
+
+# vlan 34 BACKUP
+ifconfig_vlan34="inet 100.68.34.1 netmask 255.255.255.0  vlan 34 vlandev lagg1   description 'BACKUP'  "
+
+
+# vlan 33 NFS
+ifconfig_vlan33="inet 100.68.33.1 netmask 255.255.255.0  vlan 33 vlandev lagg2  description 'NFS' "
+
+
+
+# vlan 11 ISCSI
+ifconfig_vlan11="inet 100.69.11.1 netmask 255.255.255.0  vlan 11 vlandev lagg3  description 'ISCSI' "
+
+
+defaultrouter="100.69.55.254"
+
+
+
+
+
+
+
+а вот так карты выглядят после этого 
+	# service netif restart
+	# service routing restart 
 
 
 
