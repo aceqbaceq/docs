@@ -76,7 +76,7 @@ SATA Version is:  SATA 3.0, 6.0 Gb/s (current: 6.0 Gb/s)
  # dd if=/dev/urandom bs=1M count=$(( 10 * 1024 )) of=/POOL-03-MIRROR-SSD/ds2-128K/fio.dat status=progress
 
 
-# fio --randrepeat=1 --ioengine=psync --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-04/ds2-128K/fio.dat  --bs=$((128 *1024)) --iodepth=1  --size=10G  --readwrite=randwrite --numjobs=1  --group_reporting --loop=5
+# fio --randrepeat=1 --ioengine=psync --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-04/ds2-128K/fio.dat  --bs=$((128 *1024)) --iodepth=1  --size=10G  --readwrite=randwrite --numjobs=1  --group_reporting --loops=5
 
 # gstat 
 # arcstat 1
