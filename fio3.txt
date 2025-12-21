@@ -1,0 +1,45 @@
+| fio
+
+
+
+головной зфс. 324Г памяти  , 36 цпу v3
+2х40Г меланокс в лацп
+
+покдлючается по iscsi к двум серверам каждй из которых 
+
+  12 ХДД
+  2х10Г intel x520  в лацп
+  256U RAM
+  24 cpu v2
+
+пул это 12 миророров в страйпе
+
+миррорры сделаны так что 1 диск  содного сервера вторйо со второго .
+так как лацп то конаткт головного сервера с миньонками идмет на головном по разным картам
+а миньны с голвным свзяются по одной. тоеть миьньнонработает на одном порту 10Г.
+отсюуда укзкое место. поэтому запись в рамках всего зфс пула это 10Г(1ГБ) макс 
+а чтение это 20Г(2ГБ) макс
+в иитроге вот результатаы
+
+
+# fio --randrepeat=1 --ioengine=posixaio --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-01/ds1-128K/fio.dat  --bs=$((1024 *1024)) --iodepth=1  --size=100G -readwrite=read --numjobs=1  --group_reporting
+  read: IOPS=1674, BW=1674MiB/s (1756MB/s)(100GiB/61157msec)
+
+
+# fio --randrepeat=1 --ioengine=posixaio --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-01/ds1-128K/fio.dat  --bs=$((1024 *1024)) --iodepth=1  --size=100G -readwrite=write --numjobs=1  --group_reporting
+  write: IOPS=1052, BW=1052MiB/s (1103MB/s)(100GiB/97327msec); 0 zone resets
+
+
+
+
+# fio --randrepeat=1 --ioengine=posixaio --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-01/ds1-128K/fio.dat  --bs=$((128 *1024)) --iodepth=32  --runtime=60 -readwrite=randread --numjobs=1  --group_reporting
+test: (g=0): rw=randread, bs=(R) 128KiB-128KiB, (W) 128KiB-128KiB, (T) 128KiB-128KiB, ioengine=posixaio, iodepth=32
+  read: IOPS=2893, BW=362MiB/s (379MB/s)(21.2GiB/60021msec)
+
+
+
+# fio --randrepeat=1 --ioengine=posixaio --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-01/ds1-128K/fio.dat  --bs=$((128 *1024)) --iodepth=32  --runtime=30 -readwrite=randwrite --numjobs=1  --group_reporting
+test: (g=0): rw=randwrite, bs=(R) 128KiB-128KiB, (W) 128KiB-128KiB, (T) 128KiB-128KiB, ioengine=posixaio, iodepth=32
+  write: IOPS=8705, BW=1088MiB/s (1141MB/s)(31.9GiB/30010msec); 0 zone resets
+
+

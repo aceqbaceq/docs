@@ -1,0 +1,6 @@
+| zfs
+| pool 
+
+удалить 
+
+zpool labelclear /dev/sdX

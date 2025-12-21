@@ -1,0 +1,133 @@
+| freebsd
+| interrupts
+
+выяснить какая хрень занимает такое то ядро
+
+
+[root@fr-1 ~]# vmstat -i | awk -F: '/irq/ {print $1}' | sed 's/irq//' | while read irq; do
+    res=$(cpuset -g -x $irq 2>/dev/null)
+    if echo "$res" | grep -qE "mask: 3$|mask: 3,"; then
+        echo "На CPU 3 сидит IRQ $irq: $(vmstat -i | grep irq$irq:)"
+    fi
+done
+На CPU 3 сидит IRQ 251: irq251: mlx4_core0               4026130       4382
+На CPU 3 сидит IRQ 315: irq315: mlx4_core1              14914318      16230
+
+
+
+==
+for i in $(vmstat -i | grep -E "mlx4|mlxen" | awk -F: '{print $1}' | sed 's/irq//'); do
+    mask=$(cpuset -g -x $i | awk '{print $4}')
+    if [ "$mask" = "40" ]; then
+        echo "На CPU 40 сидит IRQ $i (название: $(vmstat -i | grep irq$i))"
+    fi
+done
+
+
+
+===
+
+for i in $(vmstat -i | grep "igb" | awk -F: '{print $1}' | sed 's/irq//'); do
+    mask=$(cpuset -g -x $i | awk '{print $4}')
+       echo $mask
+done
+
+
+===
+
+
+===
+
+[root@fr-1 ~]# netstat -idI igb0
+Name    Mtu Network   Address              Ipkts Ierrs Idrop    Opkts Oerrs  Coll  Drop
+igb0   1500 <Link#3>  90:e2:ba:94:83:dc     2285     0     0     5636     0     0     0 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# netstat -idI igb1
+Name    Mtu Network   Address              Ipkts Ierrs Idrop    Opkts Oerrs  Coll  Drop
+igb1   1500 <Link#4>  90:e2:ba:94:83:dc    69983     0     0    60529     0     0     0 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# netstat -idI  mlxen0
+Name     Mtu Network   Address                 Ipkts Ierrs Idrop       Opkts Oerrs  Coll  Drop
+mlxen0  9000 <Link#8>  e4:1d:2d:b9:36:90  6214868103     1     0  3090050948     0     0     0 
+[root@fr-1 ~]# netstat -idI  mlxen2
+Name     Mtu Network   Address                 Ipkts Ierrs Idrop       Opkts Oerrs  Coll  Drop
+mlxen2  9000 <Link#9>  e4:1d:2d:b9:36:90   322059683     0     0  3091071662     0     0     0 
+
+===
+
+сколько irq юзает драйвер igb
+[root@fr-4 ~]# vmstat -i | grep igb
+irq112: igb0:rxq0                  10509          0
+irq113: igb0:rxq1                    113          0
+irq114: igb0:rxq2                     92          0
+irq116: igb0:rxq4                    126          0
+irq117: igb0:rxq5                      6          0
+irq118: igb0:rxq6                     51          0
+irq119: igb0:rxq7                     37          0
+irq120: igb0:aq                        4          0
+irq121: igb1:rxq0                  20029          0
+irq122: igb1:rxq1                    146          0
+irq123: igb1:rxq2                     21          0
+irq124: igb1:rxq3                    257          0
+irq125: igb1:rxq4                  14051          0
+irq126: igb1:rxq5                 531396          3
+irq127: igb1:rxq6                 374224          2
+irq128: igb1:rxq7                    165          0
+irq129: igb1:aq                        5          0
+
+
+===
+
+| утилиты
+
+
+ # systat -ifstat 1
+
+                  /0   /1   /2   /3   /4   /5   /6   /7   /8   /9   /10
+     Load Average
+
+      Interface           Traffic               Peak                Total
+         vlan12  in      0.000 KB/s          0.000 KB/s            5.784 MB
+                 out     0.000 KB/s          0.000 KB/s          266.393 KB
+
+         vlan11  in      0.000 KB/s          0.000 KB/s          791.129 GB
+                 out     0.000 KB/s          0.000 KB/s            2.896 GB
+
+         vlan33  in      0.000 KB/s          0.000 KB/s           98.438 KB
+                 out     0.000 KB/s          0.000 KB/s            0.000 KB
+
+         vlan55  in      0.000 KB/s          0.000 KB/s          532.518 KB
+                 out     0.000 KB/s          0.000 KB/s          625.924 KB
+
+          lagg3  in      0.000 KB/s          0.000 KB/s          791.135 GB
+                 out     0.000 KB/s          0.000 KB/s            2.897 GB
+
+          lagg2  in      0.000 KB/s          0.000 KB/s          105.086 KB
+                 out     0.000 KB/s          0.000 KB/s            5.812 KB
+
+          lagg1  in      0.000 KB/s          0.000 KB/s           28.610 KB
+                 out     0.000 KB/s          0.000 KB/s            6.000 KB
+
+          lagg0  in      0.000 KB/s          0.000 KB/s          540.258 KB
+                 out     0.000 KB/s          0.000 KB/s          631.736 KB
+
+         mlxen2  in      0.000 KB/s          0.000 KB/s          395.561 GB
+                 out     0.000 KB/s          0.000 KB/s            1.448 GB
+
+         mlxen0  in      0.000 KB/s          0.000 KB/s          395.575 GB
+                 out     0.000 KB/s          0.000 KB/s            1.448 GB
+
+           mce1  in      0.000 KB/s          0.000 KB/s           68.840 KB
+                 out     0.000 KB/s          0.000 KB/s            2.906 KB
+
+           mce0  in      0.000 KB/s          0.000 KB/s           36.246 KB
+                 out     0.000 KB/s          0.000 KB/s            2.906 KB
+
+           igb1  in      0.000 KB/s          0.000 KB/s          536.746 KB
+                 out     0.000 KB/s          0.000 KB/s          626.076 KB
+
+===
+
+
+

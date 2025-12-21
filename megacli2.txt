@@ -1,0 +1,41 @@
+| megacli
+| lsi
+| perc
+| storcli
+
+
+как пользоваться
+
+найти все контроллеры на хосте
+
+
+# MegaCli  -adpCount                                                    
+                                     
+
+Controller Count: 3.
+
+Exit Code: 0x03
+
+значит их три штуки
+
+
+вот они
+# MegaCli -AdpAllInfo -aAll | grep -E "Adapter #|Product Name|Serial No"
+
+Adapter #0
+Product Name    : PERC 6/i Integrated
+Serial No       : 1122334455667788
+Adapter #1
+Product Name    : PERC H800 Adapter
+Serial No       : 0BN00L8
+Adapter #2
+Product Name    : PERC H800 Adapter
+Serial No       : 1180038
+
+
+
+
+псмреть списокдисков на конкнетном контроллерер
+
+MegaCli -PDList -a2
+
