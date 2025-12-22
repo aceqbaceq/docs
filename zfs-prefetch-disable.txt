@@ -1,0 +1,7 @@
+| zfs
+| prefetch
+| disable
+| zfs prefetch disable
+
+
+sysctl vfs.zfs.prefetch.disable=1

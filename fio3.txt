@@ -43,3 +43,280 @@ test: (g=0): rw=randwrite, bs=(R) 128KiB-128KiB, (W) 128KiB-128KiB, (T) 128KiB-1
   write: IOPS=8705, BW=1088MiB/s (1141MB/s)(31.9GiB/30010msec); 0 zone resets
 
 
+
+
+далее я сделал мультипаф для лунов. и на каждый хост стало работать по два порта 10Г. так что сеть 
+пеерастала быть узкним местом. и вот результат
+
+
+[root@fr-1 ~]#  fio --randrepeat=1 --ioengine=posixaio --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-01/ds3-2M/fio.dat  --bs=$((2*1024 *1024)) --iodepth=1  --size=50G -readwrite=read --numjobs=1  --group_reporting
+test: (g=0): rw=read, bs=(R) 2048KiB-2048KiB, (W) 2048KiB-2048KiB, (T) 2048KiB-2048KiB, ioengine=posixaio, iodepth=1
+fio-3.40
+Starting 1 process
+Jobs: 1 (f=1): [R(1)][100.0%][r=2088MiB/s][r=1044 IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=10701: Mon Dec 22 19:00:28 2025
+  read: IOPS=1009, BW=2020MiB/s (2118MB/s)(50.0GiB/25348msec)
+   bw (  MiB/s): min=  912, max= 2196, per=100.00%, avg=2022.16, stdev=170.94, samples=50
+   iops        : min=  456, max= 1098, avg=1011.08, stdev=85.47, samples=50
+  cpu          : usr=0.20%, sys=0.76%, ctx=26024, majf=0, minf=1
+  IO depths    : 1=100.0%, 2=0.0%, 4=0.0%, 8=0.0%, 16=0.0%, 32=0.0%, >=64=0.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     issued rwts: total=25600,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=1
+
+Run status group 0 (all jobs):
+   READ: bw=2020MiB/s (2118MB/s), 2020MiB/s-2020MiB/s (2118MB/s-2118MB/s), io=50.0GiB (53.7GB), run=25348-25348msec
+[root@fr-1 ~]#
+[root@fr-1 ~]#
+[root@fr-1 ~]#
+[root@fr-1 ~]#  fio --randrepeat=1 --ioengine=posixaio --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-01/ds3-2M/fio.dat  --bs=$((2*1024 *1024)) --iodepth=1  --size=50G -readwrite=read --numjobs=1  --group_reporting
+test: (g=0): rw=read, bs=(R) 2048KiB-2048KiB, (W) 2048KiB-2048KiB, (T) 2048KiB-2048KiB, ioengine=posixaio, iodepth=1
+fio-3.40
+Starting 1 process
+Jobs: 1 (f=1): [R(1)][100.0%][r=2070MiB/s][r=1035 IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=10703: Mon Dec 22 19:01:07 2025
+  read: IOPS=1008, BW=2017MiB/s (2115MB/s)(50.0GiB/25387msec)
+   bw (  MiB/s): min= 1164, max= 2180, per=100.00%, avg=2019.28, stdev=147.09, samples=50
+   iops        : min=  582, max= 1090, avg=1009.64, stdev=73.55, samples=50
+  cpu          : usr=0.32%, sys=0.63%, ctx=26043, majf=0, minf=1
+  IO depths    : 1=100.0%, 2=0.0%, 4=0.0%, 8=0.0%, 16=0.0%, 32=0.0%, >=64=0.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     issued rwts: total=25600,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=1
+
+Run status group 0 (all jobs):
+   READ: bw=2017MiB/s (2115MB/s), 2017MiB/s-2017MiB/s (2115MB/s-2115MB/s), io=50.0GiB (53.7GB), run=25387-25387msec
+[root@fr-1 ~]# t
+bash: t: command not found
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# zfs create  -o compression=off -o  primarycache=metadata  -o secondarycache=metadata -o recordsize=512KiB  POOL-01/ds4-512K
+[root@fr-1 ~]# zfs list
+NAME                  USED  AVAIL  REFER  MOUNTPOINT
+POOL-01               201G  21.3T   104K  /POOL-01
+POOL-01/ds1-128K      100G  21.3T   100G  /POOL-01/ds1-128K
+POOL-01/ds2-1M       50.0G  21.3T  50.0G  /POOL-01/ds2-1M
+POOL-01/ds3-2M       50.0G  21.3T  50.0G  /POOL-01/ds3-2M
+POOL-01/ds4-512K       96K  21.3T    96K  /POOL-01/ds4-512K
+zroot2               1.31G   537G    96K  /zroot2
+zroot2/ROOT          1.31G   537G    96K  none
+zroot2/ROOT/default  1.31G   537G  1.31G  /
+zroot2/home            96K   537G    96K  /home
+zroot2/tmp            576K   537G   576K  /tmp
+zroot2/usr            288K   537G    96K  /usr
+zroot2/usr/ports       96K   537G    96K  /usr/ports
+zroot2/usr/src         96K   537G    96K  /usr/src
+zroot2/var            988K   537G    96K  /var
+zroot2/var/audit       96K   537G    96K  /var/audit
+zroot2/var/crash       96K   537G    96K  /var/crash
+zroot2/var/log        484K   537G   484K  /var/log
+zroot2/var/mail       120K   537G   120K  /var/mail
+zroot2/var/tmp         96K   537G    96K  /var/tmp
+[root@fr-1 ~]# zfs get recordsize POOL-01/ds4-512K
+NAME              PROPERTY    VALUE    SOURCE
+POOL-01/ds4-512K  recordsize  512K     local
+[root@fr-1 ~]# 
+[root@fr-1 ~]#  fio --randrepeat=1 --ioengine=posixaio --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-01/ds4-512K/fio.dat  --bs=$((512 *1024)) --iodepth=1  --size=50G -readwrite=write --numjobs=1  --group_reporting 
+test: (g=0): rw=write, bs=(R) 512KiB-512KiB, (W) 512KiB-512KiB, (T) 512KiB-512KiB, ioengine=posixaio, iodepth=1
+fio-3.40
+Starting 1 process
+test: Laying out IO file (1 file / 51200MiB)
+Jobs: 1 (f=1): [W(1)][100.0%][w=1679MiB/s][w=3357 IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=10716: Mon Dec 22 19:03:30 2025
+  write: IOPS=3039, BW=1520MiB/s (1594MB/s)(50.0GiB/33688msec); 0 zone resets
+   bw (  MiB/s): min= 1003, max= 2413, per=100.00%, avg=1521.42, stdev=345.59, samples=67
+   iops        : min= 2006, max= 4826, avg=3042.84, stdev=691.17, samples=67
+  cpu          : usr=4.16%, sys=1.99%, ctx=102568, majf=0, minf=1
+  IO depths    : 1=100.0%, 2=0.0%, 4=0.0%, 8=0.0%, 16=0.0%, 32=0.0%, >=64=0.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     issued rwts: total=0,102400,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=1
+
+Run status group 0 (all jobs):
+  WRITE: bw=1520MiB/s (1594MB/s), 1520MiB/s-1520MiB/s (1594MB/s-1594MB/s), io=50.0GiB (53.7GB), run=33688-33688msec
+[root@fr-1 ~]# 
+[root@fr-1 ~]#  fio --randrepeat=1 --ioengine=posixaio --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-01/ds4-512K/fio.dat  --bs=$((512 *1024)) --iodepth=1  --size=50G -readwrite=read --numjobs=1  --group_reporting 
+test: (g=0): rw=read, bs=(R) 512KiB-512KiB, (W) 512KiB-512KiB, (T) 512KiB-512KiB, ioengine=posixaio, iodepth=1
+fio-3.40
+Starting 1 process
+Jobs: 1 (f=1): [R(1)][100.0%][r=2635MiB/s][r=5269 IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=10718: Mon Dec 22 19:04:00 2025
+  read: IOPS=5091, BW=2546MiB/s (2670MB/s)(50.0GiB/20111msec)
+   bw (  MiB/s): min= 1650, max= 2884, per=100.00%, avg=2548.13, stdev=260.10, samples=40
+   iops        : min= 3300, max= 5768, avg=5096.25, stdev=520.20, samples=40
+  cpu          : usr=1.01%, sys=3.06%, ctx=102842, majf=0, minf=1
+  IO depths    : 1=100.0%, 2=0.0%, 4=0.0%, 8=0.0%, 16=0.0%, 32=0.0%, >=64=0.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     issued rwts: total=102400,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=1
+
+Run status group 0 (all jobs):
+   READ: bw=2546MiB/s (2670MB/s), 2546MiB/s-2546MiB/s (2670MB/s-2670MB/s), io=50.0GiB (53.7GB), run=20111-20111msec
+[root@fr-1 ~]# 
+[root@fr-1 ~]#  fio --randrepeat=1 --ioengine=posixaio --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-01/ds4-512K/fio.dat  --bs=$((2*512 *1024)) --iodepth=1  --size=50G -readwrite=read --numjobs=1  --group_reporting 
+test: (g=0): rw=read, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=posixaio, iodepth=1
+fio-3.40
+Starting 1 process
+Jobs: 1 (f=1): [R(1)][100.0%][r=2524MiB/s][r=2524 IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=10720: Mon Dec 22 19:04:29 2025
+  read: IOPS=2517, BW=2517MiB/s (2639MB/s)(50.0GiB/20341msec)
+   bw (  MiB/s): min= 1572, max= 2878, per=100.00%, avg=2518.80, stdev=283.61, samples=40
+   iops        : min= 1572, max= 2878, avg=2518.80, stdev=283.61, samples=40
+  cpu          : usr=0.44%, sys=1.71%, ctx=51543, majf=0, minf=1
+  IO depths    : 1=100.0%, 2=0.0%, 4=0.0%, 8=0.0%, 16=0.0%, 32=0.0%, >=64=0.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     issued rwts: total=51200,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=1
+
+Run status group 0 (all jobs):
+   READ: bw=2517MiB/s (2639MB/s), 2517MiB/s-2517MiB/s (2639MB/s-2639MB/s), io=50.0GiB (53.7GB), run=20341-20341msec
+[root@fr-1 ~]# 
+[root@fr-1 ~]#  fio --randrepeat=1 --ioengine=posync --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-01/ds4-512K/fio.dat  --bs=$((2*512 *1024)) --iodepth=1  --size=50G -readwrite=read --numjobs=1  --group_reporting 
+fio: engine posync not loadable
+fio: failed to load engine
+[root@fr-1 ~]#  fio --randrepeat=1 --ioengine=psync --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-01/ds4-512K/fio.dat  --bs=$((2*512 *1024)) --iodepth=1  --size=50G -readwrite=read --numjobs=1  --group_reporting 
+test: (g=0): rw=read, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=psync, iodepth=1
+fio-3.40
+Starting 1 process
+Jobs: 1 (f=1): [R(1)][100.0%][r=2569MiB/s][r=2569 IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=10723: Mon Dec 22 19:05:08 2025
+  read: IOPS=2522, BW=2522MiB/s (2645MB/s)(50.0GiB/20298msec)
+   bw (  MiB/s): min= 1654, max= 2886, per=100.00%, avg=2524.05, stdev=254.27, samples=40
+   iops        : min= 1654, max= 2886, avg=2524.05, stdev=254.27, samples=40
+  cpu          : usr=0.70%, sys=55.45%, ctx=3254, majf=0, minf=256
+  IO depths    : 1=100.0%, 2=0.0%, 4=0.0%, 8=0.0%, 16=0.0%, 32=0.0%, >=64=0.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     issued rwts: total=51200,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=1
+
+Run status group 0 (all jobs):
+   READ: bw=2522MiB/s (2645MB/s), 2522MiB/s-2522MiB/s (2645MB/s-2645MB/s), io=50.0GiB (53.7GB), run=20298-20298msec
+[root@fr-1 ~]# 
+[root@fr-1 ~]#  fio --randrepeat=1 --ioengine=posixaio --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-01/ds4-512K/fio.dat  --bs=$((2*512 *1024)) --iodepth=12  --size=50G -readwrite=read --numjobs=1  --group_reporting 
+test: (g=0): rw=read, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=posixaio, iodepth=12
+fio-3.40
+Starting 1 process
+Jobs: 1 (f=1): [R(1)][100.0%][r=2913MiB/s][r=2913 IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=10727: Mon Dec 22 19:05:39 2025
+  read: IOPS=2871, BW=2871MiB/s (3011MB/s)(50.0GiB/17833msec)
+   bw (  MiB/s): min= 2351, max= 3016, per=100.00%, avg=2875.12, stdev=127.25, samples=35
+   iops        : min= 2351, max= 3016, avg=2875.11, stdev=127.29, samples=35
+  cpu          : usr=1.13%, sys=2.99%, ctx=48504, majf=0, minf=1
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.1%, 8=100.0%, 16=0.0%, 32=0.0%, >=64=0.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=99.9%, 8=0.1%, 16=0.1%, 32=0.0%, 64=0.0%, >=64=0.0%
+     issued rwts: total=51200,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=12
+
+Run status group 0 (all jobs):
+   READ: bw=2871MiB/s (3011MB/s), 2871MiB/s-2871MiB/s (3011MB/s-3011MB/s), io=50.0GiB (53.7GB), run=17833-17833msec
+[root@fr-1 ~]# 
+[root@fr-1 ~]#  fio --randrepeat=1 --ioengine=posixaio --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-01/ds4-512K/fio.dat  --bs=$((2*512 *1024)) --iodepth=24  --size=50G -readwrite=read --numjobs=1  --group_reporting 
+test: (g=0): rw=read, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=posixaio, iodepth=24
+fio-3.40
+Starting 1 process
+Jobs: 1 (f=1): [R(1)][100.0%][r=2932MiB/s][r=2931 IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=10738: Mon Dec 22 19:06:04 2025
+  read: IOPS=2933, BW=2933MiB/s (3076MB/s)(50.0GiB/17456msec)
+   bw (  MiB/s): min= 2510, max= 3074, per=100.00%, avg=2936.24, stdev=104.96, samples=34
+   iops        : min= 2510, max= 3074, avg=2936.24, stdev=104.96, samples=34
+  cpu          : usr=1.31%, sys=3.15%, ctx=47783, majf=0, minf=1
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.1%, 8=0.6%, 16=99.4%, 32=0.0%, >=64=0.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=95.3%, 8=4.2%, 16=0.5%, 32=0.1%, 64=0.0%, >=64=0.0%
+     issued rwts: total=51200,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=24
+
+Run status group 0 (all jobs):
+   READ: bw=2933MiB/s (3076MB/s), 2933MiB/s-2933MiB/s (3076MB/s-3076MB/s), io=50.0GiB (53.7GB), run=17456-17456msec
+[root@fr-1 ~]# 
+[root@fr-1 ~]#  fio --randrepeat=1 --ioengine=posixaio --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-01/ds4-512K/fio.dat  --bs=$((512 *1024)) --iodepth=24  --size=50G -readwrite=read --numjobs=1  --group_reporting 
+test: (g=0): rw=read, bs=(R) 512KiB-512KiB, (W) 512KiB-512KiB, (T) 512KiB-512KiB, ioengine=posixaio, iodepth=24
+fio-3.40
+Starting 1 process
+Jobs: 1 (f=1): [R(1)][100.0%][r=2967MiB/s][r=5933 IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=10753: Mon Dec 22 19:06:41 2025
+  read: IOPS=5781, BW=2891MiB/s (3031MB/s)(50.0GiB/17712msec)
+   bw (  MiB/s): min= 2525, max= 3037, per=100.00%, avg=2893.94, stdev=97.29, samples=35
+   iops        : min= 5050, max= 6074, avg=5787.89, stdev=194.58, samples=35
+  cpu          : usr=1.90%, sys=6.66%, ctx=85769, majf=0, minf=1
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.1%, 8=0.4%, 16=99.6%, 32=0.0%, >=64=0.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=96.0%, 8=3.6%, 16=0.4%, 32=0.1%, 64=0.0%, >=64=0.0%
+     issued rwts: total=102400,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=24
+
+Run status group 0 (all jobs):
+   READ: bw=2891MiB/s (3031MB/s), 2891MiB/s-2891MiB/s (3031MB/s-3031MB/s), io=50.0GiB (53.7GB), run=17712-17712msec
+[root@fr-1 ~]# 
+[root@fr-1 ~]# zfs get recordsize POOL-01/ds1-128K
+NAME              PROPERTY    VALUE    SOURCE
+POOL-01/ds1-128K  recordsize  128K     local
+[root@fr-1 ~]#  fio --randrepeat=1 --ioengine=posixaio --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-01/ds1-128K/fio.dat  --bs=$((128 *1024)) --iodepth=24  --size=50G -readwrite=read --numjobs=1  --group_reporting 
+test: (g=0): rw=read, bs=(R) 128KiB-128KiB, (W) 128KiB-128KiB, (T) 128KiB-128KiB, ioengine=posixaio, iodepth=24
+fio-3.40
+Starting 1 process
+Jobs: 1 (f=1): [R(1)][100.0%][r=1240MiB/s][r=9920 IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=10757: Mon Dec 22 19:08:01 2025
+  read: IOPS=9755, BW=1219MiB/s (1279MB/s)(50.0GiB/41987msec)
+   bw (  MiB/s): min=  911, max= 1431, per=100.00%, avg=1219.48, stdev=90.17, samples=83
+   iops        : min= 7294, max=11448, avg=9755.86, stdev=721.34, samples=83
+  cpu          : usr=2.79%, sys=10.90%, ctx=222442, majf=0, minf=1
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.1%, 8=0.3%, 16=99.7%, 32=0.0%, >=64=0.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=96.5%, 8=3.3%, 16=0.2%, 32=0.1%, 64=0.0%, >=64=0.0%
+     issued rwts: total=409600,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=24
+
+Run status group 0 (all jobs):
+   READ: bw=1219MiB/s (1279MB/s), 1219MiB/s-1219MiB/s (1279MB/s-1279MB/s), io=50.0GiB (53.7GB), run=41987-41987msec
+[root@fr-1 ~]# rm /POOL-01/ds1-128K/fio.dat 
+[root@fr-1 ~]# 
+[root@fr-1 ~]#  fio --randrepeat=1 --ioengine=posixaio --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-01/ds1-128K/fio.dat  --bs=$((128 *1024)) --iodepth=8  --size=50G -readwrite=write --numjobs=1  --group_reporting 
+test: (g=0): rw=write, bs=(R) 128KiB-128KiB, (W) 128KiB-128KiB, (T) 128KiB-128KiB, ioengine=posixaio, iodepth=8
+fio-3.40
+Starting 1 process
+test: Laying out IO file (1 file / 51200MiB)
+Jobs: 1 (f=1): [W(1)][100.0%][w=985MiB/s][w=7876 IOPS][eta 00m:00s] 
+test: (groupid=0, jobs=1): err= 0: pid=10792: Mon Dec 22 19:09:20 2025
+  write: IOPS=11.0k, BW=1373MiB/s (1440MB/s)(50.0GiB/37280msec); 0 zone resets
+   bw (  MiB/s): min=  373, max= 3946, per=99.76%, avg=1370.14, stdev=590.34, samples=74
+   iops        : min= 2986, max=31568, avg=10961.11, stdev=4722.68, samples=74
+  cpu          : usr=7.61%, sys=11.66%, ctx=387667, majf=0, minf=1
+  IO depths    : 1=0.1%, 2=0.1%, 4=2.5%, 8=97.5%, 16=0.0%, 32=0.0%, >=64=0.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.1%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     issued rwts: total=0,409600,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=8
+
+Run status group 0 (all jobs):
+  WRITE: bw=1373MiB/s (1440MB/s), 1373MiB/s-1373MiB/s (1440MB/s-1440MB/s), io=50.0GiB (53.7GB), run=37280-37280msec
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]#  fio --randrepeat=1 --ioengine=posixaio --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-01/ds1-128K/fio.dat  --bs=$((128 *1024)) --iodepth=24  --size=50G -readwrite=read --numjobs=1  --group_reporting 
+test: (g=0): rw=read, bs=(R) 128KiB-128KiB, (W) 128KiB-128KiB, (T) 128KiB-128KiB, ioengine=posixaio, iodepth=24
+fio-3.40
+Starting 1 process
+Jobs: 1 (f=1): [R(1)][100.0%][r=2142MiB/s][r=17.1k IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=10799: Mon Dec 22 19:10:02 2025
+  read: IOPS=17.4k, BW=2170MiB/s (2276MB/s)(50.0GiB/23590msec)
+   bw (  MiB/s): min= 1601, max= 2466, per=99.94%, avg=2169.20, stdev=199.56, samples=47
+   iops        : min=12812, max=19730, avg=17353.62, stdev=1596.50, samples=47
+  cpu          : usr=5.06%, sys=16.01%, ctx=147356, majf=0, minf=1
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.1%, 8=0.4%, 16=99.6%, 32=0.0%, >=64=0.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=96.4%, 8=3.4%, 16=0.3%, 32=0.1%, 64=0.0%, >=64=0.0%
+     issued rwts: total=409600,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=24
+
+Run status group 0 (all jobs):
+   READ: bw=2170MiB/s (2276MB/s), 2170MiB/s-2170MiB/s (2276MB/s-2276MB/s), io=50.0GiB (53.7GB), run=23590-23590msec
+[root@fr-1 ~]# 
+[fr-1][  0 bash  1 bash  2 bash  3 bash  4- bash  (5* bash)  7 bash  8 bash  9 bash  10 bash  11 bash  12 bash  13 bash  14 bash  15 bash  16 bash  17 bash  18 bash  19 bash  20 bash  21 bash  22 bash  23 bash
+
