@@ -315,6 +315,111 @@ vlan11: flags=1008843<UP,BROADCAST,RUNNING,SIMPLEX,MULTICAST,LOWER_UP> metric 0 
 	status: active
 	nd6 options=29<PERFORMNUD,IFDISABLED,AUTO_LINKLOCAL>
 
+=======
 
+конфиг когда часть виланов лежит не в лагг а просто сразу на физ порту
+
+
+
+
+
+ifconfig_igb0="up"
+ifconfig_igb1="up"
+ifconfig_ix0="up mtu 9000"
+ifconfig_ix1="up mtu 9000"
+
+
+cloned_interfaces="lagg0  vlan55  vlan11 vlan12" 
+
+
+
+ifconfig_lagg0="up laggproto lacp laggport igb0 laggport igb1 description '1G' "
+# vlan 55 SSH
+ifconfig_vlan55="vlan 55 vlandev lagg0 100.69.55.4/24 description 'SSH'  "
+
+
+
+# vlan 11 ISCSI на первой карте
+ifconfig_vlan11="inet 100.69.11.4 netmask 255.255.255.0 vlan 11 vlandev ix0 mtu 9000 description 'ISCSI-A'"
+
+# vlan 12 ISCSI на второй карте
+ifconfig_vlan12="inet 100.69.12.4 netmask 255.255.255.0 vlan 12 vlandev ix1 mtu 9000 description 'ISCSI-B'"
+
+
+
+
+
+
+
+
+defaultrouter="100.69.55.254"
+
+
+
+или еще конфиг
+
+
+
+
+ifconfig_igb0="up"
+ifconfig_igb1="up"
+ifconfig_ix0="up mtu 9000"
+ifconfig_ix1="up mtu 9000"
+ifconfig_mce0="up mtu 9000"
+ifconfig_mce1="up mtu 9000"
+ifconfig_mlxen0="up mtu 9000"
+ifconfig_mlxen2="up mtu 9000"
+
+
+cloned_interfaces="lagg0 lagg1 lagg2  vlan55 vlan34 vlan33 vlan11 vlan12"
+
+
+
+ifconfig_lagg0="laggproto lacp laggport igb0   laggport igb1     description '1G' "
+ifconfig_lagg1="laggproto lacp laggport ix0    laggport ix1      description '10G' "
+ifconfig_lagg2="laggproto lacp laggport mce0   laggport mce1     description '40G' "
+
+
+# vlan 55 SSH
+ifconfig_vlan55="inet 100.69.55.1 netmask 255.255.255.0  vlan 55 vlandev lagg0     description 'SSH'  "
+
+
+# vlan 34 BACKUP
+ifconfig_vlan34="inet 100.68.34.1 netmask 255.255.255.0  vlan 34 vlandev lagg1     description 'BACKUP'  "
+
+
+# vlan 33 NFS
+ifconfig_vlan33="inet 100.68.33.1 netmask 255.255.255.0  vlan 33 vlandev lagg2     description 'NFS' "
+
+
+
+# vlan 11 ISCSI на первой карте
+ifconfig_vlan11="inet 100.69.11.1 netmask 255.255.255.0 vlan 11 vlandev mlxen0 mtu 9000 description 'ISCSI-A'"
+
+# vlan 12 ISCSI на второй карте
+ifconfig_vlan12="inet 100.69.12.1 netmask 255.255.255.0 vlan 12 vlandev mlxen2 mtu 9000 description 'ISCSI-B'"
+
+
+
+
+defaultrouter="100.69.55.254"
+
+
+
+
+
+
+
+а вот как налету поменять настройки сети
+после этого 
+
+
+# Удаляем старый lagg
+ifconfig lagg3 destroy
+# Пересоздаем вланы с новыми родителями
+service netif restart vlan11
+service netif restart vlan12
+
+===
 
 
