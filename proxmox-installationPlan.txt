@@ -112,8 +112,59 @@ net.ipv6.conf.lo.disable_ipv6 = 1
 	
 
 
+сет карты для NFS в файле interfaces увелчыить RX TX 
+auto enp3s0f0
+iface enp3s0f0 inet manual
+    mtu 9000
+    pre-up  ethtool -G enp3s0f0 rx 8192 tx 8192   
+    post-up ethtool -G enp3s0f0 rx 8192 tx 8192   
+
+
+
+вот эти настройки нужно проработать
+это для стораджа
+1. dev.ix.0.iflib.override_qs_enable=1
+2. dev.ix.0.iflib.override_ntxqs=16
+3. dev.ix.0.iflib.override_nrxqs=16
+4. dev.ix.1.iflib.override_qs_enable=1
+5. dev.ix.1.iflib.override_ntxqs=16
+6. dev.ix.1.iflib.override_nrxqs=16
+
+
+
+
+
+
+провеиьть что отвал нфс стораджа неывзавыает крах у хоста. он должен прободолдажат пытваться  сним
+связаться
+
+
+
+
+
+(!!!!!!) для всех NFS стораджей дбавить sync в /etc/pve/storages.cfg  (!!!!!!!!)
+
+
+так выглядит маунт для старых проксксксосаов
+prox1
+10.254.254.246:/store/global/proxmox on /mnt/pve/nfs-ext type nfs (rw,relatime,vers=3,rsize=1048576,wsize=1048576,namlen=255,hard,proto=tcp,timeo=600,retrans=2,sec=sys,mountaddr=10.254.254.246,mountvers=3,mountport=32799,mountproto=udp,local_lock=none,addr=10.254.254.246)
+10.253.12.59:/mnt/strip-2mirror/share/proxmox on /mnt/pve/freenas type nfs (rw,relatime,vers=3,rsize=131072,wsize=131072,namlen=255,hard,proto=tcp,timeo=600,retrans=2,sec=sys,mountaddr=10.253.12.59,mountvers=3,mountport=680,mountproto=udp,local_lock=none,addr=10.253.12.59)
+
+prox2
+10.253.12.59:/mnt/strip-2mirror/share/proxmox on /mnt/pve/freenas type nfs (rw,relatime,vers=3,rsize=131072,wsize=131072,namlen=255,hard,proto=tcp,timeo=600,retrans=2,sec=sys,mountaddr=10.253.12.59,mountvers=3,mountport=680,mountproto=udp,local_lock=none,addr=10.253.12.59)
+10.254.254.246:/store/global/proxmox on /mnt/pve/nfs-ext type nfs (rw,relatime,vers=3,rsize=1048576,wsize=1048576,namlen=255,hard,proto=tcp,timeo=600,retrans=2,sec=sys,mountaddr=10.254.254.246,mountvers=3,mountport=32799,mountproto=udp,local_lock=none,addr=10.254.254.246)
+
+
+
+
+
 
 rpcbind сделать биндинг тольк на localhost (пока нихуя не получилось)
+
+
+
+
+
 
 
 69 vlan который для LIVE MIGRATION виртуалок. его нужнонетолько на хосте в свойствах сети настрить
@@ -156,4 +207,32 @@ treucore у него друние парамтеры NFS
 100.68.33.4:/mnt/POOL-01/PROXMOX-2 on /mnt/pve/NFS-FREENAS-4 type nfs4 (rw,relatime,vers=4.2,rsize=1048576,wsize=1048576,namlen=255,hard,proto=tcp,timeo=600,retrans=2,sec=sys,clientaddr=100.68.33.248,local_lock=none,addr=100.68.33.4)
 100.68.33.5:/mnt/POOL-01/PROXMOX-2 on /mnt/pve/NFS-FREENAS-5 type nfs4 (rw,relatime,vers=4.2,rsize=131072,wsize=131072,namlen=255,hard,proto=tcp,timeo=600,retrans=2,sec=sys,clientaddr=100.68.33.248,local_lock=none,addr=100.68.33.5)
 root@2hst6:/home/krivosheeva# 
+
+===
+
+NFS 
+freebsd
+
+как сделат чтобы клиент мог качать со стораджа на скорости 10ГБ
+
+на фрибсл нужно
+
+
+/boot/loader.conf
+vfs.maxbcachebuf=1048576
+
+/etc/sysctl.conf
+kern.ipc.maxsockbuf=16777216
+net.inet.tcp.sendbuf_max=16777216
+net.inet.tcp.recvbuf_max=16777216
+vfs.nfsd.srvmaxio=1048576
+
+/etc/rc.conf 
+nfs_server_maxio="1048576"
+
+
+строка маунту у клиента должна выглядеть вот так
+100.68.33.1:/POOL-01/ds-proxmox-128K on /mnt/pve/NFS-FREENAS-1 type nfs (rw,relatime,sync,vers=3,rsize=1048576,wsize=1048576,namlen=255,hard,proto=tcp,nconnect=8,timeo=600,retrans=2,sec=sys,mountaddr=100.68.33.1,mountvers=3,mountport=691,mountproto=udp,local_lock=none,addr=100.68.33.1)
+
+=====
 

@@ -1,0 +1,21 @@
+| freebsd
+| sudo 
+
+
+# pkg install sudo
+
+
+# adduser vasya
+
+# pw group mod wheel -m vasya
+
+
+редактиттиурем
+
+/usr/local/etc/sudoers
+
+%wheel ALL=(ALL:ALL) ALL
+
+
+все. должно раоботать
+

@@ -1,0 +1,30 @@
+| solaris 
+| mc
+
+
+устанвока
+
+  522  pkgadd -G -d http://get.opencsw.org/now
+  525  /opt/csw/bin/pkgutil -i mc  -p pkgaddopts:-G
+
+
+запуск
+
+-bash-3.00# /opt/csw/bin/mc
+ld.so.1: mc: fatal: libgcc_s.so.1: version `GCC_4.3.0' not found (required by file /opt/csw/lib/sparcv8/libglib-2.0.so.0)
+ld.so.1: mc: fatal: libgcc_s.so.1: open failed: No such file or directory
+ld.so.1: mc: fatal: libgcc_s.so.1: version `GCC_4.3.0' not found (required by file /opt/csw/lib/sparcv8/libglib-2.0.so.0)
+ld.so.1: mc: fatal: libgcc_s.so.1: open failed: No such file or directory
+ld.so.1: mc: fatal: libgcc_s.so.1: version `GCC_4.3.0' not found (required by file /opt/csw/lib/sparcv8/libglib-2.0.so.0)
+ld.so.1: mc: fatal: libgcc_s.so.1: open failed: No such file or directory
+ld.so.1: mc: fatal: relocation error: file /opt/csw/lib/sparcv8/libglib-2.0.so.0: symbol __clzsi2: referenced symbol not found
+Killed
+-bash-3.00# /opt/csw/bin/pkgutil -i libgcc_s1
+
+
+тогда 
+
+# export LD_LIBRARY_PATH=/opt/csw/lib:$LD_LIBRARY_PATH
+# export TERM=xterm
+# /opt/csw/bin/mc
+
