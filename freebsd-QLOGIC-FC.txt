@@ -1,0 +1,15 @@
+| freebsd
+| qlogic
+| FC
+
+встаили в freebsd FC карту qlogic а он делает кернел паник на буте
+чтоы этого небыло
+
+
+boot.loader
+
+# Сначала загружаем прошивку
+ispfw_load="YES"
+# Затем сам драйвер
+isp_load="YES"
+

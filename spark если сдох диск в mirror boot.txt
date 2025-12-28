@@ -1,0 +1,63 @@
+| spark
+| zfs
+| mirror
+
+
+если диск сдох как его чинить
+
+ПЕРВО НАПЕРВО ТОТ ДИСК КОТОРЫЙ СОБИАРЕМС ДОБАВВЯТЛ ЕГО НАХУЙ НУЖНО КЧЕСТВЕННО 
+ОЧИТЧТИТЬ НЕДАЙ БОГ ТАМ ОШМЕТКИ САТРОГО ЗФС
+чтобы это сделать нужно сделать вот как
+
+ 1) zpool clearlabel -f /dev/ada0
+
+но этого сука недоставотчно!
+
+ 2) dd if=/dev/zero of=/dev/ada0 bs=1M count=1024
+
+и обязатеьно чистим хвост через diskinfo смотрим во фрьибс размер диска в секторах 
+скаем это 1000000
+тога
+
+ 3) dd if=/dev/zero of=/dev/ada0 bs=1M seek=$((1000000/2/1024 - 1024 ))
+
+
+
+
+printenv boot-device
+
+
+{0} ok devalias
+nvram                    /virtual-devices/nvram@3
+net3                     /pci@7c0/pci@0/pci@8/network@1,1
+net2                     /pci@7c0/pci@0/pci@8/network@1
+net1                     /pci@7c0/pci@0/network@4,1
+net0                     /pci@7c0/pci@0/network@4
+net                      /pci@7c0/pci@0/network@4
+disk                     /pci@7c0/pci@0/pci@8/scsi@2/disk@0,0
+scsi                     /pci@7c0/pci@0/pci@8/scsi@2
+ttya                     /ebus@800/serial@0,c2c000
+virtual-console          /virtual-devices/console@1
+name                     aliases
+
+
+
+
+{0} ok probe-scsi-all
+/pci@7c0/pci@0/pci@8/scsi@2
+
+MPT Version 1.05, Firmware Version 1.10.00.00
+
+Target 0 
+Unit 0   Disk     SEAGATE ST973402SSUN72G 0603    143374738 Blocks, 73 GB
+  SASAddress 5000c5000b9176c9  PhyNum 0 
+Target 1 
+Unit 0   Disk     FUJITSU MAY2073RCSUN72G 0501    143374738 Blocks, 73 GB
+  SASAddress 500000e017139a22  PhyNum 1 
+
+
+
+
+чотобы T1000 при вытакании провода автоматомт делал poweron нужно 
+в алом
+> setsc sc_powerstatememory true

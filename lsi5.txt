@@ -101,6 +101,12 @@ sas2flsh.exe
 
  # sas2flsh.exe  -c 0  -o  -f 9207-8.bin   -b mptsas2.rom
 
+UPDATE!!!!! если мы хотим чтобы у нас загрузочная хрень была нетолко в BIOS но и в UEFI тогда нужно добыть еще один файл mpt3x64.rom
+и прошивать нужно тогда вот так
+
+
+ # sas2flsh.exe  -c 0  -o  -f 9207-8.bin   -b mptsas2.rom   -b x64sas3.rom
+
 
  если все  окей то возврашаем контролллеру ранее имевищйся SAS адрес
 
@@ -110,6 +116,52 @@ sas2flsh.exe
 
  # sas2flsh.exe  -c 0 -list
 
+а что значит окей? а вот что 
+
+
+root@backup-01:~# sas3flash -list
+Avago Technologies SAS3 Flash Utility
+Version 16.00.00.00 (2017.05.02) 
+Copyright 2008-2017 Avago Technologies. All rights reserved.
+
+    Adapter Selected is a Avago SAS: SAS3216(A1)
+
+    Controller Number              : 0
+    Controller                     : SAS3216(A1)
+    PCI Address                    : 00:04:00:00
+    SAS Address                    : 500062b-2-029b-6a40
+    NVDATA Version (Default)       : 0b.04.00.05
+    NVDATA Version (Persistent)    : 0b.04.00.05
+    Firmware Product ID            : 0x2228 (IT)  <<*** если здесьт стоит (IT) значит карта в HBA прошивке а если (IR) то в рейд прошивке
+    Firmware Version               : 15.00.00.00
+    NVDATA Vendor                  : LSI
+    NVDATA Product ID              : SAS9305-16e
+    BIOS Version                   : 08.35.00.00  <<**** если здесь непусто значит у карты загружен ROM для BIOS
+    UEFI BSD Version               : 17.00.00.00  <<*** если здес непусто то знчит у карты загружен ROM для UEFI
+    FCODE Version                  : N/A
+    Board Name                     : SAS9305-16e
+    Board Assembly                 : N/A
+    Board Tracer Number            : N/A
+
+    Finished Processing Commands Successfully.
+    Exiting SAS3Flash.
+
+
+
+
+если карта новая(12GB/s каналы)  то ссмотрим ее через sas3flash а если старая (6Gb/s каналы) то через sas2flash
+
+
 
 готово. перегружаемся.
+
+
+UPDATE:
+наипиздатейшая папка с прошивками от LSI
+
+    https://dns.abacus.cz/support/FW/STORAGE/LSI/
+
+только она открывается с албанских IP
+
+
 

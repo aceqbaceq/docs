@@ -1,0 +1,34 @@
+| proxmox 
+| zfs
+| debian
+
+я хочу поствть дебиан но чтобы он сразу умел ZFS и чтоб сразу постваиться на зеркало ZFS
+это умееет только прокскскс. 
+
+поэжтому ставим прокскс.  а потом его превращаем в дебиан
+
+постиавли прокскс.
+потом идем в  /etc/apt
+и там убираем мусор  а оставляем вот что 
+
+
+
+root@backup-02:~# cat /etc/apt/sources.list
+deb http://ftp.ru.debian.org/debian bookworm main contrib non-free-firmware non-free
+deb http://ftp.ru.debian.org/debian bookworm-updates main contrib non-free-firmware non-free
+deb http://security.debian.org bookworm-security main contrib non-free-firmware non-free
+
+deb http://download.proxmox.com/debian/pbs bookworm pbs-no-subscription
+
+
+
+
+далее удаляем мусор
+
+# touch '/please-remove-proxmox-ve
+# apt purge proxmox-ve 
+# apt-get remove --purge proxmox-ve pve-manager pve-cluster pve-container pve-qemu-kvm qemu-server
+
+#  update-initramfs -u -k all
+
+вот и все .реубут.

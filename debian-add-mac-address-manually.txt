@@ -1,0 +1,11 @@
+| linux 
+| ip 
+| mac
+
+как рукамт добавить мак адрес для ип хоста
+
+  # ip neigh add  1.1.1.1 lladdr  00:09:0f:09:00:01   dev    bond0  nud permanent
+
+  
+
+
