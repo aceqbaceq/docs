@@ -62,3 +62,35 @@ hw.mfi.mrsas_enable="1"
 mfip_load="YES"
 
 
+======
+UPDATE
+
+
+<XYRATEX 3GSAS1.0-SATAEXP 1.07>    at scbus2 target 109 lun 0 (ses4,pass16)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 112 lun 0 (pass17,da12)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 117 lun 0 (pass18,da13)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 120 lun 0 (pass19,da14)
+[root@backup-01 ~]# cat /boot/loader.conf
+kern.geom.label.disk_ident.enable="1"
+kern.geom.label.gptid.enable="0"
+cryptodev_load="YES"
+
+
+
+mrsas_load="YES"
+mfip_load="YES"
+hw.mfi.mrsas_enable="1"
+
+kern.cam.da.default_quirks="0x18"
+hw.mfi.allow_cam_disk_passthrough="1"
+
+zfs_load="YES"
+
+
+
+
+[root@backup-01 ~]# 
+
+
+
+====
