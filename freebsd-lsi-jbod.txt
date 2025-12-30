@@ -1,0 +1,64 @@
+| freebsd
+| lsi
+| jbod
+| lsi logic l1-01104-05
+
+
+
+[root@fr ~]# cat /boot/loader.conf
+kern.geom.label.disk_ident.enable="1"
+kern.geom.label.gptid.enable="0"
+cryptodev_load="YES"
+
+# Сначала загружаем прошивку
+ispfw_load="YES"
+# Затем сам драйвер
+isp_load="YES"
+
+
+
+
+hint.isp.0.role="2"
+hint.isp.1.role="2"
+hint.isp.0.topology="lport"
+hint.isp.1.topology="lport"
+hw.isp.max_cmds="16"
+hw.isp.debug="0"
+hw.isp.64bit_dma="0"
+hw.cam.cam_sg_entries="8"
+kern.cam.max_iosize="65536"
+kern.cam.da.default_timeout="60"
+kern.cam.da.default_send_ordered="0"
+kern.cam.da.default_tags="0"
+hint.isp.0.gone_device_time="0"
+hint.isp.1.gone_device_time="0"
+kern.cam.da.0.quirks="0x19"
+kern.cam.da.1.quirks="0x19"
+kern.cam.da.2.quirks="0x19"
+kern.cam.da.3.quirks="0x19"
+kern.cam.da.4.quirks="0x19"
+kern.cam.da.5.quirks="0x19"
+kern.cam.da.6.quirks="0x19"
+kern.cam.da.7.quirks="0x19"
+kern.cam.da.8.quirks="0x19"
+kern.cam.da.9.quirks="0x19"
+kern.cam.da.10.quirks="0x19"
+kern.cam.da.11.quirks="0x19"
+kern.cam.da.12.quirks="0x19"
+
+
+
+
+
+
+
+mlx4en_load="YES"
+mlx4_core_load="YES"
+
+zfs_load="YES"
+
+mrsas_load="YES"
+hw.mfi.mrsas_enable="1"
+mfip_load="YES"
+
+
