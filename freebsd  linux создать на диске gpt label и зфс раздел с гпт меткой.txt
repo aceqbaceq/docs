@@ -1,0 +1,31 @@
+| freebsd
+| linux
+| disk
+| hdd
+
+как создать гпт лейбел на диске
+и как потом на нем создать зфс раздел с гпт меткой  в которой записан серийник
+
+
+LINUX
+export dev=/dev/sdab
+export sn=$(lsblk -n -d -o SERIAL $dev)
+  parted -s $dev mklabel gpt
+  parted -s $dev mkpart primary 2048s 100%
+  parted -s $dev name 1 $sn
+
+
+
+FREEBSD
+export DISK=da3
+export SN=$(camcontrol inquiry $DISK | grep Serial | awk '{print $4}')
+gpart create -s gpt $DISK
+gpart add -b 2048 -t freebsd-zfs  -l  $SN  -i 1 $DISK
+gpart show $DISK
+gpart list $DISK
+
+
+
+
+
+

@@ -1,0 +1,279 @@
+| disk
+| HGST HUS724020AL A8B0
+| ST2000NM0033-9ZM SN06
+
+
+
+тест характеристик
+
+
+
+
+HGST HUS724020AL A8B0
+SN PN1181P5H6A19W
+(скорсть его интфрейса 6Gb/s)
+
+# geom disk list da3
+Geom name: da3
+Providers:
+1. Name: da3
+   Mediasize: 2000398934016 (1.8T)
+   Sectorsize: 512
+   Mode: r0w0e0
+   descr: ATA HGST HUS724020AL
+   lunid: 5000cca24ed0f76d
+   ident: PN1181P5H6A19W
+   rotationrate: 7200
+   fwsectors: 63
+   fwheads: 255
+
+
+ЛИН ЧТЕНИЕ 
+
+ fio --randrepeat=1 --ioengine=posixaio --direct=1 --gtod_reduce=1 --name=test --filename=/dev/gpt/PN1181P5H6A19W  --bs=$((8*128 *1024)) --iodepth=32  --runtime=30  --readwrite=read --numjobs=1  --group_reporting 
+test: (g=0): rw=read, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=posixaio, iodepth=32
+fio-3.40
+Starting 1 process
+Jobs: 1 (f=1): [R(1)][100.0%][r=161MiB/s][r=161 IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=2588: Sun Jan  4 13:50:23 2026
+  read: IOPS=162, BW=163MiB/s (171MB/s)(4926MiB/30234msec)
+
+
+# fio --randrepeat=1 --ioengine=posixaio --direct=1 --gtod_reduce=1 --name=test --filename=/dev/gpt/PN1181P5H6A19W  --bs=$((8*128 *1024)) --iodepth=1  --runtime=30  --readwrite=read --numjobs=1  --group_reporting 
+test: (g=0): rw=read, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=posixaio, iodepth=1
+fio-3.40
+Starting 1 process
+Jobs: 1 (f=1): [R(1)][100.0%][r=167MiB/s][r=167 IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=2586: Sun Jan  4 13:49:17 2026
+  read: IOPS=162, BW=163MiB/s (171MB/s)(4926MiB/30239msec)
+
+
+# fio --randrepeat=1 --ioengine=posixaio --direct=1 --gtod_reduce=1 --name=test --filename=/dev/gpt/PN1181P5H6A19W  --bs=$((128 *1024)) --iodepth=1  --runtime=60  --readwrite=read --numjobs=1  --group_reporting 
+test: (g=0): rw=read, bs=(R) 128KiB-128KiB, (W) 128KiB-128KiB, (T) 128KiB-128KiB, ioengine=posixaio, iodepth=1
+fio-3.40
+Starting 1 process
+Jobs: 1 (f=1): [R(1)][100.0%][r=161MiB/s][r=1291 IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=2577: Sun Jan  4 13:48:07 2026
+  read: IOPS=1302, BW=163MiB/s (171MB/s)(9776MiB/60051msec)
+
+
+
+
+
+ЛИН ЗАПИСЬ
+
+# fio --randrepeat=1 --ioengine=posixaio --direct=1 --gtod_reduce=1 --name=test --filename=/dev/gpt/PN1181P5H6A19W  --bs=$((8*128 *1024)) --iodepth=32  --runtime=30  --readwrite=write --numjobs=1  --group_reporting 
+test: (g=0): rw=write, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=posixaio, iodepth=32
+fio-3.40
+Starting 1 process
+Jobs: 1 (f=1): [W(1)][100.0%][w=160MiB/s][w=160 IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=2595: Sun Jan  4 13:51:29 2026
+  write: IOPS=163, BW=163MiB/s (171MB/s)(4926MiB/30197msec); 0 zone resets
+
+
+
+# fio --randrepeat=1 --ioengine=posixaio --direct=1 --gtod_reduce=1 --name=test --filename=/dev/gpt/PN1181P5H6A19W  --bs=$((8*128 *1024)) --iodepth=1  --runtime=30  --readwrite=write --numjobs=1  --group_reporting 
+test: (g=0): rw=write, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=posixaio, iodepth=1
+fio-3.40
+Starting 1 process
+Jobs: 1 (f=1): [W(1)][100.0%][w=166MiB/s][w=166 IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=2603: Sun Jan  4 13:52:20 2026
+  write: IOPS=163, BW=163MiB/s (171MB/s)(4926MiB/30165msec); 0 zone resets
+
+
+
+
+# fio --randrepeat=1 --ioengine=posixaio --direct=1 --gtod_reduce=1 --name=test --filename=/dev/gpt/PN1181P5H6A19W  --bs=$((128 *1024)) --iodepth=1  --runtime=30  --readwrite=write --numjobs=1  --group_reporting 
+test: (g=0): rw=write, bs=(R) 128KiB-128KiB, (W) 128KiB-128KiB, (T) 128KiB-128KiB, ioengine=posixaio, iodepth=1
+fio-3.40
+Starting 1 process
+Jobs: 1 (f=1): [W(1)][100.0%][w=166MiB/s][w=1330 IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=2611: Sun Jan  4 13:53:07 2026
+  write: IOPS=1304, BW=163MiB/s (171MB/s)(4896MiB/30029msec); 0 zone resets
+
+
+резюме и лин чтение и лин запись по 160 МБ/с
+
+
+
+
+РАНДОМ РИД
+
+# fio --randrepeat=1 --ioengine=posixaio --direct=1 --gtod_reduce=1 --name=test --filename=/dev/gpt/PN1181P5H6A19W  --bs=$(( 8 *1024 )) --iodepth=1  --runtime=30  --readwrite=randread --numjobs=1  --group_reporting 
+test: (g=0): rw=randread, bs=(R) 8192B-8192B, (W) 8192B-8192B, (T) 8192B-8192B, ioengine=posixaio, iodepth=1
+fio-3.40
+Starting 1 process
+Jobs: 1 (f=1): [r(1)][100.0%][r=640KiB/s][r=80 IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=2616: Sun Jan  4 13:55:08 2026
+  read: IOPS=84, BW=680KiB/s (696kB/s)(20.0MiB/30097msec)
+
+
+
+# fio --randrepeat=1 --ioengine=posixaio --direct=1 --gtod_reduce=1 --name=test --filename=/dev/gpt/PN1181P5H6A19W  --bs=$(( 8 *1024 )) --iodepth=32  --runtime=30  --readwrite=randread --numjobs=1  --group_reporting 
+test: (g=0): rw=randread, bs=(R) 8192B-8192B, (W) 8192B-8192B, (T) 8192B-8192B, ioengine=posixaio, iodepth=32
+fio-3.40
+Starting 1 process
+Jobs: 1 (f=1): [r(1)][100.0%][r=1520KiB/s][r=190 IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=2627: Sun Jan  4 13:55:46 2026
+  read: IOPS=180, BW=1445KiB/s (1479kB/s)(43.0MiB/30467msec)
+
+
+
+
+
+РАНДОМ ВРАЙТ
+
+# fio --randrepeat=1 --ioengine=posixaio --direct=1 --gtod_reduce=1 --name=test --filename=/dev/gpt/PN1181P5H6A19W  --bs=$(( 8 *1024 )) --iodepth=1  --runtime=30  --readwrite=randwrite --numjobs=1  --group_reporting 
+test: (g=0): rw=randwrite, bs=(R) 8192B-8192B, (W) 8192B-8192B, (T) 8192B-8192B, ioengine=posixaio, iodepth=1
+fio-3.40
+Starting 1 process
+Jobs: 1 (f=1): [w(1)][100.0%][w=1640KiB/s][w=205 IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=2632: Sun Jan  4 13:57:02 2026
+  write: IOPS=197, BW=1577KiB/s (1615kB/s)(46.5MiB/30189msec); 0 zone resets
+
+
+# fio --randrepeat=1 --ioengine=posixaio --direct=1 --gtod_reduce=1 --name=test --filename=/dev/gpt/PN1181P5H6A19W  --bs=$(( 8 *1024 )) --iodepth=32  --runtime=30  --readwrite=randwrite --numjobs=1  --group_reporting 
+test: (g=0): rw=randwrite, bs=(R) 8192B-8192B, (W) 8192B-8192B, (T) 8192B-8192B, ioengine=posixaio, iodepth=32
+fio-3.40
+Starting 1 process
+Jobs: 1 (f=1): [f(1)][100.0%][w=744KiB/s][w=93 IOPS][eta 00m:00s]  
+test: (groupid=0, jobs=1): err= 0: pid=2640: Sun Jan  4 13:57:42 2026
+  write: IOPS=196, BW=1573KiB/s (1610kB/s)(46.5MiB/30267msec); 0 zone resets
+
+
+
+резюме рандом рид врайт 80-200 иопс
+
+
+
+========
+
+
+
+ST2000NM0033-9ZM SN06
+SN Z1X415HY
+(его макс скорость интерфейса 6Gb/s)
+
+# geom disk list da2
+Geom name: da2
+Providers:
+1. Name: da2
+   Mediasize: 2000398934016 (1.8T)
+   Sectorsize: 512
+   Mode: r0w0e0
+   descr: ATA ST2000NM0033-9ZM
+   lunid: 5000c5007a6890b2
+   ident: Z1X415HY
+   rotationrate: 7200
+   fwsectors: 63
+   fwheads: 255
+
+
+
+ЛИН ЧТЕНИЕ 
+
+# fio --randrepeat=1 --ioengine=posixaio --direct=1 --gtod_reduce=1 --name=test --filename=/dev/gpt/Z1X415HY  --bs=$((8*128 *1024)) --iodepth=32  --runtime=30  --readwrite=read --numjobs=1  --group_reporting 
+test: (g=0): rw=read, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=posixaio, iodepth=32
+fio-3.40
+Starting 1 process
+Jobs: 1 (f=1): [R(1)][100.0%][r=160MiB/s][r=160 IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=2645: Sun Jan  4 13:59:19 2026
+  read: IOPS=183, BW=184MiB/s (193MB/s)(5566MiB/30261msec)
+
+
+# fio --randrepeat=1 --ioengine=posixaio --direct=1 --gtod_reduce=1 --name=test --filename=/dev/gpt/Z1X415HY  --bs=$((8*128 *1024)) --iodepth=1  --runtime=30  --readwrite=read --numjobs=1  --group_reporting 
+test: (g=0): rw=read, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=posixaio, iodepth=1
+fio-3.40
+Starting 1 process
+Jobs: 1 (f=1): [R(1)][100.0%][r=182MiB/s][r=182 IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=2660: Sun Jan  4 14:03:07 2026
+  read: IOPS=185, BW=185MiB/s (194MB/s)(5566MiB/30056msec)
+
+
+
+# fio --randrepeat=1 --ioengine=posixaio --direct=1 --gtod_reduce=1 --name=test --filename=/dev/gpt/Z1X415HY  --bs=$((  128 *1024)) --iodepth=1  --runtime=30  --readwrite=read --numjobs=1  --group_reporting 
+test: (g=0): rw=read, bs=(R) 128KiB-128KiB, (W) 128KiB-128KiB, (T) 128KiB-128KiB, ioengine=posixaio, iodepth=1
+fio-3.40
+Starting 1 process
+Jobs: 1 (f=1): [R(1)][100.0%][r=182MiB/s][r=1459 IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=2662: Sun Jan  4 14:04:06 2026
+  read: IOPS=1481, BW=185MiB/s (194MB/s)(5560MiB/30027msec)
+
+
+
+ЛИН ЗАПИСЬ
+
+# fio --randrepeat=1 --ioengine=posixaio --direct=1 --gtod_reduce=1 --name=test --filename=/dev/gpt/Z1X415HY  --bs=$((8*128 *1024)) --iodepth=32  --runtime=30  --readwrite=write  --numjobs=1  --group_reporting 
+test: (g=0): rw=write, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=posixaio, iodepth=32
+fio-3.40
+Starting 1 process
+Jobs: 1 (f=1): [W(1)][0.3%][w=181MiB/s][w=181 IOPS][eta 02h:55m:29s]
+test: (groupid=0, jobs=1): err= 0: pid=2667: Sun Jan  4 14:05:24 2026
+  write: IOPS=186, BW=187MiB/s (196MB/s)(5694MiB/30472msec); 0 zone resets
+
+
+
+# fio --randrepeat=1 --ioengine=posixaio --direct=1 --gtod_reduce=1 --name=test --filename=/dev/gpt/Z1X415HY  --bs=$((8*128 *1024)) --iodepth=1  --runtime=30  --readwrite=write  --numjobs=1  --group_reporting 
+test: (g=0): rw=write, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=posixaio, iodepth=1
+fio-3.40
+Starting 1 process
+Jobs: 1 (f=1): [W(1)][0.3%][w=183MiB/s][w=183 IOPS][eta 02h:57m:08s]
+
+
+# fio --randrepeat=1 --ioengine=posixaio --direct=1 --gtod_reduce=1 --name=test --filename=/dev/gpt/Z1X415HY  --bs=$((1*128 *1024)) --iodepth=1  --runtime=30  --readwrite=write  --numjobs=1  --group_reporting 
+test: (g=0): rw=write, bs=(R) 128KiB-128KiB, (W) 128KiB-128KiB, (T) 128KiB-128KiB, ioengine=posixaio, iodepth=1
+fio-3.40
+Starting 1 process
+Jobs: 1 (f=1): [W(1)][0.3%][w=183MiB/s][w=1462 IOPS][eta 02h:57m:05s]
+test: (groupid=0, jobs=1): err= 0: pid=2685: Sun Jan  4 14:07:06 2026
+  write: IOPS=1479, BW=185MiB/s (194MB/s)(5552MiB/30017msec); 0 zone resets
+
+
+
+иттого резюме лин чтение и запись 190 МБ/с
+
+
+
+РАНДОМ РИД
+
+# fio --randrepeat=1 --ioengine=posixaio --direct=1 --gtod_reduce=1 --name=test --filename=/dev/gpt/Z1X415HY  --bs=$(( 8 *1024 )) --iodepth=1  --runtime=30  --readwrite=randread --numjobs=1  --group_reporting 
+test: (g=0): rw=randread, bs=(R) 8192B-8192B, (W) 8192B-8192B, (T) 8192B-8192B, ioengine=posixaio, iodepth=1
+fio-3.40
+Starting 1 process
+Jobs: 1 (f=1): [r(1)][100.0%][r=672KiB/s][r=84 IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=2690: Sun Jan  4 14:08:41 2026
+  read: IOPS=81, BW=654KiB/s (670kB/s)(19.5MiB/30498msec)
+
+# fio --randrepeat=1 --ioengine=posixaio --direct=1 --gtod_reduce=1 --name=test --filename=/dev/gpt/Z1X415HY  --bs=$(( 8 *1024 )) --iodepth=32  --runtime=30  --readwrite=randread --numjobs=1  --group_reporting 
+test: (g=0): rw=randread, bs=(R) 8192B-8192B, (W) 8192B-8192B, (T) 8192B-8192B, ioengine=posixaio, iodepth=32
+fio-3.40
+Starting 1 process
+Jobs: 1 (f=1): [r(1)][100.0%][r=1496KiB/s][r=187 IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=2692: Sun Jan  4 14:09:19 2026
+  read: IOPS=180, BW=1444KiB/s (1479kB/s)(43.0MiB/30480msec)
+
+
+
+РАНДОМ ВРАЙТ
+
+
+# fio --randrepeat=1 --ioengine=posixaio --direct=1 --gtod_reduce=1 --name=test --filename=/dev/gpt/Z1X415HY  --bs=$(( 8 *1024 )) --iodepth=1  --runtime=30  --readwrite=randwrite --numjobs=1  --group_reporting 
+test: (g=0): rw=randwrite, bs=(R) 8192B-8192B, (W) 8192B-8192B, (T) 8192B-8192B, ioengine=posixaio, iodepth=1
+fio-3.40
+Starting 1 process
+Jobs: 1 (f=1): [f(1)][100.0%][w=200KiB/s][w=25 IOPS][eta 00m:00s]  
+test: (groupid=0, jobs=1): err= 0: pid=2701: Sun Jan  4 14:10:54 2026
+  write: IOPS=210, BW=1685KiB/s (1726kB/s)(49.5MiB/30064msec); 0 zone resets
+
+
+# fio --randrepeat=1 --ioengine=posixaio --direct=1 --gtod_reduce=1 --name=test --filename=/dev/gpt/Z1X415HY  --bs=$(( 8 *1024 )) --iodepth=32  --runtime=30  --readwrite=randwrite --numjobs=1  --group_reporting 
+test: (g=0): rw=randwrite, bs=(R) 8192B-8192B, (W) 8192B-8192B, (T) 8192B-8192B, ioengine=posixaio, iodepth=32
+fio-3.40
+Starting 1 process
+Jobs: 1 (f=1): [f(1)][100.0%][w=752KiB/s][w=94 IOPS][eta 00m:00s]  
+test: (groupid=0, jobs=1): err= 0: pid=2716: Sun Jan  4 14:11:36 2026
+  write: IOPS=207, BW=1658KiB/s (1698kB/s)(49.0MiB/30248msec); 0 zone resets
+
+
+итого ранд рид врайты 80-200 иопс
+

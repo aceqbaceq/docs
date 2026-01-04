@@ -31,6 +31,12 @@ pkg install mc
 
 
 
+
+
+
+
+
+
 а теперь через rc.conf
 
 конфиг для сервера iscsi
@@ -58,6 +64,12 @@ ifconfig_vlan11="vlan 11 vlandev lagg1 100.69.11.5/24 description 'ISCSI' "
 
 
 defaultrouter="100.69.55.254"
+
+
+
+
+
+
 
 
 

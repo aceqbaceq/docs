@@ -1,0 +1,31 @@
+| smart
+
+расшифрока когда диск больной
+
+
+ID# ATTRIBUTE_NAME          FLAGS    VALUE WORST THRESH FAIL RAW_VALUE
+  1 Raw_Read_Error_Rate     PO-R--   100   100   016    -    0
+  2 Throughput_Performance  P-S---   136   136   054    -    82
+  3 Spin_Up_Time            POS---   134   134   024    -    486 (Average 443)
+  4 Start_Stop_Count        -O--C-   100   100   000    -    64
+  5 Reallocated_Sector_Ct   PO--CK   100   100   005    -    7
+  7 Seek_Error_Rate         PO-R--   100   100   067    -    0
+  8 Seek_Time_Performance   P-S---   142   142   020    -    25
+  9 Power_On_Hours          -O--C-   088   088   000    -    85369
+ 10 Spin_Retry_Count        PO--C-   100   100   060    -    0
+ 12 Power_Cycle_Count       -O--CK   100   100   000    -    64
+192 Power-Off_Retract_Count -O--CK   099   099   000    -    1487
+193 Load_Cycle_Count        -O--C-   099   099   000    -    1488
+194 Temperature_Celsius     -O----   214   214   000    -    28 (Min/Max 19/41)
+196 Reallocated_Event_Count -O--CK   100   100   000    -    8
+197 Current_Pending_Sector  -O---K   100   100   000    -    15
+198 Offline_Uncorrectable   ---R--   100   100   000    -    0
+199 UDMA_CRC_Error_Count    -O-R--   200   200   000    -    0
+
+страшные срочки
+
+  5 Reallocated_Sector_Ct   PO--CK   100   100   005    -    7
+
+  197 Current_Pending_Sector  -O---K   100   100   000    -    15 ( это означает что он неможет их прочитать)
+
+  

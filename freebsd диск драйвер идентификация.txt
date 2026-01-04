@@ -1,0 +1,55 @@
+| freebsd
+| disk
+| hdd
+
+
+
+как узнат какой диск на каком драйвере контрллера сидит
+
+
+[root@backup-01 /home/krivosheeva]# camcontrol devlist -v
+scbus0 on mps0 bus 0:
+<ATA INTEL SSDSC2KB48 0100>        at scbus0 target 5 lun 0 (pass0,da0)
+<SEAGATE ST373455SS 0001>          at scbus0 target 8 lun 0 (pass1,da1)
+<SEAGATE ST373455SS 0001>          at scbus0 target 9 lun 0 (pass2,da2)
+<ATA HGST HUS724020AL A8B0>        at scbus0 target 10 lun 0 (pass3,da3)
+<ATA HGST HUS724020AL A8B0>        at scbus0 target 11 lun 0 (pass4,da4)
+<>                                 at scbus0 target -1 lun ffffffff ()
+scbus1 on mpr0 bus 0:
+<ATA HGST HUS724020AL A8B0>        at scbus1 target 1 lun 0 (pass5,da5)
+<SEAGATE ST373455SS 0001>          at scbus1 target 2 lun 0 (pass6,da6)
+<ATA HGST HUS724020AL A8B0>        at scbus1 target 4 lun 0 (pass7,da7)
+<SEAGATE ST373455SS 0001>          at scbus1 target 5 lun 0 (pass8,da8)
+<ATA INTEL SSDSC2KB48 0100>        at scbus1 target 11 lun 0 (pass9,da9)
+<HP D2600 SAS AJ940A 0103>         at scbus1 target 24 lun 0 (ses0,pass10)
+<>                                 at scbus1 target -1 lun ffffffff ()
+scbus2 on mfi0 bus 0:
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 50 lun 0 (pass11,da10)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 51 lun 0 (pass12,da11)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 53 lun 0 (pass13,da12)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 54 lun 0 (pass14,da13)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 56 lun 0 (pass15,da14)
+<XYRATEX 3GSAS1.0-SATAEXP 1.05>    at scbus2 target 58 lun 0 (ses1,pass16)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 60 lun 0 (pass17,da15)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 76 lun 0 (pass18,da16)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 77 lun 0 (pass19,da17)
+<XYRATEX 3GSAS1.0-SATAEXP 1.07>    at scbus2 target 93 lun 0 (ses2,pass20)
+<XYRATEX 3GSAS1.0-SATAEXP 1.07>    at scbus2 target 106 lun 0 (ses3,pass21)
+<XYRATEX 3GSAS1.0-SATAEXP 1.07>    at scbus2 target 109 lun 0 (ses4,pass22)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 110 lun 0 (pass23,da18)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 112 lun 0 (pass24,da19)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 113 lun 0 (pass25,da20)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 116 lun 0 (pass26,da21)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 117 lun 0 (pass27,da22)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 118 lun 0 (pass28,da23)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 120 lun 0 (pass29,da24)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 121 lun 0 (pass30,da25)
+scbus-1 on xpt0 bus 0:
+<>                                 at scbus-1 target -1 lun ffffffff (xpt0)
+
+
+видно что диски разбиыт по трем драверам
+mfi0
+mpr0
+mps0
+

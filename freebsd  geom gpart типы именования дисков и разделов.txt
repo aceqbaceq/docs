@@ -1,0 +1,235 @@
+| freebsd
+| geom
+| gpart
+
+geom и gpart обе в качетве агументов 
+использут диски но сука у них идентфикиоитором диска
+являются разные хуйнюшки.
+
+geom покзывает инфо про диски внезависомсти есть на них лейлбел (mbr,gpt) или нет
+а гпарт позывает инфо о диске только еси на него наснесена метка mbr\gpt
+
+
+
+ # geom disk list | head -n 30
+Geom name: da0
+Providers:
+1. Name: da0
+   Mediasize: 480103981056 (447G)
+   Sectorsize: 512
+   Stripesize: 4096
+   Stripeoffset: 0
+   Mode: r0w0e0
+   descr: ATA INTEL SSDSC2KB48
+   lunid: 55cd2e4155d598f9
+   ident: BTYI224200AP480BGN
+   rotationrate: 0
+   fwsectors: 63
+   fwheads: 255
+
+
+
+
+
+ геом поызвает инфо именно о диске. ему опхуй на разделы итак даклее.
+ он позывает рзмер, размер сектора, wwn (lunid), ident это сериник
+
+
+
+
+
+  # gpart  list | head -n 40
+Geom name: da4
+modified: false
+state: OK
+fwheads: 255
+fwsectors: 63
+last: 143374710
+first: 34
+entries: 128
+scheme: GPT
+Providers:
+1. Name: da4p1
+   Mediasize: 272629760 (260M)
+   Sectorsize: 512
+   Stripesize: 0
+   Stripeoffset: 20480
+   Mode: r0w0e0
+   efimedia: HD(1,GPT,9ead8d88-e66f-11f0-9801-bc305bf420fc,0x28,0x82000)
+   rawuuid: 9ead8d88-e66f-11f0-9801-bc305bf420fc
+   rawtype: c12a7328-f81f-11d2-ba4b-00a0c93ec93b
+   label: (null)
+   length: 272629760
+   offset: 20480
+   type: efi
+   index: 1
+   end: 532519
+   start: 40
+2. Name: da4p2
+   Mediasize: 73133981696 (68G)
+   Sectorsize: 512
+   Stripesize: 0
+   Stripeoffset: 273678336
+   Mode: r0w0e0
+   efimedia: HD(2,GPT,9eaffec2-e66f-11f0-9801-bc305bf420fc,0x82800,0x8839000)
+   rawuuid: 9eaffec2-e66f-11f0-9801-bc305bf420fc
+   rawtype: 516e7cba-6ecf-11d6-8ff8-00022d09712b
+   label: (null)
+   length: 73133981696
+   offset: 273678336
+   type: freebsd-zfs
+
+
+
+
+гапрт покзыает информацию уже по разделам на диске. а разделов без созаданной метки 
+небывает.
+
+
+прикол в том что геом дает диска имена вида daN
+
+
+ # geom disk list | grep Name:
+1. Name: da0
+1. Name: da5
+1. Name: da3
+1. Name: da4
+1. Name: da2
+1. Name: da1
+1. Name: da7
+1. Name: da10
+1. Name: da8
+1. Name: da6
+1. Name: da11
+1. Name: da9
+1. Name: da12
+1. Name: da13
+ # 
+
+
+а гпарт дает дискам совершенно другие имена
+
+ # gpart list |  grep "Geom name"
+Geom name: da4
+Geom name: da2
+Geom name: diskid/DISK-3LQ0PWDE00009736YU6B
+Geom name: diskid/DISK-3LQ0PE4N00009736WQN2
+Geom name: diskid/DISK-3LQ0KB5100009736WREK
+Geom name: diskid/DISK-3LQ0F5HD00009735TERZ
+
+
+соосвттенно в геом диск может имя одно а с точки зрения гапрт совершенно другое.
+утилита camcontrol она относится к геому поэтому там диски всегда имеют имена daN
+
+
+
+как найти соовесвие имени диска в гапрт и в геом 
+а вот как
+
+
+ # geom -t
+Geom                                     Class      Provider
+da0                                      DISK       da0
+  da0                                    DEV       
+  da0                                    LABEL      diskid/DISK-BTYI224200AP480BGN
+    diskid/DISK-BTYI224200AP480BGN       DEV       
+da5                                      DISK       da5
+  da5                                    DEV       
+  da5                                    LABEL      diskid/DISK-BTYI224206P7480BGN
+    diskid/DISK-BTYI224206P7480BGN       DEV       
+da3                                      DISK       da3
+  da3                                    DEV       
+  da3                                    LABEL      diskid/DISK-3LQ0PWDE00009736YU6B
+    diskid/DISK-3LQ0PWDE00009736YU6B     DEV       
+    diskid/DISK-3LQ0PWDE00009736YU6B     PART       diskid/DISK-3LQ0PWDE00009736YU6Bp1
+      diskid/DISK-3LQ0PWDE00009736YU6Bp1 DEV       
+      diskid/DISK-3LQ0PWDE00009736YU6Bp1 LABEL      gpt/efiboot1
+        gpt/efiboot1                     DEV       
+    diskid/DISK-3LQ0PWDE00009736YU6B     PART       diskid/DISK-3LQ0PWDE00009736YU6Bp2
+      diskid/DISK-3LQ0PWDE00009736YU6Bp2 DEV       
+      zfs::vdev                          ZFS::VDEV 
+da4                                      DISK       da4
+  da4                                    DEV       
+  da4                                    LABEL      diskid/DISK-3LQ0PE4N00009736WQN2
+    diskid/DISK-3LQ0PE4N00009736WQN2     DEV       
+    diskid/DISK-3LQ0PE4N00009736WQN2     PART       diskid/DISK-3LQ0PE4N00009736WQN2p1
+      diskid/DISK-3LQ0PE4N00009736WQN2p1 DEV       
+    diskid/DISK-3LQ0PE4N00009736WQN2     PART       diskid/DISK-3LQ0PE4N00009736WQN2p2
+      diskid/DISK-3LQ0PE4N00009736WQN2p2 DEV       
+
+
+
+
+найдем сооветвие раздела в зфс и имени диска в геом
+
+
+
+ # zpool status -v
+  pool: zroot
+ state: ONLINE
+config:
+
+        NAME                                    STATE     READ WRITE CKSUM
+        zroot                                   ONLINE       0     0     0
+          mirror-0                              ONLINE       0     0     0
+            diskid/DISK-3LQ0F5HD00009735TERZp2  ONLINE       0     0     0
+            diskid/DISK-3LQ0PWDE00009736YU6Bp2  ONLINE       0     0     0
+
+
+
+значит вот у нас раздел diskid/DISK-3LQ0F5HD00009735TERZp2 который /dev/diskid/DISK-3LQ0F5HD00009735TERZp2
+где 3LQ0F5HD00009735TERZ это серийник
+
+
+
+
+ # 
+ # geom -t | grep  diskid/DISK-3LQ0F5HD00009735TERZp2 -A 10 -B10
+da1                                      DISK       da1
+  da1                                    DEV       
+  da1                                    LABEL      diskid/DISK-3LQ0F5HD00009735TERZ
+    diskid/DISK-3LQ0F5HD00009735TERZ     DEV       
+    diskid/DISK-3LQ0F5HD00009735TERZ     PART       diskid/DISK-3LQ0F5HD00009735TERZp1
+      diskid/DISK-3LQ0F5HD00009735TERZp1 DEV       
+      diskid/DISK-3LQ0F5HD00009735TERZp1 LABEL      gpt/efiboot0
+        gpt/efiboot0                     DEV       
+      diskid/DISK-3LQ0F5HD00009735TERZp1 LABEL      msdosfs/EFI
+        msdosfs/EFI                      DEV       
+    diskid/DISK-3LQ0F5HD00009735TERZ     PART       diskid/DISK-3LQ0F5HD00009735TERZp2
+      diskid/DISK-3LQ0F5HD00009735TERZp2 DEV       
+      zfs::vdev                          ZFS::VDEV 
+
+
+получется диск это da1 
+он же diskid/DISK-3LQ0F5HD00009735TERZ
+
+diskid/DISK-3LQ0F5HD00009735TERZp1 это его первйй раздел
+
+diskid/DISK-3LQ0F5HD00009735TERZp2 этр енр второй разедел
+
+
+первый раздел также имеет вот такое обозоачние         gpt/efiboot0    
+а еще вот такое   msdosfs/EFI 
+
+это все названия файлов которые можно найти в /dev/ тоесть /dev/msdosfs/EFI итп
+
+
+в завсоисоити сколкьо много воти этих хуйнющек у нас активровано 
+
+ # sysctl kern.geom.label
+kern.geom.label.disk_ident.enable: 1
+kern.geom.label.gptid.enable: 0
+kern.geom.label.gpt.enable: 1
+kern.geom.label.ufs.enable: 1
+kern.geom.label.ufsid.enable: 1
+kern.geom.label.reiserfs.enable: 1
+kern.geom.label.ntfs.enable: 1
+kern.geom.label.msdosfs.enable: 1
+kern.geom.label.iso9660.enable: 1
+kern.geom.label.flashmap.enable: 1
+kern.geom.label.ext2fs.enable: 1
+kern.geom.label.debug: 0
+
+
+у нас диск и разделы могут иметь милион разных имен
+

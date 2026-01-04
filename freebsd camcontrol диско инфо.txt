@@ -1,0 +1,168 @@
+| freebsd
+| диски
+| camcontrol
+
+identify работает тлькол на сата дисках
+
+[root@dell-r720-freebsd ~]# camcontrol identify da0
+pass0: <SEAGATE ST32500NSSUN250G 0730B4EPC7 3.AZK> ATA-7 SATA 2.x device
+pass0: 300.000MB/s transfers, Command Queueing Enabled
+
+protocol              ATA-7 SATA 2.x
+device model          SEAGATE ST32500NSSUN250G 0730B4EPC7
+firmware revision     3.AZK
+serial number         5QE4EPC7
+additional product id 
+cylinders             16383
+heads                 16
+sectors/track         63
+sector size           logical 512, physical 512, offset 0
+LBA supported         268435455 sectors
+LBA48 supported       488390625 sectors
+PIO supported         PIO4
+DMA supported         WDMA2 UDMA6 
+Zoned-Device Commands no
+
+Feature                      Support  Enabled   Value           Vendor
+read ahead                     yes	yes
+write cache                    yes	yes
+flush cache                    yes	yes
+Native Command Queuing (NCQ)   yes		32 tags
+NCQ Priority Information       no
+NCQ Non-Data Command           no
+NCQ Streaming                  no
+Receive & Send FPDMA Queued    no
+NCQ Autosense                  no
+SMART                          yes	yes
+security                       yes	no
+power management               yes	yes
+microcode download             yes	yes
+advanced power management      no	no
+automatic acoustic management  no	no
+media status notification      no	no
+power-up in Standby            no	no
+write-read-verify              yes	no	0/0x0
+unload                         no	no
+general purpose logging        yes	yes
+free-fall                      no	no
+sense data reporting           no	no
+extended power conditions      no	no
+device statistics notification no	no
+Data Set Management (DSM/TRIM) no
+Trusted Computing              no
+encrypts all user data         no
+Sanitize                       no
+Host Protected Area (HPA)      yes      yes     488390625/488397168
+HPA - Security                 yes      no 
+Accessible Max Address Config  no
+[root@dell-r720-freebsd ~]# 
+
+
+для сас дисков не прокатит
+
+
+[root@dell-r720-freebsd ~]# camcontrol identify da3
+camcontrol: ATA ATA_IDENTIFY via pass_16 failed
+camcontrol: ATA ATAPI_IDENTIFY via pass_16 failed
+
+
+нужно другое
+
+
+[root@dell-r720-freebsd ~]# camcontrol  inquiry  da3
+pass4: <SEAGATE ST373455SS 0001> Fixed Direct Access SCSI-3 device
+pass4: Serial Number 3LQ0NKML000097351XNM
+pass4: 300.000MB/s transfers, Command Queueing Enabled
+[root@dell-r720-freebsd ~]# 
+
+
+=глубина очереди
+
+
+[root@dell-r720-freebsd ~]# camcontrol tags da3 -v
+(pass4:mps0:0:14:0): dev_openings  255
+(pass4:mps0:0:14:0): dev_active    0
+(pass4:mps0:0:14:0): allocated     0
+(pass4:mps0:0:14:0): queued        0
+(pass4:mps0:0:14:0): held          0
+(pass4:mps0:0:14:0): mintags       2
+(pass4:mps0:0:14:0): maxtags       255
+[root@dell-r720-freebsd ~]# 
+
+
+это только заголовки
+
+[root@dell-r720-freebsd ~]# camcontrol modepage da3 -l
+0x01	Read-Write Error Recovery
+0x02	Disconnect-Reconnect
+0x03	Format Device
+0x04	Rigid Disk Drive Geometry
+0x07	Verify Error Recovery
+0x08	Caching
+0x0a	Control
+0x18	Protocol-Specific Logical Unit
+0x19	Protocol-Specific Port
+0x1a	Power Condition
+0x1c	Informational Exceptions Control
+0x00	Vendor-Specific
+
+
+теперь смотрим внутри заголовка ондного 
+
+[root@dell-r720-freebsd ~]# camcontrol modepage da3 -m 0x08
+IC:  0
+ABPF:  0
+CAP:  0
+DISC:  1
+SIZE:  0
+WCE:  0
+MF:  0
+RCD:  0
+Demand Retention Priority:  0
+Write Retention Priority:  0
+Disable Pre-fetch Transfer Length:  65535
+Minimum Pre-fetch:  0
+Maximum Pre-fetch:  65535
+Maximum Pre-fetch Ceiling:  65535
+FSW (Force Sequential Write):  1
+LBCSS (Logical Block Cache Segment Size):  0
+DRA (Disable Read-Ahead):  0
+Vendor Specific:  0
+SYNC_PROG:  0
+NV_DIS:  0
+Number of Cache Segments:  32
+Cache Segment Size:  0
+
+здесь 
+WCE:  0 означает write cache enabled значит он вылюечен
+
+RCD:  0  означает read cache disable значит он включен
+
+
+
+
+как включить кэш на заапись 
+
+
+[root@dell-r720-freebsd ~]# echo "WCE: 1" | camcontrol modepage da3 -m 0x08 -e
+
+проверка
+[root@dell-r720-freebsd ~]# camcontrol modepage da3 -m 0x08
+IC:  0
+ABPF:  0
+CAP:  0
+DISC:  1
+SIZE:  0
+WCE:  1  <<<<<<
+MF:  0
+RCD:  0
+
+
+провка чере смартйцтл
+
+[root@dell-r720-freebsd ~]# smartctl -x /dev/da3 | grep Cache
+Read Cache is:        Enabled
+Writeback Cache is:   Enabled
+Vendor (Seagate Cache) information
+
+

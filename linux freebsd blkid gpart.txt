@@ -1,0 +1,29 @@
+| linux
+| freebsd
+| blkid
+| gpart
+
+
+то что влинуксе blkid
+
+	# blkid
+
+во фрибсл это gpart
+
+
+[root@backup-01 /boot]# 
+[root@backup-01 /boot]# gpart list da1  | grep rawuuid
+   rawuuid: e5a588e9-e5be-11f0-a30f-bc305bf420fc
+   rawuuid: e5eafde2-e5be-11f0-a30f-bc305bf420fc
+[root@backup-01 /boot]# 
+[root@backup-01 /boot]# gpart list da2  | grep rawuuid
+   rawuuid: 9b550284-e66f-11f0-9801-bc305bf420fc
+   rawuuid: 9b57e3e4-e66f-11f0-9801-bc305bf420fc
+[root@backup-01 /boot]# 
+[root@backup-01 /boot]# gpart list da6  | grep rawuuid
+   rawuuid: e65a85c7-e5be-11f0-a30f-bc305bf420fc
+   rawuuid: e674460f-e5be-11f0-a30f-bc305bf420fc
+[root@backup-01 /boot]# gpart list da8  | grep rawuuid
+   rawuuid: 9ead8d88-e66f-11f0-9801-bc305bf420fc
+   rawuuid: 9eaffec2-e66f-11f0-9801-bc305bf420fc
+

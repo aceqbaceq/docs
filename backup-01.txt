@@ -1,0 +1,865 @@
+| backup-01
+| freebsd
+
+
+backup-01
+
+
+загрузка идет через UEFI
+в ос стоит четыре загрузочных диска (zfs четырехкратный миррор)
+вот как выключид меню uefi 
+
+
+[root@backup-01 /boot]# efibootmgr -v
+BootCurrent: 0001
+Timeout    : 10 seconds
+BootOrder  : 0001, 0002, 0000, 0003, 0018, 0019, 001A, 001B, 0014, 0015, 0016, 0017
++Boot0001* BOOT WWN cc384 HD(1,GPT,e5a588e9-e5be-11f0-a30f-bc305bf420fc,0x28,0x82000)/File(\efi\freebsd\loader.efi)
+                             da1p1:/efi/freebsd/loader.efi (null)
+ Boot0002* BOOT WWN d2e24 HD(1,GPT,9b550284-e66f-11f0-9801-bc305bf420fc,0x28,0x82000)/File(\efi\freebsd\loader.efi)
+                             da2p1:/efi/freebsd/loader.efi (null)
+ Boot0000* BOOT WWN e7450 HD(1,GPT,e65a85c7-e5be-11f0-a30f-bc305bf420fc,0x28,0x82000)/File(\efi\freebsd\loader.efi)
+                             da6p1:/efi/freebsd/loader.efi (null)
+ Boot0003* BOOT WWN d2e04 HD(1,GPT,9ead8d88-e66f-11f0-9801-bc305bf420fc,0x28,0x82000)/File(\efi\freebsd\loader.efi)
+                             da8p1:/efi/freebsd/loader.efi (null)
+
+
+
+я проверил - загрузка проходит успешно с любого из четырех этих дисков
+также видны UUID загрузочных партииций 
+и \efi\freebsd\loader.efi и где лежит загрузчик uefi и как его нужно доавлбять в nvram
+
+
+
+
+
+на нем три контроллера.
+
+
+первый ведет на бекплейн самого сервера
+    vendor     = 'Broadcom / LSI'
+    device     = 'SAS2308 PCI-Express Fusion-MPT SAS-2'
+
+
+
+# ./sas2flash  -list
+LSI Corporation SAS2 Flash Utility
+Version 15.00.00.00 (2012.11.06) 
+Copyright (c) 2008-2012 LSI Corporation. All rights reserved 
+
+        Adapter Selected is a LSI SAS: SAS2308_2(D1) 
+
+        Controller Number              : 0
+        Controller                     : SAS2308_2(D1) 
+        PCI Address                    : 00:02:00:00
+        SAS Address                    : 5b083fe-0-c793-ce00
+        NVDATA Version (Default)       : 14.01.00.06
+        NVDATA Version (Persistent)    : 14.01.00.06
+        Firmware Product ID            : 0x2214 (IT)
+        Firmware Version               : 20.00.07.00
+        NVDATA Vendor                  : LSI
+        NVDATA Product ID              : SAS9207-8i
+        BIOS Version                   : 07.39.02.00
+        UEFI BSD Version               : 07.27.01.01
+        FCODE Version                  : N/A
+        Board Name                     : SAS9207-8i
+        Board Assembly                 : N/A
+        Board Tracer Number            : N/A
+
+        Finished Processing Commands Successfully.
+        Exiting SAS2Flash.
+
+
+
+его драйвер в фрибсл это mps0
+вот его свтроенная утилита для инфо
+
+[root@backup-01 /home/krivosheeva]# mpsutil show  devices
+B____T    SAS Address      Handle  Parent    Device        Speed Enc  Slot  Wdt
+00   05   4433221103000000 0009    0001      SATA Target   6.0   0001 00    1
+00   11   4433221104000000 000a    0002      SATA Target   6.0   0001 07    1
+00   08   5000c50001bcc385 000b    0003      SAS Target    3.0   0001 06    1
+00   09   5000c50001bd2e25 000c    0004      SAS Target    3.0   0001 04    1
+00   10   4433221106000000 000d    0005      SATA Target   6.0   0001 05    1
+
+[root@backup-01 /home/krivosheeva]# 
+[root@backup-01 /home/krivosheeva]# 
+[root@backup-01 /home/krivosheeva]# mpsutil show  all
+Adapter:
+mps0 Adapter:
+       Board Name: SAS9207-8i
+   Board Assembly: 
+        Chip Name: LSISAS2308
+    Chip Revision: ALL
+    BIOS Revision: 7.27.01.01
+Firmware Revision: 20.00.07.00
+  Integrated RAID: no
+         SATA NCQ: ENABLED
+ PCIe Width/Speed: x8 (8.0 GB/sec)
+        IOC Speed: Full
+      Temperature: 36 C
+
+PhyNum  CtlrHandle  DevHandle  Disabled  Speed   Min    Max    Device
+0                              N                 1.5    6.0    SAS Initiator 
+1                              N                 1.5    6.0    SAS Initiator 
+2                              N                 1.5    6.0    SAS Initiator 
+3       0001        0009       N         6.0     1.5    6.0    SAS Initiator 
+4       0002        000a       N         6.0     1.5    6.0    SAS Initiator 
+5       0003        000b       N         3.0     1.5    6.0    SAS Initiator 
+6       0005        000d       N         6.0     1.5    6.0    SAS Initiator 
+7       0004        000c       N         3.0     1.5    6.0    SAS Initiator 
+
+Devices:
+B____T    SAS Address      Handle  Parent    Device        Speed Enc  Slot  Wdt
+00   05   4433221103000000 0009    0001      SATA Target   6.0   0001 00    1
+00   11   4433221104000000 000a    0002      SATA Target   6.0   0001 07    1
+00   08   5000c50001bcc385 000b    0003      SAS Target    3.0   0001 06    1
+00   09   5000c50001bd2e25 000c    0004      SAS Target    3.0   0001 04    1
+00   10   4433221106000000 000d    0005      SATA Target   6.0   0001 05    1
+
+Enclosures:
+Slots      Logical ID     SEPHandle  EncHandle    Type
+  08    5b083fe0c793ce00               0001     Direct Attached SGPIO
+
+Expanders:
+NumPhys   SAS Address     DevHandle   Parent  EncHandle  SAS Level
+
+
+
+
+
+
+второй ведет на полку HP storageworks
+    vendor     = 'Broadcom / LSI'
+    device     = 'SAS3216 PCI-Express Fusion-MPT SAS-3'
+
+# ./sas3flash  -list
+Avago Technologies SAS3 Flash Utility
+Version 16.00.00.00 (2017.05.02) 
+Copyright 2008-2017 Avago Technologies. All rights reserved.
+
+        Adapter Selected is a Avago SAS: SAS3216(A1)
+
+        Controller Number              : 0
+        Controller                     : SAS3216(A1)
+        PCI Address                    : 00:04:00:00
+        SAS Address                    : 500062b-2-029b-6a40
+        NVDATA Version (Default)       : 0b.04.00.05
+        NVDATA Version (Persistent)    : 0b.04.00.05
+        Firmware Product ID            : 0x2228 (IT)
+        Firmware Version               : 15.00.00.00
+        NVDATA Vendor                  : LSI
+        NVDATA Product ID              : SAS9305-16e
+        BIOS Version                   : 08.35.00.00
+        UEFI BSD Version               : 17.00.00.00
+        FCODE Version                  : N/A
+        Board Name                     : SAS9305-16e
+        Board Assembly                 : N/A
+        Board Tracer Number            : N/A
+
+        Finished Processing Commands Successfully.
+        Exiting SAS3Flash.
+
+
+его драйвер MPR0 во фрибсд
+а вот утилита встроенная для работы с этим контроллером
+
+[root@backup-01 /home/krivosheeva]# mprutil show adapter
+mpr0 Adapter:
+       Board Name: SAS9305-16e
+   Board Assembly: 
+        Chip Name: LSISAS3216
+    Chip Revision: A1
+    BIOS Revision: 17.00.00.00
+Firmware Revision: 15.00.00.00
+  Integrated RAID: no
+         SATA NCQ: ENABLED
+ PCIe Width/Speed: x8 (8.0 GB/sec)
+        IOC Speed: Full
+      Temperature: 39 C
+
+PhyNum  CtlrHandle  DevHandle  Disabled  Speed   Min    Max    Device
+0       0001        0011       N         6.0     3.0    12     SAS Initiator 
+1       0001        0011       N         6.0     3.0    12     SAS Initiator 
+2       0001        0011       N         6.0     3.0    12     SAS Initiator 
+3       0001        0011       N         6.0     3.0    12     SAS Initiator 
+4       0001        0011       N         6.0     3.0    12     SAS Initiator 
+5       0001        0011       N         6.0     3.0    12     SAS Initiator 
+6       0001        0011       N         6.0     3.0    12     SAS Initiator 
+7       0001        0011       N         6.0     3.0    12     SAS Initiator 
+8                              N                 3.0    12     SAS Initiator 
+9                              N                 3.0    12     SAS Initiator 
+10                             N                 3.0    12     SAS Initiator 
+11                             N                 3.0    12     SAS Initiator 
+12                             N                 3.0    12     SAS Initiator 
+13                             N                 3.0    12     SAS Initiator 
+14                             N                 3.0    12     SAS Initiator 
+15                             N                 3.0    12     SAS Initiator 
+
+[root@backup-01 /home/krivosheeva]# 
+[root@backup-01 /home/krivosheeva]# 
+[root@backup-01 /home/krivosheeva]# 
+[root@backup-01 /home/krivosheeva]# mprutil show devices
+B____T    SAS Address      Handle  Parent    Device        Speed Enc  Slot  Wdt
+          5001438006cdc87d 0011    0001      SMP Target    6.0   0002 00    8
+          5001438006cdc841 0012    0011      SATA Target   3.0   0002 14    1
+          5000c50001be7452 0013    0011      SAS Target    3.0   0002 15    1
+          5001438006cdc844 0014    0011      SATA Target   3.0   0002 17    1
+          5000c50001bd2e06 0015    0011      SAS Target    3.0   0002 18    1
+          5001438006cdc84b 0016    0011      SATA Target   3.0   0002 24    1
+          5001438006cdc87c 0017    0011      SEP Target    6.0   0002 00    1
+
+[root@backup-01 /home/krivosheeva]# 
+[root@backup-01 /home/krivosheeva]# 
+[root@backup-01 /home/krivosheeva]# 
+[root@backup-01 /home/krivosheeva]# 
+[root@backup-01 /home/krivosheeva]# mprutil show all
+Adapter:
+mpr0 Adapter:
+       Board Name: SAS9305-16e
+   Board Assembly: 
+        Chip Name: LSISAS3216
+    Chip Revision: A1
+    BIOS Revision: 17.00.00.00
+Firmware Revision: 15.00.00.00
+  Integrated RAID: no
+         SATA NCQ: ENABLED
+ PCIe Width/Speed: x8 (8.0 GB/sec)
+        IOC Speed: Full
+      Temperature: 39 C
+
+PhyNum  CtlrHandle  DevHandle  Disabled  Speed   Min    Max    Device
+0       0001        0011       N         6.0     3.0    12     SAS Initiator 
+1       0001        0011       N         6.0     3.0    12     SAS Initiator 
+2       0001        0011       N         6.0     3.0    12     SAS Initiator 
+3       0001        0011       N         6.0     3.0    12     SAS Initiator 
+4       0001        0011       N         6.0     3.0    12     SAS Initiator 
+5       0001        0011       N         6.0     3.0    12     SAS Initiator 
+6       0001        0011       N         6.0     3.0    12     SAS Initiator 
+7       0001        0011       N         6.0     3.0    12     SAS Initiator 
+8                              N                 3.0    12     SAS Initiator 
+9                              N                 3.0    12     SAS Initiator 
+10                             N                 3.0    12     SAS Initiator 
+11                             N                 3.0    12     SAS Initiator 
+12                             N                 3.0    12     SAS Initiator 
+13                             N                 3.0    12     SAS Initiator 
+14                             N                 3.0    12     SAS Initiator 
+15                             N                 3.0    12     SAS Initiator 
+
+Devices:
+B____T    SAS Address      Handle  Parent    Device        Speed Enc  Slot  Wdt
+          5001438006cdc87d 0011    0001      SMP Target    6.0   0002 00    8
+          5001438006cdc841 0012    0011      SATA Target   3.0   0002 14    1
+          5000c50001be7452 0013    0011      SAS Target    3.0   0002 15    1
+          5001438006cdc844 0014    0011      SATA Target   3.0   0002 17    1
+          5000c50001bd2e06 0015    0011      SAS Target    3.0   0002 18    1
+          5001438006cdc84b 0016    0011      SATA Target   3.0   0002 24    1
+          5001438006cdc87c 0017    0011      SEP Target    6.0   0002 00    1
+
+Enclosures:
+Slots      Logical ID     SEPHandle  EncHandle    Type
+  16    500062b2029b6a40               0001     Direct Attached SGPIO
+  00    5001438006cdc840    0017       0002     External SES-2
+
+Expanders:
+NumPhys   SAS Address     DevHandle   Parent  EncHandle  SAS Level
+  25    5001438006cdc87d    0011       0001     0002       1
+
+     Phy  RemotePhy  DevHandle  Speed  Min   Max    Device
+     00                                1.5   6.0   No Device     
+     01      00        0012      3.0   1.5   6.0   SATA Target   
+     02      01        0013      3.0   1.5   6.0   SAS Target    
+     03                                1.5   6.0   No Device     
+     04      00        0014      3.0   1.5   6.0   SATA Target   
+     05      01        0015      3.0   1.5   6.0   SAS Target    
+     06                                1.5   6.0   No Device     
+     07                                1.5   6.0   No Device     
+     08                                1.5   6.0   No Device     
+     09                                1.5   6.0   No Device     
+     10                                1.5   6.0   No Device     
+     11      00        0016      3.0   1.5   6.0   SATA Target   
+     12      06        0001      6.0   1.5   6.0   SAS Initiator 
+     13      07        0001      6.0   1.5   6.0   SAS Initiator 
+     14      05        0001      6.0   1.5   6.0   SAS Initiator 
+     15      04        0001      6.0   1.5   6.0   SAS Initiator 
+     16      02        0001      6.0   1.5   6.0   SAS Initiator 
+     17      03        0001      6.0   1.5   6.0   SAS Initiator 
+     18      01        0001      6.0   1.5   6.0   SAS Initiator 
+     19      00        0001      6.0   1.5   6.0   SAS Initiator 
+     20                                ???   ???   No Device     
+     21                                ???   ???   No Device     
+     22                                ???   ???   No Device     
+     23                                ???   ???   No Device     
+     24      24        0017      6.0   6.0   6.0   SEP Target    
+
+[root@backup-01 /home/krivosheeva]# 
+
+
+
+
+
+третий контроллер ведет на комплекс из четырех полок
+    vendor     = 'Broadcom / LSI'
+    device     = 'MegaRAID SAS 1068'
+    class      = mass storage
+    subclass   = RAID
+
+
+	# mfiutil show adapter
+/dev/mfi0 Adapter:
+    Product Name: MegaRAID SAS 8344ELP
+   Serial Number: P121590707
+        Firmware: 7.0.1-0083
+     RAID Levels: JBOD, RAID0, RAID1, RAID5, RAID10, RAID50
+  Battery Backup: not present
+           NVRAM: 32K
+  Onboard Memory: 128M
+  Minimum Stripe: 8K
+  Maximum Stripe: 1M
+
+
+mfiutil это встроенная от фрибсд утилита лдя упрваления LSI MEGARAID контрроллерами
+есть и другая утилита для этого контроллера 
+
+
+# /opt/MegaCli/MegaCli64 -AdpAllinfo -aALL
+Product Name    : MegaRAID SAS 8344ELP
+Serial No       : P121590707
+FW Package Build: 7.0.1-0083
+...
+...
+
+
+как посмтреть список дисков у этого контроллера
+# mfiutil show drives
+/dev/mfi0 Physical Drives:
+50 ( 1863G) UNCONFIGURED GOOD <HGST HUS724020AL A8B0 serial=PN1181P5H6E31W> SATA S50
+51 ( 1863G) UNCONFIGURED GOOD <HGST HUS724020AL A8B0 serial=PN1181P5H53B8W> SATA S51
+53 ( 1863G) UNCONFIGURED GOOD <HGST HUS724020AL A8B0 serial=PN2181P5H3Y0RX> SATA S53
+54 ( 1863G) UNCONFIGURED GOOD <HGST HUS724020AL A8B0 serial=PN1181P5H6H7LW> SATA S54
+...
+...
+
+
+
+в логах смартд можно увидеть именно эти номера дисков
+
+Jan  3 19:19:55 backup-01 smartd[2559]: Device: /dev/mfi0 [megaraid_disk_121] [SAT], found in smartd database 7.5/5706: Hitachi/HGST Ultrastar 7K4000
+Jan  3 19:19:55 backup-01 smartd[2559]: Device: /dev/mfi0 [megaraid_disk_121] [SAT], not capable of SMART Health Status check
+Jan  3 19:19:56 backup-01 smartd[2559]: Device: /dev/mfi0 [megaraid_disk_121] [SAT], is SMART capable. Adding to "monitor" list.
+
+
+как ппосмтреть статус диска 121 в smartctl
+
+	# smartctl -a /dev/mfi0 -d megaraid,121
+=== START OF INFORMATION SECTION ===
+Model Family:     Hitachi/HGST Ultrastar 7K4000
+Device Model:     HGST HUS724020ALA640
+...
+...
+
+
+
+
+
+
+а вот утилита которая покажет все структурут дисков по всем полкам
+
+[root@backup-01 /home/krivosheeva]# sesutil  show
+ses0: <HP D2600 SAS AJ940A 0103>; ID: 5001438006cdc840
+Desc            Dev     Model                     Ident                Size/Status
+-               -       -                         -                    Unsupported,  Swapped
+-               -       -                         -                    Not Installed,  Swapped
+-               -       -                         -                    OK,  Swapped
+-               da5     ATA HGST HUS724020AL      PN1181P5H68YPW       2T,  Swapped
+-               da6     SEAGATE ST373455SS        3LQ0PWDE00009736YU6B Not Installed
+-               -       -                         -                    OK,  Swapped
+-               da7     ATA HGST HUS724020AL      PN1181P5H6AEEW       2T,  Swapped
+-               da8     SEAGATE ST373455SS        3LQ0PE4N00009736WQN2 Not Installed
+-               -       -                         -                    Not Installed
+-               -       -                         -                    Not Installed,  Swapped
+-               -       -                         -                    Not Installed
+-               -       -                         -                    Not Installed,  Swapped
+-               -       -                         -                    OK,  Swapped
+
+Temperatures: , , , 
+
+ses1: <XYRATEX 3GSAS1.0-SATAEXP 1.05>; ID: 5000bb52116320ff
+Desc            Dev     Model                     Ident                Size/Status
+Overall Drives   -       -                         -                    OK
+Disk #1         -       -                         -                    Not Installed
+Disk #2         -       -                         -                    Not Installed
+Disk #3         -       -                         -                    Not Installed
+Disk #4         -       -                         -                    Not Installed
+Disk #5         da13    ATA HGST HUS724020AL      PN1181P5H6H7LW       2T
+Disk #6         da14    ATA HGST HUS724020AL      PN1181P5H6AG8W       2T
+Disk #7         da11    ATA HGST HUS724020AL      PN1181P5H53B8W       2T
+Disk #8         da15    ATA HGST HUS724020AL      PN1181P5H6E14W       2T
+Disk #9         da12    ATA HGST HUS724020AL      PN2181P5H3Y0RX       2T
+Disk #10        da16    ATA HGST HUS724020AL      PN1181P5H64RKW       2T
+Disk #11        da10    ATA HGST HUS724020AL      PN1181P5H6E31W       2T
+Disk #12        da17    ATA HGST HUS724020AL      PN1181P5H6ATTW       2T
+
+Temperatures: Overall Temperature Sensors : 27 C, Temperature Sensor #1   : 23 C, Temperature Sensor #2   : 27 C
+Voltages: , , 3.3 Volt Sensor : 3.31 V, 5 Volt Sensor   : 5.01 V, 12 Volt Sensor  : 12.06 V
+
+ses2: <XYRATEX 3GSAS1.0-SATAEXP 1.07>; ID: 5000bb521215c0ff
+Desc            Dev     Model                     Ident                Size/Status
+Overall Drives   -       -                         -                    OK
+Disk #1         -       -                         -                    Not Installed
+Disk #2         -       -                         -                    Not Installed
+Disk #3         -       -                         -                    Not Installed
+Disk #4         -       -                         -                    Not Installed
+Disk #5         -       -                         -                    Not Installed
+Disk #6         -       -                         -                    Not Installed
+Disk #7         -       -                         -                    Not Installed
+Disk #8         -       -                         -                    Not Installed
+Disk #9         -       -                         -                    Not Installed
+Disk #10        -       -                         -                    Not Installed
+Disk #11        -       -                         -                    Not Installed
+Disk #12        -       -                         -                    Not Installed
+
+Temperatures: Overall Temperature Sensors : 21 C, Temperature Sensor #1   : 21 C, Temperature Sensor #2   : 21 C
+Voltages: , , 3.3 Volt Sensor : 3.28 V, 5 Volt Sensor   : 5.04 V, 12 Volt Sensor  : 12.06 V
+
+ses3: <XYRATEX 3GSAS1.0-SATAEXP 1.07>; ID: 5000bb52121800ff
+Desc            Dev     Model                     Ident                Size/Status
+Overall Drives   -       -                         -                    OK
+Disk #1         -       -                         -                    Not Installed
+Disk #2         -       -                         -                    Not Installed
+Disk #3         -       -                         -                    Not Installed
+Disk #4         -       -                         -                    Not Installed
+Disk #5         -       -                         -                    Not Installed
+Disk #6         -       -                         -                    Not Installed
+Disk #7         -       -                         -                    Not Installed
+Disk #8         -       -                         -                    Not Installed
+Disk #9         -       -                         -                    Not Installed
+Disk #10        -       -                         -                    Not Installed
+Disk #11        -       -                         -                    Not Installed
+Disk #12        -       -                         -                    Not Installed
+
+Temperatures: Overall Temperature Sensors : 22 C, Temperature Sensor #1   : 22 C, Temperature Sensor #2   : 22 C
+Voltages: , , 3.3 Volt Sensor : 3.33 V, 5 Volt Sensor   : 5.04 V, 12 Volt Sensor  : 12.12 V
+
+ses4: <XYRATEX 3GSAS1.0-SATAEXP 1.07>; ID: 5000bb521217f0ff
+Desc            Dev     Model                     Ident                Size/Status
+Overall Drives   -       -                         -                    OK
+Disk #1         -       -                         -                    Not Installed
+Disk #2         -       -                         -                    Not Installed
+Disk #3         -       -                         -                    Not Installed
+Disk #4         -       -                         -                    Not Installed
+Disk #5         da18    ATA HGST HUS724020AL      PN1181P5H5TZNW       2T
+Disk #6         da25    ATA HGST HUS724020AL      PN1181P5H69X8W       2T
+Disk #7         da20    ATA HGST HUS724020AL      PN1181P5H6HA9W       2T
+Disk #8         da23    ATA HGST HUS724020AL      PN1181P5H5SXAW       2T
+Disk #9         da21    ATA HGST HUS724020AL      PN1181P5H67ZRW       2T
+Disk #10        da22    ATA HGST HUS724020AL      PN1181P5H6LPJW       2T
+Disk #11        da19    ATA HGST HUS724020AL      PN1181P5H69BZW       2T
+Disk #12        da24    ATA HGST HUS724020AL      PN1181P5H61SPW       2T
+
+Temperatures: Overall Temperature Sensors : 25 C, Temperature Sensor #1   : 23 C, Temperature Sensor #2   : 25 C
+Voltages: , , 3.3 Volt Sensor : 3.30 V, 5 Volt Sensor   : 5.01 V, 12 Volt Sensor  : 12.12 V
+
+
+
+
+как находить диски в полках. 
+полки xeratex поддерживают подсветку.
+делаем так показать какие диски куда воткнуты
+
+#  sesutil show
+
+подсветить диск
+
+# sesutil locate da13 on
+
+причем в sesutil show буедет видно что диск посведчен
+
+Disk #5         da13    ATA HGST HUS724020AL      PN1181P5H6H7LW       2T, LED=locate
+
+
+погасить лампоку 
+
+# sesutil locate da13 off
+
+
+в линуксе с ses пощволяет работаь пакет  sg3-utils
+
+
+
+
+
+
+
+
+
+какой рзамер рекордсайз выбрать?
+
+
+
+zpool create -f -o ashift=12 \
+    -o autotrim=on \
+    -O compression=lz4 \
+    -O xattr=sa \
+    -O atime=off \
+    -O recordsize=256k \
+    -O normalization=formD \
+    -O utf8only=on \
+    -O canmount=off \
+    POOL-01 mirror /dev/diskid/DISK-PN2181P5H3Y0RX /dev/diskid/DISK-PN1181P5H67ZRW
+
+
+
+
+  zpool add   POOL-01 mirror /dev/diskid/DISK-PN1181P5H64RKW  /dev/diskid/DISK-PN1181P5H6LPJW
+  zpool add   POOL-01 mirror /dev/diskid/DISK-PN1181P5H69BZW  /dev/diskid/DISK-PN1181P5H6E31W
+  zpool add   POOL-01 mirror /dev/diskid/DISK-PN1181P5H6AG0W  /dev/diskid/DISK-PN1181P5H6ATTW
+  zpool add   POOL-01 mirror /dev/diskid/DISK-PN1181P5H5TZNW  /dev/diskid/DISK-PN1181P5H6H7LW
+  zpool add   POOL-01 mirror /dev/diskid/DISK-PN1181P5H69X8W  /dev/diskid/DISK-PN1181P5H6AG8W
+  zpool add   POOL-01 mirror /dev/diskid/DISK-PN1181P5H53B8W  /dev/diskid/DISK-PN1181P5H6HA9W
+  zpool add   POOL-01 mirror /dev/diskid/DISK-PN1181P5H5SXAW  /dev/diskid/DISK-PN1181P5H6E14W
+
+
+
+
+[root@backup-01 /home/krivosheeva]# zpool status -v POOL-01
+  pool: POOL-01
+ state: ONLINE
+config:
+
+        NAME                            STATE     READ WRITE CKSUM
+        POOL-01                         ONLINE       0     0     0
+          mirror-0                      ONLINE       0     0     0
+            diskid/DISK-PN2181P5H3Y0RX  ONLINE       0     0     0
+            diskid/DISK-PN1181P5H67ZRW  ONLINE       0     0     0
+          mirror-1                      ONLINE       0     0     0
+            diskid/DISK-PN1181P5H64RKW  ONLINE       0     0     0
+            diskid/DISK-PN1181P5H6LPJW  ONLINE       0     0     0
+          mirror-2                      ONLINE       0     0     0
+            diskid/DISK-PN1181P5H69BZW  ONLINE       0     0     0
+            diskid/DISK-PN1181P5H6E31W  ONLINE       0     0     0
+          mirror-3                      ONLINE       0     0     0
+            diskid/DISK-PN1181P5H6AG0W  ONLINE       0     0     0
+            diskid/DISK-PN1181P5H6ATTW  ONLINE       0     0     0
+          mirror-4                      ONLINE       0     0     0
+            diskid/DISK-PN1181P5H5TZNW  ONLINE       0     0     0
+            diskid/DISK-PN1181P5H6H7LW  ONLINE       0     0     0
+          mirror-5                      ONLINE       0     0     0
+            diskid/DISK-PN1181P5H69X8W  ONLINE       0     0     0
+            diskid/DISK-PN1181P5H6AG8W  ONLINE       0     0     0
+          mirror-6                      ONLINE       0     0     0
+            diskid/DISK-PN1181P5H53B8W  ONLINE       0     0     0
+            diskid/DISK-PN1181P5H6HA9W  ONLINE       0     0     0
+          mirror-7                      ONLINE       0     0     0
+            diskid/DISK-PN1181P5H5SXAW  ONLINE       0     0     0
+            diskid/DISK-PN1181P5H6E14W  ONLINE       0     0     0
+
+
+
+# zfs create POOL-01/proxmox1
+# zfs set mountpoint=/POOL-01/proxmox1 POOL-01/proxmox1
+# zfs create POOL-01/proxmox2
+# zfs set mountpoint=/POOL-01/proxmox2 POOL-01/proxmox2
+
+
+# zpool list
+NAME      SIZE  ALLOC   FREE  CKPOINT  EXPANDSZ   FRAG    CAP  DEDUP    HEALTH  ALTROOT
+POOL-01  14.5T  1.28M  14.5T        -         -     0%     0%  1.00x    ONLINE  -
+zroot      68G  1.33G  66.7G        -         -     0%     1%  1.00x    ONLINE  -
+
+# zfs set quota=none POOL-01
+# zfs set refreservation=3.6T POOL-01
+
+
+
+# zpool list POOL-01
+NAME      SIZE  ALLOC   FREE  CKPOINT  EXPANDSZ   FRAG    CAP  DEDUP    HEALTH  ALTROOT
+POOL-01  14.5T  1.37M  14.5T        -         -     0%     0%  1.00x    ONLINE  -
+
+
+
+
+# zfs list -r POOL-01
+NAME               USED  AVAIL  REFER  MOUNTPOINT
+POOL-01           3.60T  14.3T    96K  /POOL-01
+POOL-01/proxmox1    96K  10.7T    96K  /POOL-01/proxmox1
+POOL-01/proxmox2    96K  10.7T    96K  /POOL-01/proxmox2
+
+
+
+
+backup-01 # zfs get recordsize,compression,xattr,atime POOL-01/proxmox1
+NAME              PROPERTY     VALUE           SOURCE
+POOL-01/proxmox1  recordsize   256K            inherited from POOL-01
+POOL-01/proxmox1  compression  lz4             inherited from POOL-01
+POOL-01/proxmox1  xattr        sa              inherited from POOL-01
+POOL-01/proxmox1  atime        off             inherited from POOL-01
+backup-01 # 
+backup-01 # zfs get recordsize,compression,xattr,atime POOL-01/proxmox2
+NAME              PROPERTY     VALUE           SOURCE
+POOL-01/proxmox2  recordsize   256K            inherited from POOL-01
+POOL-01/proxmox2  compression  lz4             inherited from POOL-01
+POOL-01/proxmox2  xattr        sa              inherited from POOL-01
+POOL-01/proxmox2  atime        off             inherited from POOL-01
+
+
+
+
+
+
+
+добавляю два диска под слог
+
+
+backup-01 # camcontrol devlist | grep INTEL
+<ATA INTEL SSDSC2KB48 0100>        at scbus0 target 5 lun 0 (pass0,da0)
+<ATA INTEL SSDSC2KB48 0100>        at scbus1 target 11 lun 0 (pass5,da5)
+
+
+backup-01 # 
+backup-01 # gpart create -s gpt da0
+da0 created
+backup-01 # gpart create -s gpt da5
+da5 created
+
+
+
+backup-01 # geom disk list da0
+Geom name: da0
+Providers:
+1. Name: da0
+   descr: ATA INTEL SSDSC2KB48
+   lunid: 55cd2e4155d598f9
+
+backup-01 # gpart add -t freebsd-zfs -l wwn-598f9  -a 1m -s 24G da0
+da0p1 added
+
+
+backup-01 # geom disk list da5
+Geom name: da5
+Providers:
+1. Name: da5
+   descr: ATA INTEL SSDSC2KB48
+   lunid: 55cd2e4155d5d4de
+
+backup-01 # 
+backup-01 # gpart add -t freebsd-zfs -l wwn-5d4de  -a 1m -s 24G da5
+da5p1 added
+
+backup-01 # ls -1 /dev/gpt
+wwn-598f9
+wwn-5d4de
+
+
+backup-01 #  zpool add POOL-01 log mirror gpt/wwn-598f9   gpt/wwn-5d4de
+
+
+
+backup-01 # zpool status -v
+  pool: POOL-01
+ state: ONLINE
+config:
+
+        NAME                            STATE     READ WRITE CKSUM
+        POOL-01                         ONLINE       0     0     0
+          mirror-0                      ONLINE       0     0     0
+            diskid/DISK-PN2181P5H3Y0RX  ONLINE       0     0     0
+            diskid/DISK-PN1181P5H67ZRW  ONLINE       0     0     0
+          mirror-1                      ONLINE       0     0     0
+            diskid/DISK-PN1181P5H64RKW  ONLINE       0     0     0
+            diskid/DISK-PN1181P5H6LPJW  ONLINE       0     0     0
+          mirror-2                      ONLINE       0     0     0
+            diskid/DISK-PN1181P5H69BZW  ONLINE       0     0     0
+            diskid/DISK-PN1181P5H6E31W  ONLINE       0     0     0
+          mirror-3                      ONLINE       0     0     0
+            diskid/DISK-PN1181P5H6AG0W  ONLINE       0     0     0
+            diskid/DISK-PN1181P5H6ATTW  ONLINE       0     0     0
+          mirror-4                      ONLINE       0     0     0
+            diskid/DISK-PN1181P5H5TZNW  ONLINE       0     0     0
+            diskid/DISK-PN1181P5H6H7LW  ONLINE       0     0     0
+          mirror-5                      ONLINE       0     0     0
+            diskid/DISK-PN1181P5H69X8W  ONLINE       0     0     0
+            diskid/DISK-PN1181P5H6AG8W  ONLINE       0     0     0
+          mirror-6                      ONLINE       0     0     0
+            diskid/DISK-PN1181P5H53B8W  ONLINE       0     0     0
+            diskid/DISK-PN1181P5H6HA9W  ONLINE       0     0     0
+          mirror-7                      ONLINE       0     0     0
+            diskid/DISK-PN1181P5H5SXAW  ONLINE       0     0     0
+            diskid/DISK-PN1181P5H6E14W  ONLINE       0     0     0
+        logs
+          mirror-8                      ONLINE       0     0     0
+            gpt/wwn-598f9               ONLINE       0     0     0   <<***<<<<
+            gpt/wwn-5d4de               ONLINE       0     0     0   <<***<<<<<
+
+
+
+
+как менять диск. вставили диск в полку.
+убедились что он появилсия в камконтрол по серийноному номеру
+
+[root@backup-01 /home/krivosheeva]# camcontrol inquiry da21
+pass26: <ATA HGST HUS724020AL A8B0> Fixed Direct Access SPC-3 SCSI device
+pass26: Serial Number       PN1181P5H61SPW
+pass26: 150.000MB/s transfers, Command Queueing Enabled
+
+
+посмотрели что про него говорит мегакли
+
+
+[root@backup-01 /home/krivosheeva]# /opt/MegaCli/MegaCli64 -PDList -aALL  | grep -i 61spw -B25 -A 25
+
+
+
+Enclosure Device ID: N/A
+Slot Number: 120
+Enclosure position: N/A
+Device Id: 120
+WWN: 
+Sequence Number: 1
+Media Error Count: 0
+Other Error Count: 9
+Predictive Failure Count: 0
+Last Predictive Failure Event Seq Number: 0
+PD Type: SATA
+
+Raw Size: 1.819 TB [0xe8e088b0 Sectors]
+Non Coerced Size: 1.818 TB [0xe8d088b0 Sectors]
+Coerced Size: 1.817 TB [0xe8b6d000 Sectors]
+Sector Size:  0
+Firmware state: Unconfigured(good), Spun Up
+Device Firmware Level: A8B0
+Shield Counter: 0
+Successful diagnostics completion on :  N/A
+SAS Address(0): 0x5000bb521217f2f3
+Connected Port Number: 0(path0) 
+Inquiry Data:       PN1181P5H61SPWHGST HUS724020ALA640                    MF6OA8B0
+FDE Capable: Not Capable
+FDE Enable: Disable
+Secured: Unsecured
+Locked: Unlocked
+Needs EKM Attention: No
+Foreign State: None 
+Device Speed: Unknown 
+Link Speed: Unknown 
+Media Type: Hard Disk Device
+Drive Temperature : N/A
+PI Eligibility:  No 
+Drive is formatted for PI information:  No
+PI: No PI
+Port-0 :
+Port status: Active
+Port's Linkspeed: Unknown 
+Drive has flagged a S.M.A.R.T alert : No
+
+
+
+так как пул составлен из дисков целиком без разделов и в пул я подкобчаю диск по его серийному номеру
+то зная сериный номер знаем его diskid
+
+
+ ls -1 /dev/diskid/*61SPW*
+/dev/diskid/DISK-PN1181P5H61SPW
+
+
+далее заменяем стрый диск на новый в пуле
+
+
+bash: zpol: command not found
+[root@backup-01 /home/krivosheeva]# zpool status -v POOL-01
+  pool: POOL-01
+ state: DEGRADED
+status: One or more devices has been taken offline by the administrator.
+        Sufficient replicas exist for the pool to continue functioning in a
+        degraded state.
+action: Online the device using 'zpool online' or replace the device with
+        'zpool replace'.
+config:
+
+        NAME                            STATE     READ WRITE CKSUM
+        POOL-01                         DEGRADED     0     0     0
+          mirror-0                      ONLINE       0     0     0
+            diskid/DISK-PN2181P5H3Y0RX  ONLINE       0     0     0
+            diskid/DISK-PN1181P5H67ZRW  ONLINE       0     0     0
+          mirror-1                      ONLINE       0     0     0
+            diskid/DISK-PN1181P5H64RKW  ONLINE       0     0     0
+            diskid/DISK-PN1181P5H6LPJW  ONLINE       0     0     0
+          mirror-2                      ONLINE       0     0     0
+            diskid/DISK-PN1181P5H69BZW  ONLINE       0     0     0
+            diskid/DISK-PN1181P5H6E31W  ONLINE       0     0     0
+          mirror-3                      DEGRADED     0     0     0
+            diskid/DISK-PN1181P5H6AG0W  OFFLINE      0     0     0
+            diskid/DISK-PN1181P5H6ATTW  ONLINE       0     0     0
+          mirror-4                      ONLINE       0     0     0
+            diskid/DISK-PN1181P5H5TZNW  ONLINE       0     0     0
+            diskid/DISK-PN1181P5H6H7LW  ONLINE       0     0     0
+          mirror-5                      ONLINE       0     0     0
+            diskid/DISK-PN1181P5H69X8W  ONLINE       0     0     0
+            diskid/DISK-PN1181P5H6AG8W  ONLINE       0     0     0
+          mirror-6                      ONLINE       0     0     0
+            diskid/DISK-PN1181P5H53B8W  ONLINE       0     0     0
+            diskid/DISK-PN1181P5H6HA9W  ONLINE       0     0     0
+          mirror-7                      ONLINE       0     0     0
+            diskid/DISK-PN1181P5H5SXAW  ONLINE       0     0     0
+            diskid/DISK-PN1181P5H6E14W  ONLINE       0     0     0
+        logs
+          mirror-8                      ONLINE       0     0     0
+            gpt/wwn-598f9               ONLINE       0     0     0
+            gpt/wwn-5d4de               ONLINE       0     0     0
+
+errors: No known data errors
+[root@backup-01 /home/krivosheeva]# zpool replace POOL-01     diskid/DISK-PN1181P5H6AG0W       /dev/diskid/DISK-PN1181P5H61SPW
+
+
+
+[root@backup-01 /home/krivosheeva]# zpool status -v POOL-01
+  pool: POOL-01
+ state: ONLINE
+  scan: resilvered 3.76G in 00:00:37 with 0 errors on Thu Jan  1 23:07:16 2026
+config:
+
+        NAME                            STATE     READ WRITE CKSUM
+        POOL-01                         ONLINE       0     0     0
+          mirror-0                      ONLINE       0     0     0
+            diskid/DISK-PN2181P5H3Y0RX  ONLINE       0     0     0
+            diskid/DISK-PN1181P5H67ZRW  ONLINE       0     0     0
+          mirror-1                      ONLINE       0     0     0
+            diskid/DISK-PN1181P5H64RKW  ONLINE       0     0     0
+            diskid/DISK-PN1181P5H6LPJW  ONLINE       0     0     0
+          mirror-2                      ONLINE       0     0     0
+            diskid/DISK-PN1181P5H69BZW  ONLINE       0     0     0
+            diskid/DISK-PN1181P5H6E31W  ONLINE       0     0     0
+          mirror-3                      ONLINE       0     0     0
+            diskid/DISK-PN1181P5H61SPW  ONLINE       0     0     0
+            diskid/DISK-PN1181P5H6ATTW  ONLINE       0     0     0
+          mirror-4                      ONLINE       0     0     0
+            diskid/DISK-PN1181P5H5TZNW  ONLINE       0     0     0
+            diskid/DISK-PN1181P5H6H7LW  ONLINE       0     0     0
+          mirror-5                      ONLINE       0     0     0
+            diskid/DISK-PN1181P5H69X8W  ONLINE       0     0     0
+            diskid/DISK-PN1181P5H6AG8W  ONLINE       0     0     0
+          mirror-6                      ONLINE       0     0     0
+            diskid/DISK-PN1181P5H53B8W  ONLINE       0     0     0
+            diskid/DISK-PN1181P5H6HA9W  ONLINE       0     0     0
+          mirror-7                      ONLINE       0     0     0
+            diskid/DISK-PN1181P5H5SXAW  ONLINE       0     0     0
+            diskid/DISK-PN1181P5H6E14W  ONLINE       0     0     0
+        logs
+          mirror-8                      ONLINE       0     0     0
+            gpt/wwn-598f9               ONLINE       0     0     0
+            gpt/wwn-5d4de               ONLINE       0     0     0
+
+
+все красиов все преккрссно
+
+
+вот эттот контроллер MegaRAID SAS 8344ELP через который подключены полки его полтолок на лин скрости 
+чтения 500 МБ/с (тестировалось на сата дисках , взможно на сас дисках было больше из за другого проктола)
+скорость лин записи 300МБ/с
+
+
+
+
+
+
+нужно сделать снэпшоты через CRON
+

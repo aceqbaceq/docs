@@ -1,0 +1,71 @@
+| freebsd
+| идентификация
+| wwn
+| diskid
+| sn
+| ident
+
+есть ебала как иентифицировать диски.
+
+у нас есть пул собранный на базе diskid(серинийка)
+
+[root@backup-01 /home/krivosheeva]# zpool status -v
+  pool: zroot
+ state: ONLINE
+config:
+
+	NAME                                    STATE     READ WRITE CKSUM
+	zroot                                   ONLINE       0     0     0
+	  mirror-0                              ONLINE       0     0     0
+	    diskid/DISK-3LQ0F5HD00009735TERZp2  ONLINE       0     0     0
+	    diskid/DISK-3LQ0PWDE00009736YU6Bp2  ONLINE       0     0     0
+
+errors: No known data errors
+
+
+как нати какой это daN какой у него сириник какой у него wwn
+
+
+есть волщшебная команда
+
+	# geom disk list 
+Geom name: da0
+Providers:
+1. Name: da0
+   Mediasize: 480103981056 (447G)
+   Sectorsize: 512
+   Stripesize: 4096
+   Stripeoffset: 0
+   Mode: r0w0e0
+   descr: ATA INTEL SSDSC2KB48
+   lunid: 55cd2e4155d598f9
+   ident: BTYI224200AP480BGN
+   rotationrate: 0
+   fwsectors: 63
+   fwheads: 255
+
+
+
+тоесть
+
+# geom disk list  | grep -E "ident|lunid|Name"
+1. Name: da0
+   lunid: 55cd2e4155d598f9
+   ident: BTYI224200AP480BGN
+
+
+
+тоесть 
+# geom disk list  | grep -E "ident|lunid|Name" | grep 3LQ0F5HD00009735TERZ -B2
+1. Name: da1
+   lunid: 5000c50001bcc387
+   ident: 3LQ0F5HD00009735TERZ
+
+
+это охуенно тоесть
+серийник 3LQ0F5HD00009735TERZ
+номер диска da1
+wwn   5000c50001bcc387
+
+(про wwn надо пнмиить что на бумажке на морде диска будет напеатан wwn который в ос минус три тоесть 5000c50001bcc384)
+

@@ -1,0 +1,15 @@
+| индикация
+| лапмпочки
+| freebsd
+| linux
+
+
+freebsd
+
+ # sesutil
+
+
+linux
+
+пакет sg3-utils
+

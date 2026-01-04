@@ -1,0 +1,758 @@
+backup 02 
+
+
+загрузочные  4 диска в четвером мирроре подключены к контроллеру 3ware (lsi)
+так вот - если хотя бы один диск отваливается и мы перезагрузили сервер то этот контроллер 
+своебразно глючит. он пишет при загрузке на черном экране во время загрузки что такогото диска нет. типа
+
+    
+    unknown disk ....
+
+и далее прикол в том что uefi неможет прочитать FAT32 EFI разделы с оставшихся дисков этого контроллера.
+решение - нужно еще раз перезагрузить сервер через ctrl+alt+del и убедиться что на этот раз 3ware
+не будет никак ругаться на то что какието диски отсуствуют.  тогда uefi уже успешно прочитает FAT32 разделы 
+с оставшихся загрузочных живых дисков и загрузка пройдет успешно.
+иттго- если один из загрузочных дисков отвалилися и мы перезагрузили сервер и 3ware руагется что один из дисков 
+остуствтует и сервер перестал грузится через uefi - то нужно еще раз сделать ctrl+alt+del и сервер должен обязан 
+успешно загрузьиттся с оставшихся загрузчоных дисков.
+я проверил - сервер точно успешно грузится с любого из четырех загрузочных дисков. с любого. достаточно чтобы выжил
+хотя бы один
+
+сервер создан на базе прокскс инслаятора потому что он позволяет постсвить линукс на зфс.
+после этгого прокскс был удален. но при загрузке он все равно пишет в uefi что это прокскс сервер. 
+
+
+загрузка в uefi идет не через grub а через systemd-boot
+вот как выглдяит загрузчный конфиг uefi
+
+
+
+root@backup-02:/home/krivosheeva# efibootmgr  -v
+BootCurrent: 0000
+Timeout: 10 seconds
+BootOrder: 0000,0014,0013,0012,0009,000A,000B,000C,0004,0005,0006,0001
+Boot0000* BOOT S/N EPAS HD(2,GPT,7b1e6c62-158e-4560-b268-ce0eafa1090e,0x800,0x200000)/File(\EFI\BOOT\BOOTX64.EFI)
+Boot0012* BOOT S/N 2FPM HD(2,GPT,f7d7bfa2-f129-46ec-ad76-97de9895195b,0x800,0x200000)/File(\EFI\BOOT\BOOTX64.EFI)
+Boot0013* BOOT S/N EPB0 HD(2,GPT,51b115ab-3eca-4ce2-90cd-633314c9a29a,0x800,0x200000)/File(\EFI\BOOT\BOOTX64.EFI)
+Boot0014* BOOT S/N EQ7L HD(2,GPT,003f3bc4-f490-4495-b89c-5ee8c63a7170,0x800,0x200000)/File(\EFI\BOOT\BOOTX64.EFI)
+
+
+соосвттенно это четыре загрузочных диска
+здесь видны uuid загрузочных партиций
+и путь где лежит загрузчик \EFI\BOOT\BOOTX64.EFI и как его нужно прописвать в uefi nvram
+
+
+
+
+
+
+
+у меня в серервер три карты
+
+одна заведет половиной дисков на морде лица сервера
+вторая заведует второй полвоиной дисков на морле лица сервера
+и третья карта это Qlogic FC которая подклюается к двум FC полкам
+
+
+индикация через лампочки FC полок нератботает. 
+
+
+
+
+
+
+root@backup-02:~# cat /etc/network/interfaces
+auto lo
+iface lo inet loopback
+
+
+
+iface enp65s0f0 inet manual
+
+iface enp65s0f1 inet manual
+
+
+
+auto bond0
+iface bond0 inet static
+	bond-slaves  enp65s0f0 enp65s0f1 
+	bond-mode 802.3ad
+	bond-miimon 100
+	bond-lacp-rate fast
+	bond-xmit-hash-policy layer2+3
+
+auto bond0.55
+iface bond0.55 inet static
+	vlan-raw-devices bond0
+	address 100.69.55.24/24
+	gateway 100.69.55.254
+
+
+
+auto bond0.78
+iface bond0.78 inet static
+	vlan-raw-devices bond0
+	address 9.9.9.13/24
+
+
+
+
+iface idrac inet manual
+
+
+iface eno1 inet manual
+
+iface eno2 inet manual
+
+iface eno3 inet manual
+
+iface eno4 inet manual
+
+
+
+source /etc/network/interfaces.d/*
+root@backup-02:~# 
+
+
+
+=====
+deb http://deb.debian.org/debian/ bookworm main non-free-firmware
+deb-src http://deb.debian.org/debian/ bookworm main non-free-firmware
+
+deb http://security.debian.org/debian-security bookworm-security main non-free-firmware
+deb-src http://security.debian.org/debian-security bookworm-security main non-free-firmware
+
+deb http://deb.debian.org/debian/ bookworm-updates main non-free-firmware
+deb-src http://deb.debian.org/debian/ bookworm-updates main non-free-firmware
+
+===
+прверратить проксккс в дебиан (ищи такой txt файл)
+===
+apt install smartmontools
+
+включаем на всех диска кеш на запись
+for i in $( seq 0 13); do echo "da=da$i"; smartctl --set=wcache,on /dev/da$i ; done
+
+Проверка что кеш на запись у дисков включен
+for i in $( seq 0 13); do echo "da=da$i"; smartctl -x /dev/da$i | grep -i Cache | grep -i disable ; done
+
+=====
+apt install firmware-qlogic
+
+====
+
+обнволение прощшивки контрролера хба
+
+я имею карточку 
+
+		3ware 9650SE-4LPML  (внутри lsi)
+
+
+чтоб ею управлять нужна утилиа tw_cli
+9650SE_9690SA_firmware_9-5-5-1codeset_fw4-10-00-027.zip
+CLI_linux-from_the_10-2-2-1_9-5-5-1_codesets.zip
+
+
+
+
+root@backup-02:/opt/3ware# ./tw_cli /c0 show all
+/c0 Driver Version = 2.26.02.014
+/c0 Model = 9650SE-4LPML
+/c0 Available Memory = 224MB
+/c0 Firmware Version = FE9X 4.10.00.021
+/c0 Bios Version = BE9X 4.08.00.003
+/c0 Boot Loader Version = BL9X 3.08.00.001
+/c0 Serial Number = L326010B0460209
+/c0 PCB Version = Rev 035
+/c0 PCHIP Version = 2.00
+/c0 ACHIP Version = 1.90
+/c0 Number of Ports = 4
+/c0 Number of Drives = 4
+/c0 Number of Units = 4
+/c0 Total Optimal Units = 4
+/c0 Not Optimal Units = 0 
+/c0 JBOD Export Policy = on
+/c0 Disk Spinup Policy = 1
+/c0 Spinup Stagger Time Policy (sec) = 1
+/c0 Auto-Carving Policy = on
+/c0 Auto-Carving Size = 2048 GB
+/c0 Auto-Rebuild Policy = on
+/c0 Rebuild Mode = Adaptive
+/c0 Rebuild Rate = 1
+/c0 Verify Mode = Adaptive
+/c0 Verify Rate = 1
+/c0 Controller Bus Type = PCIe
+/c0 Controller Bus Width = 4 lanes
+/c0 Controller Bus Speed = 2.5 Gbps/lane
+
+Unit  UnitType  Status         %RCmpl  %V/I/M  Stripe  Size(GB)  Cache  AVrfy
+------------------------------------------------------------------------------
+u0    JBOD      OK             -       -       -       232.883   RiW    OFF    
+u1    JBOD      OK             -       -       -       232.883   RiW    OFF    
+u2    JBOD      OK             -       -       -       232.883   RiW    OFF    
+u3    JBOD      OK             -       -       -       232.883   RiW    OFF    
+
+VPort Status         Unit Size      Type  Phy Encl-Slot    Model
+------------------------------------------------------------------------------
+p0    OK             u0   232.88 GB SATA  0   -            SEAGATE ST32500NSSU 
+p1    OK             u1   232.88 GB SATA  1   -            SEAGATE ST32500NSSU 
+p2    OK             u2   232.88 GB SATA  2   -            SEAGATE ST32500NSSU 
+p3    OK             u3   232.88 GB SATA  3   -            SEAGATE ST32500NSSU 
+
+
+
+активиурем кэш  назапись на дисках
+
+
+
+#### /opt/3ware/tw_cli /c0/u0 set cache=on
+Setting Write Cache Policy on /c0/u0 to [on] ... Done.
+
+#### /opt/3ware/tw_cli /c0/u1 set cache=on
+Setting Write Cache Policy on /c0/u1 to [on] ... Done.
+
+#### /opt/3ware/tw_cli /c0/u2 set cache=on
+Setting Write Cache Policy on /c0/u2 to [on] ... Done.
+
+#### /opt/3ware/tw_cli /c0/u3 set cache=on
+Setting Write Cache Policy on /c0/u3 to [on] ... Done.
+
+
+
+
+root@backup-02:/opt/3ware# ./tw_cli /c0 show
+
+Unit  UnitType  Status         %RCmpl  %V/I/M  Stripe  Size(GB)  Cache  AVrfy
+------------------------------------------------------------------------------
+u0    JBOD      OK             -       -       -       232.883   RiW    OFF    
+u1    JBOD      OK             -       -       -       232.883   RiW    OFF    
+u2    JBOD      OK             -       -       -       232.883   RiW    OFF    
+u3    JBOD      OK             -       -       -       232.883   RiW    OFF    
+
+
+
+
+
+перешиваем прошивку на новую
+
+
+
+root@backup-02:/opt/3ware# /opt/3ware/tw_cli /c0 show all | grep -i firmware
+/c0 Firmware Version = FE9X 4.10.00.021
+root@backup-02:/opt/3ware# ls
+tw_cli
+root@backup-02:/opt/3ware# cd ~
+root@backup-02:~# ls
+prom0006.img
+root@backup-02:~# 
+root@backup-02:~# 
+root@backup-02:~# 
+root@backup-02:~# ls
+prom0006.img
+root@backup-02:~# /opt/3ware/tw_cli /c0 update fw=/root/prom0006.img 
+
+Warning: Updating the firmware can render the device driver and/or
+management tools incompatible. Before you update the firmware,
+it is recommended that you:
+
+1) Back up your data.
+
+2) Make sure you have a copy of the current firmware image so that
+you can roll back, if necessary.
+
+3) Close all applications.
+
+Examining compatibility data from firmware image and /c0 ... Done.
+
+New-Firmware        Current-Firmware    Current-Driver      Current-API 
+------------------------------------------------------------------------
+FE9X 4.10.00.027    FE9X 4.10.00.021    2.26.02.014         2.08.00.027       
+
+Both API and Driver are compatible with the new firmware.
+Recommendation: proceed to update.
+
+Given the above recommendation...
+Do you want to continue ? Y|N [N]: Y
+Downloading the firmware from file /root/prom0006.img ... oDone. 
+The new image will take effect after reboot.
+
+root@backup-02:~# reboot
+
+Broadcast message from root@backup-02 on pts/1 (Fri 2026-01-02 19:39:20 MSK):
+
+The system will reboot now!
+
+
+после обнолвния
+
+#### /opt/3ware/tw_cli  /c0 show all
+/c0 Driver Version = 2.26.02.014
+/c0 Model = 9650SE-4LPML
+/c0 Available Memory = 224MB
+/c0 Firmware Version = FE9X 4.10.00.027
+/c0 Bios Version = BE9X 4.08.00.004
+/c0 Boot Loader Version = BL9X 3.08.00.001
+/c0 Serial Number = L326010B0460209
+/c0 PCB Version = Rev 035
+/c0 PCHIP Version = 2.00
+/c0 ACHIP Version = 1.90
+/c0 Number of Ports = 4
+/c0 Number of Drives = 4
+/c0 Number of Units = 4
+/c0 Total Optimal Units = 4
+/c0 Not Optimal Units = 0 
+/c0 JBOD Export Policy = on
+/c0 Disk Spinup Policy = 1
+/c0 Spinup Stagger Time Policy (sec) = 1
+/c0 Auto-Carving Policy = on
+/c0 Auto-Carving Size = 2048 GB
+/c0 Auto-Rebuild Policy = on
+/c0 Rebuild Mode = Adaptive
+/c0 Rebuild Rate = 1
+/c0 Verify Mode = Adaptive
+/c0 Verify Rate = 1
+/c0 Controller Bus Type = PCIe
+/c0 Controller Bus Width = 4 lanes
+/c0 Controller Bus Speed = 2.5 Gbps/lane
+
+
+
+
+#### /opt/3ware/tw_cli  /c0 show
+
+Unit  UnitType  Status         %RCmpl  %V/I/M  Stripe  Size(GB)  Cache  AVrfy
+------------------------------------------------------------------------------
+u0    JBOD      OK             -       -       -       232.883   Ri     OFF    
+u1    JBOD      OK             -       -       -       232.883   Ri     OFF    
+u2    JBOD      OK             -       -       -       232.883   Ri     OFF    
+u3    JBOD      OK             -       -       -       232.883   Ri     OFF    
+
+VPort Status         Unit Size      Type  Phy Encl-Slot    Model
+------------------------------------------------------------------------------
+p0    OK             u0   232.88 GB SATA  0   -            SEAGATE ST32500NSSU 
+p1    OK             u1   232.88 GB SATA  1   -            SEAGATE ST32500NSSU 
+p2    OK             u2   232.88 GB SATA  2   -            SEAGATE ST32500NSSU 
+p3    OK             u3   232.88 GB SATA  3   -            SEAGATE ST32500NSSU 
+
+
+p0 это физ диски
+а u0 это то что презентует для ос . типа как луны. 
+
+запрос через смарт  к дискам они хотьт и JBOD но к ним хрен напрямую пролезешь через sdN
+	# smartctl -x  -d 3ware,0 /dev/twa0 
+
+
+
+==================================
+install lsscsi  screen parted
+================================
+создать EFI разделы на +2 двух дисках
+создать разделы по зфс на этих дисках
+расширть зфс бут миррор до 4-ех дисков
+заменить в пуле scsi метки на S\N метки
+
+
+
+загрузка с 4-ех дисков (4-вей миррор зфс) через uefi
+далее мудеж по разбивке новых двух дисков также как первые два диска
+и поклюенчеие их к зфс и изменние меток через которые диск плкюлючены к зфс.
+(прикол в том что фрибсл автмоатом создает метки дисков на базе серийноного номера а лринукс 
+этого недлает .  линукс создает автмоатом метки на базе wwn)
+
+
+в целом можно перенсти разбивка сдика на диск вот так
+
+
+# Копируем разметку с sda на sdc
+	sfdisk -d /dev/sda | sfdisk /dev/sdc
+это очень крутая удобная команда
+
+если потом при добавлении диска/раздела к зфс он напишет что добавляемый диск походу
+был частью зфс это значит что на добавляемом диске реаьно когда ты был зфс и остались его следы.
+и нужнопросто добавить ключ -f и все будет хорошо тоесть 
+
+  zpool attach -f POOL_NAME  old_disk     new_disk
+
+
+но можно разбить новый диск и руками
+ссмотрим разбивку старого диска
+
+
+GNU Parted 3.5
+Using /dev/sdc
+Welcome to GNU Parted! Type 'help' to view a list of commands.
+(parted) unit s                                                           
+(parted) p                                                                
+Model: AMCC 9650SE-4LP DISK (scsi)
+Disk /dev/sdc: 488390625s
+Sector size (logical/physical): 512B/512B
+Partition Table: gpt
+Disk Flags: 
+
+Number  Start     End         Size        File system  Name  Flags
+ 1      34s       2047s       2014s                          bios_grub
+ 2      2048s     2099199s    2097152s    fat32              boot, esp
+ 3      2099200s  138412032s  136312833s  zfs
+
+(parted) ^C                                                               
+
+
+первый раздел на нем нет фс. там просто граб хранит часть своего загрузчика для случая когда комп грузится
+в режиме BIOS (тоесть не в режиме уефи). сам диск как видно имеет разметку гпт. тоесть с него можно потенциально
+грузится через уефи. но если мы хотим грузится через биос при такой разметке то нужен это первый раздел размером 1М
+где граб засунет часть своего загрузчкика.
+второй раздел это уже FAT32 + флаг EFI. этот тот раздел который умеет анализирвать UEFI и грузится с него.
+таким макром этот диск позволит грузиться как через биос так и через уефи.
+третий разлдел это уже зфс раздел.
+
+
+создаю первый раздел на двух новых дисках (sde sdf)
+	# parted -s /dev/sde mkpart primary 34s 2047s
+Warning: The resulting partition is not properly aligned for best performance: 34s % 2048s != 0s
+	# parted -s /dev/sdf mkpart primary 34s 2047s
+Warning: The resulting partition is not properly aligned for best performance: 34s % 2048s != 0s
+	# parted -s /dev/sde set 1 bios_grub on
+	# parted -s /dev/sdf set 1 bios_grub on
+
+
+создаем EFI раздел
+#### parted -s /dev/sde mkpart primary fat32 2048s 2099199s
+#### parted -s /dev/sdf mkpart primary fat32 2048s 2099199s
+#### parted -s /dev/sde set 2 esp on
+#### parted -s /dev/sdf set 2 esp on
+
+кстати плоезная команда 
+blockdev --getsz /dev/sdc
+
+создаем тртий раздел под ZFS
+####  parted -s /dev/sde mkpart primary zfs 2099200s 138412032s
+####  parted -s /dev/sdf mkpart primary zfs 2099200s 138412032s
+
+
+проверяю выравниванеим для третьего раздела
+#### parted /dev/sde align-check optimal 3
+3 aligned
+#### parted /dev/sdf align-check optimal 3
+3 aligned
+
+
+провреяб результат
+#### parted /dev/sde
+GNU Parted 3.5
+Using /dev/sde
+Welcome to GNU Parted! Type 'help' to view a list of commands.
+(parted) unit s                                                           
+(parted) p                                                                
+Model: AMCC 9650SE-4LP DISK (scsi)
+Disk /dev/sde: 488390625s
+Sector size (logical/physical): 512B/512B
+Partition Table: gpt
+Disk Flags: 
+
+Number  Start     End         Size        File system  Name     Flags
+ 1      34s       2047s       2014s                    primary  bios_grub
+ 2      2048s     2099199s    2097152s                 primary  boot, esp
+ 3      2099200s  138412032s  136312833s  zfs          primary
+
+(parted) ^C                                                               
+
+#### parted /dev/sdf
+GNU Parted 3.5
+Using /dev/sdf
+Welcome to GNU Parted! Type 'help' to view a list of commands.
+(parted) unit s                                                           
+(parted) p                                                                
+Model: AMCC 9650SE-4LP DISK (scsi)
+Disk /dev/sdf: 488390625s
+Sector size (logical/physical): 512B/512B
+Partition Table: gpt
+Disk Flags: 
+
+Number  Start     End         Size        File system  Name     Flags
+ 1      34s       2047s       2014s                    primary  bios_grub
+ 2      2048s     2099199s    2097152s                 primary  boot, esp
+ 3      2099200s  138412032s  136312833s  zfs          primary
+
+(parted) ^C                                                               
+
+
+щас буду дбавялять раздел зфс на новых дисках  к текущему пулу
+итакже создам GPT метку для этих разделов и на основе этих меток поменяю то чтерез что зфс цепляет эти диски
+
+
+#### zpool status -v
+  pool: rpool
+ state: ONLINE
+config:
+
+	NAME                                       STATE     READ WRITE CKSUM
+	rpool                                      ONLINE       0     0     0
+	  mirror-0                                 ONLINE       0     0     0
+	    scsi-1AMCC_5QE4EPAS000000000000-part3  ONLINE       0     0     0
+	    scsi-1AMCC_9QE82FPM000000000000-part3  ONLINE       0     0     0
+
+errors: No known data errors
+
+#### zpool attach -f  rpool scsi-1AMCC_5QE4EPAS000000000000-part3  /dev/disk/by-id/scsi-1AMCC_5QE4EPB0000000000000-part3
+#### zpool attach -f  rpool scsi-1AMCC_9QE82FPM000000000000-part3  /dev/disk/by-id/scsi-1AMCC_5QE4EQ7L000000000000-part3
+
+
+
+#### zpool status -v
+  pool: rpool
+ state: ONLINE
+  scan: resilvered 1.27G in 00:01:54 with 0 errors on Fri Jan  2 20:53:53 2026
+config:
+
+	NAME                                       STATE     READ WRITE CKSUM
+	rpool                                      ONLINE       0     0     0
+	  mirror-0                                 ONLINE       0     0     0
+	    scsi-1AMCC_5QE4EPAS000000000000-part3  ONLINE       0     0     0
+	    scsi-1AMCC_9QE82FPM000000000000-part3  ONLINE       0     0     0
+	    scsi-1AMCC_5QE4EPB0000000000000-part3  ONLINE       0     0     0
+	    scsi-1AMCC_5QE4EQ7L000000000000-part3  ONLINE       0     0     0
+
+errors: No known data errors
+
+
+
+
+создаю GPT метки на раздел
+#### sgdisk -c 3:"SN-EPAS"  /dev/sdc
+
+это охуенно полезная команда. онп позволяет поменять или сощдать GPT метку для раздела.
+как видно аргумент это диск а раздел указан через '3:'
+
+#### sgdisk -c 3:"SN-2FPM"  /dev/sdd
+#### partprobe /dev/sdd (засвтавляю ядро пеерчитать таблицу разделов  с диска)
+
+#### sgdisk -c 3:"SN-EPB0"  /dev/sde
+#### partprobe /dev/sde
+
+
+#### sgdisk -c 3:"SN-EQ7L"  /dev/sdf
+#### partprobe /dev/sdf
+
+
+#### zpool detach scsi-1AMCC_5QE4EQ7L000000000000-part3
+missing <device> specification
+usage:
+	detach <pool> <device>
+#### zpool detach rpool scsi-1AMCC_5QE4EQ7L000000000000-part3
+#### zpool attach  rpool scsi-1AMCC_5QE4EPAS000000000000-part3   /dev/disk/by-partlabel/SN-EQ7L 
+#### 
+#### 
+#### zpool detach rpool    scsi-1AMCC_5QE4EPB0000000000000-part3
+#### zpool attach rpool   scsi-1AMCC_5QE4EPAS000000000000-part3     /dev/disk/by-partlabel/SN-EPB0 
+#### zpool detach rpool      scsi-1AMCC_9QE82FPM000000000000-part3
+#### 
+#### 
+#### zpool attach rpool   scsi-1AMCC_5QE4EPAS000000000000-part3     /dev/disk/by-partlabel/SN-2FPM 
+#### 
+
+#### zpool detach rpool       scsi-1AMCC_5QE4EPAS000000000000-part3
+#### zpool attach rpool    SN-EQ7L   /dev/disk/by-partlabel/SN-EPAS 
+
+
+
+
+ backup-02 # zpool status -v
+  pool: rpool
+ state: ONLINE
+  scan: resilvered 1.27G in 00:01:55 with 0 errors on Fri Jan  2 21:23:53 2026
+config:
+
+	NAME         STATE     READ WRITE CKSUM
+	rpool        ONLINE       0     0     0
+	  mirror-0   ONLINE       0     0     0
+	    SN-EQ7L  ONLINE       0     0     0
+	    SN-EPB0  ONLINE       0     0     0
+	    SN-2FPM  ONLINE       0     0     0
+	    SN-EPAS  ONLINE       0     0     0
+
+errors: No known data errors
+
+
+форматирруем в FAT32 наши новые EFI разделы
+
+sdv     65:80   0   1.8T  0 disk 
+ backup-02 # mkfs.vfat -F 32 -n EFI /dev/sde2
+mkfs.fat 4.2 (2021-01-31)
+ backup-02 # mkfs.vfat -F 32 -n EFI /dev/sdf2
+mkfs.fat 4.2 (2021-01-31)
+
+
+
+ добваоляю новые ентри в UEFI NVRAM
+
+
+добавляю новые диски в меню
+
+
+	# udevadm info /dev/sde |  grep by-id
+S: disk/by-id/scsi-1AMCC_5QE4EPB0000000000000
+E: DEVLINKS=/dev/disk/by-id/scsi-1AMCC_5QE4EPB0000000000000 /dev/disk/by-diskseq/13 /dev/disk/by-path/pci-0000:43:00.0-scsi-0:0:2:0
+
+
+	# efibootmgr -c -d /dev/sde -p 2 -L "BOOT EPB0" -l '\EFI\systemd\systemd-bootx64.efi'
+
+
+чтобы эта команда сработал охуенно важно указать диск /dev/sde к которому она отсноиттся и  раздел -p 2
+потому что эта команда она с помиощю этого ищет какой у раздела UUID иименно его она вставит в ентри.
+и нужно указать путь к файлу.
+кстти это оличется от фрибслд и его комнанды
+	#efibootmgr -c -l /mnt/01/EFI/BOOT/BOOTX64.EFI -L "BOOT WWN cc384"
+во фрибадс нужно смонтрвать ефи раздел. и фотбсл проеряет наличие файла по указаному пути. а раздел и диск
+оно определить автоатом на основе точки монтрвания. вот такой прикол!
+
+
+
+
+сразу проверяем 
+
+
+ backup-02 # efibootmgr  -v
+BootCurrent: 0011
+Timeout: 10 seconds
+BootOrder: 0000,0002,000E,000F,0010,0011
+Boot0000* BOOT EPB0	HD(2,GPT,37c89389-97b3-4cd4-af4f-96fb82c7d7b7,0x800,0x200000)/File(\EFI\systemd\systemd-bootx64.efi)
+
+
+тоесть селси чтото сделат ьневерно то вот этот партишн GUID 37c89389-97b3-4cd4-af4f-96fb82c7d7b7
+будет состоятьть из одних нулей
+
+
+ backup-02 # efibootmgr -c -d /dev/sdf  -p 2 -L "BOOT EQ7L" -l '\EFI\systemd\systemd-bootx64.efi'
+ backup-02 # efibootmgr  -v
+BootCurrent: 0011
+Timeout: 10 seconds
+BootOrder: 0001,0000,0002,000E,000F,0010,0011
+Boot0000* BOOT EPB0	HD(2,GPT,37c89389-97b3-4cd4-af4f-96fb82c7d7b7,0x800,0x200000)/File(\EFI\systemd\systemd-bootx64.efi)
+Boot0001* BOOT EQ7L	HD(2,GPT,a4824f5a-d4a6-47f4-af99-6ede28ca993e,0x800,0x200000)/File(\EFI\systemd\systemd-bootx64.efi)
+
+
+
+
+
+удаляю старые NVRAM ENTRY
+
+BootCurrent: 0007
+Timeout: 0 seconds
+BootOrder: 000B,000A,0007,0006,0000,0001,0002,0003,0004,0005,0008,0009
+Boot0000  EFI Network 1
+Boot0001  EFI Network 2
+Boot0002  EFI Network 3
+Boot0003  EFI Network 4
+Boot0004* Virtual Floppy  
+Boot0005* Virtual CD      
+Boot0006* Linux Boot Manager
+Boot0007* Linux Boot Manager
+Boot0008* EFI Fixed Disk Boot Device 1
+Boot0009* EFI Fixed Disk Boot Device 2
+Boot000A* BOOT EPB0
+Boot000B* BOOT EQ7L
+
+
+  250  efibootmgr -B -b 0001
+  251  efibootmgr -B -b 0002
+  252  efibootmgr -B -b 0003
+  253  efibootmgr -B -b 0004
+  254  efibootmgr -B -b 0005
+  255  efibootmgr -B -b 0008
+  256  efibootmgr -B -b 0009
+  257  efibootmgr -B -b 0006
+
+
+
+
+добавляю старые диски 
+
+
+
+ backup-02 # udevadm info /dev/sdc |  grep by-id
+S: disk/by-id/scsi-1AMCC_5QE4EPAS000000000000
+E: DEVLINKS=/dev/disk/by-path/pci-0000:43:00.0-scsi-0:0:0:0 /dev/disk/by-diskseq/11 /dev/disk/by-id/scsi-1AMCC_5QE4EPAS000000000000
+
+ backup-02 # efibootmgr -c -d /dev/sdc  -p 2 -L "BOOT EPAS" -l '\EFI\systemd\systemd-bootx64.efi'
+
+ backup-02 # udevadm info /dev/sdd |  grep by-id
+S: disk/by-id/scsi-1AMCC_9QE82FPM000000000000
+E: DEVLINKS=/dev/disk/by-id/scsi-1AMCC_9QE82FPM000000000000 /dev/disk/by-diskseq/12 /dev/disk/by-path/pci-0000:43:00.0-scsi-0:0:1:0
+
+ backup-02 # efibootmgr -c -d /dev/sdd  -p 2 -L "BOOT 2FPM" -l '\EFI\systemd\systemd-bootx64.efi'
+
+
+ backup-02 # efibootmgr  -v
+BootCurrent: 0011
+Timeout: 10 seconds
+BootOrder: 0004,0003,0001,0000,0002,000E,000F,0010,0011
+Boot0000* BOOT EPB0	HD(2,GPT,37c89389-97b3-4cd4-af4f-96fb82c7d7b7,0x800,0x200000)/File(\EFI\systemd\systemd-bootx64.efi)
+Boot0001* BOOT EQ7L	HD(2,GPT,a4824f5a-d4a6-47f4-af99-6ede28ca993e,0x800,0x200000)/File(\EFI\systemd\systemd-bootx64.efi)
+Boot0003* BOOT EPAS	HD(2,GPT,decf9046-f77e-45c3-a1b9-3ac9d13d2ead,0x800,0x200000)/File(\EFI\systemd\systemd-bootx64.efi)
+Boot0004* BOOT 2FPM	HD(2,GPT,0905f26d-b049-47c8-a3fd-6b3fecb721a7,0x800,0x200000)/File(\EFI\systemd\systemd-bootx64.efi)
+
+
+все 4 ентри есть в меню. все имеют GUID партишена с ефи. и все со звезлдами значит участвуют впереборе вариантов.
+(если что ссмотри текст файл freebsd uefi настйрока .txt)
+
+
+определяю порядок загрузки по этим ентри в каком порядке нужно перебирать
+
+ backup-02 # efibootmgr -o 0000,0001,0003,0004
+
+
+еще нужно записать на диски ту часть граба которая на сулчай если мы будем гоурузится через БИОС
+
+	# /usr/sbin/grub-install.real /dev/sdc
+Installing for x86_64-efi platform.
+/usr/sbin/grub-install.real: error: cannot find EFI directory.
+
+	# /usr/sbin/grub-install.real /dev/sdd
+Installing for x86_64-efi platform.
+/usr/sbin/grub-install.real: error: cannot find EFI directory.
+
+	# /usr/sbin/grub-install.real /dev/sde
+Installing for x86_64-efi platform.
+/usr/sbin/grub-install.real: error: cannot find EFI directory.
+
+	# /usr/sbin/grub-install.real /dev/sdf
+Installing for x86_64-efi platform.
+/usr/sbin/grub-install.real: error: cannot find EFI directory.
+
+
+можно забить хрен на ефи ошибку. с ефи все уже настроено. нам лищь нужно было тиснуть граб на первый
+раздел диска про который я ранее говорил.
+
+
+     efibootmgr -A -b 0007  (это дезактивирует лишние ентри в меню что делл пихает сам автмоатмо от души)
+     efibootmgr -A -b 0008
+     efibootmgr -A -b 0009
+     efibootmgr -A -b 000C
+     efibootmgr -A -b 000D
+     efibootmgr -o 0000,0001,000A,000B  (задаем порядок перебора)
+     efibootmgr -t 10   (это устанвлиывает таймаут)
+  
+
+
+по идее все готово.
+ос должна грузиьтся через UEFI с любого из четрых дисков
+
+
+
+
+
+типа поезный совет . когда импорртирую между линукс/фрибсл чуждой пул и наипример я знаю что 
+он помтроен на базе GPT меток то ОС нужно подскзаать в какой папке искать метки 
+
+	# zpool import -d /dev/gpt [имя_пула]
+
+как сказал ИИ сам ипорт у зфс происодит на основе GUID меток котореые он запиывает на сами диски.
+а уже потом зфс начинаетискать в ос те идентфикатторы дисков и партиций котоыре зфс толкко что импортировала.
+и вот так как унас в ос для дисков и партииций если разная куча развознанчых идентификаторов то зфс 
+подставить хер знает какие но не те что надо. тоесть условно зфс подсваить /dev/disk/by-id/scsi* идентификаторы
+хотя нам нужны /dev/disk/by-id/partlabel/* 
+именно плтому зфс приимпорте нужно посдкзаать какие метки нужно подтянуть к пулу при его импорте
+
+
+
+

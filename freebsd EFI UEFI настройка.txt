@@ -1,0 +1,473 @@
+| freebsd
+| uefi (уебанское)
+
+посмтреть nvram точки загрузки
+
+# efibootmgr
+BootCurrent: 000c
+Timeout    : 10 seconds
+BootOrder  : 000D, 000C, 000B, 0006, 0000, 0001, 0002, 0003, 0004, 0005
+ Boot000D  BOOT WWN e7450
++Boot000C* BOOT WWN cc384
+ Boot000B  HOT Spare WWN d2e04
+ Boot0006  HOT Spare WWN d2e24
+ Boot0000* EFI Fixed Disk Boot Device 1
+ Boot0001* EFI Fixed Disk Boot Device 2
+ Boot0002* EFI Network 1
+ Boot0003* EFI Network 2
+ Boot0004* EFI Network 3
+ Boot0005* EFI Network 4
+
+
+
+
+
+как удалять 
+
+efibootmgr -B -b 0005
+efibootmgr -B -b 0004
+efibootmgr -B -b 0003
+efibootmgr -B -b 0002
+efibootmgr -B -b 0001
+efibootmgr -B -b 0000
+
+рещузультат
+
+# efibootmgr
+BootCurrent: 000c
+Timeout    : 10 seconds
+BootOrder  : 000D, 000C, 000B, 0006
+ Boot000D  BOOT WWN e7450
++Boot000C* BOOT WWN cc384
+ Boot000B  HOT Spare WWN d2e04
+ Boot0006  HOT Spare WWN d2e24
+
+
+ отредактирвать порядок загрузки
+
+
+# efibootmgr -o 000C,000D,000B,0006
+BootCurrent: 000c
+Timeout    : 10 seconds
+BootOrder  : 000C, 000D, 000B, 0006
++Boot000C* BOOT WWN cc384
+ Boot000D  BOOT WWN e7450
+ Boot000B  HOT Spare WWN d2e04
+ Boot0006  HOT Spare WWN d2e24
+
+
+
+
+ # camcontrol devlist | grep SEAGATE
+<SEAGATE ST373455SS 0001>          at scbus0 target 8 lun 0 (pass1,da1)
+<SEAGATE ST373455SS 0001>          at scbus0 target 9 lun 0 (pass2,da2)
+<SEAGATE ST373455SS 0001>          at scbus1 target 2 lun 0 (pass3,da3)
+<SEAGATE ST373455SS 0001>          at scbus1 target 5 lun 0 (pass4,da4)
+ # 
+
+
+
+значит  у меня 4 диска. 
+два входят в миррор зпула.
+два я вставлю в этот пул как хот спар.
+и все они должны быть загрузочным через uefi
+это значит на этих дисках дложны быть gpt лейбл. также раздел тип EFI на нем фс FAT32
+и там спец файлы.
+
+проверяю что на всех дисках GPT лейбл
+
+
+для начала найду индентфиктооры лдя этих дисков с точки щерния геом и гпарт
+
+
+ # geom -t 
+Geom                                     Class      Provider
+da0                                      DISK       da0
+  da0                                    DEV       
+  da0                                    LABEL      diskid/DISK-BTYI224200AP480BGN
+    diskid/DISK-BTYI224200AP480BGN       DEV       
+
+
+
+
+
+
+da1                                      DISK       da1
+  da1                                    DEV       
+  da1                                    LABEL      diskid/DISK-3LQ0F5HD00009735TERZ
+    diskid/DISK-3LQ0F5HD00009735TERZ     DEV       
+    diskid/DISK-3LQ0F5HD00009735TERZ     PART       diskid/DISK-3LQ0F5HD00009735TERZp1
+      diskid/DISK-3LQ0F5HD00009735TERZp1 DEV       
+      diskid/DISK-3LQ0F5HD00009735TERZp1 LABEL      gpt/efiboot0
+        gpt/efiboot0                     DEV       
+      diskid/DISK-3LQ0F5HD00009735TERZp1 LABEL      msdosfs/EFI
+        msdosfs/EFI                      DEV       
+    diskid/DISK-3LQ0F5HD00009735TERZ     PART       diskid/DISK-3LQ0F5HD00009735TERZp2
+      diskid/DISK-3LQ0F5HD00009735TERZp2 DEV       
+      zfs::vdev                          ZFS::VDEV 
+
+
+
+da2                                      DISK       da2
+  da2                                    DEV       
+  da2                                    LABEL      diskid/DISK-3LQ0KB5100009736WREK
+    diskid/DISK-3LQ0KB5100009736WREK     DEV       
+    diskid/DISK-3LQ0KB5100009736WREK     PART       diskid/DISK-3LQ0KB5100009736WREKp1
+      diskid/DISK-3LQ0KB5100009736WREKp1 DEV       
+    diskid/DISK-3LQ0KB5100009736WREK     PART       diskid/DISK-3LQ0KB5100009736WREKp2
+      diskid/DISK-3LQ0KB5100009736WREKp2 DEV       
+  da2                                    PART       da2p1
+    da2p1                                DEV       
+  da2                                    PART       da2p2
+    da2p2                                DEV       
+
+
+
+
+
+da3                                      DISK       da3
+  da3                                    DEV       
+  da3                                    LABEL      diskid/DISK-3LQ0PWDE00009736YU6B
+    diskid/DISK-3LQ0PWDE00009736YU6B     DEV       
+    diskid/DISK-3LQ0PWDE00009736YU6B     PART       diskid/DISK-3LQ0PWDE00009736YU6Bp1
+      diskid/DISK-3LQ0PWDE00009736YU6Bp1 DEV       
+      diskid/DISK-3LQ0PWDE00009736YU6Bp1 LABEL      gpt/efiboot1
+        gpt/efiboot1                     DEV       
+    diskid/DISK-3LQ0PWDE00009736YU6B     PART       diskid/DISK-3LQ0PWDE00009736YU6Bp2
+      diskid/DISK-3LQ0PWDE00009736YU6Bp2 DEV       
+      zfs::vdev                          ZFS::VDEV 
+
+
+
+
+da4                                      DISK       da4
+  da4                                    DEV       
+  da4                                    LABEL      diskid/DISK-3LQ0PE4N00009736WQN2
+    diskid/DISK-3LQ0PE4N00009736WQN2     DEV       
+    diskid/DISK-3LQ0PE4N00009736WQN2     PART       diskid/DISK-3LQ0PE4N00009736WQN2p1
+      diskid/DISK-3LQ0PE4N00009736WQN2p1 DEV       
+    diskid/DISK-3LQ0PE4N00009736WQN2     PART       diskid/DISK-3LQ0PE4N00009736WQN2p2
+      diskid/DISK-3LQ0PE4N00009736WQN2p2 DEV       
+  da4                                    PART       da4p1
+    da4p1                                DEV       
+  da4                                    PART       da4p2
+    da4p2                                DEV       
+
+
+
+из чего мы находим связь мжду геом именем диска и гапрт именем дсика
+
+da1                                    LABEL      diskid/DISK-3LQ0F5HD00009735TERZ
+da2                                    LABEL      diskid/DISK-3LQ0KB5100009736WREK
+da3                                    LABEL      diskid/DISK-3LQ0PWDE00009736YU6B
+da4                                    LABEL      diskid/DISK-3LQ0PE4N00009736WQN2
+
+
+
+
+
+
+
+заглядываем в гпарт
+
+
+
+
+ # gpart show
+=>       34  143374677  da4  GPT  (68G)
+         34          6       - free -  (3.0K)
+         40     532480    1  efi  (260M)
+     532520       2008       - free -  (1.0M)
+     534528  142839808    2  freebsd-zfs  (68G)
+  143374336        375       - free -  (188K)
+
+=>       34  143374677  da2  GPT  (68G)
+         34          6       - free -  (3.0K)
+         40     532480    1  efi  (260M)
+     532520       2008       - free -  (1.0M)
+     534528  142839808    2  freebsd-zfs  (68G)
+  143374336        375       - free -  (188K)
+
+=>       40  143374664  diskid/DISK-3LQ0PWDE00009736YU6B  GPT  (68G)
+         40     532480                                 1  efi  (260M)
+     532520       2008                                    - free -  (1.0M)
+     534528  142839808                                 2  freebsd-zfs  (68G)
+  143374336        368                                    - free -  (184K)
+
+=>       34  143374677  diskid/DISK-3LQ0PE4N00009736WQN2  GPT  (68G)
+         34          6                                    - free -  (3.0K)
+         40     532480                                 1  efi  (260M)
+     532520       2008                                    - free -  (1.0M)
+     534528  142839808                                 2  freebsd-zfs  (68G)
+  143374336        375                                    - free -  (188K)
+
+=>       34  143374677  diskid/DISK-3LQ0KB5100009736WREK  GPT  (68G)
+         34          6                                    - free -  (3.0K)
+         40     532480                                 1  efi  (260M)
+     532520       2008                                    - free -  (1.0M)
+     534528  142839808                                 2  freebsd-zfs  (68G)
+  143374336        375                                    - free -  (188K)
+
+=>       40  143374664  diskid/DISK-3LQ0F5HD00009735TERZ  GPT  (68G)
+         40     532480                                 1  efi  (260M)
+     532520       2008                                    - free -  (1.0M)
+     534528  142839808                                 2  freebsd-zfs  (68G)
+  143374336        368                                    - free -  (184K)
+
+
+
+
+
+полльзуясб предыдущей таблицей находим что 
+
+=>       40  143374664  diskid/DISK-3LQ0F5HD00009735TERZ  GPT  (68G)
+         40     532480                                 1  efi  (260M)
+     532520       2008                                    - free -  (1.0M)
+     534528  142839808                                 2  freebsd-zfs  (68G)
+  143374336        368                                    - free -  (184K)
+
+
+это у нас da1
+и ккак видно он имеет GPT лейбл
+
+соответсвенно диска da2
+=>       34  143374677  diskid/DISK-3LQ0KB5100009736WREK  GPT  (68G)
+
+тоже имеет gpt лейбл
+
+
+da3
+=>       40  143374664  diskid/DISK-3LQ0PWDE00009736YU6B  GPT  (68G)
+ттоже имеет гпт лейбл
+
+da4
+=>       34  143374677  diskid/DISK-3LQ0PE4N00009736WQN2  GPT  (68G)
+тоже имеет гпт 
+лейбл
+
+тут все зебсиьсь.
+
+смотрим на разбиение да1
+
+=>       40  143374664  diskid/DISK-3LQ0F5HD00009735TERZ  GPT  (68G)
+         40     532480                                 1  efi  (260M)
+     532520       2008                                    - free -  (1.0M)
+     534528  142839808                                 2  freebsd-zfs  (68G)
+  143374336        368                                    - free -  (184K)
+
+
+
+у него есть раздел тип efi , раздел номер 1
+         40     532480                                 1  efi  (260M)
+отлчино
+
+
+
+смотрим да2
+=>       34  143374677  diskid/DISK-3LQ0KB5100009736WREK  GPT  (68G)
+         34          6                                    - free -  (3.0K)
+         40     532480                                 1  efi  (260M)
+     532520       2008                                    - free -  (1.0M)
+     534528  142839808                                 2  freebsd-zfs  (68G)
+  143374336        375                                    - free -  (188K)
+
+
+разбивка несколкьо оиличается но он тоже имеет efi раздел номер 1
+
+
+
+да3
+=>       40  143374664  diskid/DISK-3LQ0PWDE00009736YU6B  GPT  (68G)
+         40     532480                                 1  efi  (260M)
+     532520       2008                                    - free -  (1.0M)
+     534528  142839808                                 2  freebsd-zfs  (68G)
+  143374336        368                                    - free -  (184K)
+
+
+тоже имеет ефи раздел номер 1
+
+
+да4
+=>       34  143374677  diskid/DISK-3LQ0PE4N00009736WQN2  GPT  (68G)
+         34          6                                    - free -  (3.0K)
+         40     532480                                 1  efi  (260M)
+     532520       2008                                    - free -  (1.0M)
+     534528  142839808                                 2  freebsd-zfs  (68G)
+  143374336        375                                    - free -  (188K)
+
+
+
+тоже имеет ефи раздел номер 1
+
+
+
+теперь нужно каждый из них отформатровать в фат32
+берем их гпарт идентфикиаторы
+
+da1                                    LABEL      diskid/DISK-3LQ0F5HD00009735TERZ
+da2                                    LABEL      diskid/DISK-3LQ0KB5100009736WREK
+da3                                    LABEL      diskid/DISK-3LQ0PWDE00009736YU6B
+da4                                    LABEL      diskid/DISK-3LQ0PE4N00009736WQN2
+
+
+и форматируем (!!ВАЖНО форматировать надо раздел сука а не диск! раздел EFI)
+
+da1
+newfs_msdos -F 32 -c 1 -L "EFI" /dev/diskid/DISK-3LQ0F5HD00009735TERZp1
+
+да2
+newfs_msdos -F 32 -c 1 -L "EFI" /dev/diskid/DISK-3LQ0KB5100009736WREKp1
+
+
+да3
+newfs_msdos -F 32 -c 1 -L "EFI" /dev/diskid/DISK-3LQ0PWDE00009736YU6Bp1
+
+да4
+newfs_msdos -F 32 -c 1 -L "EFI" /dev/diskid/DISK-3LQ0PE4N00009736WQN2p1
+
+
+теперь нужно каждый примонтировть 
+mount_msdosfs  /dev/diskid/DISK-3LQ0F5HD00009735TERZp1  /mnt/01
+mount_msdosfs  /dev/diskid/DISK-3LQ0KB5100009736WREKp1  /mnt/02
+mount_msdosfs  /dev/diskid/DISK-3LQ0PWDE00009736YU6Bp1  /mnt/03
+mount_msdosfs  /dev/diskid/DISK-3LQ0PE4N00009736WQN2p1  /mnt/04
+
+
+и скопироват туда папку efi 
+
+
+теперь надо засунут в NVRAM записи чтобы грузиться с этих разделов/дисков
+
+
+смотрим какие щас у нас есть записи
+
+ # efibootmgr
+BootCurrent: 000c
+Timeout    : 10 seconds
+BootOrder  : 000C, 000D, 000B, 0006
++Boot000C* BOOT WWN cc384
+ Boot000D  BOOT WWN e7450
+ Boot000B  HOT Spare WWN d2e04
+ Boot0006  HOT Spare WWN d2e24
+
+
+
+удаляем нахуй то что есть
+
+  efibootmgr -B -b 0006
+  efibootmgr -B -b 000B
+  efibootmgr -B -b 000D
+  efibootmgr -B -b 000C
+
+
+выясним WWN для дисков которые мы имеем
+
+
+ # geom disk list | grep 3LQ0F5HD00009735TERZ  -B6
+1. Name: da1
+   lunid: 5000c50001bcc387
+   ident: 3LQ0F5HD00009735TERZ
+
+
+
+ # geom disk list | grep 3LQ0KB5100009736WREK  -B6
+1. Name: da2
+   lunid: 5000c50001bd2e27
+   ident: 3LQ0KB5100009736WREK
+
+
+
+ # geom disk list | grep 3LQ0PWDE00009736YU6B -B6
+1. Name: da3
+   lunid: 5000c50001be7453
+   ident: 3LQ0PWDE00009736YU6B
+
+
+ # geom disk list | grep 3LQ0PE4N00009736WQN2 -B6
+1. Name: da4
+   lunid: 5000c50001bd2e07
+   ident: 3LQ0PE4N00009736WQN2
+
+
+добавялем пункты в меню зарузки UEFI
+
+mount_msdosfs  /dev/diskid/DISK-3LQ0F5HD00009735TERZp1  /mnt/01    5000c50001bcc387
+mount_msdosfs  /dev/diskid/DISK-3LQ0KB5100009736WREKp1  /mnt/02    5000c50001bd2e27
+mount_msdosfs  /dev/diskid/DISK-3LQ0PWDE00009736YU6Bp1  /mnt/03    5000c50001be7453
+mount_msdosfs  /dev/diskid/DISK-3LQ0PE4N00009736WQN2p1  /mnt/04    5000c50001bd2e07
+
+
+
+efibootmgr -c -l /mnt/01/EFI/BOOT/BOOTX64.EFI -L "BOOT WWN cc384"
+efibootmgr -c -l /mnt/02/EFI/BOOT/BOOTX64.EFI -L "HOT Spare WWN d2e24"
+efibootmgr -c -l /mnt/03/EFI/BOOT/BOOTX64.EFI -L "BOOT WWN e7450"
+efibootmgr -c -l /mnt/04/EFI/BOOT/BOOTX64.EFI -L "HOT Spare WWN d2e04"
+
+
+
+рузльатат
+
+
+ # 
+ # efibootmgr -c -l /mnt/01/EFI/BOOT/BOOTX64.EFI -L "BOOT WWN cc384"
+BootCurrent: 000c
+Timeout    : 10 seconds
+BootOrder  : 0000
+ Boot0000  BOOT WWN cc384
+ # 
+ # efibootmgr -c -l /mnt/02/EFI/BOOT/BOOTX64.EFI -L "HOT Spare WWN d2e24"
+BootCurrent: 000c
+Timeout    : 10 seconds
+BootOrder  : 0001, 0000
+ Boot0001  HOT Spare WWN d2e24
+ Boot0000  BOOT WWN cc384
+ # 
+ # 
+ # efibootmgr -c -l /mnt/03/EFI/BOOT/BOOTX64.EFI -L "BOOT WWN e7450"
+BootCurrent: 000c
+Timeout    : 10 seconds
+BootOrder  : 0002, 0001, 0000
+ Boot0002  BOOT WWN e7450
+ Boot0001  HOT Spare WWN d2e24
+ Boot0000  BOOT WWN cc384
+ # efibootmgr -c -l /mnt/04/EFI/BOOT/BOOTX64.EFI -L "HOT Spare WWN d2e04"
+BootCurrent: 000c
+Timeout    : 10 seconds
+BootOrder  : 0003, 0002, 0001, 0000
+ Boot0003  HOT Spare WWN d2e04
+ Boot0002  BOOT WWN e7450
+ Boot0001  HOT Spare WWN d2e24
+ Boot0000  BOOT WWN cc384
+ # 
+
+
+
+
+  # efibootmgr 
+BootCurrent: 000c
+Timeout    : 10 seconds
+BootOrder  : 0003, 0002, 0001, 0000
+ Boot0003  HOT Spare WWN d2e04
+ Boot0002  BOOT WWN e7450
+ Boot0001  HOT Spare WWN d2e24
+ Boot0000  BOOT WWN cc384
+
+
+
+осталось порядок изменить
+
+
+ # efibootmgr -o 0002,0000,0003,0001
+BootCurrent: 000c
+Timeout    : 10 seconds
+BootOrder  : 0002, 0000, 0003, 0001
+ Boot0002  BOOT WWN e7450
+ Boot0000  BOOT WWN cc384
+ Boot0003  HOT Spare WWN d2e04
+ Boot0001  HOT Spare WWN d2e24
+
+
+
+вроде сука все
+
+

@@ -1,0 +1,12 @@
+| freebsd
+| zfs
+| чистка диска
+
+
+#  gpart destroy -F da2; zpool labelclear -f /dev/da2; dd if=/dev/zero of=/dev/da2 bs=1M count=100 status=progress ; dd if=/dev/zero of=/dev/da2 bs=1M  status=progress seek=$(( 3907029168/2/1024 - 1*100 )); zpool import; camcontrol identify da2 | grep -i cache; smartctl -x /dev/da2
+
+
+# camcontrol stop da2
+
+можно вытаскивать
+

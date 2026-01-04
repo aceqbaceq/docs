@@ -12,3 +12,9 @@ ctrl+a - выбираем окно - shft+k - нажимем Y
 | как убить все сессию
 
 screen -X -S [session # you want to kill] quit
+
+
+| чтобы на скролл колеса мыши работал скролл экрана а не пролиствыение истории команда баша
+
+.screenrc
+termcapinfo xterm* ti@:te@

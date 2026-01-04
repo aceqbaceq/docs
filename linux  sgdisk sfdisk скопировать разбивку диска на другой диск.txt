@@ -1,0 +1,11 @@
+| linux 
+| parted
+| sgdisk 
+| sfdisk 
+
+
+как скопиртватьразбику по партишенаам с одного диска на другой
+
+
+sfdisk -d /dev/sda | sfdisk /dev/sdc
+

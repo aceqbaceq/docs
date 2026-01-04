@@ -1,0 +1,40 @@
+| freebsd 
+| disk size
+
+
+как узнать размер диска точно
+
+
+
+# geom disk list da2
+Geom name: da2
+Providers:
+1. Name: da2
+   Mediasize: 2000398934016 (1.8T)
+   Sectorsize: 512
+   Mode: r0w0e0
+   descr: ATA ST2000NM0033-9ZM
+   lunid: 5000c5007a6890b2
+   ident: Z1X415HY
+   rotationrate: 7200
+   fwsectors: 63
+   fwheads: 255
+
+[root@dell-r720-freebsd ~]# 
+[root@dell-r720-freebsd ~]# geom disk list da3
+Geom name: da3
+Providers:
+1. Name: da3
+   Mediasize: 2000398934016 (1.8T)
+   Sectorsize: 512
+   Mode: r0w0e0
+   descr: ATA HGST HUS724020AL
+   lunid: 5000cca24ed0f76d
+   ident: PN1181P5H6A19W
+   rotationrate: 7200
+   fwsectors: 63
+   fwheads: 255
+
+   
+
+
