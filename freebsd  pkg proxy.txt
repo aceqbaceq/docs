@@ -1,0 +1,10 @@
+| freebsd
+| proxy
+| pkg
+
+как pkg via proxy
+
+
+export HTTP_PROXY=http://172.16.10.11:2080
+export HTTPS_PROXY=http://172.16.10.11:2080
+export NO_PROXY=localhost,127.0.0.1

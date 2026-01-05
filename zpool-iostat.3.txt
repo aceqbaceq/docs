@@ -2,8 +2,10 @@
 | iostat
 
   # zpool iostat -w
+  # zpool iostat -r
 
 есть такая таблица
+
 
 
 boot-pool     sync_read    sync_write    async_read    async_write      scrub         trim    
