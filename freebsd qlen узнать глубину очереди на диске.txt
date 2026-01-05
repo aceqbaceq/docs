@@ -1,0 +1,14 @@
+| freebsd
+| qlen
+| length
+
+
+как посмтреть чему равна глубина очреди запросов на тот или иной диск
+а вот как!
+
+
+# iostat -d -x ada1 1
+                        extended device statistics  
+device       r/s     w/s     kr/s     kw/s  ms/r  ms/w  ms/o  ms/t qlen  %b  
+ada1           0    5741      0.0  91851.6     0     3     0     3   18 100 
+

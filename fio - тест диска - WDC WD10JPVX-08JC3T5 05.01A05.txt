@@ -255,6 +255,97 @@ ada1         187       0  23901.0      0.0   173     0     0   173   29 100
 проход обрабоать. с другой стороны каждй реквест может там "застрять".
 
 
+запись в зфс раоатет так. прога шлет сколько то запросов ио 
+тоесть у них есть размер запроса и число заопросвов в штуках
+
+# fio --randrepeat=1 --ioengine=posixaio --direct=1 --gtod_reduce=1 --name=test --filename=/dev/ada1p2  --bs=$(( 8 *1024)) --iodepth=32  --runtime=10  --readwrite=write --numjobs=1  --group_reporting
+
+
+здесь в зфс улаетает от проги 32 запроса размером 8КБ каждый.
+зфс это все заглатывает и обратно наше проге сразу шлет что данные засписсаны.
+далее зфс из этих данных фориртует макрогруппу. и далее зфс разбивает эту группу
+на новые иопсы и рассылает их по vdev причем зфс учитывает что ей нельзя на 1 вдев 
+слать больше чем 
+
+[root@fr ~]# sysctl vfs.zfs.vdev.sync_write_min_active
+vfs.zfs.vdev.sync_write_min_active: 10
+[root@fr ~]# sysctl vfs.zfs.vdev.sync_write_max_active
+vfs.zfs.vdev.sync_write_max_active: 10
+
+
+покыаываю на прмиере.
+у меня пул из одного вдев . один диск шпиндеьдель
+
+# fio --randrepeat=1 --ioengine=posixaio --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-01/ds-128K/fio.dat  --bs=$(( 128 *1024)) --iodepth=32  --runtime=10  --readwrite=write --numjobs=1  --group_reporting
+
+прога шлет 32 запроса 128К размером.
+зфс это все перехуяривает на вдев она шлет куски размером 1MB
+
+^C                        extended device statistics  
+device       r/s     w/s     kr/s     kw/s  ms/r  ms/w  ms/o  ms/t qlen  %b  
+ada1           0     112      0.0 115126.0     0    88     0    88   10  99 
+
+и также зфс шлет за раз неболее чем 10 таких запросов.
+
+зфс выбирает каким кусками преобоарзыватть ихсодные запросы при записи на вдев
+на основе
+
+# sysctl -a | grep zfs | grep aggreg
+vfs.zfs.vdev.aggregation_limit_non_rotating: 131072
+vfs.zfs.vdev.aggregation_limit: 1048576
+
+вот тут видно что зфс разреешено писать на шпиндель диски агрегироваными кусками до 1МБ
+макс. из тестов я точно вижу что если у датасета рекордсайз 128К то на диски идет
+загрегроанная запись кусками по 1МБ.
+
+так как в конечно итоге запись идет на диск и как выяснислось кусками по 1МБ
+то вот мой тест о том какая длина очереди нужна на диск при записи кусками по 1МБ
+чтобы достичь макс скоорсти записи диска
+как показал тест даже при iodeth=1 уже диск достигает макс скрости записи
+#  fio --randrepeat=1 --ioengine=posixaio --direct=1 --gtod_reduce=1 --name=test --filename=/dev/ada1p2  --bs=$((1024 *1024)) --iodepth=1  --runtime=20  --readwrite=write --numjobs=1  --group_reporting
+
+и вот докатеьсво что ос на диск будет пулять нагрузку с qlen=1
+# iostat -d -x ada1 1
+                        extended device statistics  
+device       r/s     w/s     kr/s     kw/s  ms/r  ms/w  ms/o  ms/t qlen  %b  
+ada1           0     105      0.0 107091.8     0     9     0     9    1  99 
+
+
+тоесть уже если я пишу на детесет 128К кусками по 128К и иодепф даже 1
+то мы уже должны полностью выирать лин скрсть записи на диск по макумуму
+
+
+# fio --randrepeat=1 --ioengine=posixaio --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-01/ds-128K/fio.dat  --bs=$(( 128 *1024)) --iodepth=1  --runtime=10  --readwrite=write --numjobs=1  --group_reporting
+  write: IOPS=1054, BW=132MiB/s (138MB/s)(1328MiB/10074msec); 0 zone resets
+
+                        extended device statistics  
+device       r/s     w/s     kr/s     kw/s  ms/r  ms/w  ms/o  ms/t qlen  %b  
+ada1           0     120      0.0 104955.7     0    72    30    72   10  97 
+
+видно что один ио реквест(который релаьный тоесть 1МБ) при этом обслуживается на скорости 72мс
+
+
+
+вообще почти что макс скоось записи достичгается если я пишу на диск даже кускми по 8КБ
+и и иодепф=1
+
+# fio --randrepeat=1 --ioengine=posixaio --direct=1 --gtod_reduce=1 --name=test --filename=/dev/ada1p2  --bs=$((8 *1024)) --iodepth=1  --runtime=20  --readwrite=write --numjobs=1  --group_reporting
+  write: IOPS=11.3k, BW=88.1MiB/s (92.4MB/s)(680MiB/7720msec); 0 zone resets
+
+
+
+еще раз сехма такая . прога кидает сколькото иопсов (iodepth) и bs (арзмер запроса)
+кидает в зфс. та принимает сразу отвечает что запиано. потом агрегирует эти запросы
+и с новым bs и qlen кидает на vdev пула. когда запрос прилетает на диск то он 
+попдает в кеш на запись и диск сразу сообщает что все записано. 
+
+если рекорсдайз 128К то мешать запиать на диск с макс скорсью может только 
+если на диск запросы летят строго по одному , плюс выключен кеш у диска, и потомждем
+что диск пришет подтврежение записи.
+
+
+
+
 
 
 
