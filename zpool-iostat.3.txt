@@ -1,6 +1,8 @@
 | zpool
 | iostat
 
+  # zpool iostat -w
+
 есть такая таблица
 
 
