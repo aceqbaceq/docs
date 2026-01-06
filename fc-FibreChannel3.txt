@@ -1,0 +1,75 @@
+| FC
+| qlogic
+
+
+узнать на каком щас конфиге работает Fc HBA
+
+
+
+# apt-get install sysfsutils
+
+
+
+# systool -v -c fc_host host7
+Class = "fc_host"
+
+  Class Device = "host7"
+  Class Device path = "/sys/devices/pci0000:40/0000:40:02.0/0000:42:00.0/host7/fc_host/host7"
+    dev_loss_tmo        = "30"
+    fabric_name         = "0xffffffffffffffff"
+    issue_lip           = <store method only>
+    max_npiv_vports     = "254"
+    node_name           = "0x20000024ff1de378"
+    npiv_vports_inuse   = "0"
+    port_id             = "0x0000ef"
+    port_name           = "0x21000024ff1de378"
+    port_state          = "Online"
+    port_type           = "LPort (private loop)"
+    speed               = "2 Gbit"
+    supported_classes   = "Class 3"
+    supported_speeds    = "1 Gbit, 2 Gbit, 4 Gbit, 8 Gbit"
+    symbolic_name       = "QLE2562 FW:v8.07.00 DVR:v10.02.09.100-k"
+    system_hostname     = ""
+    tgtid_bind_type     = "wwpn (World Wide Port Name)"
+    uevent              = 
+    vport_create        = <store method only>
+    vport_delete        = <store method only>
+
+    Device = "host7"
+    Device path = "/sys/devices/pci0000:40/0000:40:02.0/0000:42:00.0/host7"
+      fw_dump             = 
+      issue_logo          = <store method only>
+      nvram               = "ISP "
+      optrom_ctl          = <store method only>
+      optrom              = 
+      reset               = <store method only>
+      sfp                 = ""
+      uevent              = "DEVTYPE=scsi_host"
+      vpd                 = "�("
+
+
+
+
+узнать сколкьо всего команд карта способна обрабатывать запросов суммарно вобще
+
+# cat /sys/class/scsi_host/host7/can_queue
+2038
+
+
+узнать какуб длину очереели запросов на 1 LUN карта будет отслылать макс
+
+
+# cat /sys/module/qla2xxx/parameters/ql2xmaxqdepth
+128
+
+
+узнать сколько щас коненктно запрсов висит отослано на порту FC
+
+# cat /sys/class/scsi_host/host8/host_busy 
+5
+
+
+тоесмть условно. мы в фио поставили iodepth=32 и  на host_busy  должно появиться 32
+при условии что карта больше ничем незанимется
+
+

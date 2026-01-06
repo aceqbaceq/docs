@@ -756,3 +756,528 @@ Installing for x86_64-efi platform.
 
 
 
+про диски.
+у нас диски бОльшая часть которые составят пул они покдлчаются к хосту через Qlogic FC HBA
+а та ведет на FC полки. так вот в итоге каждый диск для линукса видет в разрезе устройств идентицикации 
+в папке 
+
+     /dev/disk/
+
+только как 
+
+/dev/disk/by-id/wwn-0x2208000a33ffef06
+/dev/disk/by-id/wwn-0x2208000a33ffef07
+/dev/disk/by-id/wwn-0x2208000a33ffef08
+
+
+но это не wwn диска самого а это wwn которйы ему назначила полка.
+поэтому прежде чем собирать зфс пул нужно назначить диску какуюто неубивамему метку чтобы 
+
+  1) по этой метке его можно было бы идентиыицировать 
+  2) чтобы если я вытащу его из полки и вставлю напрямую в ос через обычный HBA карту чтобы для зфс метка эта
+     никуда не исчезла а ОС бы ее автоматом создала
+
+поэтому решено на каждом диске который вставлен в полку да и вобще который будет вставлен в пул нарезать GPT партицию
+и нанее навесить gpt label в форме серийника этого диска.
+тогда мы поэтому гпт метке доавбить диск в зфс пул. человек в статусе пула будет вилеть серийник. этотже сериник 
+наклеиь на морду салазок.и если этот диск пеереставить в другой комп то уж ГПТ метку на диске другая ос должна увидеть 
+тоесть пул собеертся ровно на таких же идентификаторах
+для этого я юзаю скрипт
+
+
+
+for disk in {i..x} ; do
+  dev="/dev/sd$disk"
+  # Достаем серийник именно так, как его видит система
+  sn=$(lsblk -dno SERIAL $dev)
+  
+  echo "Processing $dev (SN: $sn)..."
+  
+  # 1. Создаем таблицу GPT
+  parted -s $dev mklabel gpt
+  
+  # 2. Создаем раздел (отступ 2048s для выравнивания)
+  # Используем 100% диска
+  parted -s $dev mkpart primary 2048s 100%
+  
+  # 3. Присваиваем имя разделу (Partlabel) равное серийнику
+  parted -s $dev name 1 $sn
+done
+
+
+
+
+./sn.bash 
+Processing /dev/sdi (SN: Z1X414R4)...
+Processing /dev/sdj (SN: Z1X41591)...
+Processing /dev/sdk (SN: Z1X4159P)...
+Processing /dev/sdl (SN: Z1X414XP)...
+Processing /dev/sdm (SN: Z1X415N4)...
+Processing /dev/sdn (SN: Z1X415AD)...
+Processing /dev/sdo (SN: Z1X415E4)...
+Processing /dev/sdp (SN: Z1X415R1)...
+Processing /dev/sdq (SN: Z1X415JP)...
+Processing /dev/sdr (SN: Z1X415M0)...
+Processing /dev/sds (SN: Z1X4159A)...
+Processing /dev/sdt (SN: Z1X4158J)...
+Processing /dev/sdu (SN: Z1X415HP)...
+Processing /dev/sdv (SN: Z1X414PY)...
+Processing /dev/sdw (SN: Z1X415C4)...
+Processing /dev/sdx (SN: Z1X4151F)...
+
+
+
+витоге получаю
+
+# ls -1 /dev/disk/by-partlabel/Z*
+/dev/disk/by-partlabel/Z1X414PY
+/dev/disk/by-partlabel/Z1X414R4
+/dev/disk/by-partlabel/Z1X414XP
+/dev/disk/by-partlabel/Z1X4151F
+/dev/disk/by-partlabel/Z1X4158J
+/dev/disk/by-partlabel/Z1X41591
+/dev/disk/by-partlabel/Z1X4159A
+/dev/disk/by-partlabel/Z1X4159P
+/dev/disk/by-partlabel/Z1X415AD
+/dev/disk/by-partlabel/Z1X415C4
+/dev/disk/by-partlabel/Z1X415E4
+/dev/disk/by-partlabel/Z1X415HP
+/dev/disk/by-partlabel/Z1X415JP
+/dev/disk/by-partlabel/Z1X415M0
+/dev/disk/by-partlabel/Z1X415N4
+/dev/disk/by-partlabel/Z1X415R1
+
+
+
+
+так как у данной полки есть очень слабое место это в салазахках стоят интепозеры. это такие переходники
+которые берут SATA потоки прверщают его в FC поток. 
+как ниже покажу тесты они могут на чтение давать всего 95МБ/с сдиска. на запись всего 72МБ/с с диска.
+так вот чтобы по дефолут запись еще ниже 44МБ/с чобы ее поднять до 72МБ/с вот такие правила вставолюятся в udev
+
+	# cat  /etc/udev/rules.d/99-qlogic-all.rules
+
+# Правило для блочного уровня (диски на карте QLogic 2532)
+ACTION=="add|change", SUBSYSTEM=="block", ENV{ID_BUS}=="scsi", ATTRS{device}=="0x2532", ATTR{queue/max_sectors_kb}="1024", ATTR{queue/scheduler}="mq-deadline", ATTR{queue/read_ahead_kb}="4096"
+
+# Правило для SCSI уровня (глубина очереди для дисков на карте QLogic 2532)
+ACTION=="add|change", SUBSYSTEM=="scsi", ENV{DEVTYPE}=="scsi_device", ATTRS{device}=="0x2532", ATTR{queue_depth}="32"
+
+
+это приавло привзяыается к тому что диски у них родитель это карта qlogic с поеределынным ID
+
+ATTRS{vendor}=="0x1077" (это ID компании QLogic)
+ATTRS{device}=="0x2532" (это ID твоей карты)
+
+
+накатываем эти правила
+
+# udevadm control --reload-rules
+# udevadm trigger
+
+
+главным образом эту штука подркручиитывает вот этот прараметр у дисков
+
+cat /sys/block/sdX/queue/max_sectors_kb
+
+
+s# lsscsi 
+[7:0:0:0]    disk    ST2000NM 0033-9ZM175      SN06  /dev/sdi 
+[7:0:1:0]    disk    ST2000NM 0033-9ZM175      SN06  /dev/sdj 
+[7:0:2:0]    disk    ST2000NM 0033-9ZM175      SN06  /dev/sdk 
+[7:0:3:0]    disk    ST2000NM 0033-9ZM175      SN06  /dev/sdl 
+[7:0:4:0]    disk    ST2000NM 0033-9ZM175      SN06  /dev/sds 
+[7:0:5:0]    disk    ST2000NM 0033-9ZM175      SN06  /dev/sdt 
+[7:0:6:0]    disk    ST2000NM 0033-9ZM175      SN06  /dev/sdu 
+[7:0:7:0]    disk    ST2000NM 0033-9ZM175      SN06  /dev/sdv 
+[7:0:8:0]    disk    ST2000NM 0033-9ZM175      SN06  /dev/sdy 
+[8:0:0:0]    disk    ST2000NM 0033-9ZM175      SN06  /dev/sdm 
+[8:0:1:0]    disk    ST2000NM 0033-9ZM175      SN06  /dev/sdn 
+[8:0:2:0]    disk    ST2000NM 0033-9ZM175      SN06  /dev/sdo 
+[8:0:3:0]    disk    ST2000NM 0033-9ZM175      SN06  /dev/sdp 
+[8:0:4:0]    disk    ST2000NM 0033-9ZM175      SN06  /dev/sdq 
+[8:0:5:0]    disk    ST2000NM 0033-9ZM175      SN06  /dev/sdr 
+[8:0:6:0]    disk    ST2000NM 0033-9ZM175      SN06  /dev/sdw 
+[8:0:7:0]    disk    ST2000NM 0033-9ZM175      SN06  /dev/sdx 
+[8:0:8:0]    disk    ST2000NM 0033-9ZM175      SN06  /dev/sdaa
+
+# cat /sys/block/sdm/queue/max_sectors_kb
+1024
+
+
+
+
+
+
+
+
+тест перфоманса полки на голых дисках.
+дело в том что салазки имеют интепрозер которы преобразует SATA поток в FC поток.и этот интппозер он 
+слабый.
+беру диск  ST2000NM0033-9ZM 
+который отлично протестировал просто на обычно хосте тоесть его скорости  я знаю (ищи в txt файлах этот тест)
+и тестирую сколько из него выжмет полка
+
+ЛИН ЧТЕНИЕ
+
+# fio --randrepeat=1 --ioengine=io_uring --direct=1 --gtod_reduce=1 --name=test --filename=/dev/disk/by-partlabel/Z1X415HY --bs=$((8*128  *1024)) --iodepth=32  --runtime=15  --readwrite=read   --numjobs=1  --group_reporting  
+test: (g=0): rw=read, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=io_uring, iodepth=32
+fio-3.33
+Starting 1 process
+Jobs: 1 (f=1): [R(1)][100.0%][r=96.1MiB/s][r=96 IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=85593: Sun Jan  4 20:34:37 2026
+  read: IOPS=95, BW=95.3MiB/s (99.9MB/s)(1470MiB/15429msec)
+
+
+# fio --randrepeat=1 --ioengine=io_uring --direct=1 --gtod_reduce=1 --name=test --filename=/dev/disk/by-partlabel/Z1X415HY --bs=$((8*128  *1024)) --iodepth=1  --runtime=30  --readwrite=read   --numjobs=1  --group_reporting  
+test: (g=0): rw=read, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=io_uring, iodepth=1
+fio-3.33
+Starting 1 process
+Jobs: 1 (f=1): [R(1)][100.0%][r=93.0MiB/s][r=93 IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=85478: Sun Jan  4 20:29:59 2026
+  read: IOPS=91, BW=91.5MiB/s (96.0MB/s)(2750MiB/30043msec)
+
+
+тоесть 90-95 МБ/с против 190-200МБ/с которые может выдать сам диск. тоесть это все этот интерпозер так слабо работает
+
+ЛИН ЗАПИСЬ
+
+# fio --randrepeat=1 --ioengine=io_uring --direct=1 --gtod_reduce=1 --name=test --filename=/dev/disk/by-partlabel/Z1X415HY --bs=$((8*128  *1024)) --iodepth=1  --runtime=20  --readwrite=write   --numjobs=1  --group_reporting  
+test: (g=0): rw=write, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=io_uring, iodepth=1
+fio-3.33
+Starting 1 process
+Jobs: 1 (f=1): [W(1)][100.0%][w=43.0MiB/s][w=43 IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=85639: Sun Jan  4 20:36:07 2026
+  write: IOPS=43, BW=43.6MiB/s (45.7MB/s)(894MiB/20516msec); 0 zone resets
+
+  43.6 MB\s против 190МБ/с которые выжиаем сам диск. опять же это интепозер такой слабый
+
+
+# fio --randrepeat=1 --ioengine=io_uring --direct=1 --gtod_reduce=1 --name=test --filename=/dev/disk/by-partlabel/Z1X415A4 --bs=$((8*128  *1024)) --iodepth=32  --runtime=20  --readwrite=write   --numjobs=1  --group_reporting  
+test: (g=0): rw=write, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=io_uring, iodepth=32
+fio-3.33
+Starting 1 process
+Jobs: 1 (f=1): [W(1)][2.2%][w=65.1MiB/s][w=65 IOPS][eta 15m:50s]  
+test: (groupid=0, jobs=1): err= 0: pid=85730: Sun Jan  4 20:38:33 2026
+  write: IOPS=69, BW=69.8MiB/s (73.2MB/s)(1470MiB/21054msec); 0 zone resets
+
+
+на многоптоке повеселее 69.8 МБ/с против 190МБ/с котоыре выжиаамает сам диск
+
+
+
+РАНД РИД
+
+# fio --randrepeat=1 --ioengine=io_uring --direct=1 --gtod_reduce=1 --name=test --filename=/dev/disk/by-partlabel/PN1181P5H6A19W --bs=$((8  *1024)) --iodepth=1 --runtime=20  --readwrite=randread   --numjobs=1  --group_reporting  
+test: (g=0): rw=randread, bs=(R) 8192B-8192B, (W) 8192B-8192B, (T) 8192B-8192B, ioengine=io_uring, iodepth=1
+fio-3.33
+Starting 1 process
+Jobs: 1 (f=1): [r(1)][100.0%][r=608KiB/s][r=76 IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=85885: Sun Jan  4 20:42:24 2026
+  read: IOPS=83, BW=664KiB/s (680kB/s)(13.0MiB/20016msec)
+
+
+    83 иопса столько же сколко и сам диск может из себя выжать
+
+
+ # fio --randrepeat=1 --ioengine=io_uring --direct=1 --gtod_reduce=1 --name=test --filename=/dev/disk/by-partlabel/Z1X415A4 --bs=$((8  *1024)) --iodepth=32 --runtime=20  --readwrite=randread   --numjobs=1  --group_reporting  
+test: (g=0): rw=randread, bs=(R) 8192B-8192B, (W) 8192B-8192B, (T) 8192B-8192B, ioengine=io_uring, iodepth=32
+fio-3.33
+Starting 1 process
+Jobs: 1 (f=1): [r(1)][100.0%][r=1328KiB/s][r=166 IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=86036: Sun Jan  4 20:46:13 2026
+  read: IOPS=162, BW=1301KiB/s (1333kB/s)(26.0MiB/20445msec)
+
+на многоптоке разные представители этого диска выдавали с разбросом. этот выдал 162 а другой такойже 124
+а два других диска от другого проиизвоодиетля выдали 132 и 133 иопс.
+
+
+
+РАНД ВРАЙТ
+
+ fio --randrepeat=1 --ioengine=io_uring --direct=1 --gtod_reduce=1 --name=test --filename=/dev/disk/by-partlabel/Z1X415A4 --bs=$((8  *1024)) --iodepth=1 --runtime=20  --readwrite=randwrite   --numjobs=1  --group_reporting  
+test: (g=0): rw=randwrite, bs=(R) 8192B-8192B, (W) 8192B-8192B, (T) 8192B-8192B, ioengine=io_uring, iodepth=1
+fio-3.33
+Starting 1 process
+Jobs: 1 (f=1): [w(1)][100.0%][w=352KiB/s][w=44 IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=86165: Sun Jan  4 20:50:51 2026
+  write: IOPS=43, BW=350KiB/s (358kB/s)(7152KiB/20447msec); 0 zone resets
+
+   43 иопса против 210 которые выжимает из себя диск
+
+
+# fio --randrepeat=1 --ioengine=io_uring --direct=1 --gtod_reduce=1 --name=test --filename=/dev/disk/by-partlabel/Z1X415A4 --bs=$((8  *1024)) --iodepth=32 --runtime=20  --readwrite=randwrite   --numjobs=1  --group_reporting  
+test: (g=0): rw=randwrite, bs=(R) 8192B-8192B, (W) 8192B-8192B, (T) 8192B-8192B, ioengine=io_uring, iodepth=32
+fio-3.33
+Starting 1 process
+Jobs: 1 (f=1): [w(1)][100.0%][w=1273KiB/s][w=159 IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=86243: Sun Jan  4 20:52:18 2026
+  write: IOPS=158, BW=1264KiB/s (1294kB/s)(25.5MiB/20644msec); 0 zone resets
+
+
+тут один выдал 158 второй 117, а два диска от дргугого мануфакрутера выдали по 123.
+все это против 207 которвые выдает сам диск из себя
+
+
+тоесть данная полка очень круто теряет скорость за счет того что у нее медленные интепоозеры в салазках.
+и поэтому далее когда мы будем щас зфс на эти диски накатывать то зфс будет тут ни причем.
+хотя это все становится неважно так как дисков много а  к кадой полке идет канал FC всего 2Gb/s
+но все равно важно понимпть почему с одного диска так мало снимается. это не зфс. это интеопзеры(SATA-FC) в салаказах!
+
+
+
+
+
+
+
+
+создание главного пула
+
+
+
+zpool create -f -o ashift=12 \
+    -o autotrim=on \
+    -O compression=lz4 \
+    -O xattr=sa \
+    -O atime=off \
+    -O recordsize=128k \
+    -O normalization=formD \
+    -O utf8only=on \
+    -O canmount=off \
+    POOL-02 mirror /dev/disk/by-partlabel/Z1X415R1   /dev/disk/by-partlabel/Z1X4158J
+
+
+
+# zpool add   POOL-02 mirror /dev/disk/by-partlabel/Z1X415M0  /dev/disk/by-partlabel/Z1X4159A
+# zpool add   POOL-02 mirror    /dev/disk/by-partlabel/Z1X4151F      /dev/disk/by-partlabel/Z1X415HP
+# zpool add   POOL-02 mirror    /dev/disk/by-partlabel/Z1X415C4     /dev/disk/by-partlabel/Z1X414PY
+# zpool add   POOL-02 mirror    /dev/disk/by-partlabel/Z1X415N4     /dev/disk/by-partlabel/Z1X414R4
+# zpool add   POOL-02 mirror      /dev/disk/by-partlabel/Z1X415AD      /dev/disk/by-partlabel/Z1X4159P
+# zpool add   POOL-02 mirror     /dev/disk/by-partlabel/Z1X415E4      /dev/disk/by-partlabel/Z1X41591
+# zpool add   POOL-02 mirror     /dev/disk/by-partlabel/Z1X415JP     /dev/disk/by-partlabel/Z1X414XP
+
+
+
+# zpool status -v POOL-02
+  pool: POOL-02
+ state: ONLINE
+config:
+
+        NAME          STATE     READ WRITE CKSUM
+        POOL-02       ONLINE       0     0     0
+          mirror-0    ONLINE       0     0     0
+            Z1X415R1  ONLINE       0     0     0
+            Z1X4158J  ONLINE       0     0     0
+          mirror-1    ONLINE       0     0     0
+            Z1X415M0  ONLINE       0     0     0
+            Z1X4159A  ONLINE       0     0     0
+          mirror-2    ONLINE       0     0     0
+            Z1X4151F  ONLINE       0     0     0
+            Z1X415HP  ONLINE       0     0     0
+          mirror-3    ONLINE       0     0     0
+            Z1X415C4  ONLINE       0     0     0
+            Z1X414PY  ONLINE       0     0     0
+          mirror-4    ONLINE       0     0     0
+            Z1X415N4  ONLINE       0     0     0
+            Z1X414R4  ONLINE       0     0     0
+          mirror-5    ONLINE       0     0     0
+            Z1X415AD  ONLINE       0     0     0
+            Z1X4159P  ONLINE       0     0     0
+          mirror-6    ONLINE       0     0     0
+            Z1X415E4  ONLINE       0     0     0
+            Z1X41591  ONLINE       0     0     0
+          mirror-7    ONLINE       0     0     0
+            Z1X415JP  ONLINE       0     0     0
+            Z1X414XP  ONLINE       0     0     0
+
+
+
+
+теперь нужно в остав пула включить SSD
+для начала их нужно полностью освободить изунтри . чтоб он был как с магазина. все ячейки пустые досутпные
+для работы
+
+# blkdiscard /dev/sda
+# blkdiscard /dev/sdb
+# blkdiscard /dev/sdc
+# blkdiscard /dev/sdd
+
+
+
+создаю два диска под SLOG размером 24ГБ
+
+
+ backup-02 # lsblk -dno WWN /dev/sda
+0x55cd2e4155d59e7e
+ backup-02 # parted -s  /dev/sda  mklabel gpt
+ backup-02 # parted -s  /dev/sda  mkpart primary 2048s 24GiB
+ backup-02 # parted -s /dev/sda  name 1 wwn-55cd2e4155d59e7e
+
+
+  backup-02 # lsblk -dno WWN /dev/sdb
+0x55cd2e4155d5cd47
+ backup-02 # parted -s  /dev/sdb  mklabel gpt
+ backup-02 # parted -s  /dev/sdb  mkpart primary 2048s 24GiB
+ backup-02 # parted -s /dev/sdb  name 1 wwn-55cd2e4155d5cd47
+
+
+# blkid | grep -E "sda1|sdb1" 
+/dev/sdb1: PARTLABEL="wwn-55cd2e4155d5cd47" PARTUUID="4894c8e4-67d0-445f-8807-c2405ba3aa73"
+/dev/sda1: PARTLABEL="wwn-55cd2e4155d59e7e" PARTUUID="f1e24650-3052-4a35-ae3a-199202eacf32"
+
+
+добавляю SLOG в пул
+
+# zpool add POOL-02 log mirror /dev/disk/by-partlabel/wwn-55cd2e4155d5cd47    /dev/disk/by-partlabel/wwn-55cd2e4155d59e7e
+
+
+почему я навесил на ссд диски гпт метку не в виде серийника а виде его истинного wwn номера который напкечатан на 
+этикетке диска. потому что у интел ссд дисков у них серийники на конце одинаковые.  аменяются они толко в середине.
+вот пример 
+
+ backup-02 # lsblk -o NAME,SERIAL /dev/sda
+NAME   SERIAL
+sda    BTYI224201MG480BGN
+└─sda1 
+ backup-02 # lsblk -o NAME,SERIAL /dev/sdb
+NAME   SERIAL
+sdb    BTYI22420644480BGN
+└─sdb1 
+
+а ихние wwn они на  конце разные. а так как размер под наклейку на салазках очень маленткий то я не смогу туда всунуть
+серийник целиком. зато я могу туда всунуть оконцовку wwn. поэтому вот так.
+
+
+
+ 
+
+ # zpool status -v POOL-02 | tail -n 10
+            Z1X41591              ONLINE       0     0     0
+          mirror-7                ONLINE       0     0     0
+            Z1X415JP              ONLINE       0     0     0
+            Z1X414XP              ONLINE       0     0     0
+        logs
+          mirror-8                ONLINE       0     0     0
+            wwn-55cd2e4155d5cd47  ONLINE       0     0     0
+            wwn-55cd2e4155d59e7e  ONLINE       0     0     0
+
+
+
+добаляем ссд под спешл.
+
+
+ backup-02 # lsblk -dno WWN /dev/sdc
+0x55cd2e4155d5d4f9
+ backup-02 # 
+ backup-02 # parted -s  /dev/sdc  mklabel gpt
+ backup-02 # parted -s  /dev/sdc  mkpart primary 2048s 100%
+ backup-02 # parted -s /dev/sdc  name 1 wwn-55cd2e4155d5d4f9
+ backup-02 # 
+ backup-02 # 
+ backup-02 # lsblk -dno WWN /dev/sdd
+0x55cd2e4155d59908
+ backup-02 # parted -s  /dev/sdd  mklabel gpt
+ backup-02 # parted -s  /dev/sdd  mkpart primary 2048s 100%
+ backup-02 # parted -s /dev/sdd  name 1 wwn-55cd2e4155d59908
+ backup-02 # 
+ backup-02 # zpool add POOL-02 special     mirror         /dev/disk/by-partlabel/wwn-55cd2e4155d5d4f9    /dev/disk/by-partlabel/wwn-55cd2e4155d59908
+ backup-02 # 
+ backup-02 # 
+
+
+
+
+ # zpool status -v POOL-02 | tail -n 15
+            Z1X415E4              ONLINE       0     0     0
+            Z1X41591              ONLINE       0     0     0
+          mirror-7                ONLINE       0     0     0
+            Z1X415JP              ONLINE       0     0     0
+            Z1X414XP              ONLINE       0     0     0
+        special 
+          mirror-9                ONLINE       0     0     0
+            wwn-55cd2e4155d5d4f9  ONLINE       0     0     0
+            wwn-55cd2e4155d59908  ONLINE       0     0     0
+        logs
+          mirror-8                ONLINE       0     0     0
+            wwn-55cd2e4155d5cd47  ONLINE       0     0     0
+            wwn-55cd2e4155d59e7e  ONLINE       0     0     0
+
+
+
+все пул собран.
+
+
+
+теперь создаем датасет под proxmox backup server
+
+
+
+ backup-02 # zfs create -o recordsize=1M \
+           -o xattr=sa \
+           -o atime=off \
+           -o compression=lz4 \
+           POOL-02/proxmox_backup_server
+
+
+ backup-02 # zfs set special_small_blocks=128K POOL-02/proxmox_backup_server
+
+
+теперь на special будут храниться нетлоко метаданые но и мелкие файлы размером до 128К коих 
+будет много у пбс. его индексы и чтото там еще.
+
+
+# zfs set quota=11TB POOL-02  (осталяяем резервиурем  место под COW zfs)
+
+
+
+# zpool list POOL-02
+NAME      SIZE  ALLOC   FREE  CKPOINT  EXPANDSZ   FRAG    CAP  DEDUP    HEALTH  ALTROOT
+POOL-02  14.9T  1.44M  14.9T        -         -     0%     0%  1.00x    ONLINE  -
+
+
+ # zfs list -r POOL-02
+NAME                            USED  AVAIL  REFER  MOUNTPOINT
+POOL-02                        1.44M  11.0T    96K  /POOL-02
+POOL-02/proxmox_backup_server    96K  11.0T    96K  /POOL-02/proxmox_backup_server
+POOL-02/test-ds-128K             96K  11.0T    96K  /POOL-02/test-ds-128K
+
+
+
+
+
+
+
+теперь я создаю два тестовых датасета с 128К и 1М рекаордсайзом.
+что померять сколько можно выжать с этих датасетов. тоесть уже из зфс
+напомню что наданный момент пул ссостоит из 16 дисков. это 8 мирроров в страйпе.
+
+recordzie128K
+	лин чтение
+		bs=1MB
+			iodepth=32  386 MB/s
+  			iodepth=1   379MB\s
+
+
+    выше мы получили для голого диска что на этой полке диск выдает 90-95МБ/с с одной штуки на лин чтении.
+    по идее на iodepth=1 у нас должны бы была быть скорость 90-95 МБ/с
+    она больше засчет того что зфс делает префетч. это нас спаасает на iodepth=1 (см файл *prefetech*.txt)
+    на iodepth=32 по идее все должно быть отлично. у нас 8 мирроров в страйпе так что 8*95 легко забиывает 2*2Gb\s
+    что мы и видим. тоесть результат ожидаемый. так то оно так но по другой причине.
+    это было бы так если бы линукс умел брать пачку ио и пихать их однроврмннона зфс. но он этого не умеет
+    а вот фрибсд умеет (смортри об этом txt файл *iodepth*.txt ), поэтому нас тут спасает опять все тот же 
+    префет зфс. тоесть сам линкус работает на этом режиме точно также как iodepth=1 но нас спасает зфс
+    с его префетчем. толко пэтому мы видим эту отличную скорость.
+    итак линкейное чтение отличное в конечном итоге. 
+
+
+
+
+    лин запись
+		bs=1MB
+			iodepth=32  130 MB/s
+  			iodepth=1   130 MB\s
+
+
+  остановился ттут
+
+  

@@ -1,0 +1,11 @@
+| zfs
+| zpool
+| import
+
+как мипортировать с подсказкой по каким дисковым идентфикатором 
+исползовать 
+
+
+
+# zpool import -d /dev/disk/by-partlabel  POOL-02
+

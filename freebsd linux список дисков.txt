@@ -1,0 +1,18 @@
+| freebsd
+| linux
+| camcontrol
+| lssci
+
+
+то что во фрибсл
+
+		# camcontrol devlist
+
+в лиунксе 
+
+root@test-prox:~# lsscsi 
+[1:0:0:0]    disk    ATA      SEAGATE ST32500N 3AZQ  /dev/sda 
+[3:0:0:0]    disk    ATA      SEAGATE ST32500N .AZK  /dev/sdb 
+[4:0:0:0]    disk    ATA      Samsung SSD 860  4B6Q  /dev/sdd 
+[5:0:0:0]    disk    ATA      ST2000NM0033-9ZM SN06  /dev/sdc 
+

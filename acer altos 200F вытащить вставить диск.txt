@@ -1,0 +1,29 @@
+| acer
+| altos 
+| altos 200F
+| scsi 
+| FC
+
+
+как праивльно вытащить диск из полки
+
+
+   # sg_start --stop /dev/sdz
+   # echo offline > /sys/block/sdz/device/state
+   # echo 1 > /sys/block/sdz/device/delete
+
+
+
+я вытащил диск из полки и заменил на другой но 
+lsbl по прежнему покзывает старый диск только smarctl покзывает что он новый.
+что делать
+
+
+
+   # echo 1 > /sys/block/sdz/device/delete
+   # rescan-scsi-bus.sh
+
+
+
+прога rescan-scsi-bus.sh отноиится к пакету    sg3-utils
+

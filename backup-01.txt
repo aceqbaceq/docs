@@ -567,23 +567,27 @@ NAME      SIZE  ALLOC   FREE  CKPOINT  EXPANDSZ   FRAG    CAP  DEDUP    HEALTH  
 POOL-01  14.5T  1.28M  14.5T        -         -     0%     0%  1.00x    ONLINE  -
 zroot      68G  1.33G  66.7G        -         -     0%     1%  1.00x    ONLINE  -
 
-# zfs set quota=none POOL-01
-# zfs set refreservation=3.6T POOL-01
 
+
+# zfs set quota=10.9TB POOL-01  (осталяяем резервиурем  место под COW zfs)
 
 
 # zpool list POOL-01
 NAME      SIZE  ALLOC   FREE  CKPOINT  EXPANDSZ   FRAG    CAP  DEDUP    HEALTH  ALTROOT
-POOL-01  14.5T  1.37M  14.5T        -         -     0%     0%  1.00x    ONLINE  -
-
-
+POOL-01  14.5T  30.0G  14.5T        -         -     0%     0%  1.00x    ONLINE  -
 
 
 # zfs list -r POOL-01
-NAME               USED  AVAIL  REFER  MOUNTPOINT
-POOL-01           3.60T  14.3T    96K  /POOL-01
-POOL-01/proxmox1    96K  10.7T    96K  /POOL-01/proxmox1
-POOL-01/proxmox2    96K  10.7T    96K  /POOL-01/proxmox2
+NAME                    USED  AVAIL  REFER  MOUNTPOINT
+POOL-01                30.0G  10.9T    96K  /POOL-01
+POOL-01/proxmox1         96K  10.9T    96K  /POOL-01/proxmox1
+POOL-01/proxmox2         96K  10.9T    96K  /POOL-01/proxmox2
+POOL-01/test-ds1-128K  30.0G  10.9T  30.0G  /POOL-01/test-ds1-128K
+
+
+
+
+
 
 
 
