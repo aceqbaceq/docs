@@ -1,0 +1,74 @@
+| PBS
+| pbs
+| proxmox backup server
+
+
+установка
+
+
+ставим прокскскм PBS
+
+wget https://enterprise.proxmox.com/debian/proxmox-release-bookworm.gpg -O /etc/apt/trusted.gpg.d/proxmox-release-bookworm.gpg
+
+
+# cat /etc/apt/sources.list.d/proxmox.sources 
+Types: deb
+URIs: http://download.proxmox.com/debian/pbs
+Suites: bookworm
+Components: pbs-no-subscription
+Signed-By: /etc/apt/trusted.gpg.d/proxmox-release-bookworm.gpg
+
+
+apt-get update
+apt-get install -y proxmox-backup-server
+
+написано что такой способ не меняет ядро в системе нам это и надо
+
+далее заходим в веб морду.
+нажимемамем на datasrtore и указвыаем условно имя датастора 
+		
+		PBS3-DATASTORE
+
+и путь к папкке для этого датастора 
+
+		/POOL-02/proxmox_backup_server
+
+потом в этом же онке наиммемаеем Content и создаем namespace "proxmox-2"
+при этом у нас на диске в папке датастора создастся папка
+
+	/POOL-02/proxmox_backup_server/ns/PROXMOX-2
+
+
+далее идем в "access control" создаем юзера proxmox-2-pbs-client@pbs
+даем ему права "Datasorre.Backup" на путь (ВНИМАНИЕ!!)  
+
+    /datastore/PBS3-DATASTORE/PROXMOX-2
+
+
+я прям тончо лдословно цитирую! в этом хуйня! это логиченская хуйня внутри PBS несвязанная с 
+реалными путями на фс. 
+еще нам нужно на бумажке записать fingerprint
+идем в Datastore-PBS3-DATASTORE-summary-show connection information-fingerprint
+
+	71:1d:f8:fb:26:38:dd:7b:e7:9b:3b:05:ca:b8:12:d7:c4:41:8e:af:88:42:df:3e:87:71:4b:36:75:7d:2a:42
+
+
+теперь идем на PVE 
+там добаляем сторадж тип PBS 
+и там указыаваем
+
+    IP = x.x.x.x
+    username proxmox-2-pbs-client@pbs
+    Datastore PBS3-DATASTORE
+    Namespace PROXMOX-2
+    Fingerprint; ....
+
+
+все. настрйока закончена. бэкапы должны начать работат!
+хуня в том что через 10Г порт он бэкапит на сокрости 150МБ.с
+а восстаналивает (!!внимкение) на скрости 40 МБ/с уебок
+
+
+
+
+

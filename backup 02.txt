@@ -56,48 +56,47 @@ Boot0014* BOOT S/N EQ7L HD(2,GPT,003f3bc4-f490-4495-b89c-5ee8c63a7170,0x800,0x20
 
 индикация через лампочки FC полок нератботает. 
 
+сеть
 
 
 
 
-
-root@backup-02:~# cat /etc/network/interfaces
+# cat /etc/network/interfaces
 auto lo
 iface lo inet loopback
 
 
 
 iface enp65s0f0 inet manual
-
+    mtu 9000
 iface enp65s0f1 inet manual
-
+    mtu 9000
 
 
 auto bond0
 iface bond0 inet static
-	bond-slaves  enp65s0f0 enp65s0f1 
-	bond-mode 802.3ad
-	bond-miimon 100
-	bond-lacp-rate fast
-	bond-xmit-hash-policy layer2+3
+        bond-slaves  enp65s0f0 enp65s0f1 
+        bond-mode 802.3ad
+        bond-miimon 100
+        bond-lacp-rate fast
+        bond-xmit-hash-policy layer2+3
+        mtu 9000
 
 auto bond0.55
 iface bond0.55 inet static
-	vlan-raw-devices bond0
-	address 100.69.55.24/24
-	gateway 100.69.55.254
-
+        vlan-raw-devices bond0
+        address 100.69.55.24/24
+        gateway 100.69.55.254
+        mtu 1500
 
 
 auto bond0.78
 iface bond0.78 inet static
-	vlan-raw-devices bond0
-	address 9.9.9.13/24
+        vlan-raw-devices bond0
+        address 100.69.78.24/24
+        mtu 9000
 
 
-
-
-iface idrac inet manual
 
 
 iface eno1 inet manual
@@ -111,7 +110,16 @@ iface eno4 inet manual
 
 
 source /etc/network/interfaces.d/*
-root@backup-02:~# 
+
+
+
+
+
+
+выклчил ipv6
+
+выключил idrac сет карту внутри ос (idrac порт os passtghrough.txt)
+
 
 
 
@@ -783,6 +791,9 @@ Installing for x86_64-efi platform.
 наклеиь на морду салазок.и если этот диск пеереставить в другой комп то уж ГПТ метку на диске другая ос должна увидеть 
 тоесть пул собеертся ровно на таких же идентификаторах
 для этого я юзаю скрипт
+скрипт создает на диске gpt label и потом gpt раздел 
+и этому разделу дает gpt метку с серийником диска
+подходит только для linux
 
 
 
@@ -1036,6 +1047,8 @@ test: (groupid=0, jobs=1): err= 0: pid=86243: Sun Jan  4 20:52:18 2026
 
 
 zpool create -f -o ashift=12 \
+    -o autoreplace=on  \
+    -o failmode=continue \
     -o autotrim=on \
     -O compression=lz4 \
     -O xattr=sa \
@@ -1280,4 +1293,476 @@ recordzie128K
 
   остановился ттут
 
-  
+  дальнейше капитальный анализ полки Fc и зфс я сделал тут 
+
+  				'disk - HGST HUS724020AL - ST2000NM0033-9ZM тест характеристик.txt'
+
+
+
+
+еще раз проеряверю что у меня на спешл будет валитьс не только метаданные но и 
+малые блоки датасет преданазнчнного для PBS
+
+#  zfs get special_small_blocks POOL-02/proxmox_backup_server
+NAME                           PROPERTY              VALUE                 SOURCE
+POOL-02/proxmox_backup_server  special_small_blocks  128K                  local
+
+
+все в порядке
+
+
+
+далее тест на то что одна из полок отвалилась а пул все равно живой
+я отключал оба порта FC поочееди.  (FC выключить порт.txt)
+пул сразу реагирует
+
+
+
+root@backup-02:/# zpool status -v  POOL-02 
+  pool: POOL-02
+ state: DEGRADED
+status: One or more devices has been removed by the administrator.
+        Sufficient replicas exist for the pool to continue functioning in a
+        degraded state.
+action: Online the device using zpool online' or replace the device with
+        'zpool replace'.
+  scan: resilvered 732M in 00:00:15 with 0 errors on Wed Jan  7 18:02:04 2026
+config:
+
+        NAME                      STATE     READ WRITE CKSUM
+        POOL-02                   DEGRADED     0     0     0
+          mirror-0                DEGRADED     0     0     0
+            Z1X415R1              REMOVED      0     0     0
+            Z1X4158J              ONLINE       0     0     0
+          mirror-1                DEGRADED     0     0     0
+            Z1X415M0              REMOVED      0     0     0
+            Z1X4159A              ONLINE       0     0     0
+          mirror-2                DEGRADED     0     0     0
+            Z1X4151F              REMOVED      0     0     0
+            Z1X415HP              ONLINE       0     0     0
+          mirror-3                DEGRADED     0     0     0
+            Z1X415C4              REMOVED      0     0     0
+            Z1X414PY              ONLINE       0     0     0
+          mirror-4                DEGRADED     0     0     0
+            Z1X415N4              REMOVED      0     0     0
+            Z1X414R4              ONLINE       0     0     0
+          mirror-5                DEGRADED     0     0     0
+            Z1X415AD              REMOVED      0     0     0
+            Z1X4159P              ONLINE       0     0     0
+          mirror-6                DEGRADED     0     0     0
+            Z1X415E4              REMOVED      0     0     0
+            Z1X41591              ONLINE       0     0     0
+          mirror-7                DEGRADED     0     0     0
+            Z1X415JP              REMOVED      0     0     0
+            Z1X414XP              ONLINE       0     0     0
+          mirror-10               DEGRADED     0     0     0
+            spare-0               DEGRADED     0     0     0
+              Z1X415HY            REMOVED      0     0     0
+              Z1X415DT            ONLINE       0     0     0
+            Z1X415A4              ONLINE       0     0     0
+        special 
+          mirror-9                ONLINE       0     0     0
+            wwn-55cd2e4155d5d4f9  ONLINE       0     0     0
+            wwn-55cd2e4155d59908  ONLINE       0     0     0
+        logs
+          mirror-8                ONLINE       0     0     0
+            wwn-55cd2e4155d5cd47  ONLINE       0     0     0
+            wwn-55cd2e4155d59e7e  ONLINE       0     0     0
+        spares
+          Z1X415B9                AVAIL   
+          Z1X415DT                INUSE     currently in use
+
+
+
+
+и как видно пул DEGRADED но четко в кждом мирроре нет только одного диска.
+тоесть отвалилась полвинка всех мироров. и пул работает. я проверял. 
+отвечает на запрсы иопосов
+также видно что сразу в бой вступают спейры. автоматом. 
+
+
+когда полка обратно подключается то сами иски обратно автоматом вставляются
+и спейры обратно откатываются
+и мы получаем исходное состояния
+
+
+root@backup-02:/# zpool status -v  POOL-02 
+  pool: POOL-02
+ state: ONLINE
+  scan: resilvered 1.11G in 00:00:13 with 0 errors on Wed Jan  7 18:06:25 2026
+config:
+
+        NAME                      STATE     READ WRITE CKSUM
+        POOL-02                   ONLINE       0     0     0
+          mirror-0                ONLINE       0     0     0
+            Z1X415R1              ONLINE       0     0     0
+            Z1X4158J              ONLINE       0     0     0
+          mirror-1                ONLINE       0     0     0
+            Z1X415M0              ONLINE       0     0     0
+            Z1X4159A              ONLINE       0     0     0
+          mirror-2                ONLINE       0     0     0
+            Z1X4151F              ONLINE       0     0     0
+            Z1X415HP              ONLINE       0     0     0
+          mirror-3                ONLINE       0     0     0
+            Z1X415C4              ONLINE       0     0     0
+            Z1X414PY              ONLINE       0     0     0
+          mirror-4                ONLINE       0     0     0
+            Z1X415N4              ONLINE       0     0     0
+            Z1X414R4              ONLINE       0     0     0
+          mirror-5                ONLINE       0     0     0
+            Z1X415AD              ONLINE       0     0     0
+            Z1X4159P              ONLINE       0     0     0
+          mirror-6                ONLINE       0     0     0
+            Z1X415E4              ONLINE       0     0     0
+            Z1X41591              ONLINE       0     0     0
+          mirror-7                ONLINE       0     0     0
+            Z1X415JP              ONLINE       0     0     0
+            Z1X414XP              ONLINE       0     0     0
+          mirror-10               ONLINE       0     0     0
+            Z1X415HY              ONLINE       0     0     0
+            Z1X415A4              ONLINE       0     0     0
+        special 
+          mirror-9                ONLINE       0     0     0
+            wwn-55cd2e4155d5d4f9  ONLINE       0     0     0
+            wwn-55cd2e4155d59908  ONLINE       0     0     0
+        logs
+          mirror-8                ONLINE       0     0     0
+            wwn-55cd2e4155d5cd47  ONLINE       0     0     0
+            wwn-55cd2e4155d59e7e  ONLINE       0     0     0
+        spares
+          Z1X415B9                AVAIL   
+          Z1X415DT                AVAIL   
+
+
+
+
+я решил устанвоить PBS сервер (ищи PBS *устанвока*.txt)
+а потом выыяснилоас что он хуйня
+
+
+
+
+
+root@backup-02:/# echo 107374182400 >  /sys/module/zfs/parameters/zfs_arc_max
+root@backup-02:/# cat /etc/modprobe.d/zfs.conf 
+options zfs zfs_arc_max=107374182400
+root@backup-02:/# 
+root@backup-02:/# cat /etc/modprobe.d/qla2xxx.conf 
+options qla2xxx ql2xmaxqdepth=64 ql2xiidmaenable=0 qlport_down_retry=30
+
+
+в итоге делаю NFS шару.
+здесь важно оговрить кучку параметрров.
+если мы говорим про скрость по нфс нужно четко 
+скзаать как настроана шара на сервре у нее там sync или async
+у меня он вседа sync
+
+следущий момент как настроен маунтинг на клиенте(прокскмкске) он sync или async.
+
+следущий параметр как мы бэапис сжатием или без сжатия.
+
+еще важно какими кусками bs и какой iodepth мы делаем при остылке на нфс сервер.
+
+вначале я рассматриваю вариант когда на клиенте включен nfs sync
+и вначале я говорб чему равна скорсть если послыать потко чеерз fio
+также важно скзаать что один SLOG диск может принимта синнхронно на скрости 225 МБ/с
+тоесть если в слог стоит два INTEL то из сети можно принимать на скрости 225 МБ/с
+но такая сорость работает только если слать с PVE кусками по 1МБ и iodepth=32 ( при условии что и на сервере NFS sync
+и на клиенте nfs sync)
+мне это фио и показал.
+
+если длбавить в SLOG вторую пару интелов то при правилтной нагрзуке в fio(сервер sync клиент sync 1МБ и iodepth=32)
+наш нфс сервер может принимаь на сроксти 450 МБ/с !!
+
+
+итак с тем что можно выжать из нфс при правильной нгрузке мы поняли.
+теерь что из этого выжимает vzdump от pve.
+итак у нас стоит в слоге 4 диска интел. которые могут засасывть из сети на скрости 450МБ/с
+
+если на клиенте стоит sync и если мы бэкапим без сжатия то vzdump выжимает 
+			208-230 МБ/с (тоесть далеко не 450 МБ/с)
+если я бэкаплю с сжатием zstd (и неважно насколько быстрое сжатие) то скрорость падает до 
+			70-90 МБ/с  (сука)
+виноват именно ебнуты zstd дело не в цпу ни в чем. просто у него такой обмена инфомаций как я понимаю.
+
+итак режим sync на клиенте на проксксксе на не подходит вобще нихуя.
+
+
+
+тогда на клиенте я выставляю nfs async в /etc/pve/storage.conf
+
+
+nfs: BACKUP-02-NFS
+	export /POOL-02/NFS_PROXMOX-2
+	path /mnt/pve/BACKUP-02-NFS
+	server 100.69.78.2
+	content backup
+	options vers=4.2,async,nconnect=16,noatime
+	prune-backups keep-all=1
+
+
+
+ если мы бэкапим без сжатия то vzdump пуляет данные в кеш ядра и скорость
+			1 GB\s
+
+далее ядро агрергрует эти блоки и сует их всеть причем как положено сует. я реально вижу что на SLOG нагрузка
+450 МБ/с. все отлично кроме одного - нам нахуй ненужен бэкап без сжатия.
+
+так вот если я бэкаплю с сжатием zstd то скрорость падает до 
+			220 МБ/с  (сука)
+виноват именно ебнуты zstd дело не в цпу ни в чем. просто у него такой обмена инфомаций как я понимаю.
+zstd с такой скростью кладет данные кэш ядра сука. а потом уже ядро в асинхронном режиме шлет их посети.
+и получается такой вывод - нам нахуй ненежуен NFS серевер соскостью 450МБ/с потому что zstd неумеет рабатть на такой
+скрости. и дело не в цпу ни вчем. просто он ска такой тупой.
+
+
+есит и еще момент.  слог у нас быстрый. а вот дата диски у нас  работают на скрости 200МБ/с.
+поэтому если мы пишем постоянно по сети на скрости 450МБ/с то зфс какоето время сгладит эут разницу за счет
+оперативки но рано или поздно а точнее если файл бэкапа больше 15ГБ зфс остановит прием новых данных пока
+данные что в памяти не будут записаны на дата диски. при этом скросость записи по нфс падает до 10МБ/с на
+секунд 15. а потом обратно выраатстсет до 450МБ/с
+собсвтеннно дилема. толи оставить эту возможность бурста. тооли убрать из слог два диска и тогда как
+раз все совпдаает. слог раотает на скрости 225 МБ/с и дата диски на крости 200МБ/с и запист будет все время
+ровная. без бурста но и без провалов.
+учитыа что zstd все равно быстрее чем 200МБ/с данные не поставляет вроде как и смысла на 450 нет.
+но это если в нфс пишет один прокскскс. а если у нас их два то смысл уже вроде как есть.
+в любом случае
+вот что нужно при этом покрутиьт на зфс
+
+
+налету
+
+  583  echo 1048576 > /sys/module/zfs/parameters/zfs_vdev_aggregation_limit_non_rotating (тут неясно стоит или нет)
+  606  echo 8589934592 >  /sys/module/zfs/parameters/zfs_dirty_data_max
+  608  echo 80 >  /sys/module/zfs/parameters/zfs_dirty_data_sync_percent
+
+
+в файле
+
+# Увеличиваем объем данных, которые могут висеть в памяти перед сбросом на диски (в байтах)
+# Для 128ГБ памяти можно смело поставить 8-16 ГБ (например, 8589934592)
+options zfs zfs_dirty_data_max=8589934592
+
+# Увеличиваем лимит, при котором ZFS начинает агрессивно тормозить клиента
+options zfs zfs_dirty_data_sync_percent=80
+
+options zfs_vdev_aggregation_limit_non_rotating=1048576
+
+
+итговй фвайл 
+
+# cat zfs.conf 
+options zfs zfs_arc_max=107374182400
+options zfs zfs_dirty_data_max=8589934592
+options zfs zfs_dirty_data_sync_percent=80
+options zfs_vdev_aggregation_limit_non_rotating=1048576
+
+
+тоесть можно выбрать. либо слог состоитоит из двух интел и они дают 230 МБ/с что совдпатает с скростью 
+дата дисков 200МБ/с
+то ли добавить +2 диска в слог и получить бурст для файлов порядка 15ГБ
+
+
+в любом слуачае нуэно на клиенте  делать async при монтировании. вот так
+
+
+nfs: BACKUP-02-NFS
+	export /POOL-02/NFS_PROXMOX-2
+	path /mnt/pve/BACKUP-02-NFS
+	server 100.69.78.2
+	content backup
+	options vers=4.2,async,nconnect=16,noatime
+	prune-backups keep-all=1
+
+
+
+настрокий на среререре для нфс
+
+
+# zfs create -o recordsize=1M  -o xattr=sa  -o atime=off  -o compression=lz4   POOL-02/NFS_PROXMOX-2
+# zfs create -o recordsize=1M  -o xattr=sa  -o atime=off  -o compression=lz4   POOL-02/NFS_PROXMOX-1
+# zfs mount -a
+
+# ls -1al /POOL-02/NFS_PROXMOX-2
+total 34
+drwxrwxrwx 4 nobody nogroup  4 Jan  8 16:55 .
+# chown nobody:nogroup /POOL-02/NFS_PROXMOX-2
+
+# ls -1al /POOL-02/NFS_PROXMOX-1
+total 34
+drwxrwxrwx 4 nobody nogroup  4 Jan  8 16:55 .
+# chown nobody:nogroup /POOL-02/NFS_PROXMOX-1
+
+
+
+# cat /etc/exports  | grep -v '#'
+/POOL-02/NFS_PROXMOX-2  100.69.78.2/24(rw,sync,no_subtree_check,no_root_squash,no_all_squash)
+/POOL-02/NFS_PROXMOX-1  100.69.78.2/24(rw,sync,no_subtree_check,no_root_squash,no_all_squash)
+
+
+
+# cat /etc/sysctl.d/99-sysctl.conf  | grep -v '#'
+
+
+net.ipv6.conf.all.disable_ipv6 = 1
+net.ipv6.conf.default.disable_ipv6 = 1
+
+
+net.core.rmem_max = 16777216
+net.core.wmem_max = 16777216
+net.ipv4.tcp_rmem = 4096 87380 16777216
+net.ipv4.tcp_wmem = 4096 65536 16777216
+net.core.netdev_max_backlog = 5000
+
+
+
+ cat /etc/nfs.conf 
+...
+[nfsd]
+threads=128
+max_block_size=1048576
+vers2=n
+vers4=n
+vers4.0=n
+vers4.1=n
+vers4.2=y
+
+
+заствить нфс сервер пеерчиатт конфиг
+		# exportfs -ra
+
+
+на PVE проксксксксах нужно  обязательно прописать праамтеры нфс в том числе async
+прям можно добавлять не через веб морду а сразу вбиваем в /etc/pve/stoarge.cfg
+
+nfs: BACKUP-02-NFS
+	export /POOL-02/NFS_PROXMOX-2
+	path /mnt/pve/BACKUP-02-NFS
+	server 100.69.78.2
+	content backup
+	options vers=4.2,async,nconnect=16,noatime
+	prune-backups keep-all=1
+
+
+если все верно то на PVE будет 
+  # mount | grep nfs
+
+100.69.78.2:/POOL-02/NFS_PROXMOX-1 on /mnt/pve/BACKUP-02-NFS type nfs4 (rw,noatime,vers=4.2,rsize=1048576,wsize=1048576,namlen=255,hard,proto=tcp,nconnect=16,timeo=600,retrans=2,sec=sys,clientaddr=100.69.78.11,local_lock=none,addr=100.69.78.2)
+
+
+на прокскмс PVE 
+также нужно чтобы
+
+	# cat /etc/vzdump.conf  | grep -v '#'
+compress: zstd
+performance: max-workers=16
+zstd: 0
+
+
+
+весь вопрос в том  какой слог оставить на  backup-02 из двух дисков или из четырех.
+
+
+
+
+состав пула
+
+# zpool list
+NAME      SIZE  ALLOC   FREE  CKPOINT  EXPANDSZ   FRAG    CAP  DEDUP    HEALTH  ALTROOT
+POOL-02  21.8T   466G  21.3T        -         -     0%     2%  1.00x    ONLINE  -
+rpool    64.5G  1.43G  63.1G        -         -     1%     2%  1.00x    ONLINE  -
+root@backup-02:/home/krivosheeva/scritps# zpool status -v
+  pool: POOL-02
+ state: ONLINE
+  scan: resilvered 1.11G in 00:00:13 with 0 errors on Wed Jan  7 18:06:25 2026
+remove: Removal of vdev 9 copied 13.2M in 0h0m, completed on Thu Jan  8 16:52:56 2026
+        16.0K memory used for removed device mappings
+config:
+
+        NAME                      STATE     READ WRITE CKSUM
+        POOL-02                   ONLINE       0     0     0
+          mirror-0                ONLINE       0     0     0
+            Z1X415R1              ONLINE       0     0     0
+            Z1X4158J              ONLINE       0     0     0
+          mirror-1                ONLINE       0     0     0
+            Z1X415M0              ONLINE       0     0     0
+            Z1X4159A              ONLINE       0     0     0
+          mirror-2                ONLINE       0     0     0
+            Z1X4151F              ONLINE       0     0     0
+            Z1X415HP              ONLINE       0     0     0
+          mirror-3                ONLINE       0     0     0
+            Z1X415C4              ONLINE       0     0     0
+            Z1X414PY              ONLINE       0     0     0
+          mirror-4                ONLINE       0     0     0
+            Z1X415N4              ONLINE       0     0     0
+            Z1X414R4              ONLINE       0     0     0
+          mirror-5                ONLINE       0     0     0
+            Z1X415AD              ONLINE       0     0     0
+            Z1X4159P              ONLINE       0     0     0
+          mirror-6                ONLINE       0     0     0
+            Z1X415E4              ONLINE       0     0     0
+            Z1X41591              ONLINE       0     0     0
+          mirror-7                ONLINE       0     0     0
+            Z1X415JP              ONLINE       0     0     0
+            Z1X414XP              ONLINE       0     0     0
+          mirror-10               ONLINE       0     0     0
+            Z1X415HY              ONLINE       0     0     0
+            Z1X415A4              ONLINE       0     0     0
+          mirror-12               ONLINE       0     0     0
+            Z1X4152Q              ONLINE       0     0     0
+            Z1X4157Y              ONLINE       0     0     0
+          mirror-13               ONLINE       0     0     0
+            Z1X4151E              ONLINE       0     0     0
+            Z1X415K9              ONLINE       0     0     0
+          mirror-14               ONLINE       0     0     0
+            Z1X4159C              ONLINE       0     0     0
+            Z1X415FM              ONLINE       0     0     0
+        logs
+          mirror-8                ONLINE       0     0     0
+            wwn-55cd2e4155d5cd47  ONLINE       0     0     0
+            wwn-55cd2e4155d59e7e  ONLINE       0     0     0
+          mirror-11               ONLINE       0     0     0
+            wwn-55cd2e4155d5d4f9  ONLINE       0     0     0
+            wwn-55cd2e4155d59908  ONLINE       0     0     0
+        spares
+          Z1X415B9                AVAIL   
+          Z1X415DT                AVAIL   
+          Z1X415PG                AVAIL   
+          Z1X4153N                AVAIL   
+
+
+
+если одна из полок временно отвалилась то диски этой полки 
+передйту в пуле с статус REMOVED
+потом когда полка обратно подключться то можно запстить скрипт rescan-scsi-bus.sh
+из пакета sg3_tools  хотя по идее они станут видны линусу и так 
+а вот зфс эти диски неочень хочет обратно запускать в пуле. они булудут виесть в статусе REMOVED
+инадо будет пройтись по кажму диску и обьявить его как ONLINE
+
+     # zpool online POOL-02 Z1X4159C
+     # zpool online POOL-02 Z1X415JP
+
+
+когда резилвенириног закончится то зфс спейры обратно в пул спейров возвращать небудет.
+убеждаемся что в кажом мирроре есть свои два диска и полсе этого нужно руками спейры
+вернуть в пул спейров через detach
+
+
+
+  # zpool status -v POOL-02
+  # zpool detach POOL-02 Z1X415B9
+  # zpool status -v POOL-02
+  # zpool detach POOL-02 Z1X415DT
+  # zpool detach POOL-02 Z1X415PG   Z1X4153N
+  # zpool status -v POOL-02
+  # zpool detach POOL-02 Z1X4153N
+  # zpool status -v POOL-02
+
+
+
+
+
+
+$$$$$$$
+END
+$$$$$$$

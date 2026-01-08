@@ -498,16 +498,17 @@ Disk #5         da13    ATA HGST HUS724020AL      PN1181P5H6H7LW       2T, LED=l
 
 
 zpool create -f -o ashift=12 \
+    -o autoreplace=on  \
+    -o failmode=continue \
     -o autotrim=on \
     -O compression=lz4 \
     -O xattr=sa \
     -O atime=off \
-    -O recordsize=256k \
+    -O recordsize=128k \
     -O normalization=formD \
     -O utf8only=on \
     -O canmount=off \
-    POOL-01 mirror /dev/diskid/DISK-PN2181P5H3Y0RX /dev/diskid/DISK-PN1181P5H67ZRW
-
+    POOL-02 mirror /dev/disk/by-partlabel/Z1X415R1   /dev/disk/by-partlabel/Z1X4158J
 
 
 
@@ -859,6 +860,8 @@ config:
 вот эттот контроллер MegaRAID SAS 8344ELP через который подключены полки его полтолок на лин скрости 
 чтения 500 МБ/с (тестировалось на сата дисках , взможно на сас дисках было больше из за другого проктола)
 скорость лин записи 300МБ/с
+
+
 
 
 
