@@ -1,0 +1,19 @@
+| zfs 
+| snapshot
+
+как оптравить снэпшот чреех хост посредник
+
+
+
+отправииель
+zfs send  strip-2mirror/share/proxmox@full_start_2026_01_10  |  mbuffer -O 100.100.0.30:8888 -r 50M -m 2G
+
+
+посредник
+mbuffer -I 8888 -O 100.69.78.2:9000 -m 2G
+
+
+приемник
+
+mbuffer -I 9000 -m 2G | zfs recv -s POOL-02/proxmox
+
