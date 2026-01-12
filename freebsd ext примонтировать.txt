@@ -1,0 +1,10 @@
+| freebsd
+| ext
+
+как в фрибсл примонитирвовать ext2\3\4
+
+
+	# kldload ext2fs
+	# mount -t ext2fs /dev/ada0s1 /mnt
+
+	
