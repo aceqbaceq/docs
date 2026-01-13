@@ -1,0 +1,54 @@
+| samba
+| windows
+| shara
+
+
+sudo apt update && sudo apt install samba -y
+
+
+sudo mkdir -p /srv/public
+sudo chmod -R 755 /srv/public
+sudo chown -R nobody:nogroup /srv/public
+
+
+
+root@linux-01:/srv/public# cat /etc/samba/smb.conf 
+[global]
+   workgroup = WORKGROUP
+   server string = Samba Server
+   netbios name = share
+   security = user
+   map to guest = bad user
+   guest account = nobody
+
+
+  # Разрешаем старый протокол SMB1 (NT1)
+   server min protocol = NT1
+   
+   # Отключаем современные требования безопасности, которые XP не понимает
+   lanman auth = yes
+   ntlm auth = yes
+   
+   # Исправляем ошибку "предела подключений" (важно для старых клиентов)
+   max connections = 0
+
+
+
+[public]
+   path = /srv/public
+   browseable = yes
+   read only = yes
+   guest ok = yes
+   public = yes
+
+
+
+
+sudo systemctl restart smbd nmbd
+
+
+
+провреряем в винлдовс
+
+
+\\IP-адрес-вашего-сервера\public

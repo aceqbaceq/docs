@@ -1,0 +1,7 @@
+| tar
+| gz
+
+
+ tar -cf - . | gzip -1 > /store/ds-gzip6-128K/12.tar.gz
+
+ 

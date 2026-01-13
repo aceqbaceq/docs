@@ -1,0 +1,40 @@
+| esxi
+
+как reset пароля
+
+https://winitpro.ru/index.php/2023/03/20/sbrosit-parol-root-vmware-esxi/
+
+в целом 
+грузимся с live cd
+ 
+
+ # fdisk -l
+
+ ищем диск на котором куча разделов нас интересуеют sda5 sda6
+
+монтируем каждый
+
+mkdir  /mnt/sda5
+mkdir /mnt/sda6
+mkdir /temp
+mount /dev/sda5 /mnt/sda5
+cp /mnt/sda5 /state.tgz  /temp
+
+tar xzf state.tgz
+tar xzf local.tgz 
+
+nano /temp/etc/shadow
+
+удаляем у root пароль осталвем его пустым
+пакуем обратно
+
+tar czf local.tgz etc
+tar czf state.tgz local.tgz
+mv state.tgz /mnt/sda5
+umount /mnt/sda5 
+
+тоже самое для sda6
+
+ребут. пароль у root теперь пустой.
+заходим. и меняем
+
