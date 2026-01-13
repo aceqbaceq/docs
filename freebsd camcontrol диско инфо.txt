@@ -165,4 +165,26 @@ Read Cache is:        Enabled
 Writeback Cache is:   Enabled
 Vendor (Seagate Cache) information
 
+| SAS
+
+UPDATE (!!)
+все вверху верно как обрезать SATA диски. 
+ аесли я хочу SAS?
+тоогда
+
+  383  camcontrol devlist
+  385  camcontrol readcap  da1
+  386  # 125829120
+  387  sg_format --resize --count=125829120 /dev/da1
+  388  camcontrol rescan  da1
+  389  camcontrol stop da1
+  390  camcontrol rescan  da1
+  391  camcontrol inquiry da1
+  392  geom disk list da1
+  393  camcontrol stop da1
+
+вытаскиваеем вставляем убеждаемся что да. размер изменился!
+
+======
+
 
