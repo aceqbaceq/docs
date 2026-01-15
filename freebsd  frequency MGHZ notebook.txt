@@ -1,0 +1,13 @@
+| freebsd
+| cpu
+| MGHZ
+| notebook
+
+
+# cat sysctl.conf | grep -v '#'
+
+
+dev.cpu.0.freq=800
+dev.cpu.1.freq=800
+
+

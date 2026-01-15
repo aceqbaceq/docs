@@ -1,0 +1,124 @@
+| freebsd
+| bhyve
+
+
+
+	# pkg install vm-bhyve bhyve-firmware
+	# zfs create POOL-01/ds-vm
+
+
+
+
+/etc/rc.conf
+vm_enable="YES"                 # ето сервис
+vm_dir="zfs:POOL-01/ds-vm"      # это указан ZFS датасет  POOL-01/ds-vm внутри котрого 
+                                # будут хранится КОНФИГИ виртуалок
+
+
+   # vm init
+
+
+
+на томже датасете нужно размеитить  и диск под виртуку.
+
+
+
+# Замените em0 на имя вашего сетевого интерфейса
+vm switch create -a 192.168.1.10/24 -i em0 public
+
+
+vm iso https://cdimage.debian.org
+
+
+vm create -t debian -s 50G pbs-server
+
+
+vm install pbs-server debian-12.x.x-amd64-netinst.iso
+
+
+vm console pbs-server
+
+
+hw.vmm.topology.extra_host_tlb=1
+
+
+
+
+
+
+# cat vm-debian1.conf 
+loader="uefi"
+cpu=2
+memory=512M 
+
+network0_type="virtio-net"
+network0_switch="public"
+
+# Настройки для минимальных дисковых накладных расходов (самый быстрый вариант)
+disk0_type="nvme"
+disk0_dev="zvol"
+disk0_name="disk0"
+
+# Используем графику, которую увидим через BMC/IPMI/VNC
+graphics="yes"
+graphics_wait="no" # Не ждем подключения
+xhci_mouse="yes"
+graphics_res="800x600"
+vnc="0.0.0.0:5900" # Открываем VNC на всякий случай
+
+uuid="9592c5d6-f255-11f0-8258-f0def19938c3"
+network0_mac="58:9c:fc:0a:1f:a4"
+
+
+
+
+
+а диск под датастор надо по нфс прокинуь типа с хоста
+
+# Создаем датасет
+zfs create -o recordsize=128k -o atime=off -o xattr=sa -o compression=lz4 zpool0/pbs_storage
+
+# ОЧЕНЬ ВАЖНО для скорости на HDD: выключаем принудительный синк. 
+# Бэкапы будут лететь в разы быстрее.
+zfs set sync=disabled zpool0/pbs_storage
+
+
+cloned_interfaces="bridge0 tap0"
+ifconfig_bridge0="addm tap0 192.168.100.1 netmask 255.255.255.0 up"
+
+
+
+/mnt/zpool0/pbs_storage -maproot=root 192.168.100.2
+
+
+nfs_server_enable="YES"
+nfsv4_server_enable="YES"
+rpcbind_enable="YES"
+mountd_enable="YES"
+mountd_flags="-r"
+
+
+service rpcbind start
+service mountd start
+service nfsd start
+
+
+apt update && apt install nfs-common -y
+
+
+showmount -e 192.168.100.1
+
+
+mkdir -p /mnt/pbs_data
+# Монтируем с оптимизацией под большие блоки
+mount -t nfs -o rw,noatime,rsize=131072,wsize=131072 192.168.100.1:/mnt/zpool0/pbs_storage /mnt/pbs_data
+
+
+192.168.100.1:/mnt/zpool0/pbs_storage /mnt/pbs_data nfs rw,noatime,rsize=131072,wsize=131072 0 0
+
+
+
+
+
+
+
