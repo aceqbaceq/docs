@@ -8,3 +8,15 @@
 export HTTP_PROXY=http://172.16.10.11:2080
 export HTTPS_PROXY=http://172.16.10.11:2080
 export NO_PROXY=localhost,127.0.0.1
+
+
+это надо вставить вот сюда
+
+
+	/usr/local/etc/pkg.conf	
+# Добавьте в pkg.conf:
+pkg_env: {
+  http_proxy: "http://172.16.10.11:2080",
+  https_proxy: "http://172.16.10.11:2080",
+}
+
