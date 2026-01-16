@@ -1,0 +1,12 @@
+| zfs
+| zinject
+
+
+эмуляиция прблем с диском
+
+zinject -d gpt/PN1181P5H5889W -e io -T all -f 100 POOL-04
+
+
+отмена эмуляции
+zinject -c all
+

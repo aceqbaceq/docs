@@ -795,7 +795,8 @@ Installing for x86_64-efi platform.
 и этому разделу дает gpt метку с серийником диска
 подходит только для linux
 
-
+script 
+#!bash
 
 for disk in {i..x} ; do
   dev="/dev/sd$disk"
@@ -816,6 +817,73 @@ for disk in {i..x} ; do
 done
 
 
+
+
+для freebsd
+
+#!/usr/local/bin/bin/bash
+
+# Список дисков (укажите свои, например da0 da1 da2...)
+DISKS="da1 da2 da3"
+
+for dev_name in $DISKS; do
+    dev="/dev/$dev_name"
+    
+    # 1. Достаем серийный номер через camcontrol
+    # Очищаем от лишних пробелов
+    sn=$(camcontrol identify $dev_name | grep "serial number" | awk '{print $3}')
+    
+    if [ -z "$sn" ]; then
+        echo "Ошибка: Не удалось получить серийник для $dev"
+        continue
+    fi
+
+    echo "Обработка $dev (SN: $sn)..."
+
+    # 2. Уничтожаем старую разметку (если есть), чтобы не было ошибок
+    gpart destroy -F $dev_name 2>/dev/null
+
+    # 3. Создаем таблицу GPT
+    gpart create -s gpt $dev_name
+
+    # 4. Создаем раздел с выравниванием (автоматически 1MB в gpart)
+    # Ключ -l задает метку (GTP Label), которую вы хотите (серийник)
+    gpart add -t freebsd-zfs -l "$sn" $dev_name
+
+    echo "Готово: $dev теперь имеет раздел /dev/gpt/$sn"
+done
+
+
+или втоой вариант  когда сеинийики уже лежат в папке
+
+
+#!/usr/local/bin/bash
+
+# Проходим по всем дискам, которые начинаются на DISK-PN
+for fullpath in /dev/diskid/DISK-PN*; do
+    
+    # 1. Получаем имя устройства (например, DISK-PN1181P5H5889W)
+    dev_id=$(basename "$fullpath")
+    
+    # 2. Вырезаем чистый серийник (все, что после префикса DISK-)
+    # Если префикс всегда DISK-, то удаляем первые 5 символов
+    sn=${dev_id#DISK-}
+
+    echo "Processing $fullpath (Label: $sn)..."
+
+    # 3. Очищаем старую разметку (важно, чтобы gpart не ругался)
+    # Используем само устройство из /dev/diskid/
+    gpart destroy -F "$fullpath" 2>/dev/null
+
+    # 4. Создаем таблицу GPT
+    gpart create -s gpt "$fullpath"
+
+    # 5. Создаем раздел ZFS и присваиваем ему метку (GTP Label) равную серийнику
+    # Это создаст устройство /dev/gpt/<серийник>
+    gpart add -t freebsd-zfs -l "$sn" "$fullpath"
+
+    echo "Done: Created /dev/gpt/$sn"
+done
 
 
 ./sn.bash 
@@ -1239,7 +1307,7 @@ sdb    BTYI22420644480BGN
 будет много у пбс. его индексы и чтото там еще.
 
 
-# zfs set quota=11TB POOL-02  (осталяяем резервиурем  место под COW zfs)
+# zfs set quota=11T POOL-02  (осталяяем резервиурем  место под COW zfs)
 
 
 

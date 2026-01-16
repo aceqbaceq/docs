@@ -26,9 +26,8 @@ sudo zfs snapshot pool/dataset@mysnap
 
 ### Шаг 2: Создание букмарка
 Для создания букмарка используется символ `#` вместо `@`. Обычно букмарку дают то же имя, что и снимку, чтобы их было проще сопоставлять.
-```bash
-sudo zfs bookmark pool/dataset@mysnap pool/dataset#mybookmark
-```
+
+    # zfs bookmark pool/dataset@mysnap pool/dataset#mybookmark
 
 ### Шаг 3: Проверка
 Вы можете убедиться, что букмарк создан, просмотрев список объектов соответствующего типа:
