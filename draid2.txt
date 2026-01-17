@@ -1,0 +1,172 @@
+| draid
+| zfs
+| freebsd
+| info
+
+
+что  я открыл.
+в дирейде нужно под дата диски выделять строго 2/4/8/16/32 дисков.
+другое число это пиздец. если будет другое число дисков то мы больше на массив
+данных не напишем. этот диск тупо будет потрачен на паддинг.
+тоесть маасив из 8 дата дисков и массив из 9 датадисков запишет одинаково а имнно 
+сколько сколько массив из 8 дата дисков. поэтому 9-ый диск нужно потраить либо на парити
+либо на спейр.
+
+
+КАК УДАЛИТЬ ДИСК ИЗ ПУЛА
+прикол команда OFFLINE для того чтобы вытащцить диск из массива неработает она работает 
+только с флагом -f.
+также нерабоатет REMOVE и DETACH
+чтобы убрать диск из массива (скажем чтоб заменить) надо сделать
+
+
+		# zpool offline -f POOL-04 gptid/02bdfd1d-f17c-11f0-8b5d-a4dcbe0f0ab6
+
+
+после этого можно сделать replace на виртуальный spare
+
+
+		# zpool replace POOL-04 draid2-0-0 gptid/02bdfd1d-f17c-11f0-8b5d-a4dcbe0f0ab6
+
+
+после этого можно уже удалить этот диск из пула наконец
+
+
+		# zpool detach   POOL-04   gptid/02bdfd1d-f17c-11f0-8b5d-a4dcbe0f0ab6
+
+
+
+
+
+ДАЛЬШЕ по поводу места под данные на дирейд пуле.
+пусть у нас пул это 12 дисков по 1.82Т
+	8 дата
+	2 парити
+	2 спейр
+
+значи 2диска уходит под спейр.  2 диска под парити. осатется 8 дисков.
+вот ровноэто место и будет на массиве доступно под наши данные тоесть 
+
+		8 х 1.82Т = 14.56Т
+
+
+значчит zpool list будет показывать место равное 
+		
+		полное число дисков  - спейр диски
+
+тоесть в нашем случае (12-2)*1.82Т =  18.2Т
+
+
+# zpool list POOL-04
+NAME      SIZE  ALLOC   FREE  CKPOINT  EXPANDSZ   FRAG    CAP  DEDUP    HEALTH  ALTROOT
+POOL-04  18.2T  4.07T  14.1T        -         -     0%    22%  1.00x    ONLINE  /mnt
+
+
+тоесть еще раз zpool list покзывает полный обьем всех дисков сырых за вычетом спейров.
+или можно скзаать по другому. он поывает сколкьо доступано полезного места под наши данные плюс
+место под парити.
+
+а если я хочу узнать именно полезное место под которые именно наши данные можно 
+пихать то это надо смотеть zfs list корневого датасета
+
+
+# zfs list POOL-04
+NAME      USED  AVAIL     REFER  MOUNTPOINT
+POOL-04  3.25T  11.2T      767K  /mnt/POOL-04
+
+
+11.2+3.25=14.45T
+
+тоесть это ровно вот это число
+
+
+		8 х 1.82Т = 14.56Т
+
+
+
+а если число дата дисков не равно 2/4/8/16/32 то  zfs list будет писать какието 
+левые цифры в плане доступного полезного места.вот пример
+
+12 дисков по 2ГБ
+9 дата
+2 парити
+1 спейр
+
+# zpool status -v POOL-draid-test2G-1
+  pool: POOL-draid-test2G-1
+ state: ONLINE
+config:
+
+        NAME                                  STATE     READ WRITE CKSUM
+        POOL-draid-test2G-1                   ONLINE       0     0     0
+          draid2:9d:12c:1s-0                  ONLINE       0     0     0
+            /POOL-01/ds-test-1M/2G-1/01.dat   ONLINE       0     0     0
+            /POOL-01/ds-test-1M/2G-1/010.dat  ONLINE       0     0     0
+            /POOL-01/ds-test-1M/2G-1/011.dat  ONLINE       0     0     0
+            /POOL-01/ds-test-1M/2G-1/012.dat  ONLINE       0     0     0
+            /POOL-01/ds-test-1M/2G-1/02.dat   ONLINE       0     0     0
+            /POOL-01/ds-test-1M/2G-1/03.dat   ONLINE       0     0     0
+            /POOL-01/ds-test-1M/2G-1/04.dat   ONLINE       0     0     0
+            /POOL-01/ds-test-1M/2G-1/05.dat   ONLINE       0     0     0
+            /POOL-01/ds-test-1M/2G-1/06.dat   ONLINE       0     0     0
+            /POOL-01/ds-test-1M/2G-1/07.dat   ONLINE       0     0     0
+            /POOL-01/ds-test-1M/2G-1/08.dat   ONLINE       0     0     0
+            /POOL-01/ds-test-1M/2G-1/09.dat   ONLINE       0     0     0
+        spares
+          draid2-0-0                          AVAIL   
+
+
+по идее полезное место должно быть равно 9*2ГБ=18ГБ
+но как я уже скзаал по факту на пул влезет ровно столько же когда пул имеет дата 8 дисков.
+тоесть 8*2ГБ=16ГБ
+а теперь посмтрим сколко полезного обьема по мнению зфс поместится на этот пул
+
+# zfs list POOL-draid-test2G-1
+NAME                  USED  AVAIL  REFER  MOUNTPOINT
+POOL-draid-test2G-1  14.8G     0B   767K  /POOL-draid-test2G-1
+
+
+и это полная брехня. на этот пул влезет 16ГБ. я это проверял. писал на этот пул
+несжимаемые рандомные данные. тоесть идея такая что когда дата дисков в драндом пуле
+неравно 2/4/6/8/16 то зфс врет в отчете сколько на него влезет. значительно занижая.
+и второй момент что при этом на пул точно невлезет обьем 9 датадисков
+
+
+
+а вот пул когда у нас все тоже самое но 8 дата дисков
+
+
+# zpool status -v POOL-draid-test2G-2
+  pool: POOL-draid-test2G-2
+ state: ONLINE
+config:
+
+        NAME                                  STATE     READ WRITE CKSUM
+        POOL-draid-test2G-2                   ONLINE       0     0     0
+          draid2:8d:12c:1s-0                  ONLINE       0     0     0
+            /POOL-01/ds-test-1M/2G-2/01.dat   ONLINE       0     0     0
+            /POOL-01/ds-test-1M/2G-2/010.dat  ONLINE       0     0     0
+            /POOL-01/ds-test-1M/2G-2/011.dat  ONLINE       0     0     0
+            /POOL-01/ds-test-1M/2G-2/012.dat  ONLINE       0     0     0
+            /POOL-01/ds-test-1M/2G-2/02.dat   ONLINE       0     0     0
+            /POOL-01/ds-test-1M/2G-2/03.dat   ONLINE       0     0     0
+            /POOL-01/ds-test-1M/2G-2/04.dat   ONLINE       0     0     0
+            /POOL-01/ds-test-1M/2G-2/05.dat   ONLINE       0     0     0
+            /POOL-01/ds-test-1M/2G-2/06.dat   ONLINE       0     0     0
+            /POOL-01/ds-test-1M/2G-2/07.dat   ONLINE       0     0     0
+            /POOL-01/ds-test-1M/2G-2/08.dat   ONLINE       0     0     0
+            /POOL-01/ds-test-1M/2G-2/09.dat   ONLINE       0     0     0
+        spares
+          draid2-0-0                          AVAIL   
+
+
+и вот что пишет зфс сколкьо полезные данных влезет на этот пул
+
+
+# zfs list POOL-draid-test2G-2
+NAME                  USED  AVAIL  REFER  MOUNTPOINT
+POOL-draid-test2G-2  16.3G     0B   767K  /POOL-draid-test2G-2
+
+
+и это полная правда.
+
