@@ -1,0 +1,52 @@
+| ceph 
+| osd
+
+
+поиск диск на компе
+
+root@hst1 /etc/network# mc
+
+root@hst1 .../log/ceph# ceph osd find 4
+{
+    "osd": 4,
+    "addrs": {
+        "addrvec": [
+            {
+                "type": "v2",
+                "addr": "10.10.10.151:6810",
+                "nonce": 4997
+            },
+            {
+                "type": "v1",
+                "addr": "10.10.10.151:6811",
+                "nonce": 4997
+            }
+        ]
+    },
+    "osd_fsid": "f272b489-c491-447f-90e9-0fee5b20d14c",
+    "host": "hst1",
+    "crush_location": {
+        "host": "hst1",
+        "root": "default"
+    }
+}
+root@hst1 .../log/ceph# ceph device ls-by-daemon osd.4
+DEVICE                              HOST:DEV                             EXPECTED FAILURE
+HP_LOGICAL_VOLUME_5001438023F6BBC0  hst1:sda hst1:sdb hst1:sdc hst1:sdd                  
+root@hst1 .../log/ceph# 
+root@hst1 .../log/ceph# 
+root@hst1 .../log/ceph# 
+root@hst1 .../log/ceph# 
+root@hst1 .../log/ceph# ceph osd metadata 4 | grep -E "hostname|device|model|serial"
+    "bluefs_db_devices": "sdf",
+    "bluefs_single_shared_device": "0",
+    "bluestore_bdev_devices": "sdc",
+    "default_device_class": "hdd",
+    "device_ids": "sdc=HP_LOGICAL_VOLUME_5001438023F6BBC0,sdf=HP_LOGICAL_VOLUME_5001438023F6BBC0",
+    "device_paths": "sdc=/dev/disk/by-path/pci-0000:03:00.0-scsi-0:1:0:2,sdf=/dev/disk/by-path/pci-0000:03:00.0-scsi-0:1:0:5",
+    "devices": "sdc,sdf",
+    "hostname": "hst1",
+    "objectstore_numa_unknown_devices": "sdc,sdf",
+root@hst1 .../log/ceph# 
+
+

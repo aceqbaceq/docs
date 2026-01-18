@@ -1,0 +1,58 @@
+| pve
+| proxmox
+| pvesh
+| datastore
+
+узнать какие вс сидят на тамотом датасторе сторадеже
+
+
+
+[PROD]root@hst2:.../krivosheeva/scripts# cat 05.bash 
+#!/bin/bash
+
+
+# укаызваем имя стораджа и он ищет все виртлуки 
+# на кластере проксмокса которые 
+# имеют диск на этом сторадже
+
+
+
+if [ "$#" -ne 1 ]; then
+  echo "Использование: $0 <storage_name>"
+  echo "Пример: $0 ceph_pool"
+  exit 1
+fi
+
+STORAGE=$1
+
+# Получаем список всех виртуальных машин с их ID, узлами и именами
+vms=$(pvesh get /cluster/resources --output-format json | jq -c '.[] | select(.type=="qemu") | {vmid: .vmid, node: .node, name: .name}')
+
+echo "Проверка виртуальных машин на наличие дисков в хранилище $STORAGE"
+echo "--------------------------------------------------------------"
+
+echo "$vms" | while read -r vm; do
+    VMID=$(echo "$vm" | jq -r '.vmid')
+    NODE=$(echo "$vm" | jq -r '.node')
+    NAME=$(echo "$vm" | jq -r '.name')
+
+    # Получаем конфигурацию виртуальной машины
+    config=$(pvesh get /nodes/"$NODE"/qemu/"$VMID"/config --output-format json 2>/dev/null)
+
+    if [ -z "$config" ]; then
+        echo "Не удалось получить конфигурацию виртуальной машины $VMID ($NAME) на узле $NODE"
+        continue
+    fi
+
+    # Проверяем, есть ли в конфигурации диски с нужным storage префиксом
+    echo "$config" | jq -r --arg storage "$STORAGE" \
+        'to_entries[] | select(.value | type=="string") | select(.value | startswith($storage+":"))' | grep -q .
+
+    if [ $? -eq 0 ]; then
+#        echo "Виртуальная машина $VMID ($NAME) на узле $NODE"
+        echo "Виртуальная машина $VMID ($NAME)"
+
+    fi
+done
+
+

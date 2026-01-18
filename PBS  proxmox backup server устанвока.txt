@@ -6,6 +6,15 @@
 установка
 
 
+
+ # zfs create -o recordsize=1M \
+           -o xattr=sa \
+           -o atime=off \
+           -o compression=zstd-3 \
+           POOL-02/proxmox_backup_server
+
+
+
 ставим прокскскм PBS
 
 wget https://enterprise.proxmox.com/debian/proxmox-release-bookworm.gpg -O /etc/apt/trusted.gpg.d/proxmox-release-bookworm.gpg
@@ -67,6 +76,22 @@ apt-get install -y proxmox-backup-server
 все. настрйока закончена. бэкапы должны начать работат!
 хуня в том что через 10Г порт он бэкапит на сокрости 150МБ.с
 а восстаналивает (!!внимкение) на скрости 40 МБ/с уебок
+
+(!!) в свойствах PVE vzdump выстаялем
+
+compress: zstd
+performance: max-workers=3 
+zstd: 0  
+
+
+что они значат
+zstd: 0  сжимаем половиной цпу на хосте
+
+performance: max-workers=3  на одном хосте вздамп при улсовии что он гонит бэкап на PBS ооднорвеменно может бэкапить три ВМ. если вздамп гонит на обычный NFS он будет сжимать строго 1 вм на этом хосте не 
+более. тоесть по череди.
+
+
+
 
 
 

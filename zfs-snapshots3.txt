@@ -5,7 +5,28 @@
 
 
 
+===
 
+
+отправитель
+ #  zfs snapshot strip-2mirror/share/proxmox@2026_01_13
+ # zfs list -t snapshot | grep proxmox
+
+ #  zfs bookmark strip-2mirror/share/proxmox@2026_01_13     strip-2mirror/share/proxmox#2026_01_13
+ # zfs list -t bookmark | grep proxmox
+
+
+нужно указать вчерашний букмарк и сегодняшний снэпшот
+ # zfs send -c -i  strip-2mirror/share/proxmox#2026_01_12    strip-2mirror/share/proxmox@2026_01_13  | mbuffer -O 100.69.78.2:9000  -m 150M
+
+
+приемник
+ # mbuffer -I 9000 -m 200M | zfs recv  -F   -s POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox
+
+
+=====================================
+
+более стары мтераиелал
 
 отправииель
 zfs send  -c strip-2mirror/share/proxmox@full_start_2026_01_10  |  mbuffer -O 100.100.0.30:8888 -r 50M -m 2G
@@ -63,4 +84,6 @@ sudo zfs set snapdir=visible имя_пула/имя_датасета
 zfs send -c -i  strip-2mirror/share/proxmox#bookmark-full_start_2026_01_10    strip-2mirror/share/proxmox@2026_01_13  | mbuffer -O 100.100.0.30:8888 -r 50M -m 2G
 
 на прмиенимке все тоже самое
+
+
 

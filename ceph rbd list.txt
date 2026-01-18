@@ -1,0 +1,20 @@
+| ceph
+| rbd
+| ls
+| list
+
+как из pve получить список rbd вм дисков которые там лежат
+
+root@hst8 /etc# rbd ls -p ceph_pool | head -n 10
+base-132-disk-0
+base-162-disk-0
+base-179-disk-0
+base-211-disk-0
+base-213-disk-0
+base-9000-disk-0
+vm-100-disk-0
+vm-101-disk-0
+vm-105-cloudinit
+vm-105-disk-0
+
+
