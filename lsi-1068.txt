@@ -2,6 +2,7 @@
 | 1068
 | 8344
 
+    https://docs.broadcom.com/doc/12353355
 
  значит карта lsi  8344ELP
  во первых это raid контроллер
