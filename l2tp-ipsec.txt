@@ -1,0 +1,80 @@
+| l2tp
+| ipsec
+| vpn
+| manjaro
+
+
+
+   #  pacman -Syu networkmanager-l2tp strongswan xl2tpd
+
+
+   #  mkdir -p /var/lib/ipsec/nss
+
+
+   # certutil -N -d /var/lib/ipsec/nss
+
+   # sudo systemctl restart NetworkManager
+
+
+
+
+   # nmcli connection add \
+      type vpn \
+      con-name "LONDON" \
+      ifname "*" \
+      vpn-type l2tp \
+      vpn.data "gateway=212.212.212.212, user=vasya, ipsec-enabled=yes, ipsec-psk=SHARED_KEY, password-flags=0"
+
+суем пароль в паролехранилку
+   # nmcli connection modify "LONDON" vpn.secrets "password=vasin_parol"
+
+тут надо пояснить этот ван состоит из двух хреней. 
+есть ipsec шаркед кей. его я указал выше как SHARED_KEY
+а есть еще логин и пароль. логин  vasya а вот пароль от васи суем в  vasin_parol. 
+
+
+опциалннально можно включить старые протоколы аунетификации
+
+    # nmcli connection modify "VPN_NAME" +vpn.data "refuse-chap=yes, refuse-mschap=yes, refuse-pap=yes"
+ 
+
+далее нужно в файрволл занести правила
+
+
+
+
+# Разрешить исходящий трафик IKE
+-A OUTPUT -p udp --dport 500  -d VPN_SERVER_IP  -j ACCEPT
+
+# Разрешить исходящий трафик NAT Traversal
+-A OUTPUT -p udp --dport 4500  -d VPN_SERVER_IP -j ACCEPT
+
+# Разрешить исходящий L2TP (обычно не требуется, так как 1701 - это destination порт)
+-A OUTPUT -p udp --dport 1701  -d VPN_SERVER_IP  -j ACCEPT
+
+# Разрешить исходящий протокол ESP (важно для шифрования)
+-A OUTPUT -p 50  -d VPN_SERVER_IP   -j ACCEPT
+
+# Разрешить исходящий протокол AH
+-A OUTPUT -p 51  -d VPN_SERVER_IP   -j ACCEPT
+
+
+
+-A INPUT   -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+
+
+# L2TP трафик (порт 1701)
+iptables -A INPUT -p udp --dport 1701  -s VPN_SERVER_IP  -j ACCEPT
+
+
+
+
+теперь можно  запускать коннект
+
+ $ nmcli conn up LONDON 
+
+
+после этого у нас появлется вирт сет карта ppp0
+в которую и суется весь трафик
+
+
