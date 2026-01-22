@@ -1,0 +1,87 @@
+| freebsd
+| zfs
+| mbr
+| загручик
+| mirror
+| boot
+
+вот есть диск 
+
+
+root@truenas2[~]# gpart show da12                                     
+=>       40  125829040  da12  GPT  (60G)
+         40       1024     1  freebsd-boot  (512K)
+       1064  125796352     2  freebsd-zfs  (60G)
+  125797416      31664        - free -  (15M)
+
+
+
+я всавляю такойже da11
+и хочу его доавбит вмиррор и чтобы он был загрузочный. 
+загрузжка в биос.
+
+его нужно разметить 
+
+
+root@truenas2[~]# gpart create -s gpt da11
+da11 created
+root@truenas2[~]# 
+root@truenas2[~]# gpart add -t freebsd-boot -b 40 -s  1024  -i 1 da11 
+da11p1 added
+root@truenas2[~]# gpart add -t freebsd-zfs -b 1064 -s  125796352  -i 2 da11
+da11p2 added
+root@truenas2[~]# 
+root@truenas2[~]# gpart show da11                                          
+=>       40  125829040  da11  GPT  (60G)
+         40       1024     1  freebsd-boot  (512K)
+       1064  125796352     2  freebsd-zfs  (60G)
+  125797416      31664        - free -  (15M)
+
+root@truenas2[~]# 
+root@truenas2[~]# 
+root@truenas2[~]# gpart show da12                                          
+=>       40  125829040  da12  GPT  (60G)
+         40       1024     1  freebsd-boot  (512K)
+       1064  125796352     2  freebsd-zfs  (60G)
+  125797416      31664        - free -  (15M)
+
+
+
+
+
+все разбика одинковая
+
+теперь добавялем впул
+
+# zpool attach boot-pool da12p2 da11p1
+
+
+оне резивлертся
+
+и остатется записать заручик
+
+
+		# gpart bootcode -b /boot/pmbr -p /boot/gptzfsboot -i 1 da11
+
+
+по идее. все все готоово.
+
+
+root@truenas2[~]# 
+root@truenas2[~]# zpool status -v boot-pool                                 
+  pool: boot-pool
+ state: ONLINE
+  scan: resilvered 1.32G in 00:01:17 with 0 errors on Tue Jan 20 21:44:14 2026
+config:
+
+	NAME        STATE     READ WRITE CKSUM
+	boot-pool   ONLINE       0     0     0
+	  mirror-0  ONLINE       0     0     0
+	    da12p2  ONLINE       0     0     0
+	    da11p2  ONLINE       0     0     0
+
+
+
+у нас mirrir 
+и каждый диск загрузочный
+

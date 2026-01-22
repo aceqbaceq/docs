@@ -496,23 +496,41 @@ Disk #5         da13    ATA HGST HUS724020AL      PN1181P5H6H7LW       2T, LED=l
 какой рзамер рекордсайз выбрать?
 
 
+создание главного пула
+вначалае нужно на дисках создать гпт партиции и влепить туда метку равню сериийинку
+диска
+
+# for i in $(ls  DISK-PN*) ; do echo $i; gpart create -s gpt /dev/diskid/$i;  gpart add -t freebsd-zfs -b 2048  -l $i  -i 1 /dev/diskid/$i ;   done
+
+DISK-PN1181P5H53B8W
+diskid/DISK-PN1181P5H53B8W created
+diskid/DISK-PN1181P5H53B8Wp1 added
+
+DISK-PN1181P5H5SXAW
+diskid/DISK-PN1181P5H5SXAW created
+diskid/DISK-PN1181P5H5SXAWp1 added
+...
+...
+
+
+
 
 zpool create -f -o ashift=12 \
     -o autoreplace=on  \
     -o failmode=continue \
     -o autotrim=on \
-    -O compression=lz4 \
+    -O compression=zstd-3 \
     -O xattr=sa \
     -O atime=off \
-    -O recordsize=128k \
+    -O recordsize=1M \
     -O normalization=formD \
     -O utf8only=on \
     -O canmount=off \
-    POOL-02 mirror /dev/disk/by-partlabel/Z1X415R1   /dev/disk/by-partlabel/Z1X4158J
+    POOL-01 mirror /dev/gpt/    /dev/gpt/   
 
 
 
-  zpool add   POOL-01 mirror /dev/diskid/DISK-PN1181P5H64RKW  /dev/diskid/DISK-PN1181P5H6LPJW
+  zpool add   POOL-01 mirror /dev/gpt/DISK-PN1181P5H64RKW  /dev/gpt/DISK-PN1181P5H6LPJW
   zpool add   POOL-01 mirror /dev/diskid/DISK-PN1181P5H69BZW  /dev/diskid/DISK-PN1181P5H6E31W
   zpool add   POOL-01 mirror /dev/diskid/DISK-PN1181P5H6AG0W  /dev/diskid/DISK-PN1181P5H6ATTW
   zpool add   POOL-01 mirror /dev/diskid/DISK-PN1181P5H5TZNW  /dev/diskid/DISK-PN1181P5H6H7LW
@@ -522,6 +540,7 @@ zpool create -f -o ashift=12 \
 
 
 
+дл
 
 [root@backup-01 /home/krivosheeva]# zpool status -v POOL-01
   pool: POOL-01
@@ -860,6 +879,7 @@ config:
 вот эттот контроллер MegaRAID SAS 8344ELP через который подключены полки его полтолок на лин скрости 
 чтения 500 МБ/с (тестировалось на сата дисках , взможно на сас дисках было больше из за другого проктола)
 скорость лин записи 300МБ/с
+
 
 
 

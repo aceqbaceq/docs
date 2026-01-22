@@ -1,6 +1,10 @@
 | freebsd
 | диски
 | camcontrol
+| sg_
+| sg3_
+| sas
+
 
 identify работает тлькол на сата дисках
 

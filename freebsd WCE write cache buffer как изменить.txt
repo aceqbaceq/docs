@@ -1,0 +1,46 @@
+| freebsd
+| freenas
+| truenas
+| hdparm
+| sdparm
+| cache
+| WC
+| buffer
+| write cache
+| camcontrol
+
+как в фрибмд через camcontrol  узнать включен ли Write cache на диске
+и как его включить
+
+ксатти трунас/фринас его сам не выключает. тоесть елси он включен то это 
+сделало ктото другое до фринаса
+
+
+
+	# camcontrol modepage da12 -m 0x08    
+IC:  1
+ABPF:  0
+CAP:  0
+DISC:  0
+SIZE:  0
+WCE:  1
+MF:  0
+RCD:  0
+Demand Retention Priority:  0
+Write Retention Priority:  0
+Disable Pre-fetch Transfer Length:  65535
+Minimum Pre-fetch:  0
+Maximum Pre-fetch:  0
+Maximum Pre-fetch Ceiling:  65535
+FSW (Force Sequential Write):  1
+LBCSS (Logical Block Cache Segment Size):  0
+DRA (Disable Read-Ahead):  0
+Vendor Specific:  0
+SYNC_PROG:  0
+NV_DIS:  0
+Number of Cache Segments:  8
+Cache Segment Size:  0
+
+
+	# echo "WCE: 1" | camcontrol modepage da12 -m 0x08 -e
+

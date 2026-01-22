@@ -1,0 +1,158 @@
+исходный датасет
+
+# zfs get all POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox
+NAME                                                           PROPERTY              VALUE                                                           SOURCE
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  type                  filesystem                                                      -
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  creation              Sat Jan 10 22:37 2026                                           -
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  used                  11.7T                                                           -
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  available             2.62T                                                           -
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  referenced            10.2T                                                           -
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  compressratio         1.15x                                                           -
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  mounted               yes                                                             -
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  quota                 none                                                            default
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  reservation           none                                                            default
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  recordsize            128K                                                            inherited from POOL-02
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  mountpoint            /POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  default
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  sharenfs              off                                                             default
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  checksum              on                                                              default
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  compression           lz4                                                             inherited from POOL-02
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  atime                 off                                                             inherited from POOL-02
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  devices               on                                                              default
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  exec                  on                                                              default
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  setuid                on                                                              default
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  readonly              off                                                             default
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  zoned                 off                                                             default
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  snapdir               visible                                                         local
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  aclmode               discard                                                         default
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  aclinherit            restricted                                                      default
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  createtxg             114462                                                          -
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  canmount              on                                                              default
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  xattr                 sa                                                              inherited from POOL-02
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  copies                1                                                               default
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  version               5                                                               -
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  utf8only              off                                                             -
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  normalization         none                                                            -
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  casesensitivity       sensitive                                                       -
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  vscan                 off                                                             default
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  nbmand                off                                                             default
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  sharesmb              off                                                             default
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  refquota              none                                                            default
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  refreservation        none                                                            default
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  guid                  13870372629211310156                                            -
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  primarycache          all                                                             default
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  secondarycache        all                                                             default
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  usedbysnapshots       1.43T                                                           -
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  usedbydataset         10.2T                                                           -
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  usedbychildren        0B                                                              -
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  usedbyrefreservation  0B                                                              -
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  logbias               latency                                                         default
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  objsetid              6674                                                            -
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  dedup                 off                                                             default
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  mlslabel              none                                                            default
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  sync                  standard                                                        default
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  dnodesize             legacy                                                          default
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  refcompressratio      1.14x                                                           -
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  written               0                                                               -
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  logicalused           13.4T                                                           -
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  logicalreferenced     11.7T                                                           -
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  volmode               default                                                         default
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  filesystem_limit      none                                                            default
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  snapshot_limit        none                                                            default
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  filesystem_count      none                                                            default
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  snapshot_count        none                                                            default
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  snapdev               hidden                                                          default
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  acltype               off                                                             default
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  context               none                                                            default
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  fscontext             none                                                            default
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  defcontext            none                                                            default
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  rootcontext           none                                                            default
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  relatime              on                                                              default
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  redundant_metadata    all                                                             default
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  overlay               on                                                              default
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  encryption            off                                                             default
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  keylocation           none                                                            default
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  keyformat             none                                                            default
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  pbkdf2iters           0                                                               default
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  special_small_blocks  0                                                               default
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  snapshots_changed     Sun Jan 18  0:23:42 2026                                        -
+POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  prefetch              all                                                             default
+
+
+
+новый датасет
+# zfs get all POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox
+NAME                                                           PROPERTY              VALUE                                                           SOURCE
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  type                  filesystem                                                      -
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  creation              Wed Jan 21  0:39 2026                                           -
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  used                  8.60T                                                           -
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  available             2.80T                                                           -
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  referenced            8.60T                                                           -
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  compressratio         1.35x                                                           -
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  mounted               yes                                                             -
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  quota                 none                                                            default
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  reservation           none                                                            default
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  recordsize            1M                                                              inherited from POOL-01
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  mountpoint            /POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  default
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  sharenfs              off                                                             default
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  checksum              on                                                              default
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  compression           zstd-3                                                          inherited from POOL-01
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  atime                 off                                                             inherited from POOL-01
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  devices               on                                                              default
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  exec                  on                                                              default
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  setuid                on                                                              default
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  readonly              off                                                             default
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  jailed                off                                                             default
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  snapdir               hidden                                                          default
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  aclmode               discard                                                         default
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  aclinherit            restricted                                                      default
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  createtxg             278                                                             -
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  canmount              on                                                              default
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  xattr                 sa                                                              inherited from POOL-01
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  copies                1                                                               default
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  version               5                                                               -
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  utf8only              off                                                             -
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  normalization         none                                                            -
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  casesensitivity       sensitive                                                       -
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  vscan                 off                                                             default
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  nbmand                off                                                             default
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  sharesmb              off                                                             default
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  refquota              none                                                            default
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  refreservation        none                                                            default
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  guid                  13709513783046568946                                            -
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  primarycache          all                                                             default
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  secondarycache        all                                                             default
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  usedbysnapshots       0B                                                              -
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  usedbydataset         8.60T                                                           -
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  usedbychildren        0B                                                              -
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  usedbyrefreservation  0B                                                              -
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  logbias               latency                                                         default
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  objsetid              1420                                                            -
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  dedup                 off                                                             default
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  mlslabel              none                                                            default
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  sync                  standard                                                        default
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  dnodesize             legacy                                                          default
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  refcompressratio      1.35x                                                           -
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  written               0                                                               -
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  logicalused           11.6T                                                           -
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  logicalreferenced     11.6T                                                           -
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  volmode               default                                                         default
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  filesystem_limit      none                                                            default
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  snapshot_limit        none                                                            default
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  filesystem_count      none                                                            default
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  snapshot_count        none                                                            default
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  snapdev               hidden                                                          default
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  acltype               nfsv4                                                           default
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  context               none                                                            default
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  fscontext             none                                                            default
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  defcontext            none                                                            default
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  rootcontext           none                                                            default
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  relatime              on                                                              default
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  redundant_metadata    all                                                             default
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  overlay               on                                                              default
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  encryption            off                                                             default
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  keylocation           none                                                            default
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  keyformat             none                                                            default
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  pbkdf2iters           0                                                               default
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  special_small_blocks  0                                                               default
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  snapshots_changed     Wed Jan 21 12:33:27 2026                                        -
+POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox  prefetch              all                                                             default
