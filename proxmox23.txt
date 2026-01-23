@@ -1,0 +1,36 @@
+| proxmox
+| pvesh
+
+поиск вм по IP
+
+cat find_by_ip.txt 
+#!/bin/bash
+
+SEARCH_IP="100.100.0.150"
+
+vms=$(pvesh get /cluster/resources --output-format json --type vm)
+
+echo "$vms" | jq -c '.[]' | while read -r vm; do
+  node=$(echo "$vm" | jq -r '.node'); 
+  vmid=$(echo "$vm" | jq -r '.vmid'); 
+
+  interfaces=$(pvesh get /nodes/$node/qemu/$vmid/agent/network-get-interfaces --output-format json 2>/dev/null);
+  if [ -z "$interfaces" ]; then
+    continue
+  fi
+
+  has_result=$(echo "$interfaces" | jq 'has("result")');
+  if [ "$has_result" != "true" ]; then
+    continue
+  fi
+
+   found_ip=$(echo "$interfaces" | jq -r --arg ip "$SEARCH_IP" '.result[]["ip-addresses"][]? | select(."ip-address" == $ip) | ."ip-address"')
+
+
+  if [ -n "$found_ip" ]; then
+    echo "Найдена ВМ с IP $SEARCH_IP: VMID=$vmid на узле $node"
+    break 2
+  fi
+done
+
+
