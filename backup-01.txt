@@ -500,6 +500,7 @@ Disk #5         da13    ATA HGST HUS724020AL      PN1181P5H6H7LW       2T, LED=l
 вначалае нужно на дисках создать гпт партиции и влепить туда метку равню сериийинку
 диска
 
+# cd /dev/diskid
 # for i in $(ls  DISK-PN*) ; do echo $i; gpart create -s gpt /dev/diskid/$i;  gpart add -t freebsd-zfs -b 2048  -l $i  -i 1 /dev/diskid/$i ;   done
 
 DISK-PN1181P5H53B8W
