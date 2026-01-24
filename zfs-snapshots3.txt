@@ -6,6 +6,8 @@
 
 
 ===
+как отправить и принять DATASET
+
 
 
 отправитель
@@ -21,11 +23,17 @@
 
 
 приемник
- # mbuffer -I 9000 -m 200M | zfs recv  -F   -s POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox
-
+ # mbuffer -4 -I 9000 -m 200M | zfs recv  -F   -s POOL-02/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox
+ 
 
 =====================================
+как отправиьи принять ZVOL
+ mbuffer -4 -I 9000 -m 200M | zfs receive -F -u store/zvol-mail
+ zfs send store/luns/mail@2026_01_24 | /opt/csw/bin/mbuffer -O 10.254.254.246:9000 -m 250M
 
+ключ -u означает что ненадо монтировать
+=============================
+====================================
 более стары мтераиелал
 
 отправииель

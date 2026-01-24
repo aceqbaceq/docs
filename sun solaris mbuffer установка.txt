@@ -1,0 +1,28 @@
+| sun 
+| solaris
+| mbuffer
+| open
+| pkg
+| package
+
+
+
+как на солрис поставить репозиторий пакетов
+а потом поставить коннретный пакет
+
+
+# Скачиваем сам пакет pkgutil
+wget http://get.opencsw.org -O pkgutil.pkg
+
+
+ставим только в глобадную зону
+pkgadd -G -d ./pkgutil.pkg all
+
+обновляем каталог пронграмм
+/opt/csw/bin/pkgutil -U
+
+
+наконец ставим нужный пакет
+/opt/csw/bin/pkgutil -y -i mbuffer
+
+

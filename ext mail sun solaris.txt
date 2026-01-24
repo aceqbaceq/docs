@@ -1,0 +1,22 @@
+| ext mail
+| mail
+| sun
+| solaris
+| zones
+| zfs
+
+
+
+tput cols
+tput lines
+
+export TERM=xterm
+
+mount -F nfs -o vers=3,rw,hard,intr 10.253.12.59:/mnt/strip-2mirror/ds-mail-32k /zones/mail/root/mnt/NFS
+
+zonecfg -z mail export
+
+
+
+
+
