@@ -1,0 +1,740 @@
+| mfi
+| freebsd
+| freenas
+| truenas
+| замена диска
+
+
+
+mfi2: 175278 (822253164s/0x0002/info) - Unexpected sense: PD 26(e0x0c/s0) Path 5000c5008470e591, CDB: 28 00 ca 94 6d 30 00 00 a0 00, Sense: 3/11/00
+mfi2: 175279 (822253591s/0x0002/info) - Unexpected sense: PD 26(e0x0c/s0) Path 5000c5008470e591, CDB: 28 00 ca 89 db 60 00 00 68 00, Sense: 3/16/00
+mfi2: 175280 (822253600s/0x0002/info) - Unexpected sense: PD 26(e0x0c/s0) Path 5000c5008470e591, CDB: 28 00 ca 89 db 80 00 00 48 00, Sense: 3/16/00
+mfi2: 175281 (822253600s/0x0002/FATAL) - Unrecoverable medium error during recovery on PD 26(e0x0c/s0) at ca89db8a
+mfi2: I/O error, cmd=0xfffffe008a1fbbb0, status=0x2e, scsi_status=0x2
+mfi2: sense error 112, sense_key 3, asc 0, ascq 0
+mfid25: hard error cmd=read 3398032224-3398032327
+mfi2: 175282 (822253600s/0x0001/FATAL) - Uncorrectable medium error logged for VD 00/0 at ca89db8a (on PD 26(e0x0c/s0) at ca89db8a)
+mfi2: 175283 (822253601s/0x0001/info) - VD medium error corrected on VD 00/0 at ca89db8a
+mfi2: 175284 (822268462s/0x0002/info) - Unexpected sense: PD 26(e0x0c/s0) Path 5000c5008470e591, CDB: 28 00 ca 87 0f d8 00 00 80 00, Sense: 3/11/00
+mfi2: 175285 (822268468s/0x0002/info) - Unexpected sense: PD 26(e0x0c/s0) Path 5000c5008470e591, CDB: 28 00 ca 87 0f d8 00 00 28 00, Sense: 3/11/00
+mfi2: 175286 (822268468s/0x0002/FATAL) - Unrecoverable medium error during recovery on PD 26(e0x0c/s0) at ca870fff
+mfi2: I/O error, cmd=0xfffffe008a1fd178, status=0x2e, scsi_status=0x2
+mfi2: sense error 112, sense_key 3, asc 0, ascq 0
+mfid25: hard error cmd=read 3397849048-3397849175
+mfi2: 175287 (822268469s/0x0001/FATAL) - Uncorrectable medium error logged for VD 00/0 at ca870fff (on PD 26(e0x0c/s0) at ca870fff)
+mfi2: 175288 (822268470s/0x0001/info) - VD medium error corrected on VD 00/0 at ca870fff
+mfi2: 175289 (822268660s/0x0002/info) - Unexpected sense: PD 26(e0x0c/s0) Path 5000c5008470e591, CDB: 28 00 ca 5f 65 20 00 00 70 00, Sense: 3/11/00
+mfi2: 175290 (822272948s/0x0002/info) - Unexpected sense: PD 26(e0x0c/s0) Path 5000c5008470e591, CDB: 28 00 ca 94 8b 00 00 01 00 00, Sense: 3/11/00
+mfi2: 175291 (822272955s/0x0002/info) - Unexpected sense: PD 26(e0x0c/s0) Path 5000c5008470e591, CDB: 28 00 ca 94 8b 80 00 00 80 00, Sense: 3/11/00
+mfi2: 175292 (822272955s/0x0002/FATAL) - Unrecoverable medium error during recovery on PD 26(e0x0c/s0) at ca948bff
+mfi2: I/O error, cmd=0xfffffe008a1fba18, status=0x2e, scsi_status=0x2
+mfi2: sense error 112, sense_key 3, asc 0, ascq 0
+mfid25: hard error cmd=read 3398732544-3398732799
+mfi2: 175293 (822272956s/0x0001/FATAL) - Uncorrectable medium error logged for VD 00/0 at ca948bff (on PD 26(e0x0c/s0) at ca948bff)
+mfi2: 175294 (822272957s/0x0001/info) - VD medium error corrected on VD 00/0 at ca948bff
+
+изэтой портянки полезного можно вот что почерпнуть
+чтотакое PD 26 хрен знает 
+зато отсюда я взял сас адрес диска  5000c5008470e591
+что такое PD 26 непонятно. 
+и я взял  mfid25 это адрес луна\volume\рейд массива на котормо есть херовый диск.
+забегая впреед рейд массив это рейд0 состои из одного диска
+
+
+
+
+теперь я найду испольуя этот адрес его в мегакли
+	root@freenas[~]# MegaCli -PDList  -a2 | grep -i 5000c5008470e591  -A30 -B30
+                                     
+Adapter #2
+
+Enclosure Device ID: 12
+Slot Number: 0
+Drive's position: DiskGroup: 0, Span: 0, Arm: 0
+Enclosure position: N/A
+Device Id: 38
+WWN: 
+Sequence Number: 2
+Media Error Count: 9
+Other Error Count: 0
+Predictive Failure Count: 0
+Last Predictive Failure Event Seq Number: 0
+PD Type: SAS
+
+Raw Size: 1.819 TB [0xe8e088b0 Sectors]
+Non Coerced Size: 1.818 TB [0xe8d088b0 Sectors]
+Coerced Size: 1.818 TB [0xe8d00000 Sectors]
+Sector Size:  0
+Firmware state: Online, Spun Up
+Device Firmware Level: MS83
+Shield Counter: 0
+Successful diagnostics completion on :  N/A
+SAS Address(0): 0x5000c5008470e591
+SAS Address(1): 0x0
+Connected Port Number: 0(path0) 
+Inquiry Data: SEAGATE ST2000NM0034    MS83Z1X5XWTS            
+FDE Capable: Not Capable
+FDE Enable: Disable
+Secured: Unsecured
+Locked: Unlocked
+Needs EKM Attention: No
+Foreign State: None 
+Device Speed: 6.0Gb/s 
+Link Speed: 6.0Gb/s 
+Media Type: Hard Disk Device
+Drive Temperature :27C (80.60 F)
+PI Eligibility:  No 
+Drive is formatted for PI information:  No
+PI: No PI
+Port-0 :
+Port status: Active
+Port's Linkspeed: 6.0Gb/s 
+Port-1 :
+Port status: Active
+Port's Linkspeed: Unknown 
+Drive has flagged a S.M.A.R.T alert : No
+
+
+
+здесь я вижу его серийник MS83Z1X5XWTS
+также я вижу
+
+Enclosure Device ID: 12
+Slot Number: 0
+Device Id: 38
+
+
+
+иду в mfiutil
+	# mfiutil -u 2 show  drives | grep Z1X5XWTS
+38 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS83 serial=Z1X5XWTS> SCSI-6 E1:S0
+
+
+значит 38 в mfiutil  в show drives и Device Id: 38 в мегакли это одно и тоже
+
+непонятно почему мегакли пишет 
+Enclosure Device ID: 12
+Slot Number: 0
+
+а mfutil пишет E1:S0
+хотя это однодно быть одно итоже
+
+
+
+
+
+
+# mfiutil -u 2 show  drives | grep Z1X5XWT 
+38 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS83 serial=Z1X5XWTS> SCSI-6 E1:S0
+
+
+root@freenas[~]# mfiutil -u 2 show  config               
+mfi2 Configuration: 12 arrays, 12 volumes, 0 spares
+    array 0 of 1 drives:
+        drive 38 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS83 serial=Z1X5XWTS> SCSI-6
+    array 1 of 1 drives:
+        drive 37 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS83 serial=Z1X3TW7E> SCSI-6
+    array 2 of 1 drives:
+        drive 36 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS83 serial=Z1X30S8D> SCSI-6
+    array 3 of 1 drives:
+        drive 35 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS83 serial=Z1X3Q3X5> SCSI-6
+    array 4 of 1 drives:
+        drive 33 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS83 serial=Z1X3VCD9> SCSI-6
+    array 5 of 1 drives:
+        drive 32 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS83 serial=Z1X5WHTZ> SCSI-6
+    array 6 of 1 drives:
+        drive 31 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS83 serial=Z1X3TH7J> SCSI-6
+    array 7 of 1 drives:
+        drive 30 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS83 serial=Z1X46Y27> SCSI-6
+    array 8 of 1 drives:
+        drive 29 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS83 serial=Z1X5QB4N> SCSI-6
+    array 9 of 1 drives:
+        drive 27 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS83 serial=Z1X30HPC> SCSI-6
+    array 10 of 1 drives:
+        drive 39 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS83 serial=Z1X31YE4> SCSI-6
+    array 11 of 1 drives:
+        drive 40 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS83 serial=Z1X30FEE> SCSI-6
+    volume mfid25 (1863G) RAID-0 64K OPTIMAL spans:
+        array 0
+    volume mfid26 (1863G) RAID-0 64K OPTIMAL spans:
+        array 1
+    volume mfid27 (1863G) RAID-0 64K OPTIMAL spans:
+        array 2
+    volume mfid28 (1863G) RAID-0 64K OPTIMAL spans:
+        array 3
+    volume mfid29 (1863G) RAID-0 64K OPTIMAL spans:
+        array 4
+    volume mfid30 (1863G) RAID-0 64K OPTIMAL spans:
+        array 5
+    volume mfid31 (1863G) RAID-0 64K OPTIMAL spans:
+        array 6
+    volume mfid32 (1863G) RAID-0 64K OPTIMAL spans:
+        array 7
+    volume mfid33 (1863G) RAID-0 64K OPTIMAL spans:
+        array 8
+    volume mfid35 (1863G) RAID-0 64K OPTIMAL spans:
+        array 9
+    volume mfid36 (1863G) RAID-0 64K OPTIMAL spans:
+        array 10
+    volume mfid34 (1863G) RAID-0 64K OPTIMAL spans:
+        array 11
+
+
+
+из этого мы находим что
+
+  array 0 of 1 drives:
+        drive 38 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS83 serial=Z1X5XWTS> SCSI-6
+
+из этого мы находим что это  mfid25
+
+    volume mfid25 (1863G) RAID-0 64K OPTIMAL spans:
+        array 0
+
+
+теперь когдя я нашел mfid25 (это номер raid массива lvol)
+можно найти какой gptid у раздела на ээом луне
+
+
+root@freenas[~]# 
+root@freenas[~]# geom -t | grep mfid25
+mfid25                                           DISK       mfid25
+  mfid25                                         PART       mfid25p1
+    mfid25p1                                     LABEL      gptid/60dab094-0963-11f0-ae79-782bcb09ac2d
+    mfid25p1                                     DEV       
+  mfid25                                         PART       mfid25p2
+    mfid25p2                                     LABEL      gptid/60fdf86b-0963-11f0-ae79-782bcb09ac2d
+    mfid25p2                                     DEV       
+  mfid25                                         DEV       
+
+
+у нас в зфс учатвует второй раззел этого луна
+
+  mfid25                                         PART       mfid25p2
+    mfid25p2                                     LABEL      gptid/60fdf86b-0963-11f0-ae79-782bcb09ac2d
+    mfid25p2                                     DEV       
+  mfid25                                         DEV       
+
+
+
+итак мы нашли как икскать партицию этого луна на зфс
+
+60fdf86b-0963-11f0-ae79-782bcb09ac2d
+
+
+root@freenas[~]# zpool status -v | grep 60fdf86b-0963-11f0-ae79-782bcb09ac2d
+            gptid/60fdf86b-0963-11f0-ae79-782bcb09ac2d  ONLINE       3     0     0
+root@freenas[~]# 
+
+
+и реально мы видим ошиблки! занчит верно нашли
+
+
+# zpool detach strip-2mirror  gptid/60fdf86b-0963-11f0-ae79-782bcb09ac2d
+
+
+(detach attach это чисто команды работы с миррором. они ксаются только vdev миррор 
+а друнгих vdev нексаются)
+
+
+
+
+
+#  mfiutil -u 2 delete volume mfid25
+
+
+root@freenas[~]# mfiutil -u 2 show  drives         
+mfi2 Physical Drives:
+27 ( 1863G) ONLINE            <SEAGATE ST2000NM0034 MS83 serial=Z1X30HPC> SCSI-6 E1:S11
+29 ( 1863G) ONLINE            <SEAGATE ST2000NM0034 MS83 serial=Z1X5QB4N> SCSI-6 E1:S9
+30 ( 1863G) ONLINE            <SEAGATE ST2000NM0034 MS83 serial=Z1X46Y27> SCSI-6 E1:S8
+31 ( 1863G) ONLINE            <SEAGATE ST2000NM0034 MS83 serial=Z1X3TH7J> SCSI-6 E1:S7
+32 ( 1863G) ONLINE            <SEAGATE ST2000NM0034 MS83 serial=Z1X5WHTZ> SCSI-6 E1:S5
+33 ( 1863G) ONLINE            <SEAGATE ST2000NM0034 MS83 serial=Z1X3VCD9> SCSI-6 E1:S4
+35 ( 1863G) ONLINE            <SEAGATE ST2000NM0034 MS83 serial=Z1X3Q3X5> SCSI-6 E1:S3
+36 ( 1863G) ONLINE            <SEAGATE ST2000NM0034 MS83 serial=Z1X30S8D> SCSI-6 E1:S2
+37 ( 1863G) ONLINE            <SEAGATE ST2000NM0034 MS83 serial=Z1X3TW7E> SCSI-6 E1:S1
+38 ( 1863G) UNCONFIGURED GOOD <SEAGATE ST2000NM0034 MS83 serial=Z1X5XWTS> SCSI-6 E1:S0
+39 ( 1863G) ONLINE            <SEAGATE ST2000NM0034 MS83 serial=Z1X31YE4> SCSI-6 E1:S6
+40 ( 1863G) ONLINE            <SEAGATE ST2000NM0034 MS83 serial=Z1X30FEE> SCSI-6 E1:S10
+
+
+array удалть нет необходимости. он авмтаотмо удаляется
+при этом все эрреи меняют номер.
+
+
+mfiutil -u 2 locate e1:s0 on
+
+вытакскиваываем
+
+2,000,398,934,016 byte
+
+
+вставил диск
+
+root@freenas[~]# mfiutil -u 2 show  drives 
+mfi2 Physical Drives:
+27 ( 1863G) ONLINE            <SEAGATE ST2000NM0034 MS83 serial=Z1X30HPC> SCSI-6 E1:S11
+29 ( 1863G) ONLINE            <SEAGATE ST2000NM0034 MS83 serial=Z1X5QB4N> SCSI-6 E1:S9
+30 ( 1863G) ONLINE            <SEAGATE ST2000NM0034 MS83 serial=Z1X46Y27> SCSI-6 E1:S8
+31 ( 1863G) ONLINE            <SEAGATE ST2000NM0034 MS83 serial=Z1X3TH7J> SCSI-6 E1:S7
+32 ( 1863G) ONLINE            <SEAGATE ST2000NM0034 MS83 serial=Z1X5WHTZ> SCSI-6 E1:S5
+33 ( 1863G) ONLINE            <SEAGATE ST2000NM0034 MS83 serial=Z1X3VCD9> SCSI-6 E1:S4
+35 ( 1863G) ONLINE            <SEAGATE ST2000NM0034 MS83 serial=Z1X3Q3X5> SCSI-6 E1:S3
+36 ( 1863G) ONLINE            <SEAGATE ST2000NM0034 MS83 serial=Z1X30S8D> SCSI-6 E1:S2
+37 ( 1863G) ONLINE            <SEAGATE ST2000NM0034 MS83 serial=Z1X3TW7E> SCSI-6 E1:S1
+39 ( 1863G) ONLINE            <SEAGATE ST2000NM0034 MS83 serial=Z1X31YE4> SCSI-6 E1:S6
+40 ( 1863G) ONLINE            <SEAGATE ST2000NM0034 MS83 serial=Z1X30FEE> SCSI-6 E1:S10
+41 ( 1863G) UNCONFIGURED GOOD <SEAGATE ST2000NM0023 0003 serial=Z1X4T887> SCSI-6 E1:S0
+
+
+
+    mfiutil [-u unit] create type [-v] [-s stripe_size] drive[,drive[,...]]
+             [drive[,drive[,...]]]
+
+
+root@freenas[~]# 
+root@freenas[~]# mfiutil -u 2 create jbod -s 64K  E1:S0 
+root@freenas[~]# 
+root@freenas[~]# 
+root@freenas[~]# 
+root@freenas[~]# 
+root@freenas[~]# mfiutil -u 2 show  drives             
+mfi2 Physical Drives:
+27 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS83 serial=Z1X30HPC> SCSI-6 E1:S11
+29 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS83 serial=Z1X5QB4N> SCSI-6 E1:S9
+30 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS83 serial=Z1X46Y27> SCSI-6 E1:S8
+31 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS83 serial=Z1X3TH7J> SCSI-6 E1:S7
+32 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS83 serial=Z1X5WHTZ> SCSI-6 E1:S5
+33 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS83 serial=Z1X3VCD9> SCSI-6 E1:S4
+35 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS83 serial=Z1X3Q3X5> SCSI-6 E1:S3
+36 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS83 serial=Z1X30S8D> SCSI-6 E1:S2
+37 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS83 serial=Z1X3TW7E> SCSI-6 E1:S1
+39 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS83 serial=Z1X31YE4> SCSI-6 E1:S6
+40 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS83 serial=Z1X30FEE> SCSI-6 E1:S10
+41 ( 1863G) ONLINE <SEAGATE ST2000NM0023 0003 serial=Z1X4T887> SCSI-6 E1:S0  <=====
+root@freenas[~]# 
+root@freenas[~]# 
+root@freenas[~]# 
+root@freenas[~]# mfiutil -u 2 show  volumes            
+mfi2 Volumes:
+  Id     Size    Level   Stripe  State   Cache   Name
+mfid26 ( 1863G) RAID-0      64K OPTIMAL Disabled
+mfid27 ( 1863G) RAID-0      64K OPTIMAL Disabled
+mfid28 ( 1863G) RAID-0      64K OPTIMAL Disabled
+mfid29 ( 1863G) RAID-0      64K OPTIMAL Disabled
+mfid30 ( 1863G) RAID-0      64K OPTIMAL Disabled
+mfid31 ( 1863G) RAID-0      64K OPTIMAL Disabled
+mfid32 ( 1863G) RAID-0      64K OPTIMAL Disabled
+mfid33 ( 1863G) RAID-0      64K OPTIMAL Disabled
+mfid35 ( 1863G) RAID-0      64K OPTIMAL Disabled
+mfid36 ( 1863G) RAID-0      64K OPTIMAL Disabled
+mfid34 ( 1863G) RAID-0      64K OPTIMAL Disabled
+mfid25 ( 1863G) RAID-0      64K OPTIMAL Writes       <=====
+
+
+mfid25 это вольюм типа луна
+
+# mfiutil -u 2 cache mfid25 none
+
+
+root@freenas[~]# mfiutil -u 2 cache mfid25 none
+Disabling caching of I/O writes
+root@freenas[~]# 
+root@freenas[~]# 
+root@freenas[~]# 
+root@freenas[~]# mfiutil -u 2 show  volumes    
+mfi2 Volumes:
+  Id     Size    Level   Stripe  State   Cache   Name
+mfid26 ( 1863G) RAID-0      64K OPTIMAL Disabled
+mfid27 ( 1863G) RAID-0      64K OPTIMAL Disabled
+mfid28 ( 1863G) RAID-0      64K OPTIMAL Disabled
+mfid29 ( 1863G) RAID-0      64K OPTIMAL Disabled
+mfid30 ( 1863G) RAID-0      64K OPTIMAL Disabled
+mfid31 ( 1863G) RAID-0      64K OPTIMAL Disabled
+mfid32 ( 1863G) RAID-0      64K OPTIMAL Disabled
+mfid33 ( 1863G) RAID-0      64K OPTIMAL Disabled
+mfid35 ( 1863G) RAID-0      64K OPTIMAL Disabled
+mfid36 ( 1863G) RAID-0      64K OPTIMAL Disabled
+mfid34 ( 1863G) RAID-0      64K OPTIMAL Disabled
+mfid25 ( 1863G) RAID-0      64K OPTIMAL Disabled
+root@freenas[~]# 
+
+
+если сваить  в сервер диск с wcache=off
+то он порой его все равно включает и нужно занвоово выключить!
+
+ smartctl -s wcache=off /dev/pass42
+
+
+# camccontrol passN соверщешнно не сосвтетвтует mfidM !!
+
+
+
+#  gpart create -s gpt /dev/mfid25
+mfid25 created
+
+
+root@freenas[~]# gpart show /dev/mfid23
+=>        40  3905945520  mfid23  GPT  (1.8T)
+          40          88          - free -  (44K)
+         128     4194304       1  freebsd-swap  (2.0G)
+     4194432  3901751128       2  freebsd-zfs  (1.8T)
+
+root@freenas[~]# 
+root@freenas[~]# 
+root@freenas[~]# gpart add -b 128 -s 4194304  -t freebsd-swap -i 1 mfid25
+mfid25p1 added
+root@freenas[~]# gpart add -b 4194432 -s 3901751128  -l VOLUME_MFID25-DISKSN_Z1X4T887    -t freebsd-zfs  -i 2 mfid25
+mfid25p2 added
+root@freenas[~]# 
+root@freenas[~]# gpart show /dev/mfid25                                                                             
+=>        40  3905945520  mfid25  GPT  (1.8T)
+          40          88          - free -  (44K)
+         128     4194304       1  freebsd-swap  (2.0G)
+     4194432  3901751128       2  freebsd-zfs  (1.8T)
+
+
+s[~]# zpool add strip-2mirror  spare /dev/gpt/VOLUME_MFID25-DISKSN_Z1X4T887 
+root@freenas[~]# 
+
+
+# zpool status -v strip-2mirror | tail -n 7
+            gptid/e7a009d4-5bed-11f0-ae79-782bcb09ac2d  ONLINE       0     0     0
+            mfid24                                      ONLINE       0     0     0
+            gptid/bcdadc57-713d-11f0-9585-782bcb09ac2d  ONLINE       0     0     0
+        spares
+          gpt/VOLUME_MFID25-DISKSN_Z1X4T887             AVAIL   
+
+
+
+
+
+
+
+еще диск
+точнее есть уже созданный вольюм на базе диска
+но на нем нем гпт метки. и нет разделов
+прежде чем на него создавать гпт метку и арзедлы я выясню какой диск
+входт в его состав какой унего серийник
+
+
+root@freenas[~]# mfiutil -u1 show volumes
+mfi1 Volumes:
+  Id     Size    Level   Stripe  State   Cache   Name
+ mfid1 ( 1863G) RAID-0      64K OPTIMAL Disabled <vd0>
+ mfid2 ( 1863G) RAID-0      64K OPTIMAL Writes  
+ mfid3 ( 1863G) RAID-0      64K OPTIMAL Writes  
+ mfid4 ( 1863G) RAID-0      64K OPTIMAL Writes  
+ mfid5 ( 1863G) RAID-0      64K OPTIMAL Writes  
+ mfid6 ( 1863G) RAID-0      64K OPTIMAL Writes  
+ mfid7 ( 1863G) RAID-0      64K OPTIMAL Writes  
+ mfid8 ( 1863G) RAID-0      64K OPTIMAL Writes  
+ mfid9 ( 1863G) RAID-0      64K OPTIMAL Writes  
+mfid10 ( 1863G) RAID-0      64K OPTIMAL Writes  
+mfid11 ( 1863G) RAID-0      64K OPTIMAL Writes  
+mfid12 ( 1863G) RAID-0      64K OPTIMAL Writes  
+mfid13 ( 1863G) RAID-0      64K OPTIMAL Writes  
+mfid14 ( 1863G) RAID-0      64K OPTIMAL Writes  
+mfid15 ( 1863G) RAID-0      64K OPTIMAL Writes  
+mfid16 ( 1863G) RAID-0      64K OPTIMAL Writes  
+mfid17 ( 1863G) RAID-0      64K OPTIMAL Writes  
+mfid18 ( 1863G) RAID-0      64K OPTIMAL Writes  
+mfid19 ( 1863G) RAID-0      64K OPTIMAL Writes  
+mfid20 ( 1863G) RAID-0      64K OPTIMAL Writes  
+mfid21 ( 1863G) RAID-0      64K OPTIMAL Writes  
+mfid22 ( 1863G) RAID-0      64K OPTIMAL Writes  
+mfid23 ( 1863G) RAID-0      64K OPTIMAL Writes  
+mfid24 ( 1863G) RAID-0      64K OPTIMAL Disabled
+root@freenas[~]# 
+root@freenas[~]# 
+root@freenas[~]# 
+root@freenas[~]# 
+root@freenas[~]# mfiutil -u1 show config 
+mfi1 Configuration: 24 arrays, 24 volumes, 0 spares
+    array 0 of 1 drives:
+        drive 50 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS85 serial=Z1X5PDW6> SCSI-6
+    array 1 of 1 drives:
+        drive 49 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS85 serial=Z1X83ZPZ> SCSI-6
+    array 2 of 1 drives:
+        drive 44 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS85 serial=Z1X32HYW> SCSI-6
+    array 3 of 1 drives:
+        drive 43 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS85 serial=Z1X593X9> SCSI-6
+    array 4 of 1 drives:
+        drive 42 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS85 serial=Z1X4MDCX> SCSI-6
+    array 5 of 1 drives:
+        drive 47 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS85 serial=Z1X0LD62> SCSI-6
+    array 6 of 1 drives:
+        drive 46 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS85 serial=Z1X3CJCJ> SCSI-6
+    array 7 of 1 drives:
+        drive 45 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS85 serial=Z1X523PD> SCSI-6
+    array 8 of 1 drives:
+        drive 48 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS85 serial=Z1X1PN0R> SCSI-6
+    array 9 of 1 drives:
+        drive 51 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS85 serial=Z1X5ZX5H> SCSI-6
+    array 10 of 1 drives:
+        drive 52 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS85 serial=Z1X41D5M> SCSI-6
+    array 11 of 1 drives:
+        drive 38 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS85 serial=Z1X25W0D> SCSI-6
+    array 12 of 1 drives:
+        drive 37 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS85 serial=Z1X31YNN> SCSI-6
+    array 13 of 1 drives:
+        drive 29 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS85 serial=Z1X13CVE> SCSI-6
+    array 14 of 1 drives:
+        drive 32 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS85 serial=Z1X3GKV8> SCSI-6
+    array 15 of 1 drives:
+        drive 31 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS85 serial=Z1Y18GMQ> SCSI-6
+    array 16 of 1 drives:
+        drive 30 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS85 serial=Z1X6HW3Y> SCSI-6
+    array 17 of 1 drives:
+        drive 35 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS85 serial=Z1X838T0> SCSI-6
+    array 18 of 1 drives:
+        drive 34 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS85 serial=Z1X13MJW> SCSI-6
+    array 19 of 1 drives:
+        drive 33 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS85 serial=Z1X3DREB> SCSI-6
+    array 20 of 1 drives:
+        drive 36 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS85 serial=Z1X4T7HM> SCSI-6
+    array 21 of 1 drives:
+        drive 39 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS85 serial=Z1X1DXK2> SCSI-6
+    array 22 of 1 drives:
+        drive 40 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS85 serial=Z1X2T4E7> SCSI-6
+    array 23 of 1 drives:
+        drive 53 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS83 serial=Z1X32PD8> SCSI-6
+    volume mfid1 (1863G) RAID-0 64K OPTIMAL <vd0> spans:
+        array 0
+    volume mfid2 (1863G) RAID-0 64K OPTIMAL spans:
+        array 1
+    volume mfid3 (1863G) RAID-0 64K OPTIMAL spans:
+        array 2
+    volume mfid4 (1863G) RAID-0 64K OPTIMAL spans:
+        array 3
+    volume mfid5 (1863G) RAID-0 64K OPTIMAL spans:
+        array 4
+    volume mfid6 (1863G) RAID-0 64K OPTIMAL spans:
+        array 5
+    volume mfid7 (1863G) RAID-0 64K OPTIMAL spans:
+        array 6
+    volume mfid8 (1863G) RAID-0 64K OPTIMAL spans:
+        array 7
+    volume mfid9 (1863G) RAID-0 64K OPTIMAL spans:
+        array 8
+    volume mfid10 (1863G) RAID-0 64K OPTIMAL spans:
+        array 9
+    volume mfid11 (1863G) RAID-0 64K OPTIMAL spans:
+        array 10
+    volume mfid12 (1863G) RAID-0 64K OPTIMAL spans:
+        array 11
+    volume mfid13 (1863G) RAID-0 64K OPTIMAL spans:
+        array 12
+    volume mfid14 (1863G) RAID-0 64K OPTIMAL spans:
+        array 13
+    volume mfid15 (1863G) RAID-0 64K OPTIMAL spans:
+        array 14
+    volume mfid16 (1863G) RAID-0 64K OPTIMAL spans:
+        array 15
+    volume mfid17 (1863G) RAID-0 64K OPTIMAL spans:
+        array 16
+    volume mfid18 (1863G) RAID-0 64K OPTIMAL spans:
+        array 17
+    volume mfid19 (1863G) RAID-0 64K OPTIMAL spans:
+        array 18
+    volume mfid20 (1863G) RAID-0 64K OPTIMAL spans:
+        array 19
+    volume mfid21 (1863G) RAID-0 64K OPTIMAL spans:
+        array 20
+    volume mfid22 (1863G) RAID-0 64K OPTIMAL spans:
+        array 21
+    volume mfid23 (1863G) RAID-0 64K OPTIMAL spans:
+        array 22
+    volume mfid24 (1863G) RAID-0 64K OPTIMAL spans:
+        array 23
+root@freenas[~]# 
+
+
+откуда я узнаю что этот диск это 
+
+
+    array 23 of 1 drives:
+        drive 53 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS83 serial=Z1X32PD8> SCSI-6
+
+
+его серийник  Z1X32PD8
+
+
+и ксаттаи зная его сериник я узнаю в какой дырке он сидит
+
+root@freenas[~]# mfiutil -u1 show drives
+mfi1 Physical Drives:
+29 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS85 serial=Z1X13CVE> SCSI-6 E2:S2
+30 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS85 serial=Z1X6HW3Y> SCSI-6 E2:S5
+31 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS85 serial=Z1Y18GMQ> SCSI-6 E2:S4
+32 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS85 serial=Z1X3GKV8> SCSI-6 E2:S3
+33 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS85 serial=Z1X3DREB> SCSI-6 E2:S8
+34 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS85 serial=Z1X13MJW> SCSI-6 E2:S7
+35 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS85 serial=Z1X838T0> SCSI-6 E2:S6
+36 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS85 serial=Z1X4T7HM> SCSI-6 E2:S9
+37 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS85 serial=Z1X31YNN> SCSI-6 E2:S1
+38 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS85 serial=Z1X25W0D> SCSI-6 E2:S0
+39 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS85 serial=Z1X1DXK2> SCSI-6 E2:S10
+40 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS85 serial=Z1X2T4E7> SCSI-6 E2:S11
+42 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS85 serial=Z1X4MDCX> SCSI-6 E1:S5
+43 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS85 serial=Z1X593X9> SCSI-6 E1:S4
+44 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS85 serial=Z1X32HYW> SCSI-6 E1:S3
+45 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS85 serial=Z1X523PD> SCSI-6 E1:S8
+46 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS85 serial=Z1X3CJCJ> SCSI-6 E1:S7
+47 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS85 serial=Z1X0LD62> SCSI-6 E1:S6
+48 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS85 serial=Z1X1PN0R> SCSI-6 E1:S9
+49 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS85 serial=Z1X83ZPZ> SCSI-6 E1:S1
+50 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS85 serial=Z1X5PDW6> SCSI-6 E1:S0
+51 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS85 serial=Z1X5ZX5H> SCSI-6 E1:S10
+52 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS85 serial=Z1X41D5M> SCSI-6 E1:S11
+53 ( 1863G) ONLINE <SEAGATE ST2000NM0034 MS83 serial=Z1X32PD8> SCSI-6 E1:S2   <=====
+
+
+тоесть  E1:S2
+дырка мне нужно если я хочу его подсветит. 
+а сеийник мне нужнен чтобы написать его в свойствах гпт партиции для его дальнейшей легкой
+идентфиикации кодга его нужно будет вытащить из сервера
+
+
+итак разбиываем диск
+
+
+root@freenas[~]# geom disk list mfid24
+Geom name: mfid24
+Providers:
+1. Name: mfid24
+   Mediasize: 1999844147200 (1.8T)
+   Sectorsize: 512
+   Mode: r0w0e0
+   descr: (null)
+   ident: (null)
+   rotationrate: unknown
+   fwsectors: 63
+   fwheads: 255
+
+root@freenas[~]# gpart show mfid24
+gpart: No such geom: mfid24.
+root@freenas[~]# gpart add -b 128 -s 4194304  -t freebsd-swap -i 1 mfid24
+gpart: No partitioning scheme found on geom mfid24. Create one first using 'gpart create'.
+root@freenas[~]# gpart create -s gpt mfid24
+mfid24 created
+root@freenas[~]# 
+root@freenas[~]# gpart add -b 128 -s 4194304  -t freebsd-swap -i 1 mfid24
+mfid24p1 added
+
+
+
+root@freenas[~]# gpart add -b 4194432 -s 3901751128  -l VOLUME_MFID24-DISKSN_Z1X32PD8 -t freebsd-zfs  -i 2 mfid24   
+mfid24p2 added
+root@freenas[~]# 
+root@freenas[~]# gpart show /dev/mfid24                                                                             
+=>        40  3905945520  mfid24  GPT  (1.8T)
+          40          88          - free -  (44K)
+         128     4194304       1  freebsd-swap  (2.0G)
+     4194432  3901751128       2  freebsd-zfs  (1.8T)
+
+
+
+root@freenas[~]# 
+root@freenas[~]# zpool add strip-2mirror  spare /dev/gpt/VOLUME_MFID24-DISKSN_Z1X32PD8                       
+root@freenas[~]# 
+root@freenas[~]# 
+root@freenas[~]# zpool status -v strip-2mirror | tail -n 10                                                     
+            gptid/ab56f791-5d07-11f0-9585-782bcb09ac2d  ONLINE       0     0     0
+            gptid/a89a9348-0963-11f0-ae79-782bcb09ac2d  ONLINE       0     0     0
+          mirror-17                                     ONLINE       0     0     0
+            gptid/e7a009d4-5bed-11f0-ae79-782bcb09ac2d  ONLINE       0     0     0
+            gptid/bcdadc57-713d-11f0-9585-782bcb09ac2d  ONLINE       0     0     0
+        spares
+          gpt/VOLUME_MFID25-DISKSN_Z1X4T887             AVAIL   
+          gpt/VOLUME_MFID24-DISKSN_Z1X32PD8             AVAIL   
+
+
+
+
+
+
+
+
+замтка
+
+zsh: command not found: mfutil
+root@freenas[~]# mfiutil -u0 show volumes
+mfi0 Volumes:
+  Id     Size    Level   Stripe  State   Cache   Name
+ mfid0 (  931G) RAID-5      64K OPTIMAL Disabled <VD0>
+mfid37 ( 1863G) RAID-0      64K OPTIMAL Disabled
+mfid38 ( 1863G) RAID-0      64K OPTIMAL Disabled
+
+
+строка cache это не кеш дисков. это кеш контроллера который либо кеширует 
+либо не кеширует иопсы на луны (вольюмы)
+
+
+
+для всех контрллеров для всез вольюмов надо отклчюить кэшиворанире на стороне
+контроллеров на запись да и на чтение тоже
+
+root@freenas[~]# mfiutil -u0 show volumes
+mfi0 Volumes:
+  Id     Size    Level   Stripe  State   Cache   Name
+ mfid0 (  931G) RAID-5      64K OPTIMAL Disabled <VD0>
+mfid37 ( 1863G) RAID-0      64K OPTIMAL Disabled
+mfid38 ( 1863G) RAID-0      64K OPTIMAL Disabled
+root@freenas[~]# 
+root@freenas[~]# 
+root@freenas[~]# 
+root@freenas[~]# 
+root@freenas[~]# 
+root@freenas[~]# mfiutil -u1 show volumes
+mfi1 Volumes:
+  Id     Size    Level   Stripe  State   Cache   Name
+ mfid1 ( 1863G) RAID-0      64K OPTIMAL Disabled <vd0>
+ mfid2 ( 1863G) RAID-0      64K OPTIMAL Disabled
+ mfid3 ( 1863G) RAID-0      64K OPTIMAL Disabled
+ mfid4 ( 1863G) RAID-0      64K OPTIMAL Disabled
+ mfid5 ( 1863G) RAID-0      64K OPTIMAL Disabled
+ mfid6 ( 1863G) RAID-0      64K OPTIMAL Disabled
+ mfid7 ( 1863G) RAID-0      64K OPTIMAL Disabled
+ mfid8 ( 1863G) RAID-0      64K OPTIMAL Disabled
+ mfid9 ( 1863G) RAID-0      64K OPTIMAL Disabled
+mfid10 ( 1863G) RAID-0      64K OPTIMAL Disabled
+mfid11 ( 1863G) RAID-0      64K OPTIMAL Disabled
+mfid12 ( 1863G) RAID-0      64K OPTIMAL Disabled
+mfid13 ( 1863G) RAID-0      64K OPTIMAL Disabled
+mfid14 ( 1863G) RAID-0      64K OPTIMAL Disabled
+mfid15 ( 1863G) RAID-0      64K OPTIMAL Disabled
+mfid16 ( 1863G) RAID-0      64K OPTIMAL Disabled
+mfid17 ( 1863G) RAID-0      64K OPTIMAL Disabled
+mfid18 ( 1863G) RAID-0      64K OPTIMAL Disabled
+mfid19 ( 1863G) RAID-0      64K OPTIMAL Disabled
+mfid20 ( 1863G) RAID-0      64K OPTIMAL Disabled
+mfid21 ( 1863G) RAID-0      64K OPTIMAL Disabled
+mfid22 ( 1863G) RAID-0      64K OPTIMAL Disabled
+mfid23 ( 1863G) RAID-0      64K OPTIMAL Disabled
+mfid24 ( 1863G) RAID-0      64K OPTIMAL Disabled
+root@freenas[~]# 
+root@freenas[~]# 
+root@freenas[~]# mfiutil -u2 show volumes
+mfi2 Volumes:
+  Id     Size    Level   Stripe  State   Cache   Name
+mfid26 ( 1863G) RAID-0      64K OPTIMAL Disabled
+mfid27 ( 1863G) RAID-0      64K OPTIMAL Disabled
+mfid28 ( 1863G) RAID-0      64K OPTIMAL Disabled
+mfid29 ( 1863G) RAID-0      64K OPTIMAL Disabled
+mfid30 ( 1863G) RAID-0      64K OPTIMAL Disabled
+mfid31 ( 1863G) RAID-0      64K OPTIMAL Disabled
+mfid32 ( 1863G) RAID-0      64K OPTIMAL Disabled
+mfid33 ( 1863G) RAID-0      64K OPTIMAL Disabled
+mfid35 ( 1863G) RAID-0      64K OPTIMAL Disabled
+mfid36 ( 1863G) RAID-0      64K OPTIMAL Disabled
+mfid34 ( 1863G) RAID-0      64K OPTIMAL Disabled
+mfid25 ( 1863G) RAID-0      64K OPTIMAL Disabled
+
+
+
+еще раз повдерчнку что буферы заиписи на самих дисках 
+это друая история. тут щас я показал кеши на самих контрллерах.
+котореые могут кеширофват операции а лунах (вольюмах)
+
