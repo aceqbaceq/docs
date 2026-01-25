@@ -1,0 +1,11 @@
+| freeebsd
+| encypt
+| geli
+
+  525  geli init /dev/ada1
+  526  geli attach /dev/ada1
+  528  ls -1 /dev/ada1.eli
+  529  gpart create -s gpt /dev/ada1.eli
+  530  gpart add -t freebsd-boot -b 2048  -i 1 -l BACKUP  /dev/ada1.eli
+  531  zpool create -o ashift=12 POOL-BACKUP   /dev/gpt/BACKUP 
+
