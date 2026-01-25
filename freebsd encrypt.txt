@@ -2,6 +2,9 @@
 | encypt
 | geli
 
+
+    kldload aesni
+
   525  geli init /dev/ada1
   526  geli attach /dev/ada1
   528  ls -1 /dev/ada1.eli
