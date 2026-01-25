@@ -1,0 +1,8 @@
+| home 
+| dom
+
+
+копирую снэпшот с пула на пул вместе с сонмном снэпштотов и дочерних датасетов
+
+  zfs send -p -c -R  POOL-ZFS-MAIN@2026-01-25    | sudo   zfs receive -v POOL-BACKUP-ST500/POOL-ZFS-MAIN
+  
