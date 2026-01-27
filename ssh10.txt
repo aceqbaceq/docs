@@ -1,0 +1,28 @@
+| ssh
+| bash
+| env
+
+значит при запуске баша у нас запусается /etc/profile а  в нем пеерменные.
+как сделать так чтобы при запуске баша но до чтение profile у нас уже была эта перменная задана
+
+
+
+	$ ssh -t vasys@10.100.0.11 "VARIABLE_NAME=no bash -l"
+
+
+и какоже самое сделтать чрез ~/.ssh/config
+
+Host PROD-main  10.100.0.11
+HostName 10.100.0.11
+IdentityFile ~/.ssh/id_5519
+Port 22
+User vasya
+ForwardAgent yes
+RequestTTY yes
+RemoteCommand TTYREC_ENABLED=no  HISTFILE=    bash --login
+
+
+
+здесь я также усанавливаю пеменнеую HISTFILE= которая дает то чтобы бащ не соханял историю
+
+
