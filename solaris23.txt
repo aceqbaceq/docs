@@ -1,0 +1,7 @@
+| solaris 
+| terminal
+
+выровнять ебвный терминал 
+
+# stty cols 211 rows  47; export TERM=xterm
+
