@@ -1,0 +1,6 @@
+| solaris 
+| lsof
+
+аналог
+
+/usr/sbin/fuser -u /opt/mail/*

@@ -1,0 +1,18 @@
+| linux
+| disks
+
+
+как удалить коректно диск из линукса аналог freebsd camcontrol stop da2
+
+ввяыяем его номер через 
+
+  # lsscsi 
+
+удаляем 
+
+  #  bash -c 'echo 1 > /sys/bus/scsi/devices/5:0:0:0/delete'
+
+
+
+
+
