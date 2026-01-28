@@ -1,0 +1,17 @@
+| zfs
+| send
+| receive
+
+
+еще вариант
+приемник
+
+    # mbuffer -4 -I 9000 -m 200M | zfs recv  -F   -s   POOL-BACKUP/LENOVO-BACKUP
+
+отправитель
+
+    # zfs send -c -R -i POOL-ZFS-MAIN@2026-01-25         POOL-ZFS-MAIN@2026-01-28       | mbuffer -O fr:9000 -r 50M -m 350M
+
+
+эта штука позоляволвяет пеерпоавлять не только текущий снппэшот но и все рекурсивыненые снжпшоты
+
