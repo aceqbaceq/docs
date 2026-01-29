@@ -1,0 +1,17 @@
+| ddrescue
+| gddrescue
+
+
+apt install gddrescue
+
+как чиатать сковзь подхие сектора
+
+
+ddrescue -n -b 4096 /dev/sdX image.img mapfile.log
+
+
+ddrescue -d -r3 -b 4096 /dev/sdX image.img mapfile.log
+
+
+
+
