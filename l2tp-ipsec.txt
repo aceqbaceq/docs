@@ -69,6 +69,8 @@ iptables -A INPUT -p udp --dport 1701  -s VPN_SERVER_IP  -j ACCEPT
 
 
 
+
+
 теперь можно  запускать коннект
 
  $ nmcli conn up LONDON 
@@ -77,4 +79,15 @@ iptables -A INPUT -p udp --dport 1701  -s VPN_SERVER_IP  -j ACCEPT
 после этого у нас появлется вирт сет карта ppp0
 в которую и суется весь трафик
 
+xчтобы у нас ходил в впн олько нужный трафик тогда 
+
+отключает гейтвей по дефолту через впн
+nmcli connection modify "LONDON" ipv4.never-default yes
+
+
+добавляем подсети котрые мы хотим роутить через впн
+nmcli connection modify "LONDON" ipv4.never-default yes
+
+оттключаем запросы днс через впн (хз что знает)
+nmcli connection modify "LONDON" ipv4.never-default yes
 

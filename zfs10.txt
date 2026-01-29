@@ -1,21 +1,21 @@
 | zfs
-| scrub
-| error
-| troubleshoot
+
+есть такая фигня 
+типа если непнятно куда ушло место 
+то значит что либо место занято под снэпштты
+
+ zfs list -t snapshot
+
+либо есть файлы котоыре есь на фс а потом свержу еще чтото примонтровали и поэтому 
+их невиндно тоогда 
 
 
-если в статусе пула написано что плвяились трабы с такимто файлами 
-то лечит сяэто вот как
-
-
-запускаем скраб
-
-# zpool scrub POOL-01
-
-потом ждем минут 5-10
-потом его стопим тоесть ждать когда он весь пул прблеежит ненужно
-
-# zpool -s scrub POOL-01
-
-и о чудо ошибка в статусе пула об ощшибках  с файлами исчезла!
+Create the mount point:
+mkdir /mnt/ghost
+Mount the root device to itself:
+mount -t nullfs / /mnt/ghost
+Check the "hidden" sizes:
+du -sh /mnt/ghost/var
+du -sh /mnt/ghost/usr
+du -sh /mnt/ghost/root
 
