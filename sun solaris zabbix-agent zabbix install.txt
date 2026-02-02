@@ -1,0 +1,36 @@
+| sun 
+| solaris
+| zabbix 
+| zabbix-agent
+
+как егоп постваить
+
+если солярис 11
+
+-bash-3.00# mkdir Downloads && cd Downloads
+-bash-3.00# isainfo -kv
+64-bit sparcv9 kernel modules
+-bash-3.00#  curl -k -O https://cdn.zabbix.com/zabbix/binaries/stable/6.0/6.0.5/zabbix_agent-6.0.5-solaris-11-sparc-openssl.p5p
+
+groupadd zabbix
+useradd -g zabbix -d /var/lib/zabbix -s /bin/false zabbix
+
+
+ads# usermod -g zabbix zabbix
+
+# pkg install -v --no-refresh -g ./zabbix_agent-6.0.5-solaris-11-sparc-openssl.p5p zabbix-agent
+
+если оругнется на то что забикс не в групппе то 
+
+root@master:~/Downloads# usermod -g zabbix zabbix
+root@master:~/Downloads# usermod -g zabbix zabbix
+
+и опять пвотор инстала
+
+
+# pkg install -v --no-refresh -g ./zabbix_agent-6.0.5-solaris-11-sparc-openssl.p5p zabbix-agent
+
+если солярис10
+pkgadd -G -d zabbix_agent-6.0.33-solaris-10-sparc-openssl.pkg
+
+
