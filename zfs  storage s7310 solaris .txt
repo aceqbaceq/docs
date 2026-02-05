@@ -1,0 +1,641 @@
+| zfs
+| solaris
+| appliance
+| 7310
+| s7310
+| sun storage 7310
+
+это исчтория как обращаться с сан сторадж аплиансом s7310
+
+
+
+
+
+
+
+полезная шткуа
+эта комналда позволыет узнать серинийни дисков которые входят в зфс пул
+for i in $(zpool status -v pool1 | grep c2t5 | awk '{print $1}'); do echo "disk id =$i"; smartctl -d scsi  -i /dev/rdsk/$i | grep Serial; iostat -En $i; done
+
+
+
+
+а эта комнад позвяет узнать серинйиик вообще всехдисков пдклюенных
+
+ for i in $(echo | format | grep c2t5 | awk '{print $2}'); do echo "disk id =$i"; smartctl -d scsi  -i /dev/rdsk/$i | grep Serial; iostat -En $i; done
+
+
+
+        NAME                       STATE     READ WRITE CKSUM
+        pool1                      ONLINE       0     0 7.81K
+          raidz2-0                 ONLINE       0     0     0
+            c2t5000C50014F9C3CCd0  ONLINE       0     0     0
+            c2t5000CCA39CF37E1Dd0  ONLINE       0     0     0
+            c2t5000CCA39CF3465Cd0  ONLINE       0     0     0
+            c2t5000CCA39CF4017Ed0  ONLINE       0     0     0
+            c2t5000CCA39CF181DCd0  ONLINE       0     0     2
+            c2t5000C500112362DFd0  ONLINE       0     0     0
+            c2t5000C5002DC25AEDd0  ONLINE       1   151 17.8K
+            c2t5000CCA39CF16CDAd0  ONLINE       0     0     0
+            c2t5000C50015AD60ECd0  ONLINE       0     0     0
+            c2t5000CCA39CF2B0BBd0  ONLINE       0     0     0
+            c2t5000C50014EBCDE1d0  ONLINE       0     0     0
+          raidz2-1                 ONLINE       0     0 15.6K
+            c2t5000C50015AE8879d0  ONLINE       0     0     0
+            c2t5000CCA39CF1C60Dd0  ONLINE       0     0     0
+            c2t5000CCA39CD33485d0  ONLINE       0     0     0
+            c2t5000CCA39CF41260d0  ONLINE       0     0     0
+            c2t5000CCA396E3A4AFd0  ONLINE       0     0     0
+            c2t5000C500154E3CADd0  ONLINE       0     0     0
+            c2t5000C5002D7E7D73d0  ONLINE       0     0 15.8K
+            c2t5000C5001586D98Bd0  ONLINE       0     0     0
+            c2t5000C5002DC24995d0  ONLINE       0     0 11.4K
+            c2t5000CCA39CF41061d0  ONLINE       0     0     0
+            c2t5000CCA39CF1E106d0  ONLINE       0     0     0
+        spares
+          c2t5000CCA216E7F558d0    AVAIL   
+          c2t5000CCA216E07638d0    AVAIL   
+
+
+
+
+s7310# for i in $(zpool status -v pool1 | grep c2t5 | awk '{print $1}'); do echo "disk id =$i"; smartctl -d scsi  -i /dev/rdsk/$i | grep Serial; iostat -En $i; echo "" ; done
+disk id =c2t5000C50014F9C3CCd0
+Serial number: 9QJ43J7G            
+c2t5000C50014F9C3CCd0 Soft Errors: 0 Hard Errors: 37 Transport Errors: 0 
+Vendor: ATA      Product: SEAGATE ST31000N Revision: SU13 Serial No:  
+Size: 1000.20GB <1000204886016 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 1 Recoverable: 0 
+Illegal Request: 204 Predictive Failure Analysis: 0 
+
+disk id =c2t5000CCA39CF37E1Dd0
+Serial number: JPW9K0N13N8KSL      
+c2t5000CCA39CF37E1Dd0 Soft Errors: 0 Hard Errors: 1 Transport Errors: 1 
+Vendor: ATA      Product: HITACHI H7210CA3 Revision: A3CB Serial No:  
+Size: 1000.20GB <1000204886016 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 1 Recoverable: 0 
+Illegal Request: 90 Predictive Failure Analysis: 0 
+
+disk id =c2t5000CCA39CF3465Cd0
+Serial number: JPW9K0N13MTRAL      
+c2t5000CCA39CF3465Cd0 Soft Errors: 0 Hard Errors: 30 Transport Errors: 0 
+Vendor: ATA      Product: HITACHI H7210CA3 Revision: A3CB Serial No:  
+Size: 1000.20GB <1000204886016 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 0 Recoverable: 0 
+Illegal Request: 204 Predictive Failure Analysis: 0 
+
+disk id =c2t5000CCA39CF4017Ed0
+Serial number: JPW9K0N13PDKPL      
+c2t5000CCA39CF4017Ed0 Soft Errors: 0 Hard Errors: 26 Transport Errors: 0 
+Vendor: ATA      Product: HITACHI H7210CA3 Revision: A3CB Serial No:  
+Size: 1000.20GB <1000204886016 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 0 Recoverable: 0 
+Illegal Request: 106 Predictive Failure Analysis: 0 
+
+
+>>>
+disk id =c2t5000CCA39CF181DCd0
+Serial number: JPW9K0N13HX5KL      
+c2t5000CCA39CF181DCd0 Soft Errors: 0 Hard Errors: 61 Transport Errors: 69 
+Vendor: ATA      Product: HITACHI H7210CA3 Revision: A3CB Serial No:  
+Size: 1000.20GB <1000204886016 bytes>
+Media Error: 32 Device Not Ready: 0 No Device: 0 Recoverable: 0 
+Illegal Request: 162 Predictive Failure Analysis: 0 
+<<<<
+
+
+disk id =c2t5000C500112362DFd0
+Serial number: 9QJ3BS5X            
+c2t5000C500112362DFd0 Soft Errors: 0 Hard Errors: 1 Transport Errors: 0 
+Vendor: ATA      Product: SEAGATE ST31000N Revision: SU13 Serial No:  
+Size: 1000.20GB <1000204886016 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 1 Recoverable: 0 
+Illegal Request: 10 Predictive Failure Analysis: 0 
+
+disk id =c2t5000C5002DC25AEDd0
+Serial number: 9WK3AT23            
+c2t5000C5002DC25AEDd0 Soft Errors: 0 Hard Errors: 0 Transport Errors: 282 
+Vendor: ATA      Product: SEAGATE ST31001N Revision: SM04 Serial No:  
+Size: 1000.20GB <1000204886016 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 0 Recoverable: 0 
+Illegal Request: 62 Predictive Failure Analysis: 0 
+
+disk id =c2t5000CCA39CF16CDAd0
+Serial number: JPW9K0N13HRL2L      
+c2t5000CCA39CF16CDAd0 Soft Errors: 0 Hard Errors: 25 Transport Errors: 0 
+Vendor: ATA      Product: HITACHI H7210CA3 Revision: A3CB Serial No:  
+Size: 1000.20GB <1000204886016 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 0 Recoverable: 0 
+Illegal Request: 122 Predictive Failure Analysis: 0 
+
+disk id =c2t5000C50015AD60ECd0
+Serial number: 9QJ4TZ4X            
+c2t5000C50015AD60ECd0 Soft Errors: 0 Hard Errors: 42 Transport Errors: 0 
+Vendor: ATA      Product: SEAGATE ST31000N Revision: SU13 Serial No:  
+Size: 1000.20GB <1000204886016 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 1 Recoverable: 0 
+Illegal Request: 203 Predictive Failure Analysis: 0 
+
+disk id =c2t5000CCA39CF2B0BBd0
+Serial number: JPW9K0N13LHVPL      
+c2t5000CCA39CF2B0BBd0 Soft Errors: 0 Hard Errors: 35 Transport Errors: 0 
+Vendor: ATA      Product: HITACHI H7210CA3 Revision: A3CB Serial No:  
+Size: 1000.20GB <1000204886016 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 0 Recoverable: 0 
+Illegal Request: 159 Predictive Failure Analysis: 0 
+
+disk id =c2t5000C50014EBCDE1d0
+Serial number: 9QJ40SPP            
+c2t5000C50014EBCDE1d0 Soft Errors: 0 Hard Errors: 3 Transport Errors: 10 
+Vendor: ATA      Product: SEAGATE ST31000N Revision: SU0F Serial No:  
+Size: 1000.20GB <1000204886016 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 3 Recoverable: 0 
+Illegal Request: 23 Predictive Failure Analysis: 0 
+
+disk id =c2t5000C50015AE8879d0
+Serial number: 9QJ4W9VA            
+c2t5000C50015AE8879d0 Soft Errors: 0 Hard Errors: 0 Transport Errors: 0 
+Vendor: ATA      Product: SEAGATE ST31000N Revision: SU15 Serial No:  
+Size: 1000.20GB <1000204886016 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 0 Recoverable: 0 
+Illegal Request: 10 Predictive Failure Analysis: 0 
+
+disk id =c2t5000CCA39CF1C60Dd0
+Serial number: JPW9K0N13JHAPL      
+c2t5000CCA39CF1C60Dd0 Soft Errors: 0 Hard Errors: 0 Transport Errors: 0 
+Vendor: ATA      Product: HITACHI H7210CA3 Revision: A3CB Serial No:  
+Size: 1000.20GB <1000204886016 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 0 Recoverable: 0 
+Illegal Request: 137 Predictive Failure Analysis: 0 
+
+disk id =c2t5000CCA39CD33485d0
+Serial number: JPW9K0N11B7PYL      
+c2t5000CCA39CD33485d0 Soft Errors: 0 Hard Errors: 0 Transport Errors: 0 
+Vendor: ATA      Product: HITACHI H7210CA3 Revision: A3CB Serial No:  
+Size: 1000.20GB <1000204886016 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 0 Recoverable: 0 
+Illegal Request: 18 Predictive Failure Analysis: 0 
+
+disk id =c2t5000CCA39CF41260d0
+Serial number: JPW9K0N13PK23L      
+c2t5000CCA39CF41260d0 Soft Errors: 0 Hard Errors: 0 Transport Errors: 0 
+Vendor: ATA      Product: HITACHI H7210CA3 Revision: A3CB Serial No:  
+Size: 1000.20GB <1000204886016 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 0 Recoverable: 0 
+Illegal Request: 197 Predictive Failure Analysis: 0 
+
+disk id =c2t5000CCA396E3A4AFd0
+Serial number: JPW9K0J82JDR7L      
+c2t5000CCA396E3A4AFd0 Soft Errors: 0 Hard Errors: 0 Transport Errors: 0 
+Vendor: ATA      Product: HITACHI H7210CA3 Revision: A3CB Serial No:  
+Size: 1000.20GB <1000204886016 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 0 Recoverable: 0 
+Illegal Request: 36 Predictive Failure Analysis: 0 
+
+disk id =c2t5000C500154E3CADd0
+Serial number: 9QJ4EJPF            
+c2t5000C500154E3CADd0 Soft Errors: 0 Hard Errors: 3 Transport Errors: 0 
+Vendor: ATA      Product: SEAGATE ST31000N Revision: SU13 Serial No:  
+Size: 1000.20GB <1000204886016 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 1 Recoverable: 0 
+Illegal Request: 196 Predictive Failure Analysis: 0 
+
+disk id =c2t5000C5002D7E7D73d0
+Serial number: 9WK2Y92Q            
+c2t5000C5002D7E7D73d0 Soft Errors: 0 Hard Errors: 2 Transport Errors: 0 
+Vendor: ATA      Product: SEAGATE ST31001N Revision: SM04 Serial No:  
+Size: 1000.20GB <1000204886016 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 0 Recoverable: 0 
+Illegal Request: 85 Predictive Failure Analysis: 0 
+
+disk id =c2t5000C5001586D98Bd0
+Serial number: 9QJ4KQ7A            
+c2t5000C5001586D98Bd0 Soft Errors: 0 Hard Errors: 1 Transport Errors: 0 
+Vendor: ATA      Product: SEAGATE ST31000N Revision: SU13 Serial No:  
+Size: 1000.20GB <1000204886016 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 1 Recoverable: 0 
+Illegal Request: 196 Predictive Failure Analysis: 0 
+
+disk id =c2t5000C5002DC24995d0
+Serial number: 9WK3ATZP            
+c2t5000C5002DC24995d0 Soft Errors: 0 Hard Errors: 0 Transport Errors: 0 
+Vendor: ATA      Product: SEAGATE ST31001N Revision: SM04 Serial No:  
+Size: 1000.20GB <1000204886016 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 0 Recoverable: 0 
+Illegal Request: 76 Predictive Failure Analysis: 0 
+
+disk id =c2t5000CCA39CF41061d0
+Serial number: JPW9K0N13PJJML      
+c2t5000CCA39CF41061d0 Soft Errors: 0 Hard Errors: 0 Transport Errors: 0 
+Vendor: ATA      Product: HITACHI H7210CA3 Revision: A3CB Serial No:  
+Size: 1000.20GB <1000204886016 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 0 Recoverable: 0 
+Illegal Request: 42 Predictive Failure Analysis: 0 
+
+disk id =c2t5000CCA39CF1E106d0
+Serial number: JPW9K0N13JRJEL      
+c2t5000CCA39CF1E106d0 Soft Errors: 0 Hard Errors: 0 Transport Errors: 0 
+Vendor: ATA      Product: HITACHI H7210CA3 Revision: A3CB Serial No:  
+Size: 1000.20GB <1000204886016 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 0 Recoverable: 0 
+Illegal Request: 150 Predictive Failure Analysis: 0 
+
+
+
+disk id =c2t5000CCA216E7F558d0
+Serial number: GTF002PAJUWZLF      
+c2t5000CCA216E7F558d0 Soft Errors: 0 Hard Errors: 2 Transport Errors: 10 
+Vendor: ATA      Product: HITACHI HUA7210S Revision: AC5A Serial No:  
+Size: 1000.20GB <1000204886016 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 2 Recoverable: 0 
+Illegal Request: 51 Predictive Failure Analysis: 0 
+
+
+
+disk id =c2t5000CCA216E07638d0
+Serial number: GTE000PAJ9DSAE      
+c2t5000CCA216E07638d0 Soft Errors: 0 Hard Errors: 0 Transport Errors: 0 
+Vendor: ATA      Product: HITACHI HUA7210S Revision: AC5A Serial No:  
+Size: 1000.20GB <1000204886016 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 0 Recoverable: 0 
+Illegal Request: 28 Predictive Failure Analysis: 0 
+
+
+
+мои действиявтя с пулом
+
+я вытащил диск  
+GTF002PAJUWZLF
+
+вот он где сидел
+
+0000
+0000
+0000
+00x0
+0000
+
+
+вот его состояние на момент вытаскиваиняия
+disk id =c2t5000CCA216E7F558d0
+Serial number: GTF002PAJUWZLF      
+c2t5000CCA216E7F558d0 Soft Errors: 0 Hard Errors: 2 Transport Errors: 10 
+Vendor: ATA      Product: HITACHI HUA7210S Revision: AC5A Serial No:  
+Size: 1000.20GB <1000204886016 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 2 Recoverable: 0 
+Illegal Request: 51 Predictive Failure Analysis: 0 
+
+
+он был спейр.
+
+я проверил на смартцл 
+его состояние оказалось оттличный 0 реклейдетт секторов и 0 пендинг снкторов
+
+вместо него я всиаваил новый диск 
+c2t5000C5002076C68Dd0
+
+его сериник
+s7310# smartctl -d scsi  -i /dev/rdsk/c2t5000C5002076C68Dd0  | grep Serial
+Serial number: 9QJ7ZADB  
+
+вот его состояние
+
+# iostat -En   c2t5000C5002076C68Dd0                                  
+c2t5000C5002076C68Dd0 Soft Errors: 0 Hard Errors: 0 Transport Errors: 0 
+Vendor: ATA      Product: SEAGATE ST31000N Revision: SU15 Serial No:  
+Size: 1000.20GB <1000204886016 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 0 Recoverable: 0 
+
+
+я с помощью него заменяю (через zpool replace) диск 
+c2t5000CCA39CF181DCd0
+
+его сериник
+s7310# smartctl -d scsi  -i /dev/rdsk/c2t5000CCA39CF181DCd0  | grep Serial 
+Serial number: JPW9K0N13HX5KL 
+
+его состояние
+
+s7310# iostat -En c2t5000CCA39CF181DCd0
+c2t5000CCA39CF181DCd0 Soft Errors: 0 Hard Errors: 65 Transport Errors: 80 
+Vendor: ATA      Product: HITACHI H7210CA3 Revision: A3CB Serial No:  
+Size: 1000.20GB <1000204886016 bytes>
+Media Error: 36 Device Not Ready: 0 No Device: 0 Recoverable: 0 
+Illegal Request: 172 Predictive Failure Analysis: 0 
+
+
+ситуацяи после синхронизации
+
+        NAME                       STATE     READ WRITE CKSUM
+        pool1                      ONLINE       0     0     2
+          raidz2-0                 ONLINE       0     0     0
+            c2t5000C50014F9C3CCd0  ONLINE       0     0     0
+            c2t5000CCA39CF37E1Dd0  ONLINE       0     0     0
+            c2t5000CCA39CF3465Cd0  ONLINE       0     0     0
+            c2t5000CCA39CF4017Ed0  ONLINE       0     0     0
+            c2t5000C5002076C68Dd0  ONLINE       0     0     0
+            c2t5000C500112362DFd0  ONLINE       0     0     0
+            c2t5000C5002DC25AEDd0  ONLINE       0     0    52
+            c2t5000CCA39CF16CDAd0  ONLINE       0     0     0
+            c2t5000C50015AD60ECd0  ONLINE       0     0     0
+            c2t5000CCA39CF2B0BBd0  ONLINE       0     0     0
+            c2t5000C50014EBCDE1d0  ONLINE       0     0     0
+          raidz2-1                 ONLINE       0     0     4
+            c2t5000C50015AE8879d0  ONLINE       0     0     0
+            c2t5000CCA39CF1C60Dd0  ONLINE       0     0     0
+            c2t5000CCA39CD33485d0  ONLINE       0     0     0
+            c2t5000CCA39CF41260d0  ONLINE       0     0     0
+            c2t5000CCA396E3A4AFd0  ONLINE       0     0     0
+            c2t5000C500154E3CADd0  ONLINE       0     0     0
+            c2t5000C5002D7E7D73d0  ONLINE       0     0    16
+            c2t5000C5001586D98Bd0  ONLINE       0     0     0
+            c2t5000C5002DC24995d0  ONLINE       0     0    17
+            c2t5000CCA39CF41061d0  ONLINE       0     0     0
+            c2t5000CCA39CF1E106d0  ONLINE       0     0     0
+        spares
+          c2t5000CCA216E07638d0    AVAIL
+
+
+диск который я заменил его тут нет. 
+именно потому что ему сделали реплейс.
+то есть новый диск в пуле появился  а старый был автматом исключен
+диск который я встаивил показал 
+
+  NAME                       STATE     READ WRITE CKSUM
+     c2t5000C5002076C68Dd0  ONLINE       0     0     0
+
+
+его состояние на момент шас
+s7310# zpool status -v pool1 | grep c2t5000CCA39CF181DCd0
+s7310# iostat -En c2t5000C5002076C68Dd0
+c2t5000C5002076C68Dd0 Soft Errors: 0 Hard Errors: 0 Transport Errors: 0 
+Vendor: ATA      Product: SEAGATE ST31000N Revision: SU15 Serial No:  
+Size: 1000.20GB <1000204886016 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 0 Recoverable: 0 
+Illegal Request: 8 Predictive Failure Analysis: 0 
+
+тоесть все олично как и должно быть
+
+
+
+
+
+зато дохера ошибок покзыает вот этот диск
+   NAME                       STATE     READ WRITE CKSUM
+       c2t5000C5002DC25AEDd0  ONLINE       0     0    52
+
+
+его серийник       
+s7310# smartctl -d scsi  -i /dev/rdsk/c2t5000C5002DC25AEDd0 | grep Serial 
+Serial number: 9WK3AT23
+
+его состояние
+s7310# iostat -En  c2t5000C5002DC25AEDd0
+c2t5000C5002DC25AEDd0 Soft Errors: 0 Hard Errors: 0 Transport Errors: 282 
+Vendor: ATA      Product: SEAGATE ST31001N Revision: SM04 Serial No:  
+Size: 1000.20GB <1000204886016 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 0 Recoverable: 0 
+Illegal Request: 74 Predictive Failure Analysis: 0 
+
+
+воот инфо по остальным двум дискам
+
+s7310# iostat -En c2t5000C5002D7E7D73d0
+c2t5000C5002D7E7D73d0 Soft Errors: 0 Hard Errors: 2 Transport Errors: 0 
+Vendor: ATA      Product: SEAGATE ST31001N Revision: SM04 Serial No:  
+Size: 1000.20GB <1000204886016 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 0 Recoverable: 0 
+Illegal Request: 87 Predictive Failure Analysis: 0 
+s7310# 
+s7310# 
+s7310# iostat -En c2t5000CCA39CF41061d0
+c2t5000CCA39CF41061d0 Soft Errors: 0 Hard Errors: 0 Transport Errors: 0 
+Vendor: ATA      Product: HITACHI H7210CA3 Revision: A3CB Serial No:  
+Size: 1000.20GB <1000204886016 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 0 Recoverable: 0 
+Illegal Request: 44 Predictive Failure Analysis: 0 
+
+
+
+последние два к ним претнзий пока нет.
+есть только к первому. его нужно тоже вынимать.
+
+
+
+на текущем этапе я вытасикваю диск 
+c2t5000CCA39CF181DCd0
+который был замненен и который уже иключен из массива
+это HDD 2 в терминах полки 
+вот он где сидит
+
+0000
+0000
+0000
+0000
+00x0
+
+
+еше раз его параметры
+его сериник
+s7310# smartctl -d scsi  -i /dev/rdsk/c2t5000CCA39CF181DCd0  | grep Serial 
+Serial number: JPW9K0N13HX5KL 
+
+его состояние
+s7310# iostat -En c2t5000CCA39CF181DCd0
+c2t5000CCA39CF181DCd0 Soft Errors: 0 Hard Errors: 65 Transport Errors: 80 
+Vendor: ATA      Product: HITACHI H7210CA3 Revision: A3CB Serial No:  
+Size: 1000.20GB <1000204886016 bytes>
+Media Error: 36 Device Not Ready: 0 No Device: 0 Recoverable: 0 
+Illegal Request: 172 Predictive Failure Analysis: 0 
+
+я его выинимаю и на его место ставлю
+диск с сериником  GTF002PAJUWZLF
+итак еще раз я вынимаю диск и вставляю тут же другой в эту дырку
+0000
+0000
+0000
+0000
+00x0
+
+эта дырка назвается HDD 2
+вот я вставил указнный диск
+
+disk id =c2t5000CCA216E7F558d0
+Serial number: GTF002PAJUWZLF      
+c2t5000CCA216E7F558d0 Soft Errors: 0 Hard Errors: 0 Transport Errors: 0 
+Vendor: ATA      Product: HITACHI HUA7210S Revision: AC5A Serial No:  
+Size: 1000.20GB <1000204886016 bytes>
+
+с ним все окей
+
+
+
+
+
+
+
+
+
+
+теперь я им буду заменять вот этот диск 
+зато дохера ошибок покзыает вот этот диск
+   NAME                       STATE     READ WRITE CKSUM
+       c2t5000C5002DC25AEDd0  ONLINE       0     0    52
+
+
+его серийник       
+s7310# smartctl -d scsi  -i /dev/rdsk/c2t5000C5002DC25AEDd0 | grep Serial 
+Serial number: 9WK3AT23
+
+это HDD 9
+его дырка
+
+0000
+0000
+0x00
+0000
+
+его состояние
+s7310# iostat -En  c2t5000C5002DC25AEDd0
+c2t5000C5002DC25AEDd0 Soft Errors: 0 Hard Errors: 0 Transport Errors: 282 
+Vendor: ATA      Product: SEAGATE ST31001N Revision: SM04 Serial No:  
+Size: 1000.20GB <1000204886016 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 0 Recoverable: 0 
+Illegal Request: 74 Predictive Failure Analysis: 0 
+
+
+у него только траснапортные ошибки но
+попробуем его поменять все такие
+
+
+
+
+zpool replace pool1   c2t5000C5002DC25AEDd0 (BAD)   c2t5000CCA216E7F558d0 (GOOD)
+
+
+
+zpool status -v 
+
+        NAME                         STATE     READ WRITE CKSUM
+        pool1                        ONLINE       0     0     0
+          raidz2-0                   ONLINE       0     0     0
+            c2t5000C50014F9C3CCd0    ONLINE       0     0     0
+            c2t5000CCA39CF37E1Dd0    ONLINE       0     0     0
+            c2t5000CCA39CF3465Cd0    ONLINE       0     0     0
+            c2t5000CCA39CF4017Ed0    ONLINE       0     0     0
+            c2t5000C5002076C68Dd0    ONLINE       0     0     0
+            c2t5000C500112362DFd0    ONLINE       0     0     0
+            replacing-6              ONLINE       0     0     0
+              c2t5000C5002DC25AEDd0  ONLINE       0     0     0                 <==** плохой
+              c2t5000CCA216E7F558d0  ONLINE       0     0     0  (resilvering)  <==** хороший
+            c2t5000CCA39CF16CDAd0    ONLINE       0     0     0
+            c2t5000C50015AD60ECd0    ONLINE       0     0     0
+            c2t5000CCA39CF2B0BBd0    ONLINE       0     0     0
+            c2t5000C50014EBCDE1d0    ONLINE       0     0     0
+          raidz2-1                   ONLINE       0     0     0
+            c2t5000C50015AE8879d0    ONLINE       0     0     0
+            c2t5000CCA39CF1C60Dd0    ONLINE       0     0     0
+            c2t5000CCA39CD33485d0    ONLINE       0     0     0
+            c2t5000CCA39CF41260d0    ONLINE       0     0     0
+            c2t5000CCA396E3A4AFd0    ONLINE       0     0     0
+            c2t5000C500154E3CADd0    ONLINE       0     0     0
+            c2t5000C5002D7E7D73d0    ONLINE       0     0     0
+            c2t5000C5001586D98Bd0    ONLINE       0     0     0
+            c2t5000C5002DC24995d0    ONLINE       0     0     0
+            c2t5000CCA39CF41061d0    ONLINE       0     0     0
+            c2t5000CCA39CF1E106d0    ONLINE       0     0     0
+        spares
+          c2t5000CCA216E07638d0      AVAIL   
+
+
+
+
+
+
+теперь оступление какого же здооровье диска которйы я вытащил
+
+SMART Attributes Data Structure revision number: 16
+Vendor Specific SMART Attributes with Thresholds:
+ID# ATTRIBUTE_NAME          FLAGS    VALUE WORST THRESH FAIL RAW_VALUE
+  5 Reallocated_Sector_Ct   PO--CK   100   100   005    -    26
+196 Reallocated_Event_Count -O--CK   100   100   000    -    28
+197 Current_Pending_Sector  -O---K   100   100   000    -    68
+198 Offline_Uncorrectable   ---R--   100   100   000    -    0
+199 UDMA_CRC_Error_Count    -O-R--   200   200   000    -    0
+
+
+у него 26 релокейтед секторов и 68 пендинг секторов
+
+кроме того вот часть логов
+
+
+  Commands leading to the command that caused the error were:
+  CR FEATR COUNT  LBA_48  LH LM LL DV DC  Powered_Up_Time  Command/Feature_Name
+  -- == -- == -- == == == -- -- -- -- --  ---------------  --------------------
+  60 00 20 00 80 00 00 37 22 73 31 40 00 12d+02:38:21.589  READ FPDMA QUEUED
+  60 00 07 00 00 00 00 36 cd a9 fe 40 00 12d+02:38:21.016  READ FPDMA QUEUED
+  2f 00 00 00 01 00 00 00 00 00 10 00 00 12d+02:38:20.999  READ LOG EXT
+  2f 00 00 00 01 00 00 00 00 00 10 00 00 12d+02:38:20.997  READ LOG EXT
+  60 00 20 00 00 00 00 37 22 73 31 40 00 12d+02:37:56.539  READ FPDMA QUEUED
+
+Error 35 [2] occurred at disk power-on lifetime: 24427 hours (1017 days + 19 hours)
+  When the command that caused the error occurred, the device was active or idle.
+
+  After command completion occurred, registers were:
+  ER -- ST COUNT  LBA_48  LH LM LL DV DC
+  -- -- -- == -- == == == -- -- -- -- --
+  40 -- 51 00 07 00 00 36 cd a9 fe 00 00  Error: UNC at LBA = 0x36cda9fe = 919448062
+
+  Commands leading to the command that caused the error were:
+  CR FEATR COUNT  LBA_48  LH LM LL DV DC  Powered_Up_Time  Command/Feature_Name
+  -- == -- == -- == == == -- -- -- -- --  ---------------  --------------------
+  60 00 20 00 00 00 00 37 22 73 31 40 00 12d+02:37:56.539  READ FPDMA QUEUED
+  60 00 07 00 a0 00 00 36 cd a9 fe 40 00 12d+02:37:56.538  READ FPDMA QUEUED
+  60 00 04 00 20 00 00 35 71 4f cd 40 00 12d+02:37:56.498  READ FPDMA QUEUED
+  60 00 07 00 88 00 00 36 b7 62 4a 40 00 12d+02:37:56.467  READ FPDMA QUEUED
+  60 00 0a 00 08 00 00 36 b7 11 6a 40 00 12d+02:37:56.421  READ FPDMA QUEUED
+
+Error 34 [1] occurred at disk power-on lifetime: 24425 hours (1017 days + 17 hours)
+  When the command that caused the error occurred, the device was active or idle.
+
+  After command completion occurred, registers were:
+  ER -- ST COUNT  LBA_48  LH LM LL DV DC
+  -- -- -- == -- == == == -- -- -- -- --
+  40 -- 51 00 08 00 00 1d d3 c9 1c 00 00  Error: UNC at LBA = 0x1dd3c91c = 500418844
+
+  Commands leading to the command that caused the error were:
+  CR FEATR COUNT  LBA_48  LH LM LL DV DC  Powered_Up_Time  Command/Feature_Name
+  -- == -- == -- == == == -- -- -- -- --  ---------------  --------------------
+  60 00 1e 00 00 00 00 1d d3 c9 06 40 00 11d+14:14:53.304  READ FPDMA QUEUED
+  2f 00 00 00 01 00 00 00 00 00 10 00 00 11d+14:14:53.288  READ LOG EXT
+  2f 00 00 00 01 00 00 00 00 00 10 00 00 11d+14:14:53.286  READ LOG EXT
+  60 00 06 00 90 00 00 1d da 93 27 40 00 11d+14:14:30.359  READ FPDMA QUEUED
+  60 00 11 00 10 00 00 15 2b d3 20 40 00 11d+14:14:30.359  READ FPDMA QUEUED
+
+
+
+цитирую нейронку
+Диск в плохом состоянии. Ошибки
+UNC (Uncorrectable error) означают наличие «битых» секторов (bad blocks), которые контроллер не смог прочитать даже после многократных попыток.
+Вот основные выводы из вашего лога:
+
+    Физические повреждения: Ошибки произошли на конкретных адресах (LBA 919448062 и 500418844). Магнитное покрытие в этих местах деградировало.
+    Износ: Диск отработал более 24 400 часов (почти 3 года непрерывной работы). Для многих потребительских HDD это порог, когда начинают проявляться аппаратные проблемы.
+    Динамика: Ошибки №35 и №34 зафиксированы с разницей в пару часов. Это плохой признак — если «бэды» начали сыпаться один за другим, диск может полностью отказать в любой момент.
+
+
+еще раз напомню речь идет об этом вытащенном диске
+еше раз его параметры
+его сериник
+s7310# smartctl -d scsi  -i /dev/rdsk/c2t5000CCA39CF181DCd0  | grep Serial 
+Serial number: JPW9K0N13HX5KL 
+
+его состояние
+s7310# iostat -En c2t5000CCA39CF181DCd0
+c2t5000CCA39CF181DCd0 Soft Errors: 0 Hard Errors: 65 Transport Errors: 80 
+Vendor: ATA      Product: HITACHI H7210CA3 Revision: A3CB Serial No:  
+Size: 1000.20GB <1000204886016 bytes>
+Media Error: 36 Device Not Ready: 0 No Device: 0 Recoverable: 0 
+Illegal Request: 172 Predictive Failure Analysis: 0 
+
+

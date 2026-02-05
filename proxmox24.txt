@@ -1,0 +1,46 @@
+| proxmox
+| pvesh
+
+
+скрипт ищет на клстере вируталки у котоых
+опация 
+
+ boot=no
+ 
+усатановлена
+
+
+
+#!/bin/bash
+
+# Проверка наличия jq
+if ! command -v jq &> /dev/null; then
+    echo "Ошибка: jq не установлен. Выполните: apt update && apt install jq"
+    exit 1
+fi
+
+echo "Список ресурсов с ВЫКЛЮЧЕННЫМ автозапуском (onboot=0):"
+echo "------------------------------------------------------"
+
+# Получаем список всех ВМ (qemu) и контейнеров (lxc) в кластере
+pvesh get /cluster/resources --output-format json | jq -c '.[] | select(.type=="qemu" or .type=="lxc")' | while read -r resource; do
+    
+    TYPE=$(echo "$resource" | jq -r '.type')
+    NODE=$(echo "$resource" | jq -r '.node')
+    ID=$(echo "$resource" | jq -r '.vmid')
+    NAME=$(echo "$resource" | jq -r '.name // "Unknown"')
+
+    # Выбираем правильный путь в API в зависимости от типа (qemu или lxc)
+    API_PATH="/nodes/$NODE/$TYPE/$ID/config"
+    
+    # Запрашиваем конфиг и проверяем onboot. 
+    # Если поля нет или оно равно 0 — считаем, что автостарт выключен.
+    ONBOOT=$(pvesh get "$API_PATH" --output-format json | jq -r '.onboot // 0')
+
+    if [ "$ONBOOT" -eq 0 ]; then
+        printf "[%-4s] ID: %-6s Node: %-12s Name: %s\n" "$TYPE" "$ID" "$NODE" "$NAME"
+    fi
+done
+
+
+
