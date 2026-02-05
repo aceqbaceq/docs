@@ -1,0 +1,6 @@
+| sas
+| обрезка
+
+обредка диска sas
+
+sg_format --resize --count=125829120 /dev/da1

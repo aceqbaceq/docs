@@ -1,0 +1,132 @@
+| freebsd 
+| mirror
+| geom
+
+есть диск который средстваи freebbsd geom был в мирроре. 
+второго диска нет.
+
+первый этап . я хочу этот диск пененести на другой диск.
+геом пишет в самый конец диска свои метки поэтому диск на который 
+я буду копрпиррвать дожлен был до сектоа равен исхощндному.
+я скопировал посекторно его на более болшой диск и ядро смогло грузится/
+а вот уже корневая система не могла быть примаонтрованнаа.
+поэтому если диск в мирроре геом фрибсд то нужно иметь такой же диск.
+если есть более бобшой то его нуно обрезать через
+
+для сата диска
+camcontrol   hpa   ada0    -P   -s 293601
+
+для сас диска
+sg_format --resize --count=125829120 /dev/da1
+
+
+
+
+итак мы имеем диск
+грузимся с него
+
+и вот что мы имеем
+
+quark01# camcontrol devlist
+<SEAGATE ST3500630NS 3.AYG>        at scbus2 target 0 lun 0 (ada0,pass0)
+<SEAGATE ST3500630NS 3.AYG>        at scbus3 target 0 lun 0 (ada1,pass1)
+
+у меня ada1 это диск зеркала а ada0 это новый читстый диск котрый я хочу добавить 
+кзеркалу
+
+
+
+статус зеркла
+
+quark01# gmirror status
+      Name    Status  Components
+mirror/gm0  DEGRADED  ada1 (ACTIVE)
+
+
+
+
+quark01# gmirror list
+Geom name: gm0
+State: DEGRADED
+Components: 2
+Balance: round-robin
+Slice: 4096
+Flags: NONE
+GenID: 0
+SyncID: 6
+ID: 2247631130
+Providers:
+1. Name: mirror/gm0
+   Mediasize: 400088456704 (372G)
+   Sectorsize: 512
+   Mode: r5w5e14
+Consumers:
+1. Name: ada1
+   Mediasize: 400088457216 (372G)
+   Sectorsize: 512
+   Mode: r1w1e1
+   State: ACTIVE
+   Priority: 0
+   Flags: DIRTY
+   GenID: 0
+   SyncID: 6
+   ID: 1953266209
+
+
+
+готовим новый диск к вставке
+
+
+quark01# gpart destroy -F ada0
+gpart: arg0 'ada0': Invalid argument
+quark01#  gmirror clear ada0
+Can't clear metadata on ada0: Invalid argument.
+gmirror: Not fully done.
+quark01# gmirror insert gm0 ada0
+gmirror: Not all disks connected.
+
+
+тут ошибка потому что зеркало хочет взвралата старого диска
+
+мы говорим забудь староый второй диск его уже нет
+quark01# gmirror forget gm0
+
+quark01# gmirror status
+      Name    Status  Components
+mirror/gm0  COMPLETE  ada1 (ACTIVE)
+
+
+добавлем новый диск
+
+quark01# gmirror insert gm0 ada0
+quark01# gmirror status
+      Name    Status  Components
+mirror/gm0  DEGRADED  ada1 (ACTIVE)
+                      ada0 (SYNCHRONIZING, 0%)
+quark01# gstat
+
+dT: 1.001s  w: 1.000s
+ L(q)  ops/s    r/s   kBps   ms/r    w/s   kBps   ms/w   %busy Name
+    1    536      0      0    0.0    536  67904    2.3   90.3| ada0
+    1    530    530  67901    1.5      0      0    0.0   69.1| mirror/gm0
+    1    531    530  67901    1.4      1      0    0.1   67.8| ada1
+
+
+
+quark01# gpart show
+=>       63  781422704  mirror/gm0  MBR  (372G)
+         63  780140529           1  freebsd  [active]  (372G)
+  780140592    1282175              - free -  (626M)
+
+=>        0  780140529  mirror/gm0s1  BSD  (372G)
+          0    4194304             1  freebsd-ufs  (2.0G)
+    4194304    8388608                - free -  (4.0G)
+   12582912    8388608             4  freebsd-swap  (4.0G)
+   20971520    8388608             2  freebsd-ufs  (4.0G)
+   29360128    8388608             5  freebsd-ufs  (4.0G)
+   37748736  742391792             6  freebsd-ufs  (354G)
+  780140528          1                - free -  (512B)
+
+
+ждем  окончания синхронизации
+
