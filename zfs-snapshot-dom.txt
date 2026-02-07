@@ -1,0 +1,98 @@
+| zfs 
+| snapshot
+
+
+внаалае заходим (принимающу сторону) на бэкап сервевр
+на бэкап серверере 
+    # zpool import -R /mnt/ POOL-BACKUP
+
+    # zfs list -r POOL-BACKUP
+    NAME          USED  AVAIL  REFER  MOUNTPOINT
+    POOL-BACKUP  2.58M   899G    96K  /mnt//POOL-BACKUP
+
+
+    # mbuffer -4 -I 9000 -m 200M | zfs recv  -F   -s   POOL-BACKUP/LENOVO-BACKUP
+
+
+
+идем на отпраляющую сторону
+вот структура датасетов
+
+
+ # zfs list -r POOL-ZFS-MAIN
+NAME                         USED  AVAIL  REFER  MOUNTPOINT
+POOL-ZFS-MAIN               96.0G   204G    96K  none
+POOL-ZFS-MAIN/ROOT          95.0G   204G    96K  none
+POOL-ZFS-MAIN/ROOT/home     65.6G   204G  61.4G  /home
+POOL-ZFS-MAIN/ROOT/manjaro  29.4G   204G  28.9G  /
+POOL-ZFS-MAIN/var            971M   204G    96K  none
+POOL-ZFS-MAIN/var/log        971M   204G   968M  /var/log
+
+
+снимаем снэпшот с датасета верхнего  и снэпшоты со всех его дочерних датасетов за один присест
+
+     # zfs snapshot -r POOL-ZFS-MAIN@2026-02-07
+     
+
+сотрим список снэпшшотов
+
+$ zfs list -t snapshot | grep 02-07
+POOL-ZFS-MAIN@2026-02-07                  0B      -    96K  -
+POOL-ZFS-MAIN/ROOT@2026-02-07             0B      -    96K  -
+POOL-ZFS-MAIN/ROOT/home@2026-02-07     80.2M      -  61.4G  -
+POOL-ZFS-MAIN/ROOT/manjaro@2026-02-07   564K      -  28.9G  -
+POOL-ZFS-MAIN/var@2026-02-07              0B      -    96K  -
+POOL-ZFS-MAIN/var/log@2026-02-07          0B      -   968M  -
+
+
+тоест для каждого датасета создался снэпшот 
+
+отправляем все эти снэпшоты одной командой
+
+    # zfs send -c -R    POOL-ZFS-MAIN@2026-02-07       | mbuffer -O fr:9000 -r 50M -m 350M
+
+
+как отправлять икрементый бекап в следующей серии.
+а пока про важное.
+команда zfs list  она знать незнает что такое пул. она знает и работает с датасетами
+поэтому в выводе этой маоды мы видим ТОЛЬКО датасеты. никаких пулов
+поэтому
+
+ # zfs list -r POOL-ZFS-MAIN
+NAME                         USED  AVAIL  REFER  MOUNTPOINT
+POOL-ZFS-MAIN               96.0G   204G    96K  none
+POOL-ZFS-MAIN/ROOT          95.0G   204G    96K  none
+POOL-ZFS-MAIN/ROOT/home     65.6G   204G  61.4G  /home
+POOL-ZFS-MAIN/ROOT/manjaro  29.4G   204G  28.9G  /
+POOL-ZFS-MAIN/var            971M   204G    96K  none
+POOL-ZFS-MAIN/var/log        971M   204G   968M  /var/log
+
+ 
+тут все имена датасетов.
+тоесть 
+
+   POOL-ZFS-MAIN
+
+это имя датасета. 
+когда мы создаем пул то зфс автоматом для нас и за нас создает датасет с именем такое же как у пула.
+так вот когда мы юзаем команду zfs то в ней имя сущосити которое мы там пишем это всегда 
+
+   имя_датсета1/имя_датасета2/имя_датасета3
+   
+никаких имен пулов в сущностяих команды zfs нет!
+
+далее. комада  zfs send  она передает содержимое указанного датасета. тоесть по сути файлы и папки которые там лежат
+как команда cp. имя датасета в котором они хранились на исходному пуле она  упрощенно формулирую не передает потому
+что на принимающей стсороне в команде zfs recv мы укываем имя того датасета куда принимаемые папки и файлы нужно складыеывать.
+этополный аналог ттго как мы обычно копируем на компе  папку-А  с его сооедржиым в папку-Б
+содежимое коруется. а  имя головной папки меняется.
+
+имя снэпшота это 
+
+    имя_датасета@имя_снэпшота
+    
+    
+снэпшот это замороженное состояние всех файлов и папок датасета
+
+
+
