@@ -1,0 +1,23 @@
+| sun 
+| solaris
+| lacp
+
+
+  dladm create-aggr -L active -T short -P L2 -l net0 -l net1 -l net2 -l net3 aggr0
+  dladm show-aggr -L
+  dladm create-vnic -l aggr0 -v 55 vnic55
+  ipadm create-ip vnic55
+  ipadm create-addr -a 100.69.55.61/24 vnic55/v4
+  dladm set-linkprop -p mtu=9000 aggr0
+  route -p add default 100.69.55.1
+  
+      interval
+root@cmdb2:~# dlstat show-link -i 1 aggr0
+           LINK    IPKTS   RBYTES    OPKTS   OBYTES
+          aggr0        0        0        0        0
+          aggr0        0        0        0        0
+          aggr0        0        0        0        0
+          aggr0        0        0        0        0
+          aggr0        0        0        0        0
+
+dladm set-linkprop -p mtu=1500 vnic55
