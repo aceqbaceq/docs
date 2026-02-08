@@ -1,0 +1,23 @@
+| sun 
+| solaris 
+| ilom
+| alom
+| intel
+
+на базе интел есть уродский илом/алом 
+как через него зайтив коргсоль оерпационки
+
+быватю разные версии
+
+
+
+ start /SP/AgentInfo/сonsole
+ start /SP/сonsole
+
+
+ если не срабтывает нужно просто найти где лежит это console
+
+  show -level all /SP 
+
+причем для этог одебилва важно console или Console
+

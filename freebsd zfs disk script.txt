@@ -1,0 +1,30 @@
+| freebsd 
+| zfs
+| disk
+| script
+
+
+Processing /dev/sdan (SN: Z1X41506)...
+root@backup-02:/home/krivosheeva/scritps# cat sn.bash 
+#!/usr/bin/bash
+
+
+for disk in  ak al am an    ; do
+  dev="/dev/sd$disk"
+  # Достаем серийник именно так, как его видит система
+  sn=$(lsblk -dno SERIAL $dev)
+  
+  echo "Processing $dev (SN: $sn)..."
+  
+  # 1. Создаем таблицу GPT
+  parted -s $dev mklabel gpt
+  
+  # 2. Создаем раздел (отступ 2048s для выравнивания)
+  # Используем 100% диска
+  parted -s $dev mkpart primary 2048s 100%
+  
+  # 3. Присваиваем имя разделу (Partlabel) равное серийнику
+  parted -s $dev name 1 $sn
+done
+
+
