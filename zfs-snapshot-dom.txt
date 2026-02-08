@@ -127,3 +127,37 @@ POOL-ZFS-MAIN/var/log        971M   204G   968M  /var/log
    инкреемтный снэпшот. а с этим флагом сможет.  если мы поеняем в принятм датасете данные то зфс при прнниятии снэпщоота
    их откатить нахер. и успешно сверху накатить инкретмнвй снэпшотт
    
+
+
+
+потом мы сняли второй раз снэпшот 
+
+
+и тогда вот так запускаем на принимаюейщей стороне тоже самон
+
+  # mbuffer -4 -I 9000 -m 200M | zfs recv  -F   -s   POOL-BACKUP/LENOVO-BACKUP
+
+а вот так на отправляющей
+
+   # zfs send -c -R -i   POOL-ZFS-MAIN@2026-02-07    POOL-ZFS-MAIN@2026-02-08       | mbuffer -O fr:9000 -r 50M -m 350M
+
+
+где
+
+   # zfs send -c -R -i   (старый снэпшоот)    (новый снэпшот)       | mbuffer -O fr:9000 -r 50M -m 350M
+ 
+
+
+ключ -R это всего навсего батч хрень. тоесть нет магии. так бы нам пришлось заускать кучку одинаковых команд
+кажая из которых копирует отдельный даатасет. тоесть без него нуно было бы делать во так
+
+
+   # zfs send -c -R -i   dataset_1@snap1    dataset_1@snap28       | mbuffer -O fr:9000 -r 50M -m 350M
+   # zfs send -c -R -i   dataset_2@snap1    dataset_2@snap28       | mbuffer -O fr:9000 -r 50M -m 350M
+   # zfs send -c -R -i   dataset_2@snap1    dataset_2@snap28       | mbuffer -O fr:9000 -r 50M -m 350M
+   # zfs send -c -R -i   dataset_2@snap1    dataset_2@snap28       | mbuffer -O fr:9000 -r 50M -m 350M
+   ....
+   ...
+   
+а с ключом -R за нас это далает сам зфс. вот и все.
+
