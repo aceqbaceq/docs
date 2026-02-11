@@ -1,0 +1,66 @@
+| zfs
+| solaris
+| mail
+
+вируталка на солярисе и там почта
+
+
+
+
+прокскс суует диски внутрт вм как бутто они 512 байт сектор
+и зпул криейт на солярисе нам недаст использовать флаг ашифт
+он его сам выбирает исходя из того как размер физ сектора
+поэтому нужно затставит солярис использвать ашифт 4096
+
+для этого 
+выяняем как у нас видны диски
+root@mail:~# iostat -En
+c2t0d0           Soft Errors: 0 Hard Errors: 0 Transport Errors: 0 
+Vendor: ATA      Product: QEMU HARDDISK    Revision: 2.5+ Serial No: QM00005 
+Size: 23.62GB <23622320128 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 0 Recoverable: 0 
+Illegal Request: 13 Predictive Failure Analysis: 0 Non-Aligned Writes: 0 
+c1t0d0           Soft Errors: 0 Hard Errors: 0 Transport Errors: 0 
+Vendor: QEMU     Product: QEMU DVD-ROM     Revision: 2.5+ Serial No:  
+Size: 0.68GB <675102720 bytes>
+
+и сует в кернел вот такое
+
+/kernel/drv/sd.conf
+sd-config-list="ATA     QEMU HARDDISK","physical-block-size:4096";
+
+reboot
+
+солрисаовсаий зпул криейт знает очень мало флагов поэтому
+вот так минималистчиано
+
+zpool create   -o failmode=continue  -o autoreplace=on   POOL-MAIL c2t1d0 c2t2d0 c2t3d0
+
+
+
+zfs create POOL-MAIL/mailboxes
+
+
+zfs set recordsize=16k POOL-MAIL/mailboxes
+zfs set compression=lz4 POOL-MAIL/mailboxes
+zfs set atime=off POOL-MAIL/mailboxes
+zfs set compression=lzjb POOL-MAIL/mailshare
+zfs set logbias=latency POOL-MAIL/mailshare
+
+
+перед тем как ировать данные лучше временно вырубить синк
+
+zfs set sync=disabled POOL-MAIL/mailshare
+
+
+копруем данные
+
+rsync -avPH --inplace --numeric-ids /mnt/NFS/ /POOL-MAIL/mailshare/
+
+
+теперь нужно синк обратно врубить
+
+zfs set sync=standard POOL-MAIL/mailshare
+
+
+
