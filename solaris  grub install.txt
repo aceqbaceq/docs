@@ -1,0 +1,8 @@
+| solaris
+| boot
+| grub
+
+как на оба диска в мирроре просмунуть граб загрузочный
+
+# bootadm install-bootloader -v -P rpool
+

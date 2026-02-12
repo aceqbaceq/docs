@@ -9,7 +9,45 @@
 
 
 
+значт этот сторад построен на базе x4140
+но внутри у него урезнная версия соляриса
+мы заходиипо ссщ и попадем в команды аплаенса
 
+вот полезая комана которая пзврлеи понять какой диск с каким серининоком в какой дырке 
+сидит 
+
+> maintenance hardware show
+
+disk-000     HDD 0       ok        SEAGATE                 ST31001NSSUN1.0T                                          9WK3ATZP            7200 
+disk-001     HDD 1       ok        HITACHI                 H7210CA30SUN1.0T                                          JPW9K0N13PJJML      7200 
+disk-002     HDD 2       ok        HITACHI                 HUA7210SASUN1.0T                                          GTF002PAJUWZLF      20000
+disk-003     HDD 3       ok        HITACHI                 H7210CA30SUN1.0T                                          JPW9K0N13JHAPL      7200 
+disk-004     HDD 4       ok        HITACHI                 H7210CA30SUN1.0T                                          JPW9K0N13LHVPL      7200 
+disk-005     HDD 5       ok        SEAGATE                 ST31000NSSUN1.0T                                          9QJ4KQ7A            7200 
+disk-006     HDD 6       ok        SEAGATE                 ST31000NSSUN1.0T                                          9QJ7ZADB            7200 
+disk-007     HDD 7       ok        HITACHI                 H7210CA30SUN1.0T                                          JPW9K0N13MTRAL      7200 
+disk-008     HDD 8       ok        SEAGATE                 ST31000NSSUN1.0T                                          9QJ40SPP            7200 
+disk-009     HDD 9       ok        SEAGATE                 ST31001NSSUN1.0T                                          9WK3AT23            7200 
+disk-010     HDD 10      ok        SEAGATE                 ST31000NSSUN1.0T                                          9QJ4TZ4X            7200 
+disk-011     HDD 11      ok        SEAGATE                 ST31000NSSUN1.0T                                          9QJ4W9VA            7200 
+disk-012     HDD 12      ok        HITACHI                 H7210CA30SUN1.0T                                          JPW9K0N13N8KSL      7200 
+disk-013     HDD 13      ok        SEAGATE                 ST31000NSSUN1.0T                                          9QJ4EJPF            7200 
+disk-014     HDD 14      ok        HITACHI                 H7210CA30SUN1.0T                                          JPW9K0N13HRL2L      7200 
+disk-015     HDD 15      ok        HITACHI                 H7210CA30SUN1.0T                                          JPW9K0J82JDR7L      7200 
+disk-016     HDD 16      ok        SEAGATE                 ST31000NSSUN1.0T                                          9QJ3BS5X            7200 
+disk-017     HDD 17      ok        HITACHI                 HUA7210SASUN1.0T                                          GTE000PAJ9DSAE      20000
+disk-018     HDD 18      ok        HITACHI                 H7210CA30SUN1.0T                                          JPW9K0N13JRJEL      7200 
+disk-019     HDD 19      ok        HITACHI                 H7210CA30SUN1.0T                                          JPW9K0N13PK23L      7200 
+disk-020     HDD 20      ok        SEAGATE                 ST31000NSSUN1.0T                                          9QJ43J7G            7200 
+disk-021     HDD 21      ok        HITACHI                 H7210CA30SUN1.0T                                          JPW9K0N13PDKPL      7200 
+disk-022     HDD 22      ok        SEAGATE                 ST31001NSSUN1.0T                                          9WK2Y92Q            7200 
+disk-023     HDD 23      ok        HITACHI                 H7210CA30SUN1.0T                                          JPW9K0N11B7PYL      7200 
+
+если ввести
+
+> shell
+
+то мы уже попдаем в шелл обычный
 
 
 
@@ -494,6 +532,7 @@ Serial number: 9WK3AT23
 0000
 0x00
 0000
+0000
 
 его состояние
 s7310# iostat -En  c2t5000C5002DC25AEDd0
@@ -546,6 +585,9 @@ zpool status -v
             c2t5000CCA39CF1E106d0    ONLINE       0     0     0
         spares
           c2t5000CCA216E07638d0      AVAIL   
+
+
+
 
 
 
@@ -638,4 +680,62 @@ Size: 1000.20GB <1000204886016 bytes>
 Media Error: 36 Device Not Ready: 0 No Device: 0 Recoverable: 0 
 Illegal Request: 172 Predictive Failure Analysis: 0 
 
+
+
+
+
+вытаксикваю зареплейснный диск
+9WK3AT23
+
+он сидит вот тут
+
+disk-009     HDD 9       ok        SEAGATE                 ST31001NSSUN1.0T                                          9WK3AT23            7200 
+
+это HDD9
+
+он сидит вот тут
+0000
+0000
+0x00
+0000
+0000
+
+
+
+статус пула в момент замены
+
+
+        NAME                       STATE     READ WRITE CKSUM
+        pool1                      ONLINE       0     0     0
+          raidz2-0                 ONLINE       0     0     0
+            c2t5000C50014F9C3CCd0  ONLINE       0     0     0
+            c2t5000CCA39CF37E1Dd0  ONLINE       0     0     0
+            c2t5000CCA39CF3465Cd0  ONLINE       0     0     0
+            c2t5000CCA39CF4017Ed0  ONLINE       0     0     0
+            c2t5000C5002076C68Dd0  ONLINE       0     0     0
+            c2t5000C500112362DFd0  ONLINE       0     0     0
+            c2t5000CCA216E7F558d0  ONLINE       0     0     0
+            c2t5000CCA39CF16CDAd0  ONLINE       0     0     0
+            c2t5000C50015AD60ECd0  ONLINE       0     0     0
+            c2t5000CCA39CF2B0BBd0  ONLINE       0     0     0
+            c2t5000C50014EBCDE1d0  ONLINE       0     0     0
+          raidz2-1                 ONLINE       0     0     0
+            c2t5000C50015AE8879d0  ONLINE       0     0     0
+            c2t5000CCA39CF1C60Dd0  ONLINE       0     0     0
+            c2t5000CCA39CD33485d0  ONLINE       0     0     0
+            c2t5000CCA39CF41260d0  ONLINE       0     0     0
+            c2t5000CCA396E3A4AFd0  ONLINE       0     0     0
+            c2t5000C500154E3CADd0  ONLINE       0     0     0
+            c2t5000C5002D7E7D73d0  ONLINE       0     0     9
+            c2t5000C5001586D98Bd0  ONLINE       0     0     0
+            c2t5000C5002DC24995d0  ONLINE       0     0     4
+            c2t5000CCA39CF41061d0  ONLINE       0     0     0
+            c2t5000CCA39CF1E106d0  ONLINE       0     0     0
+        spares
+          c2t5000CCA216E07638d0    AVAIL   
+
+errors: No known data errors
+
+
+сую внутрь диск с S/N 9QJ39WPS WWN 5000 C500 11146E5E
 
