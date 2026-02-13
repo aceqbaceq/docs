@@ -1,0 +1,38 @@
+| freebsd
+| loader.conf
+
+
+пробелма. в loadser.conf записали модули котрые крашат ядро на стадии
+загрузки 
+как х  из оттуда убрать.
+
+
+дожидается меню загрузки.
+тыкаем 3 
+полвется голая комнааня строка 
+там ввооим
+
+
+
+unload
+load /boot/kernel/kernel
+load /boot/kernel/zfs.ko
+set vfs.root.mountfrom="zfs:zroot/ROOT/default"
+boot -s
+
+
+загузилси в синг юзер реиме
+
+# mount -u /
+
+# export TERM=xterm
+# ee /boot/loader.conf
+
+редактурем
+
+тыкаем ESC - leave editor -save changes
+
+# reboot
+
+
+
