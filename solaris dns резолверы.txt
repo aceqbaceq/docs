@@ -1,0 +1,20 @@
+| solaris
+| net
+
+как прописать днс резолверы
+
+
+  #  svccfg -s dns/client "setprop config/nameserver = net_address: (212.45.0.3 212.45.2.5)"
+  #  svccfg -s name-service/switch 'setprop config/host = astring: "files dns"'
+  #  svcadm refresh dns/client
+  #  cat /etc/resolv.conf
+
+
+как удалить маршурут по умолчанию 
+  #  netstat -rn
+  #  route -p delete default              192.168.0.99
+
+
+как добавить маршурт по умолчанию
+  #  route -p add default              192.168.0.225
+
