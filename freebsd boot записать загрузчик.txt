@@ -1,0 +1,20 @@
+| freebsd
+| загрузчик
+| boot
+
+
+
+есть диск
+[root@frrf ~]# gpart show da1
+=>      40  41942960  da1  GPT  (20G)
+        40      1024    1  freebsd-boot  (512K)
+      1064       984       - free -  (492K)
+      2048  41938944    2  freebsd-zfs  (20G)
+  41940992      2008       - free -  (1.0M)
+
+
+как запрсать загручик
+# gpart bootcode -b /boot/pmbr -p /boot/gptzfsboot -i 1 da1
+partcode written to da1p1
+bootcode written to da1
+

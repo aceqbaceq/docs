@@ -1,0 +1,190 @@
+| freebsd
+| sun x5440
+| x4540
+
+
++++++++++++++++++
+[root@frrf ~]# cat /boot/loader.conf
+kern.geom.label.disk_ident.enable="0"
+kern.geom.label.gptid.enable="0"
+cryptodev_load="YES"
+amdtemp_load="YES"
+
+boot_multicons="YES"
+boot_serial="YES"
+comconsole_port="0x3F8"
+comconsole_speed="9600"
+console="comconsole,vidconsole"
+
+zfs_load="YES"
+vfs.zfs.arc_max="6G" 
+
+
+### Qlogic FC
+# Оживляем карту и прошивку
+ispfw_load="YES"
+
+# Включаем режим раздачи (Target) на уровне железа
+hint.isp.0.role="3"
+hint.isp.1.role="3"
+hint.isp.0.execution_throttle="64"
+hint.isp.1.execution_throttle="64"
+
+# Загружаем движок раздачи (БЕЗ ЭТОГО РАБОТАТЬ НЕ БУДЕТ)
+ctl_load="YES"
+###
+++++++++++++++++++++++
+
+
+
+
+
+
+[root@frrf ~]# zpool attach zroot gpt/DISK0-5QE4ENNY /dev/gpt/DISK2-9QE82FP7 
+[root@frrf ~]# 
+[root@frrf ~]# NUM=3; DISK=da3; SN=$(smartctl -x /dev/$DISK | grep -i serial | awk '{print $3}');  gpart create -s gpt $DISK; gpart add -t freebsd-boot -b 40 -s 1024 -i 1 $DISK; gpart add -t freebsd-zfs -b 2048 -s 41938944 -i 2 $DISK; gpart modify -i 2 -l DISK$NUM-$SN $DISK ;  gpart bootcode -b /boot/pmbr -p /boot/gptzfsboot -i 1 $DISK
+da3 created
+da3p1 added
+da3p2 added
+da3p2 modified
+partcode written to da3p1
+bootcode written to da3
+[root@frrf ~]# 
+[root@frrf ~]# zpool attach zroot gpt/DISK0-5QE4ENNY /dev/gpt/DISK3-9QE85DVA 
+
+
+
++++++++++++++++++++++++
+
+
+[root@frrf ~]# DISK=da47; echo "DISK=/dev/$DISK"; SN=$(smartctl -x /dev/$DISK | grep -i serial | awk '{print $3}'); echo "SN = $SN" ;   dd if=/dev/$DISK of=/dev/null bs=1M count=768; 
+DISK=/dev/da47
+SN = 5QG0EZTR
+768+0 records in
+768+0 records out
+805306368 bytes transferred in 10.373802 secs (77628853 bytes/sec)
+[root@frrf ~]# 
+[root@frrf ~]# 
+[root@frrf ~]# 
+[root@frrf ~]# SLOT=34; SN=$(smartctl -x /dev/$DISK | grep -i serial | awk '{print $3}');  gpart destroy -F $DISK; gpart create -s gpt $DISK; gpart add -t freebsd-zfs -b 2048  -i 1 $DISK; gpart modify -i 1 -l DISK$SLOT-$SN $DISK ;  dd if=$(ls -1 /dev/gpt/DISK$SLOT-*)  of=/dev/null bs=1M count=500
+da47 destroyed
+da47 created
+
+
++++++++++++++++++
+
+
+zpool create -f -o ashift=12 \
+   -o autoreplace=on  \
+   -o failmode=continue \
+   -o autotrim=on \
+   -O compression=lz4 \
+   -O xattr=sa \
+   -O atime=off \
+   -O recordsize=128k \
+   -O normalization=formD \
+   -O utf8only=on \
+   -O canmount=off \
+   POOL-FLOW2 raidz2 /dev/gpt/DISK4-*   /dev/gpt/DISK5-*  /dev/gpt/DISK6-*   /dev/gpt/DISK7-*
+
+
+чтобы диски из спейр автмоатом востставнвливли выпавший диск нужно
+sysrc zfsd_enable="YES"
+service zfsd onestart
++++++++++++++++++
+
+
+на пуле юзаются диски
+
+Device Model:     SEAGATE ST3500630NS
+User Capacity:    500,107,862,016 bytes [500 GB]
+
+
+их параметры
+лин чтение 73 МБ/с
+лин  запись 71 МБ/с
+иопсы 68-75
+
+++++++++++++++++++++++
+
+на собранном пуле
+
+        NAME                     STATE     READ WRITE CKSUM
+        POOL-FLOW2               ONLINE       0     0     0
+          raidz2-0               ONLINE       0     0     0
+            gpt/DISK4-9QG31V8Z   ONLINE       0     0     0
+            gpt/DISK5-5QG0EZV0   ONLINE       0     0     0
+            gpt/DISK6-5QG0EY6S   ONLINE       0     0     0
+            gpt/DISK7-5QG0ERVN   ONLINE       0     0     0
+          raidz2-1               ONLINE       0     0     0
+            gpt/DISK8-5QG0F2YQ   ONLINE       0     0     0
+            gpt/DISK9-5QG0EZHE   ONLINE       0     0     0
+            gpt/DISK10-5QG0ERST  ONLINE       0     0     0
+            gpt/DISK11-5QG0C5V8  ONLINE       0     0     0
+          raidz2-2               ONLINE       0     0     0
+            gpt/DISK16-5QG0F4JL  ONLINE       0     0     0
+            gpt/DISK17-5QG0B10Q  ONLINE       0     0     0
+            gpt/DISK18-9QG31V9H  ONLINE       0     0     0
+            gpt/DISK19-5QG0EYHS  ONLINE       0     0     0
+          raidz2-3               ONLINE       0     0     0
+            gpt/DISK20-5QG0EZC3  ONLINE       0     0     0
+            gpt/DISK21-5QG0EV2R  ONLINE       0     0     0
+            gpt/DISK22-9QG31V9S  ONLINE       0     0     0
+            gpt/DISK23-5QG0EYMB  ONLINE       0     0     0
+          raidz2-4               ONLINE       0     0     0
+            gpt/DISK24-5QG0JBX8  ONLINE       0     0     0
+            gpt/DISK25-5QG0KLLQ  ONLINE       0     0     0
+            gpt/DISK26-5QG0B8AZ  ONLINE       0     0     0
+            gpt/DISK27-5QG0JBX9  ONLINE       0     0     0
+          raidz2-5               ONLINE       0     0     0
+            gpt/DISK28-5QG0B97J  ONLINE       0     0     0
+            gpt/DISK29-5QG0EZ57  ONLINE       0     0     0
+            gpt/DISK30-5QG0ERQL  ONLINE       0     0     0
+            gpt/DISK31-5QG0B8QZ  ONLINE       0     0     0
+          raidz2-6               ONLINE       0     0     0
+            gpt/DISK32-5QG0D79L  ONLINE       0     0     0
+            gpt/DISK33-5QG0B74F  ONLINE       0     0     0
+            gpt/DISK34-5QG0EZTR  ONLINE       0     0     0
+            gpt/DISK35-5QG0B7H2  ONLINE       0     0     0
+          raidz2-7               ONLINE       0     0     0
+            gpt/DISK36-5QG0EV5Z  ONLINE       0     0     0
+            gpt/DISK37-5QG0F4M9  ONLINE       0     0     0
+            gpt/DISK38-5QG0D7PD  ONLINE       0     0     0
+            gpt/DISK39-5QG0B8ZN  ONLINE       0     0     0
+          raidz2-8               ONLINE       0     0     0
+            gpt/DISK12-5QG0BBLJ  ONLINE       0     0     0
+            gpt/DISK13-5QG0JBY2  ONLINE       0     0     0
+            gpt/DISK14-9QG31TG1  ONLINE       0     0     0
+            gpt/DISK15-9QG31VJ0  ONLINE       0     0     0
+        spares
+          gpt/DISK40-5QG0D7SE    AVAIL   
+          gpt/DISK41-5QG0C3Z1    AVAIL   
+          gpt/DISK42-5QG0LBAA    AVAIL   
+          gpt/DISK43-5QG0D7BW    AVAIL   
+
+
+
+тоесть 9 рейдз2 вдев в каждом 2 диска под дата и 2 диска под парити.
+рейдз2 на лин скрости и записи рабоатет как страйп.
+тоесть каждый вдев доожен работать на скрости двух дисков на лин запись
+и лин чтение.
+тоесть ожидается что скрость лин записи это 18*71 = 1278 МБ/с
+       ожидается     скрость лин чтении это 18*73 = 1314 MB\s
+
+экспримент показал следюущее
+лин запись 1324MiB/s
+лин чтение 1289MiB/s
+
+
+иопсы.
+мои ожилдания. 
+на чтение должно быть 78*9 = 700 иопс
+на запись их будет дохуя потому что зфс их пишет линейно
+
+теперь практикка
+иопсы на рандом рид 1560 иопс
+иопсы на рандом врайт 43 000 иопс 
+
+
+не совсем понятно почему на четние в 2 раза выше
+
