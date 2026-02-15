@@ -1,0 +1,1379 @@
+
+QConvergeConsoleCLI
+Version 2.7.0 (Build 6)
+Copyright (C) 2009-2022 Marvell Semiconductor, Inc.
+Build Type:  Release
+Build Date:  Mar 28 2023 13:16:30
+
+
+Usage: qaucli [options]
+
+
+Legends:
+
+   <hba instance>    - Instance number of an HBA port.
+   <hba wwpn>        - World Wide Port Name of an HBA port.
+                       (xx-xx-xx-xx-xx-xx-xx-xx or xxxxxxxxxxxxxx).
+   <all>             - All adapters
+   <target wwnn>     - World Wide Node Name of a target device.
+                       (xx-xx-xx-xx-xx-xx-xx-xx or xxxxxxxxxxxxxx).
+   <target wwpn>     - World Wide Port Name of a target device.
+                       (xx-xx-xx-xx-xx-xx-xx-xx or xxxxxxxxxxxxxx).
+   <target portid>   - Port ID of a target device.
+                       (xx-xx-xx or xxxxxx).
+   <target id>       - ID of a target device.
+   <lun id>          - Logical Unit Number of a LUN.
+   <lunname>         - The udev persistent device name to be assigned to
+                       a designated LUN (Linux only).  
+
+Options:
+
+   [int]             - Interactive mode (Menu driven).
+ 
+   -g
+                     - Displaying host and HBAs information.
+					 
+   -i [<all>]        
+                     - Displaying general information of all adapters.
+					 
+   -i <hba instance>|<hba wwpn>
+                     - Displaying general information of a specific adapter
+					   port.
+					   
+   -i [<all>] vpd    - Displaying Vital Product Data (VPD) information of 
+                       all adapters.
+   
+   -i <hba instance>|<hba wwpn> vpd
+                     - Displaying Vital Product Data (VPD) information of
+  					   a specific adapter port.					   
+
+   -c  [<all>]       - Displaying adapter parameter settings of all adapters.
+   
+   -c <hba instance>|<hba wwpn>
+                     - Displays adapter parameter settings of a specific adapter 
+					   port.
+
+   -n <hba instance>|<hba wwpn> {<nvram parameter name>|<nvram parameter alias>
+      <nvram parameter value>}
+                     - Changing adapter parameter settings of a specific adapter
+					   port.
+					   
+        Options:      
+            <nvram parameter name>     See supported parameter name  (Table 1).
+            <nvram parameter alias>    See supported parameter alias (Table 1).
+            <nvram parameter value>    See supported parameter value (Table 1).					   
+					   
+   -n <hba instance>|<hba wwpn>|<all> default
+                     - Restoring adapter parameter settings of a specific adapter
+					   port to factory default settings.  					   
+                       Note: This option is not supported with 2Gb HBAs.
+					   
+   -n <hba instance>|<hba wwpn>|<all> <OEM name>
+                     - Updating adapter parameters of a specific adapter port 
+					   with a pre-defined set of parameters per OEM. 
+      
+   -t [<all>]        - Displaying target information of all connected target
+                       devices on all adapters.                        
+   
+   -t <hba instance>|<hba wwpn>
+                     - Displaying target information of all connected target
+					   devices on a specific adapter port.
+           
+   -t <hba instance>|<hba wwpn> <target wwpn>|<target portid>
+                     - Displaying target information of a specific target
+					   by target wwpn or port id.                       
+
+   -l <hba instance>|<hba wwpn>
+                     - Displaying LUNs or namespaces information of 
+   					   all connected targets on a specific adapter port. 					   
+					   
+   -l <hba instance>|<hba wwpn> <target wwpn>|<target portid>
+                     - Displaying LUNs or namespaces information of
+   					   a specific target by target wwpn or port id.
+
+   -l <hba instance>|<hba wwpn> <target wwpn>|<target portid> <lun id>
+                     - Displaying LUN or namespaces information of a specific 
+ 					   target by target wwpn or port id and LUN or namespace
+					   id.                       
+
+   -q <all> [-t|-targets]
+                     - Displaying current iiDMA settings of all connected
+					   targets on all adapters.
+					 
+   -q <hba instance>|<hba wwpn> [-t|-targets]
+                     - Displaying current iiDMA settings of all targets
+					   connected to a specific adapter port.
+					   
+   -q <hba instance>|<hba wwpn> <target wwpn>
+                     - Displaying current iiDMA settings of a specific
+                       target by target wwpn.
+	
+	
+   -q <all> ) -t|-targets <iidma speed>
+                     - Configuring all connected targets on all adapters
+					   with the desired iidma speed.					 
+  
+   -q <hba instance>|<hba wwpn>|<all> ) -t|-targets <iidma speed>
+                     - Configuring all connected targets on a specific adapter
+					   port with the desired iidma speed.
+                       
+   -q <hba instance>|<hba wwpn> {<target wwpn> <iidma speed>}
+                     - Configuring a specific target with the desired iidma
+                       speed.
+					   
+         <iidma speed> FC  - 1,2,4,8,16,32,64 (Gbps)
+                       CNA - 10 Gbps  
+	  Notes:
+         This feature is not supported with devices attached to a 2Gb HBA
+         or fibrelite HBA
+		 
+
+   -p <hba instance>|<hba wwpn>|<all> view|info
+                     - Displaying current target persistent binding configration
+                       of all connected targets on all adapter or a specific
+					   adapter port.
+
+   -p <hba instance>|<hba wwpn> {<target wwnn> <target wwpn> <target portid>
+      <target id> }
+                     - Setting persistent binding of a desired target to
+					   a specific adapter port.
+
+   -p <hba instance>|<hba wwpn>|<all> bind all
+                     - Setting persistent binding of all targets to all
+                       adapter or a specific adapter port.
+
+   -p <hba instance>|<hba wwpn>|<all> remove all|unbind all
+                     - Deleting current target persistent binding configuration 
+					   of connected targets on all adapters or a specific
+					   adapter port.                       
+
+   -p <hba instance>|<hba wwpn> remove|unbind <target wwnn>
+                     - Deleting current target persistent binding configuration 
+					   of the desired target on a specific adapter port.
+					   
+   -m <hba instance>|<hba wwpn> view|info
+                     - Displaying current setting of selective LUN mapping
+  					   configuration of all configured targets on a specific
+					   adapter port.
+
+   -m <hba instance>|<hba wwpn> <target wwnn> <target wwpn> <lun id> 
+                     view|info
+                     - Displaying current setting of selective LUN mapping
+  					   configuration of a specific target by target wwnn, wwpn
+					   and LUN id.
+
+   -m <hba instance>|<hba wwpn> {<target wwnn> <target wwpn> <lun id>
+      0|1|enable|disable|select|unselect}
+                     - Enabling or disabling selective LUN mapping configuration
+                       of a specific target and LUN by target wwnn, wwpn and
+					   LUN id.
+					   
+   -m <hba instance>|<hba wwpn> select|enable <target wwnn> <target wwpn>
+                     - Enabling selective LUN mapping configuration
+                       of all configured targets and LUNs.
+
+   -m <hba instance>|<hba wwpn> unselect|disable <target wwnn> <target wwpn>
+                     - Disabling selective LUN mapping configuration
+                       of all configured targets and LUNs.
+
+   -m <hba instance>|<hba wwpn> select all
+                     - Enabling selective LUN mapping configuration
+                       of all configured targets and LUNs.
+
+   -m <hba instance>|<hba wwpn> unselect all
+                     - Disabling selective LUN mapping configuration
+                       of all configured targets and LUNs.
+
+   	Notes:
+       		Selective LUN mapping is configurable only with targets that
+       		have been configured with target persistent binding.
+			
+   -e <hba instance>|<hba wwpn>|<all> <cmd> <parameter> <boot mode>
+   
+                     - BIOS/UEFI Boot Device Settings                                     
+	
+   
+   -e [<hba instance>|<hba wwpn>|<all>] view | info [<boot mode>]		             
+					 - Displaying current boot device settings
+		   
+   =====================================
+   BIOS Boot Mode (FCP Storage Devices)
+   =====================================
+   -e [<hba instance>|<hba wwpn>all>] enable  
+		             - Enabling the adapter legacy BIOS boot mode.
+   -e <hba instance>|<hba wwpn> disable
+                     - Disabling the adapter legacy BIOS boot mode.
+					 
+		   For details, see Selectable Boot settings below:
+		   Selectable  Boot Port Name     Device 
+           Boot        /LUN               Boot
+           ----------   --------------    -----------
+           Disabled     X                 BIOS configures the first disk drive it
+                                          finds as boot device.
+           Enabled      None specified    BIOS configures the first disk drive it
+		                                  finds that is also a LUN 0 as boot device.
+           Enabled      Specified         BIOS scans through the specified WWPN/LUN
+                                          until it finds a disk configured as the
+                                          boot device.		
+										  
+   -e [<hba instance>|<hba wwpn>] enable <boot parameter>
+		             [<boot mode>]	
+					  - Enabling BIOS boot parameter setting
+		   
+   -e <hba instance>|<hba wwpn> disable <boot entry>	
+		              - Deleting the designated boot device entry in WWN database entries.
+					  
+	       
+   -e <hba instance>|<hba wwpn> <target wwnn> <target wwpn> <lun id>
+		          <boot entry> 	
+                      - Configuring FCP targets as boot devices. NVMe targets are not supported
+		                with legacy BIOS boot mode.
+		   
+		   
+   -e <hba instance>|<hba wwpn> disable all
+		              - Disabling legacy BIOS boot configuration. This command clears the boot
+		                device database entries and disables the BIOS and Selectable Boot parameters.
+						
+		               
+   -e <hba instance>|<hba wwpn> 0 0 0\n"
+		   		      - Configuring the Operating System to boot from the first disk drive it
+		                finds that is also a LUN 0 as boot device
+		   
+		   
+   -e [<hba instance>|<hba wwpn>] enable | disable <boot parameter>	
+		              - Configuring legacy BIOS boot parameter settings.
+		   ========================================================================                    
+		   Boot Parameter      Alias Default Description
+		   ========================================================================
+		   EnableBios          EB    Enabled   Enables or disables the ROM BIOS.
+		                                       To boot from a Fibre Channel disk,
+		                                       the BIOS parameter must be enbled.                                  
+		   Selectableboot      ES    Disabled  Controls boot device selection in
+		                                       legacy BIOS mode.
+                                               Refer to the HBA BIOS documentation
+		                                       for additional details.
+		   FabricassignbootLun FA    Enabled   Fabric assign boot LUN discovery
+		                                       allows to eliminate the manual boot
+		                                       LUN configuration of each adapter
+		                                       from individual serves.		 		        		                                                                
+		   ========================================================================
+		                 Table 1: Legacy BIOS Boot Settings
+	   	
+   =====================================
+   UEFI Boot Mode (FCP Storage Devices)
+   =====================================
+  	
+   -e [<hba instance>|<hba wwpn>|<all>] view | info <boot mode>
+                     - Displaying current boot device settings		           
+		  
+   -e [<hba instance>|<hba wwpn>all>] enable <boot mode>
+                     - Enabling the adapter UEFI boot mode. This will automatically
+		               enable FC NVMe storage discovery by default.
+						
+   -e <hba instance>|<hba wwpn> disable <boot mode>
+                     - Disabling the adapter UEFI boot mode. This will automatically
+		               disable FC NVMe storage discovery by default.
+		   
+   -e [<hba instance>|<hba wwpn>] enable | disable <boot parameter> <boot mode>
+	                 - Configuring UEFI boot parameter settings.	
+		             		             
+   -e <hba instance>|<hba wwpn> <target wwnn> <target wwpn> <lun id>  <boot entry>
+      <boot mode> 
+                     - Configuring FCP targets as boot devices.        
+		         		     		   		  
+   -e <hba instance>|<hba wwpn> disable all <boot mode>
+                     - Disabling UEFI boot configuration. This command clears the boot 
+		               device database entries and disables Adapter Driver, Selective 
+		               Login, Selective LUN Login and FC NVMe parameters.
+	       
+		   ========================================================================
+		   Boot Parameter      Alias Default  Description 
+		   ========================================================================	
+		   Adapter Driver      EB    Disabled  Enables or disables the UEFI driver.
+	                                           To boot from a Fibre Channel disk
+		                                       the UEFI driver must be enbled.                             
+		   Selectivelogin      SL    Disabled  Login method that restrics device
+		                                       logins to the adapter port to those
+		                                       devices in the boot WWN database.
+		                                       Enables to allow only device listed
+		                                       can login.
+		                                       Disables to allow any device to login.
+		   Selectivelunlogin   LL    Disabled  Login method that restricts LUN logins
+		                                       to the adapter port to those LUNs 
+                         			            associated with a device in the boot
+		                                       WWN database.
+		                                       Disables to allow any LUN associated
+		                                       with a device to login.
+		   Worldlogin          WL    Disabled. Login method that enables or disables
+		                                       forced world login. When enabled, this
+		                                       parameter allows all devices to log in
+		                                       to the adapter, overriding all other
+		                                       login methods. Enabling World Login is
+		                                       is typically done to troubleshoot FC
+		                                       link and target device issues, which can
+		                                       significant increase the boot time.      
+		   FabricassignbootLun FA    Enabled   Fabric assign boot LUN discovery
+		                                       allowsto eliminate the manual boot
+		                                       LUN configuration of each adapter
+		                                       from individual serves.
+		   NVMeEnable          NE    Disabled  Enables or disables the FC NVMe storage
+		                                       feature.
+		                                       When enabled, the driver will search
+		                                       for NVMe storage based on boot
+		                                       database entries	
+		   ========================================================================
+		                 Table 2: UEFI Boot Settings
+						 
+		   Options:                                  
+		      <hba instance>     Adapter port instance number.
+              <hba wwpn>         Adapter port World Wide Name. 
+		      <all>              All discovered adapters.
+		      <target wwpn>      World Wide Port Name of a target device.                               
+		      <target wwnn>      World Wide Node Name of a target device.                                 
+		      <lun id>           Logical Unit Number (LUN) identifier number.
+		      <boot mode>        Legacy BIOS or UEFI.
+		        --bios or /bios  Legacy BIOS boot mode.        			      
+		        --uefi or /uefi  UEFI boot mode. 		        		
+		      <boot entry>       Boot device database entry.
+		         prim | drive0   Primary boot port name.\n"
+		         alt1 | drive1   Alternate 1 boot port name.
+		         alt2 | drive2   Alternate 2 boot port name.
+		         alt3 | drive3   Alternate 3 boot portname.	
+		         alt4 | drive4   Alternate 4 boot portname (UEFI boot mode only).	
+		         alt5 | drive5   Alternate 5 boot portname (UEFI boot mode only).	
+		         alt6 | drive6   Alternate 6 boot portname (UEFI boot mode only).	
+		         alt7 | drive7   Alternate 7 boot portname (UEFI boot mode only).	
+		   Notes:
+		         Legacy BIOS boot mode supports up to four FCP storage devices.
+				 NVMe storage is not supported in legacy BIOS boot mode.
+				 UEFI boot mode supports up to eigth FCP storage devices.
+				 UEFI boot configuration with NVMe storage devices is not supported
+				 with this version.
+		
+		======================
+   -e <hba instance>|<hba wwpn>|<all> view|info [<legacy BIOS boot mode> |
+      <UEFI boot mode>
+                     - Displaying current boot device settings (Legacy BIOS
+					   boot mode or UEFI boot mode) of a specific adapter
+					   port.
+                  
+   -fg <hba instance>|<hba wwpn> view|info
+                     - Displaying current adapter driver settings.
+
+   -fs <hba instance>|<hba wwpn> {<param name>|<param alias> <param value>}
+                     - Configuring adapter driver settings
+      Options:
+         <param name>    See column 1 - Table 3.
+         <param alias>   See column 2 - Table 3.
+         <param value>   See column 3 - Table 3.
+
+   -b <hba instance>|<hba wwpn>|<all> <MBI file> [<hba family>] [--ports]|[/ports]
+                     - Performing flash (firmware) update on all adapters
+                       or a specific adapter.      				   
+	  Options:				 
+         <hba family>  Only updating adapters of this specific family type.
+		               family type.
+         
+              --24xx   24xx FC adapter.
+              --25xx   25xx FC adapter.
+              --80xx   80xx CNA adapter.
+              --82xx   82xx CNA adapter.			 
+              --83xx   83xx CNA adapter.
+			  --26xx   26xx FC adapter.
+              --27xx   FC 269x/274x adapter.
+			  --28xx   FC 277x/278x/28xx adapter.
+			  
+              --ports  Run flash update command on all adapter ports.
+			  /ports
+			  
+		 
+   -b <hba instance>|<hba wwpn>|<all> -op <update mode> [<-src> <template file>] 
+      [--ports]
+                     - Updates boot code/firmware across multiple HBAs
+                       using a flash update configuration file.
+       -op            - Specifies flash update mode type when using
+                       template configuration file.
+            0          - Force to update boot code/firmware across multiple
+                        HBAs (Override mode).
+            1          - Force to update boot code/firmware across mulitple
+                       HBAs that are currently at or below a known revision.
+                       HBAs that are currently up revision will be ignored.
+            2          - Force to downgrade boot code/firmware across multiple
+                       HBAs that are currently up revision.
+                       Force to update boot code/firmware across multiple
+                       HBAs are currently down revision.
+                       HBAs that are currently at revision will be ignored.
+       -src            - Use custom template file instead of the default
+                       template file.
+       <template file> 
+	                 - User-defined configuration template file name.
+                       See the sample template file included for a complete
+                       syntax/format of the file.
+                       If the <-src> option is omitted, the application will
+                       try to use the default template file.
+                       The default template file name is 'flashcfg.properties'.
+					   
+       --ports       - Optional option: Repeat flash update to all other ports.
+	     
+   -b <hba instance>|<hba wwpn> save <file name>
+                     - Saves current HBA boot code/firmware to a file.
+      Note:        
+            This option is only supported with Fibre Channel 4G/8G adapter.
+
+   -r <hba instance>|<hba wwpn>|<all> <file name>
+                     - Updates HBA parameters of an HBA port or all HBAs
+                       from a file.
+   -r <hba instance>|<hba wwpn> save <file name>
+                     - Saves current HBA parameters of an HBA port to a file.
+
+   -a <hba instance>|<hba wwpn> view|info
+                     - Displays the current LED state on an HBA port.
+
+   -a <hba instance>|<hba wwpn>
+                     - Flashes the HBA port LED to locate it in the host.
+        Note: This feature is not supported on QLA22xx series HBAs or 82xx
+              series CNAs
+
+   -d <driver file>
+                     - To update driver for Windows 
+
+        Note: Driver file can be in zip/exe format or <oemdriver>.inf 
+
+
+   -tb <hba instance>|<hba wwpn> {<target wwpn>} <beacon mode> 
+                     - Locates a single device or multiple devices in a JBOD.
+   	Note: This feature is only supported devices in a JBOD.
+
+   -kl <hba instance>|<hba wwpn> {[<param name>|<param alias> <param value>]}
+                     - Runs diagnostics loopback test on an HBA port.
+
+   -kr <hba instance>|<hba wwpn> {[-ex -exclude <target wwpn>]}
+       {[<param name>|<param alias> <param value>]}
+                     - Runs diagnostics read/write buffer test to all
+                          target device(s) attached to an HBA port.
+
+   -gs <hba instance>|<hba wwpn> {<param name>|<param alias> <param value>}
+                     - Displays adapter statistics of an HBA port.
+
+   -ls <hba instance>|<hba wwpn> {<param name>|<param alias> <param value>}
+                     - Displays adapter link status of an HBA port.
+
+   -vp <hba instance>|<hba wwpn> list all
+                     - Lists all virtual ports on a physical HBA port.
+
+   -vp <hba instance>|<hba wwpn> list <vport wwpn>
+                     - Lists a specific virtual port on a physical HBA
+                       port.
+
+   -vp <hba instance>|<hba wwpn> create auto
+                     - Creates a virtual port with default wwpn (auto
+                       generated).
+
+   -vp <hba instance>|<hba wwpn> create <vport hex>.
+                     - Creates a virtual port using a predefined wwpn.
+                     - <vport hex> must be a hexadecimal number that represents 
+                       the second byte of the virtual port WWPN to be created.
+                     - <vport hex> value 0-3 is reserved for physical port.
+                     - With 82xx adapter series, the max number of virtual port
+                       is 31 (Windows only).
+          
+   -vp <hba instance>|<hba wwpn> delete all
+                     - Deletes all virtual port(s) on a physical HBA port.
+
+   -vp <hba instance>|<hba wwpn> delete <vport wwpn>
+                     - Deletes a virtual port on a physical HBA port.
+
+   -qos <hba instance>|<hba wwpn> info --vp <all> [--per|--spd]
+                     - Displays current QoS settings of all virtual ports
+                       on a physical HBA port.
+
+   -qos <hba instance>|<hba wwpn> info --vp <vport wwpn> [--per|--spd]
+                     - Displays current QoS settings of a specific virtual
+                       port on a physical HBA port.
+
+   -qos <hba instance>|<hba wwpn> {--vp <vport wwpn>
+         --pri <priority>|--bwspd <speed> [Gbps|Mbps]|--bwper <percent>|
+         --lock <lock op>|--enable <enable op>}
+                     - Changes QoS settings of a specified or specified
+                       virtual port(s).
+   	Notes:
+           This feature is supported with FC adapters.
+           This feature is applicable to Windows Server platforms.
+
+   -ei               - Lists all application return codes.
+
+   -dm <hba instance>|<hba wwpn>|<all> general|gen|details|det 
+                     - Runs transceiver (SFF/SFP) diagnostics on an HBA port
+                       in general or detail mode.
+        Notes: 
+           This feature is not supported with 2Gb HBAs.
+           This feature is not available with inbox driver (SLES 10/11 or
+           RHEL 5.x
+
+   -tp | -topology
+                     -  Displaying storage area network (SAN) topology
+  					    of current local host.
+
+   -ha <hba instance>|<hba wwpn> <alias>
+                     -  Assigning an alias to a specific adapter.
+
+   -ha <hba instance>|<hba wwpn> delete
+                     -  Deleting the current alias of a specific adapter.
+
+   -ha <hba instance>|<hba wwpn> view|info
+                     -  Displaying current alias of a specific adapter.
+
+   -pa <hba instance>|<hba wwpn> <alias>
+                     -  Assigning an alias to a specific adapter port.
+
+   -pa <hba instance>|<hba wwpn> delete
+                     -  Deleting the current alias of a specific adapter
+					    port.
+
+   -pa <hba instance>|<hba wwpn> view|info
+                     -  Displaying current alias of a specific adapter port.
+
+   -sp <hba instance>|<hba wwpn> /version
+                     - Displaying fibre channel board config version of a
+					   specific adapter.
+
+   -sp <hba instance>|<hba wwpn> <firmware serdes table file>
+                     - Updating fibre channel board config data of a specific
+				       adapter.
+
+   -sp <hba instance>|<hba wwpn> save <firmware serdes table file>
+                     - Saving current fibre channel board config data of a
+  					   specific adapter.     
+
+   -z <hba instance>|<hba wwpn>|<all>
+                     - Generating an inventory report of all adapters or a 
+                       specific adapter port.
+					   HBA or all HBAs in
+                       the current host.
+           
+   -pc <hba instance>|<hba wwpn>|<all> --info
+                     - Displaying current personality type of all adapters 
+                       or a specific adapter port.
+  
+   -pc <hba instance>|<hba wwpn>|<all> --type <personality>
+                     - Changing current personality type of all adapters
+					   or a specific adapter port.
+      Options:
+         <personality> FC or CNA     
+              fc  | 0  FC mode.
+              cna | 1  CNA mode.
+      
+	  Notes:
+         This feature is applicable only with adapter that is capable to 
+         support dual mode FC or CNA (83xx series adapters).
+     
+   -pl <hba instance>|<hba wwpn> --info [<targetid> <lunid>]
+                     -  Displaying persistent device udev name of all
+					    available LUNs or a specific LUN.
+  
+   -pl <hba instance>|<hba wwpn> --del {<targetid> <lunid> <lunname>}
+                     - Deleting current persistent device udev name of 
+					   a specific LUN.
+   
+   -pl <hba instance>|<hba wwpn> --set {<targetid> <lunid> <lunname>}
+                     - Assigning a persistent device udev name to a
+  					   specific LUN.
+
+      Notes:
+         Persistent device udev name must consist of the alphabetic characters
+         a-z or A-Z, the numeric character 0-9, the underbar '_' and the special
+         character '@', '#', '%', '/'. It must also contains non-empty string
+         and limit to 80 characters long.
+
+   -u <hba instance>|<hba wwpn> /version
+                     - Displaying current firmware preload version of a specific
+					   adapter port.
+
+   -u <hba instance>|<hba wwpn> <file name>
+                     - Updating firmware preload data of a specifc adapter port.
+					 
+   -u <hba instance>|<hba wwpn>|<all> save <file name>
+                     - Saving current firmware preload data of a specific adapter 
+					   port to a file.
+                       
+       Notes:
+         This feature is supported with 25xx/26xx/269x/27xx/28xx HBAs.
+
+   -fwdump <hba instance>|<hba wwpn> <file name>
+                      - Saving RISC firmware dump of a specific adapter 
+					    to a file in binary format.
+
+   -trace <hba instance>|<hba wwpn> <file name>
+                      - Saving FCE trace of a specific adapter to a file
+  					    in text format.
+       Notes:
+         Requires FCE Packet Viewer to decode the trace file.
+
+   -sfp <hba instance>|<hba wwpn> --info version [--devaddr <address>]
+                      - Displaying EDC firmware version of a specific 
+					    specific adapter.
+
+   -sfp <hba instance>|<hba wwpn> --info status [--devaddr <address>]
+                      - Displaying running EDC firmware status of a 
+					    specific adapter.
+
+   -sfp <hba instance>|<hba wwpn> --info config
+                      - Displaying running EDC configuration of a 
+					    specific adapter.
+						
+   Note: This feature is supported only with QMI2582 HBA.
+
+   -fcp | -fcping <hba instance>|<hba wwpn> {[-ex -exclude <target wwpn>]}
+       {[<param name>|<param alias> <param value>]}
+                     - Performing the Fibre Channel FC Inquiry command to
+					   connected targets of a specific adapter port and
+					   displays the replies.
+                     - See table 7 below for optional parameters
+					 
+   -ctp | -ctping <hba instance>|<hba wwpn> {[-ex -exclude <target wwpn>]}
+       {[<param name>|<param alias> <param value>]}
+                     - Performing the CT ping command to connected targets
+                       of a specific adapter port and displays the replies.
+                     - See table 7 below for optional parameters
+
+        Note: This feature supports with Brocade switches only at this time.
+
+   -ftr | -ftraceroute <hba instance>|<hba wwpn> {[-ex -exclude <target wwpn>]}
+       {[<param name>|<param alias> <param value>]}
+                     - Performing the CT fabric trace route command to connected 
+					   targets of a specific ports and displays the replies.
+					 - See table 7 below for optional parameters
+        Note: This feature supports with Brocade switches only at this time.
+
+   -mbiv <hba instance>|<hba wwpn> [<option>]
+                      - Displaying current MBI/FFV version of a specific
+   					    adapter port.						
+	   [<option>]       
+          --mbi	        MBI version.
+		  --ffv         FFV version (See Note 1,3).
+		  --info		Current active firmware/nvram (primary/secondary).
+    		            See note 3 below.
+		  --rec         Flash Memo Block (FMB) information.
+         		        See note 3 below.
+	      --crbinit     CRBinit version.
+		  --pegtune     Pegtune version.
+		  --chk         Checking if the MBI file is compatible with
+                        the specific adapter.		  
+                        See note 3 below.	 
+       Note:
+		   1) If FFV version is not available, MBI version will be
+		      displayed.
+		   2) Applicable to QLE266x/QLE8322.
+		   3) Applicable to QLE269x/QLE268xx/QLE27xx/QLE28xx.
+	
+   -fec <hba instance>|<hba wwpn>|<all> <options> [--ports]
+                      - Configuring Forward Error Control (FEC) of
+					    a specific adapter port.   
+       <options>
+       --info           Displaying current FEC settings of a specific
+                        adapter port or adapter.
+       --enable         Enabling FEC of a specific adapter port.
+       --disable        Disabling FEC on a specific HBA port.      
+       --ports          Applying same settings to all physical ports
+            	        of a specific adapter.
+	
+   -ss  <hba instance>|<hba wwpn>|<all> <option>
+                      - enabling/disabling Smart SAN option of a specific
+                        adapter port.					  
+      <option>
+         --info     Displaying current driver Smart SAN settings.
+         --enable   Enabling Smart SAN option.
+         --disable  Disabling Smart SAN option.
+      Notes:
+         This option is supported with FC adapters only.
+         Available only with Windows and Linux OS platforms.
+         Settings applies to all adapters in a host.
+
+   -fcep <hba instance>|<hba wwpn> -wwn <wwpn> [<options>] 
+                      - Performing the ELS echo ping command to connected switch or
+   					    target port and displays the replies.
+	     
+      <options>        See table below.
+        =======================================================================
+        Name                  Value                     Description
+        =======================================================================
+        -P (--PayloadPattern) RPAT,CRPAT,CSPAT,CJTPAT or <Predefined Pattern>
+        -L (--PayloadSize)    256,512,1024,2048 (bytes)
+        -C (--Count)          0-10000                   See note 3 below
+        -I (--Interval)       0-60                      Wait interval seconds
+                                                        between each echo ping.
+        -E (--OnError)        0                         Ignore on Error
+                              1                         Stop on Error
+                              2                         Loop on Error
+        =======================================================================
+        Notes:
+        1. Predefined Pattern:
+                       Hex    Binary
+                       --     --------
+                       00     00000000
+                       55     01010101
+                       5A     01011010
+                       A5     10100101
+                       AA     10101010
+                       FF     11111111
+        2. Count:      The max number of echo ping command to send to a
+                       destination.
+                       0 - The echo ping command will run until interrupted
+                       by user.
+                       1-1000 - The echo ping command will stop after sending
+                       count pings.
+        3. Error:      Ping specific intruction.
+                       Ignore on Error - Ignore errors and continue the run.
+                       Stop on Error - Stop when encounter error.
+                       Loop on Error - Keep the same data pattern when encounter
+                       error.	
+   -dport <hba instance>|<hba wwpn> <options> 
+                      - Diagnostics Port test.   
+        <option>
+          --info        Displaying current diagnostic port test settings.
+          --enable      Enabling diagnostic port test.
+          --disable     Disabling diagnostic port test.
+          --show        Performing diagnostics port test on a specific adapter 
+					    port.
+
+   -rdp <hba instance>|<hba wwpn> --info	                   
+ 		              - Performing the Read Diagnostics Parameters RDP) FC ELS 
+   					    command associated with the designated adapter port.		  
+ 
+   -bbcr <hba instance>|<hba wwpn> <options>	[ <bbcr value>] [--ports]
+ 		              - Buffer-to-bufer credits	Recovery.
+		<options>
+          --info        Displaying current Buffer-to-buffer Credit Recovery
+		                (BBCR) settings of a specific adapter port.
+          --enable      Enabling BBC Recovery of a specific adapter port.
+          --disable     Disabling BBC Recovery of of a specific adapter port.
+          --show        Reporting current BBC Recovery counters of a specific
+		                adapter port.
+	
+   -scm | -uscm  <hba instance>|<hba wwpn> <options>
+                      - SAN congestion management for Universal SAN Congestion
+		                Mitigation (USCM).       
+        <options>
+          
+          --config              Displaying current USCM settings of a specific
+		                        of adapter port.
+		  --enable              Enabling USCM of a specific adapter port.
+		  --disable             Disabling USCM of a specific adapter port.		
+		  --hba                 Displaying current USCM status of a specific adapter
+		                        port.
+		  --chk                 Displaying current USCM status of connected targets
+		                        on a specific adapter port.
+		  --clear               Reset USCM statistics counters.
+		  --stats [<params>]    Collecting USCM statistics for monitoring or 
+		                        troubleshooting congestion issues of a specific
+								adapter port or connected targets.		                        		
+		                        Refer to table 1 below.
+		  --profile {<params>}  Configuring USCM  profile to automatically address
+                         		any congestion issues that may arise. 		  
+		                        Refer to table 2 below.								
+		<params>                Parameter name or alias and value.
+		 
+		========================================================================                    
+		Parameter Name  Alias   Value   Description \n"
+		========================================================================
+		AutoPoll        AP      0       Enable auto poll mode. The statistics
+		                                will run until interrupted by pressing
+		                                the Enter key.
+		                        1-256   Number of polling iterations.                                             
+		SetRate         SR      5-30    Number of polling time interval in
+		                                seconds.	   
+		LogToFile      LF    <CSV File> Save statistical information to a log
+		                                file in CSV format.
+        ===========================================================================
+	                        Table 1: USCM Statistics
+		
+		===========================================================================
+		Parameter Name  Alias   Value      Description
+		===========================================================================
+		RevertToDrv     RD      0          Revert to driver settings. This will 
+		                                   clear the current NVRAM USCM profile
+		                                   settings of the HBA port.
+		Activation      AC      0-3        Configure the USCM profile activation
+                                           type of the HBA port.
+		                                   0 = Monitor Only ,1 = Conservative
+		                                   2 = Moderate, 3 = Aggressive
+		===========================================================================								
+		                    Table 2: USCM Profile Management	
+		Notes:		
+		    USCM feature is intended to run on fabric point to point mode only.
+		    USCM feature is supported with 268x/269x and 277x/28xx FC HBA (32Gb or 64Gb).
+	
+   -ec <cmd> <section> | <subsection>  <parameter> [all]
+                      - StorCryption Configuration Management
+	    <cmd>
+           --list  View or query StorCryption configuration parameters.            
+           --add   Add a new remote (initiator or target) port to the StorCryption
+		           configuration file.
+           --del   Remove remote (initiator or target) port in the StorCryption
+                   configuration file.
+           --set   Enable, disable or tune parameter settings in the StorCryption 
+		           configuration file. 
+         		   
+        <section>
+           auth || auth-els-win (Windows)
+           auth || auth-els (Linux)
+           remotes || disabled_remotes
+           rekey || rekey_config		   
+           shared_secret || shared_secret_config
+           encryption || algorithm_config
+        
+		<subsection>     
+		   remote_[n]
+		   rekey_1
+		   share_secret_1                            
+        
+		<parameter>     
+		   -load
+		   -vmware
+           -wwpn, -separator
+           -reauthtime, -rekeytime,-jittertime, -ikeauth						
+           -secretkey
+           -esp, -ike
+		   
+        Notes:
+		   A key/value pair with a '(*)' indicates that the current setting
+		   is disabled. The parameter line in the auth-els.conf file starts
+		   with a '#' sign.
+		
+        Auth-els Configuration Parameter
+        =====================================================================
+        Key             Defaut     Description
+        =====================================================================
+        load            yes        Enable StorCryption (Default). 
+                        no         Disable StorCryption.
+                        [1-n]      Increase the priority of strongSwan plug-in
+						           for StorCryption with 1 being the highest
+ 								   priority.  
+		vmware          [*]        This is a read-only parameter and cannot
+		                           be modified
+		                yes        Enable communication between StorCryption
+		                           and driver in ESX VM environment.
+		                no         Windows and Linux (Not applicable).
+						
+        To view the current StorCryption configuration: 
+          qaucli -ec --list auth all
+
+        To determine if StorCryption support is enable:
+          qaucli -ec --list auth -load        
+		 
+        To enable or disable StorCryption support:
+          qaucli -ec --set auth -load <yes> | <no>
+		 
+        To set the priority of the strongSwan plug-in for StorCryption:		
+          qaucli -ec --set auth -load [1-n]
+        Where 
+	    n = Integer value
+     
+        Remote Ports Configuration Parameters
+        =====================================================================
+        Key            Default                 Description
+        =====================================================================
+        wwpn           xx:xx:xx:xx:xx:xx:xx:xx WWPN of remote port
+        wwpn_separator : .:-                   WWPN separated by : .:- 
+   
+        To list all remotes ports:
+          qaucli -ec --list remotes all
+
+        To list a specific remote port:	  
+          qaucli -ec --list remote_[n] all
+			  
+	    To query the wwpn setting of a remote port:
+          qaucli -ec --list remote_[n] -wwpn
+              
+	    To query the wwpn separator setting of a remote port:	  
+          qaucli -ec --list remote_[n] -separator
+        	 
+        To add a new remote port:
+	      qaucli -ec --add remotes -wwpn <wwpn>
+		 
+        To delete a remote port:
+          qaucli -ec --del remote_[n] -wwpn <remote port wwn>
+        
+        To modify the wwpn of a remote port:
+          qaucli -ec --set <remote_[n]> -wwpn <remote port wwn>
+		  
+        Where 
+        n = Integer value	
+			  
+        Rekey Config key/value pair parameters:
+        =====================================================================
+        Key                     Value   Description
+        =====================================================================
+        reauth_time             86400   Reauth time is the time in seconds to
+                                        replace the old key with a new key.                                        
+								        This parameter applies to both target
+		                                and initiator.
+        rekey_time              28800   Time in seconds between each request 
+                                        for a new key, only applies to
+										initiator.
+								        This parameter can be set on either
+		                                initiator or target but not both at 
+		                                the same time.
+        reauth_rekey_jitter     1800    Minimum separation between reauth
+                                        and rekey time (secs)
+        ike_auth_direct_child   false   Set to true if CREATE_CHILD_SA
+                                        exchange should not be used for 
+								        initial SA creation and reauth.
+								        This parameter applies to both
+		                                target and initiator.
+								
+        To list all rekey config parameters settings:
+           qaucli -ec --list rekey all
+
+        To view the current reauth time parameter setting:
+           qaucli -ec --list rekey_1 -reauthtime
+		   
+		To view the current rekey time parameter setting:
+           qaucli -ec --list rekey_1 -rekeytime
+
+        To view the current reauth rekey jitter time parameter setting:
+           qaucli -ec --list rekey_1 -jittertime
+
+        To view the current ike auth reauth direct child parameter setting:
+           qaucli -ec --list rekey_1 -ikeauth		           		
+		 
+        To configure the reauth time parameter setting:     
+           qaucli -ec --set rekey_1 -reauthtime <n>
+        
+		Where
+        n = Number of seconds.
+                    
+		Notes:
+			To disable re-authentication, set reauth time to 0.
+            The reauth time minimum value is 86400 seconds (24 hours).
+            The reauth time must be at least twice as much as the
+			current rekey time.
+      
+	    To configure the rekey time parameter setting:     
+           qaucli -ec --set rekey_1 -rekeytime <n>
+        
+		Where
+        n = Number of seconds.
+		
+		Notes:
+		    The rekey time can be configured on either the initiator
+			or the target, but not both at the same time.
+            To keep the same key, set the rekey time to 0.
+            The minimum rekey time value is 28800 seconds (8 hours).
+      
+        To configure the reauth rekey jitter parameter setting:     
+          qaucli -ec --set rekey_1 -jittertime <n>
+        
+		Where 
+        n = Number of seconds.
+		
+		Notes:
+            Minimum value is 1800 seconds (30 minutes).
+
+        To enable or disable IKE auth direct child parameter setting:      
+          qaucli -ec --set rekey_1 -ikeauth true | false         
+
+        Shared Secret key/value pair parameter:
+        =====================================================================
+        Key                 Value   Description
+        =====================================================================
+        shared_secret       *****   Shared secret between two endpoints 
+		                            initiator and target) for establishing
+                                    a secure connection.  
+										 
+	    To view the current shared secret:
+          qaucli -ec --list shared_secret_1 -secretkey
+		 
+	    To create a shared secret:
+          qaucli -ec --set shared_secret_1 -secretkey <secret>
+		
+		Where 
+		<secret>  The secret shared between initiator and target                  
+				 
+		To delete the current shared secret:
+          qaucli -ec --set shared_secret_1 -secretkey " "			
+  
+        Alogorithm Config key/value pair parameters:
+        =====================================================================
+        Key                 Value   Description
+        =====================================================================
+        esp_proposal        ****    Data on the wire.		                            
+                                    Single or multiple of 4 possible
+                                    encryption algorithms with a '-'
+                                    separating them.
+        ike_proposal        ****    SA negotiation.
+                                    Single or multiple of possible
+                                    encryption algorithms with a '-'
+                                    separating them.
+      
+	    To view the current encryption algorithm settings for both ESP and IKE:
+          qaucli -ec --list encryption all
+		 
+        To view the current encryption algorithm setting for ESP: 
+          qaucli -ec --list encryption -eps	    
+		 
+	    To view the current encryption algorithm setting for IKE:
+	      qaucli -ec --list encryption -ike	
+	  
+	    To configure the ESP encryption algorithm parameter setting:
+          qaucli -ec --set encryption -esp <encryption algorithm string>
+        
+		Where  
+		Encryption algorithms string =  One or more algorithms, separated
+		                                by a dash (-).
+
+        To configure the IKE encryption algorithm parameter:
+	      qaucli -ec --set encryption -ike <encryption algorithm string>
+		
+		Where  
+		Encryption algorithms string = One or more algorithms, separated
+		                               by a dash (-).
+
+        Cipher Suites (ESP proposal)
+
+        Encryption Algorithms:
+            aes128gmac    Null encryption with 128 bit AES-GMAC
+            aess256gmac   Null encryption with 256 bit AES-GMAC
+            aes128gcm16   128 bit AES-GCM with 16 byte ICV
+            aes256gcm16   256 bit AES-GCM with 16 byte ICV
+
+        Cipher Suites (IKE proposal)
+
+        Encryption Algorithms:
+            aes128gcm16    128 bit AES-GCM with 128 bit ICV
+            aes256gcm16    256 bit AES-GCM with 128 bit ICV
+            aes256         SHA2_256_128 HMAC
+
+        Integrity Algorithms:
+            sha256         256 bit AES-GCM with 16 byte ICV
+            aes128gmac     Null encryption with 128 bit AES-GMAC
+            aes256gmac     Null encryption with 256 bit AES-GMAC
+
+        Pseudo-random Functions:
+            prfsha256      SHA2_256 PRFV
+            prfaesxcbc     AES XCBC PRF
+
+        Diffie Hellman Groups
+            curve25519     Modulus 256 bits
+            modp4096       Modulus 4096 bits
+			            
+   -mpidump <hba instance>|<hba wwpn> --save <file>
+                      - Saving MPI firmware dump of a specific adapter port
+  					    to a file in binary format.
+   
+   -cna <hba instance>|<hba wwpn> --geninfo
+                      - Displaying FCoE general information of a specific CNA
+                        port.					  
+
+   -cna <hba instance>|<hba wwpn> --dcb --info
+                      - Displaying current Data Center Bridging (DCBX) settings
+					    of a specific CNA port.
+                        
+   -cna <hba instance>|<hba wwpn> --updatecfg <mpi file>
+                      - Updating MPI config data of a specific CNA
+                        port.
+						
+   -cna <hba instance>|<hba wwpn> --savecfg <mpi file>
+                      - Saving current MPI config data of a specific CNA
+                        port to a file.
+
+   -cna <hba instance>|<hba wwpn> --tlv --detail | --raw
+                      - Displaying DCBX data sent and received
+                        over the CNA port connection. 
+                        The output displays the Type-Length-Value (TLV) of the
+                        LLDP frames meant for exchanging the parameters and 
+                        their values (Local/Remote/Current).                      
+      Options:     
+         --detail       Human readable format.
+         --raw          Raw binary format.
+     
+   -cna <hba instance>|<hba wwpn> --mon --dce [ { <param name> | <param alias> 
+        <param value> } ]
+                      - Collecting network activity connection / DCE statistics sent
+  					    and received over a specific CNA port 
+                        
+   -v                 - Displays current app/lib version.
+
+   -h | -?            - Lists all the command options and syntax.
+
+   -o <file name>     - Writes the output to a named file.
+
+   -f <file name>     - Executes from a command input file.
+
+   -x                 - Writes the output in XML format 1.
+
+   -x2                - Writes the output in XML format 2.
+
+   -s                 - Suppresses the output.
+   
+   --fast | /fast     - Avoid sending any scsi commands (Test Unit ready, Inquiry, Read
+                        capacity, and inquiry VPD page 83) to Targets/LUNs during
+						initialization. 
+						Use cases:
+                            * Flash update.
+                            * NVRAM update.
+                            * Diagnostics.
+                            * ...							
+   	Notes:
+           1. Options -x,-x2,-s,-o can be combined with other options. However,
+              they must be at the beginning or at the end of the command line.
+           2. Option -f cannot be combined with any other options.
+              Only one command line option per input file is valid.
+           3. The '-' character can be replaced as '/' character.
+              i.e.  qaucli -g  and qaucli /g are both considered as valid commands.
+           4. Option -h can be combined with a command line option to display
+              the usage of that individual command.
+           5. Option -x can be used to generate an old-style format that is
+              compatible with previous releases (XML format 1).
+           6. Option -x2 can be used to generate a new-style format that is
+              matched with standard text output (XML format 2).
+ 
+
+   Tables:
+
+
+   ========================================================================
+   Parameter Name                Alias   Value        Description 
+   ========================================================================
+   ConnectionOption              CO      0-3          See note 1,9 below
+   DataRate                      DR      0-4          See note 2,9 below
+   FrameSize                     FR      512,1024
+                                         2048,2112    See note 19 below
+   HardLoopID                    HD      0-125
+   ResetDelay                    RD      0-255
+   EnableBIOS                    EB      0,1          See note 4,5 below
+   EnableHardLoopID              HL      0,1          See note 4 below
+   EnableFCTape                  EF      0,1          See note 4 below
+   OperationMode                 OM      0,5,6        See note 3 below
+   InterruptDelayTimer           ID      0-255
+   ExecutionThrottle             ET      1-65535
+   EnableExtendedLogging         EL      0,1          See note 4,5 below
+   LoginReTryCount               LR      0-255
+   EnableLipReset                LP      0,1          See note 4 below
+   PortDownRetryCount            PD      0-255
+   EnableLIPFullLogin            FL      0,1          See note 4 below
+   LinkDownTimeOut               LT      0-240
+   EnableTargetReset             TR      0,1          See note 4 below
+   MaximumLUNsPerTarget          ML      0,8,16,32
+                                         64,128,256
+   EnableReceiveOutOfOrderFrame  EO      0,1          See note 4,8 below
+   EnableLR                      EE      0,1          See note 4,11 below
+   EnableFabricAssignWWN         FN      0,1          See note 4,14 below
+   EnableDistanceSupport         ED      0,1          See note 4,15,16 below
+   PreferFCP                     FP      0,1          See note 15,17 below
+   EnableUSCM                    EC      0,1          See note 4,18 below
+   =========================================================================
+   Notes:
+   1.  Connection Options:  0 - Loop Only.
+                            1 - Point-to-Point Only.
+                            2 - Loop preferred, otherwise Point-to-Point.
+                            3 - Point-to-Point, otherwise Loop (QLA22xx only).
+   2.  Data Rate:           0 - 1Gbps, 1 - 2Gbps, 2 - Auto, 3 - 4Gbps, 4 - 8Gbps.
+                            5 - 16Gbps, 6 - 32Gbps, 7 - 64Gbps.
+   3.  Operation Modes:     0 - Interrupt for every I/O completion.
+                            5 - Interrupt when Interrupt Delay Timer expires.
+                            6 - Interrupt when Interrupt Delay Timer expires
+                                or no active I/O.
+   4.  Others               0 - Disable, 1 - Enable.
+   5.  Option is available with 23xx adapter.
+   6.  Option is not available on PPC64 or SPARC.
+   7.  Option is not available on Solaris.
+   8.  Option is available with 243x/25xx/26xx/27xx/28xx adapter.
+   9.  Option is read only on 10GbE CNA
+   10. OEM name             EMC  - EMC Specific Settings.
+                            HP   - HP Specific Settings.
+                            IBM  - IBM Specific Settings.
+                            QLGC - QLogic Specific Settings.
+                            SUN  - SUN Specific Settings.
+                            HPQ  - HPQ Specific Settings.
+   11. Option is available only with 81xx CNAs.
+   12. Option is not available with 82xx adapter.
+   13. Option is not available with 83xx adapter.
+   14. Option is available with 26xx/27xx/28xx adapter.
+   15. Option is available with 269x/27xx/28xx adapter.
+   16. Long Range 10 Km (ED=0), 5 Km (ED=1).
+   17. Option is supported with storage that offers both FCP and NVME LUNs.
+	   0 - Login to NVMe luns and ignore FCP LUNs. 
+	       behind the same target port.
+	   1 - login to FCP luns and ignore NVMe LUNs.
+	       behind the same target port.
+   18. Option is supported with 268x/269x/27xx/28xx adapter.
+   19. Only adapters with encryption support frame size greater than
+       2048 bytes.
+   ==========================================================================
+
+                     Table 1: HBA Parameters Settings (NVRAM) 
+
+
+   Diagnostics Settings:
+
+   -exclude | -ex:   - Ignores this device in read/write buffer test.
+   <param name>      - See column 1 - Table 2.
+   <param alias>     - See column 2 - Table 2.
+   <param value>     - See column 3 - Table 2.
+
+
+    ========================================================================
+    Parameter Name    Alias   Value                   Description 
+    ========================================================================
+    DataPattern       DP      00-FF                   See note 1 below
+                              CRPAT                   See note 1 below
+                              CSPAT                   See note 1 below
+                              CJTPAT                  See note 1 below
+    DataSize          DS      8,16,32,64,128,256
+                              512,1024,2048           See note 2 below
+    TestCount         TC      0-65535 (Loopback)      See note 3 below
+                              0-10000 (R/W Buffer)    See note 3 below
+    TestIncrement     TI      1-65535 (Loopback)      See note 4 below
+                      TI      1-10000 (R/W Buffer)    See note 4 below
+    OnError           OE      0                       Ignore
+                              1                       Stop
+                              2                       Loop on error
+                                                      See note 5 below
+    LoopbackType      LT      0                       Internal loopback test
+                                                      (10 Bit)
+                              1|4                     Internal loopback test
+                                                      (1 Bit serial)
+                              2                       External loopback
+                                                      or Echo test
+                              3                       Special FCoE echo test                     
+                                                      See note 6 below
+    ======================================================
+
+                     Table 2: HBA Diagnostics Configuration Settings
+
+   Notes:
+
+   1. DataPattern:     Test pattern in hex format.
+                       Hex    Binary
+                       ---    --------
+                       00     00000000
+                       55     01010101
+                       5A     01011010
+                       A5     10100101
+                       AA     10101010
+                       FF     11111111
+                       User Defined Pattern (Hex) .
+                       Random Pattern.   
+                       CRPAT  - Loopback test only.
+                       CSPAT  - Loopback test only.
+                       CJTPAT - Loopback test only. 
+      Notes:                    
+                       CRPAT  - Compliant random data pattern in a valid fibre
+                                channel frame (Sub clause A.2.2.4).
+                              - Not Supported with 83xx adapters.
+                       CSPAT  - Compliant jitter tolerance pattern in a valid fibre
+                                channel frame (Sub clause A.2.3.3).
+                              - Not Supported with 83xx adapters.
+                       CJTPAT - Supply noise test sequence in a valid fibre channel
+                                frame (Sub clause A.2.4.3).                            
+                              - Not Supported with 83xx adapters.
+   2. DataSize:        Specifies the data (frame payload) size in bytes. Actual
+                       data that is transferred during any given pass of the
+                       test.
+                       For R/W buffer test, the max data size is 128 bytes
+   3. TestCount:       0: Test Continuously
+                       1- Max : Total number of tests that will be executed.
+   4. TestIncrement:   Must be less than the number of test count specified.
+   5. OnError:         Specifies the action if an error occurs during any
+                       given pass.
+   6. LoopbackType:    Be sure to select the appropriate HBA connector for
+                       testing.  For internal loopback, a loopback connector
+                       must be plugged in the HBA connector.
+                       This option is applied only for loopback test.
+   Test Result:
+      A) Loopback test result:
+         Test Status, CRC Error, Disparity Error, Frame Length Error.
+      B) Read/Write buffer test result:
+         Loop ID/Status, Data Miscompare, Link Failure, Loss of Sync,
+         Loss of Signal, Invalid CRC.
+
+
+   ==============================================================================
+   Parameter Name     Alias  Value           Description 
+   ==============================================================================
+   PersistentOnly     PO     0,1             Present persistently bound
+                                             target(s) only
+   PersistentPlusNew  PN     0,1             Present persistently bound
+                                             target(s) plus any new
+                                             target(s) with driver default
+   BindWWPN           BW     0,1             Bind devices by WWPNs.
+   BindPortID         BP     0,1             Bind devices by Port IDs.
+   ==============================================================================
+
+                     Table 3: Driver Settings
+
+
+    ========================================================================                    
+	Parameter Name  Alias   Value   Description \n"
+	========================================================================
+	AutoPoll        AP      0       Enable auto poll mode. The statistics
+	                                will run until interrupted by pressing
+		                            the Enter key.
+	                        1-256   Number of polling iterations.                                             
+	SetRate         SR      5-30    Number of polling time interval in
+		                            seconds.	   
+	LogToFile      LF    <CSV File> Save statistical information to a log
+	                                file in CSV format.
+    ===========================================================================
+                     Table 4: HBA Port Statistics Options
+
+   	========================================================================                    
+	Parameter Name  Alias   Value   Description \n"
+	========================================================================
+	AutoPoll        AP      0       Enable auto poll mode. The statistics
+	                                will run until interrupted by pressing
+		                            the Enter key.
+	                        1-256   Number of polling iterations.                                             
+	SetRate         SR      5-30    Number of polling time interval in
+		                            seconds.	   
+	LogToFile      LF    <CSV File> Save statistical information to a log
+	                                file in CSV format.
+    ===========================================================================
+                     Table 5: HBA Link Status Options
+
+    ========================================================================                    
+    Parameter Name  Alias  Value    Description \n"
+    ========================================================================
+    AutoPoll        AP      0       Enable auto poll mode. The statistics
+	                                will run until interrupted by pressing
+		                            the Enter key.
+	                        1-256   Number of polling iterations.                                             
+	SetRate         SR      5-30    Number of polling time interval in
+		                            seconds.	   
+    Details         DT     0-2      Set the details display mode
+                                   0 - Absolute
+                                   1 - Rate Per Second
+                                   2 - Baseline
+    ==============================================================================
+                     Table 6: DCE Statistics Options
+
+   ==============================================================================
+   Parameter Name    Alias   Value                  Description
+   ==============================================================================
+   TestCount         TC      0-10000                See note 3 below
+   TestIncrement     TI      1-10000                See note 4 below
+   OnError           OE      0                      Ignore on Error
+                             1                      Stop on Error
+                             2                      Loop on Error
+   ==============================================================================
+   Notes:
+   1. TestCount:       
+                     0         Continue to run until interrupted by user. To stop
+                               the test, press <Enter> key on the key board.
+                     [1-10000] The number of iterations (count base) that
+		                       the FC or CT ping/fabric trace route command will
+							   be sent.
+   2. TestIncrement: Specifies the increment count. Must be less than the
+                     number of test count.
+   3. OnError:       Specifies how errors are handled during any given pass.
+                     Ignore on Error - Ignore errors and continue the test
+                     sequence.
+                     Stop on Error - Stop the test sequence once an error
+                     is encounterred.
+                     Loop on Error - Run the same data pattern repeatably
+   ==============================================================================
+
+                     Table 7: FC Ping/CT Ping/CT FTR Options
+
+
