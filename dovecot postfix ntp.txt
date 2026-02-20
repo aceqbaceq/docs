@@ -1,0 +1,64 @@
+| dovecot
+| postfixctl
+
+
+симптомы 
+падаеет довекот
+в логах вижу
+
+dovecot: [ID 583609 mail.crit] auth: Panic: file ioloop.c: line 333 (timeout_get_wait_time): assertion failed: (tv_r->tv_sec > 0)
+dovecot: [ID 583609 mail.crit] anvil: Panic: file ioloop.c: line 333 (timeout_get_wait_time): assertion failed: (tv_r->tv_sec > 0)
+dovecot: [ID 583609 mail.crit] master: Panic: file ioloop.c: line 333 (timeout_get_wait_time): assertion failed: (tv_r->tv_sec > 0)
+
+
+нейронка пишет что дело в том что на компе прыгнуло время. и довекот прифигел
+
+лечение . на солярис настрить нтп время
+
+
+
+  # cat /etc/inet/ntp.conf  | grep -v '#'
+
+multicastclient 224.0.1.1
+
+
+disable auth
+
+
+server  194.190.168.1    iburst
+server  89.109.251.21    iburst
+
+
+
+driftfile /var/ntp/ntp.drift
+
+
+statsdir /var/ntp/ntpstats/
+filegen peerstats file peerstats type day enable
+filegen loopstats file loopstats type day enable
+
+
+
+
+
+#  svcadm disable  ntp
+#  svcadm enable  ntp
+
+
+
+
+
+
+root@mail:~# ntpq -p
+     remote           refid      st t when poll reach   delay   offset  jitter
+==============================================================================
+*ntp.ix.ru       .GLN.            1 u   56   64   17    2.882  -13.130  10.560
++ntp1.vniiftri.r .FTRI.           1 u   60   64   17    7.820  -12.906  11.130
+
+
+
+поле ofset -13.130 этона сколко милисекеунд время на компе отличается от 
+эталонного времени
+
+
+

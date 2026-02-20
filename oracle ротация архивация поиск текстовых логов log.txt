@@ -1,0 +1,72 @@
+| oracle
+| logs
+| log
+| rotate
+
+как ротейтить обычные текстовые логи орАкла
+как вобше понять какие из файлов нужно ротейтить
+
+операциаонка это солярис как 10 так и 11
+
+нужно понять  в какие файлы данные реально льются. 
+для этог ищем файлы размром 20МБ+ и которые менялись за эти сутки
+
+
+# find /opt -type f -name "*.log" -size +20971520c -mtime -1 -exec ls -lh {} \;
+-rw-rw----   1 oracle   oinstall     47M Feb 20 19:41 /opt/oracle/diag/tnslsnr/spider01/listener/trace/listener.log
+-rw-r-----   1 oracle   oinstall     71M Feb 20 19:41 /opt/oracle/diag/tnslsnr/spider01/listener_scan4/trace/listener_scan4.log
+-rw-r-----   1 oracle   asmadmin    1.2G Feb 20 19:38 /opt/oracle/diag/rdbms/cmdb/cmdb1/trace/alert_cmdb1.log
+-rw-rw-r--   1 oracle   oinstall     50M Feb 20 18:30 /opt/grid/log/spider01/alertspider01.log
+-rw-r--r--   1 oracle   oinstall     23M Feb 20 19:45 /opt/grid/log/spider01/cssd/ocssd.log
+-rw-r--r--   1 root     root         90M Feb 20 18:30 /opt/grid/log/spider01/ohasd/ohasdOUT.log
+
+root@spider01:~# find /var -type f -name "*.log" -size +20971520c -mtime -1 -exec ls -lh {} \;
+-rw-r--r--   1 root     root         67M Feb 20 18:31 /var/spider/log/db.log
+-rw-r--r--   1 root     root        2.1G Feb 20 19:52 /var/spider/log/asm.log
+
+
+здесь тонкость еще  втом что на солярисе find тупая команда и она размер понимает
+тоьлько в байтах и тоесли наконце поставить букву "c" (читай мануал)
+
+     -size +20971520c
+
+
+теперь когда мы нашли файлы. нужно их правилно сроетейтить.
+будем это делать через logadm
+
+        -C 7 -s 20m -c
+
+
+идем в  /etc/logadm.conf 
+и там добавляем
+
+
+
+  # cat /etc/logadm.conf 
+/opt/grid/log/spider01/ohasd/ohasdOUT.log   -C 7 -s 20m -c
+
+
+
+и так для каждого файла.
+
+
+
+сам logadm вызывается через cron
+
+	# crontab -l | grep logadm
+10 3 * * * /usr/sbin/logadm
+
+
+
+
+
+значит что значит эта строчка
+/opt/grid/log/spider01/ohasd/ohasdOUT.log   -C 7 -s 20m -c
+
+то что логадм берет этот файл . и смотрит есть ли у него размер >=20MB (ключ -s 20m)
+если да то (ключ -c) он его копирует в другой файл. сжимает. а этот файл делает truncate
+тоесть инода у файла остается одна и таже. тоесть процесс который его открыл ничего незаметит.
+ключ -C 7 делает то что он хранит 7 копий архива
+
+
+
