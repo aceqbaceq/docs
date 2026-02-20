@@ -34,7 +34,7 @@ root@spider01:~# find /var -type f -name "*.log" -size +20971520c -mtime -1 -exe
 теперь когда мы нашли файлы. нужно их правилно сроетейтить.
 будем это делать через logadm
 
-        -C 7 -s 20m -c
+        -C 7 -s 20m -z 0 -c
 
 
 идем в  /etc/logadm.conf 
@@ -43,7 +43,7 @@ root@spider01:~# find /var -type f -name "*.log" -size +20971520c -mtime -1 -exe
 
 
   # cat /etc/logadm.conf 
-/opt/grid/log/spider01/ohasd/ohasdOUT.log   -C 7 -s 20m -c
+/opt/grid/log/spider01/ohasd/ohasdOUT.log   -C 7 -s 20m -z 0 -c
 
 
 
@@ -61,10 +61,10 @@ root@spider01:~# find /var -type f -name "*.log" -size +20971520c -mtime -1 -exe
 
 
 значит что значит эта строчка
-/opt/grid/log/spider01/ohasd/ohasdOUT.log   -C 7 -s 20m -c
+/opt/grid/log/spider01/ohasd/ohasdOUT.log   -C 7 -s 20m -z 0 -c
 
 то что логадм берет этот файл . и смотрит есть ли у него размер >=20MB (ключ -s 20m)
-если да то (ключ -c) он его копирует в другой файл. сжимает. а этот файл делает truncate
+если да то (ключ -c) он его копирует в другой файл. сжимает(ключ -z 0). а исходный файл делает truncate
 тоесть инода у файла остается одна и таже. тоесть процесс который его открыл ничего незаметит.
 ключ -C 7 делает то что он хранит 7 копий архива
 
