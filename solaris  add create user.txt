@@ -1,0 +1,7 @@
+| solaris
+| user
+| add
+
+
+useradd -m -d /export/home/username username
+

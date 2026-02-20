@@ -70,3 +70,9 @@ root@spider01:~# find /var -type f -name "*.log" -size +20971520c -mtime -1 -exe
 
 
 
+првокрка вернсоти конфинга
+
+  # logadm -V
+
+
+  
