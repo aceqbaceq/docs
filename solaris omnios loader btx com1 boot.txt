@@ -1,0 +1,835 @@
+| solaris
+| omnios
+| loader
+| CTX
+| BTX
+
+
+ПРО ЗАГРУЗЧИК BTX в OMNIOS
+
+изначалная задача- есь сервер у которого сломана видеокарта sun x4540
+новую не вставить. поэтмоу нужно чтобы установка шла через ком порт .
+
+
+
+на счет заргузчика в омниос.
+они взяли фриббсд загрузчик  BTX неважно.
+в фрисд о нем справвка в  man loader
+и они его модифиироваоли и вставили в себя.
+для начала важно сказать вот что еще.
+солярис был вначале на спарках компах. там нет биоса. вместо него
+есть другая микросехма OpenBOOT или типа того.а она как сторадж с настройками хранит
+в спец памяти назваемая eeprom. и выглядит это так. вклчаем комп. запускется опенбут
+он читает настройки из еепром. чтото там мудит. а потом он запускает ядро. и передает
+ему часть параметров. ядро стартует и оно также лезет в еепром читает оттуда параметры
+и на их базе стартует и подкручивает. 
+так вот
+на компах на базе интел нет опебут. есть биос. и програмисты омниос они вот что
+сделали они постаарлись чтоы этот лоадер работал как бутто он и есть опенбут.
+еепром памяти в мат платах нет. поэтому вместо него файл на жестком диске. тогда
+шарманка раотает так. стартует биос. покручитвает железо. читаеи секто с диска. там
+находится элеменатная первая ступень загрузчика. в нем указано с какого сектора диска
+считать следующую часть загрузчика. в итоге в память загружается минимальрный драйвер
+работы с зфс. который умеет ее читать. он считает  с диска лоадер о котоом щас будем
+гворить. этот лоадер тоже в частнсти умеет читать зфс. этот лоадер читатет конфиги
+с зфс. покручивает железо. например насраивает видеокарты и или комп порт. умеет
+рабать с клавой. тоесть часть насторек который лоадер считал с диска они преднаазначены 
+только для него. далее лоадер своей детяеностью пытается эмулрировать опенбут. даже 
+пропт у него выглядит как
+
+   {ok}
+
+как это есть на настоящем опнбуте на спарках.
+далее лоадер на основе настроек грузит в память ядро и boot_archive (аналог инитрд)
+и его запускает. и также ядру передает часть настроек. 
+далее уже стартует ядро.
+
+так вот важно для начлала понять что этот лоадер это полный винигрет.
+тоесть родился он как загрузчки(по имени BTX) в проекте FREEBSD.
+в омниос его портировали. и этот btx он в себе несет мешанину насроек из нескольких
+разных хреней - он понимает настройки которые были у него в freebsd, также в него 
+дообавили настройки уже програмисты омниос, также он играет роль опенбут поэтому он как
+бы раобтает с еепром.
+по сути он считывает с диска настроки с разной кучи конф файлов. и часть этих настроек
+касется только его самого - менюшки таймауты кнопки где искать ядро. куда выводить сигнал
+о своей работа на монитор или в ком порт или в оба места. а другая часть настроек
+предназанчена для того чтобы он передал их ядру. 
+что касется синстаксисааса самих настроек и перменных. часть из них осталась с фрибсдного
+загрузчика. и част из них работает а часть нет. другая часть это новые настройки уже доавбенная
+програмистами омниос. и третья часть настроек это настройки связанные с эмуляцией опенбут
+(колхозное рназвание еепром нстройки) котоые он читет из еепром который никакой не еепром
+а файла на диске. по своей сути еепром настройки это по своей цели настройки для опенбут
+но ядро при старте их тоже читает и делает с железм тоже самое. чтобы было единнообразние того
+что городит на железе опенбут и потом что городит ядро.
+
+я уже скаазал что лоадер читает свои настройки из файлов на зфс. он умеет чиатт
+зфс. также он читает найтроки из еепром файла. 
+лоаде передает часть считанный настроек ядру. 
+также при жалении с клавы можно поменять любые считанные настройки.
+так вот ядро при старте тоже читает еепром файл и (важно) если лоадер передал одни
+настройки а в файле еепром написаны другие то еепром побеждает. 
+тут ее раз почеркну что настройки можно условно по назначению поделить на три группы
+  1) настройки чисто касаюзие повдедеения самого BTX
+  2) настроки которые чисто чтобы в ядро передать
+  3) настройка которая раобтает и и там и там
+
+и другое деление по тому откуда она пришла
+  а) из фрибсд
+  б) от прогамистов омни
+  в) из еепром
+
+так вот (важно) во вторых то что лоадер читает как свои личные конфиги так и конфиг еепром.
+в личном кофиге лоадера тоже можно указать еепром настройки. личный конфиг читается последним
+поэтому он имеет победу (вобще у лоадера куча конфигов и между ними есть иерархися кто кого
+побеждает) над еепром. если в еером файле есть настройка касающая ся ком порта. и виличном
+файле лоадера есть таже насторйка с другим сзначнеим то победит та что в личном конфиге. 
+и лоадер будет програмирровать ком порт исходя из этого . а еще как я сказа в конечном
+итоге любую считанную настройку можно при жленаии с клавы заменить на свою.  так во вторых
+относительно еепром настроек важно то что когда загрузчик уже сдохнет передаст ядру 
+значение еепром настроек и начнет грузится ядро то оно тоже читает еепром файл и если 
+есть конфликт меду епром настройкой которое ядру передал лоадер и тем что он читает из 
+файа еепром - то ядро плюет на лоадер и делает как написано в еепром файле. ПОЭТОМУ - самое
+умное относиельно еепом настроек что нужно делать это то что - в личном конфиге лоадера нихуя
+ненадо писать еером нстроки. надо их пихать только в еепром файле. там и и место. ещераз - 
+саоме оптимаьное это еером настройки хранить тлько в еепромфайле и боьлше нигде. ненало
+их писать в личном конфиге лоадера.  да лоадер предпочтет еепром настроку из своего личногол
+конфига а не еепром файла. но ядро будет делать как напсано в еепром файле. 
+ебесолезно руками на лету менять ееппром настройку если она конфоиует с тем что написно
+в еепром файле . ядро будет делать как сказано в еепром файле. едиснвтенное когда есть 
+смысл иметь еепрм настройки в лично конфиге лоадера это если по какойто дебтилной причине
+мы хотим чтобы в лоадере железо работало одним способом а в случае загруженной ос
+оно работало по другому. итак еще ещще раз.
+есть особая группа настроек это еепром насройки. они могут быть в трех местах
+  1) еепром файл
+  2) личный конфиг лоадера
+  3) руками на лету в меню лоадера поменять
+
+так вот у лоадера идет вот такая иерархия .
+   самый сильный это ручное значение. потом личный конфиг. и в последнюю очередь это 
+   еепром конфиг. сответсвенно данная настройка будет передана в ядро.
+у ядра все подругому. он плевал на то что ему передает лоадер если он видит эту настройку в
+файле ееепром он будет делат ьименно так как укзано в этом файле.
+
+есть еще момент. в настофщем еепром который на спарках там все возможные перменные уже вбиты 
+в еепром. а вот в еепром файла на интел там кучи переменных может просто небыть. так вот 
+если лоадер передал ядру еепром настройку а вфайле еепром этой настройки нет тогда и только
+тогда ядро послушает то что ему подсунул лоадер. поэтому в этом конкретном случае имеет
+смысл либо в личный конфиг лоадера либо руками в меню лоадера менять или задавать ееппром
+настройку.
+
+
+это  я осветил один важный момент.
+
+еще момент. BTX лоадер пришел из миира фрибсд. и он в онмиос несовсем интегиороован 
+один в один с ядром. тоесть в нем есть ключи настройки которые он лично понимает. 
+и даже передает ядру но ядрото не фрибсл. поэтому ядро илюмоса игонирует эти ключи.
+поэтому загрузчки соегака сам по себе а ядро илюмоса само по себе. 
+
+щас будет все на конкретике показывать
+
+один из приколов состоит в том что сам лоадер может картинку показывать и кнопки принимать
+сразу их несолкьких мест. тоесть в лоадере я могу заадать чтобы он картинку слал и на видеокарту
+и на ком порт. и чтобы кнопки он принимал как с клавы самого сервера так и с ком порта.
+а вот само ядро илюомоса такое неуемеет или нехочет и пофакту ядро уже когда будет гузаится
+то будет только одно место (тоесть либо видокарта либо ком порт) куда оно шлет картинку
+и откуда принмиает кнопки. но не два. 
+
+про видеокарту. она может работаь как в режиме фреймбуфера тоесть в режиме релаьной видеркаты
+с точками по веткиали и горизонатамли (тоесть те самые 800х600 итп) а может работать в режиме
+нефреймбуфера. это когда у нее нет графического режима. а есть 80 литертных позиициц по 
+горизонтали и 25 по верткиали. это тоже можно переключать в лоадере.
+
+
+итак.
+далее.
+где искать информацию по лоадеру. вот они эти места.
+значит во первых когда мы в теле лоадера. тоесть когда у нас меню выскакивает.
+тоесть до того как мы видим на экране фразы
+
+Loading unix...
+boot_archive...Loading /platform/i86pc/amd64/boot_archive...
+boot_archive.hash...Loading /platform/i86pc/amd64/boot_archive.hash...
+
+
+так вот когда загрузчкик лоадер только грузится. то тыкаем кнопку 3
+и мы попадем в  cli загрзчика. примета это 
+
+   ok
+
+
+так вот там тыкаем кнопку "?"
+и она покажет все доступные команды которые понимает лоадер
+ксатти строки 
+
+Loading unix...
+boot_archive...Loading /platform/i86pc/amd64/boot_archive...
+ok
+boot_archive.hash...Loading /platform/i86pc/amd64/boot_archive.hash...
+ok
+
+это сигнал не отом что ядро уже стартует. а это сигнал о том что 
+лоадер всего навсего тело файл ядра и boot_archive(аналог инитрд) загрузил в память.
+но загрузить мало. надо еще это все поджечь стартануть. 
+вобщем важно то что эти строки это еще ядро не стартануло. еще загузчик его не 
+заупстил. а только засунул в память и все.
+так вот зашли мы в кли загрузичка и тыкнули "?"
+и мы увилим все команды которые понмиает загрузчик. это первое место где можно
+получить старапарвку о загрузчике.
+
+ok ?
+Available commands:
+  heap             show heap usage
+  reboot           reboot the system
+  chain            chain load boot block from device
+  autoboot         boot automatically after a delay
+  boot             boot a file or loaded kernel
+  lsdev            list all devices
+  more             show contents of a file
+  read             read input from the terminal
+  echo             echo arguments
+  ...
+  ...
+
+если я хочу узнать как пользовать кокнетеной командоой то 
+
+ok help load
+-
+        load [-t <type>] <filename> [arguments]
+
+        Loads the module contained in <filename> into memory.  If no other
+        modules are loaded, <filename> must be a kernel or the command will
+        fail.
+
+        If -t is specified, the module is loaded as raw data of <type>, for
+        later use by the kernel or other modules.  <type> may be any string.
+
+        Optional arguments will be set as module arguments.
+
+
+итак первое место где справа оо лоадере это через кли в самом загрузичке.
+
+следущее место это маны внутри оерационки
+
+
+ # man loader 
+ # man loader.conf
+ # man boot
+ # man  loader.4th
+ # man eeprom
+
+в этих файлах по кусоачкам можно сожбрать инфо о тех перменных и командах котрые
+поддержиывает лоадер.
+кстати то что лодер в своем кли показыает на коману "?" хранится в файле
+
+ # cat /boot/loader.help
+
+
+возвращаюсь в тело самого кли лоадера
+вводим там 
+
+ ok show
+
+и мы получим все или почти все по карейней мере дохрена тех перменных которые лоадер
+знает и понимает.
+
+
+
+
+ISADIR=amd64
+acpi.oem=BOCHS 
+acpi.revision=1
+acpi.rsdp=0x000f5280
+acpi.rsdt=0x7ffe2e9b
+ansi_caption[1]=Boot Multi User [Enter]
+ansi_caption[2]=Boot Single User
+ansi_caption[3]=Escape to loader prompt
+ansi_caption[5]=Configure Boot Options...
+ansi_caption[6]=Select Boot Environment...
+ata-dma-enabled=1
+atapi-cd-dma-enabled=1
+autoboot=60
+autoboot_delay=NO
+beansi_bootfs=^[1mbootfs: ^[m
+beansi_current=^[1mActive: ^[m
+beansi_page=^[1mP^[mage: 
+beansi_pageof= of 
+beastie_disable=NO
+bemenu_bootfs=bootfs: 
+bemenu_current=Active: 
+bemenu_page=[P]age: 
+bemenu_pageof= of 
+boot_font=10x18
+boot_resolution=1024x768                                
+boot_verbose=YES
+bootenv_root[4]=zfs:rpool/ROOT/01:
+bootenv_root[5]=zfs:rpool/ROOT/omnios-r151056:
+bootenvansi_caption[4]=01
+bootenvansi_caption[5]=omnios-r151056
+bootenvmenu_caption[4]=01
+bootenvmenu_caption[5]=omnios-r151056
+bootenvmenu_command[1]=be_draw_screen 1 goto_menu
+bootenvmenu_command[2]=be_draw_screen 1 goto_menu
+bootenvmenu_command[3]=set_be_page
+bootenvmenu_command[4]=set_bootenv
+bootenvmenu_command[5]=set_bootenv
+bootenvmenu_init=init_bootenv
+bootenvmenu_keycode[1]=8
+bootenvmenu_keycode[2]=8
+bootenvmenu_keycode[3]=112
+bootenvmenu_options=4
+bootenvmenu_optionstext=Boot Environments:
+bootfile=unix
+console=ttya,text
+currdev=zfs:rpool/ROOT/01:
+interpret=ok
+kernel=i86pc/kernel/amd64
+keyboard-layout=US-English                              
+lba-access-ok=1
+loaddev=zfs:rpool/ROOT/01:
+loader_brand=omnios
+loader_conf_files=/boot/loader.conf /boot/loader.conf.local
+loader_font=10x18
+loader_logo=omnios
+loader_menu_timeout_y=24
+loader_menu_title=Welcome to OmniOS
+loader_menu_y=11
+loader_resolution=800x600
+mainansi_caption[1]=^[1mB^[moot Multi User ^[1m[Enter]^[m
+mainansi_caption[2]=Boot ^[1mS^[mingle User
+mainansi_caption[3]=^[1mEsc^[mape to loader prompt
+mainansi_caption[5]=Configure Boot ^[1mO^[mptions...
+mainansi_caption[6]=Select Boot ^[1mE^[mnvironment...
+mainmenu_caption[1]=Boot Multi User [Enter]
+mainmenu_caption[2]=Boot [S]ingle User
+mainmenu_caption[3]=[Esc]ape to loader prompt
+mainmenu_caption[5]=Configure Boot [O]ptions...
+mainmenu_caption[6]=Select Boot [E]nvironment...
+mainmenu_command[1]=boot
+mainmenu_command[2]=altboot
+mainmenu_command[3]=goto_prompt
+mainmenu_command[5]=2 goto_menu                         
+mainmenu_command[6]=3 goto_menu
+mainmenu_init[1]=init_boot
+mainmenu_init[2]=init_altboot
+mainmenu_keycode[3]=27
+mainmenu_keycode[5]=111
+mainmenu_keycode[6]=101
+mainmenu_options=5
+mainmenu_reboot=
+maintoggled_ansi[1]=Boot ^[1mS^[mingle User ^[1m[Enter]^[m
+maintoggled_ansi[2]=Boot ^[1mM^[multi User
+maintoggled_text[1]=Boot [S]ingle User [Enter]
+maintoggled_text[2]=Boot [M]ulti User
+menu_caption[1]=Boot Multi User [Enter]
+menu_caption[2]=Boot [S]ingle User
+menu_caption[3]=[Esc]ape to loader prompt
+menu_caption[5]=Configure Boot [O]ptions...
+menu_caption[6]=Select Boot [E]nvironment...
+menu_command[1]=boot
+menu_command[2]=altboot
+menu_command[3]=goto_prompt
+menu_command[5]=2 goto_menu
+menu_command[6]=3 goto_menu
+menu_init[1]=init_boot
+menu_init[2]=init_altboot                               
+menu_keycode[1]=98
+menu_keycode[2]=115
+menu_keycode[3]=27
+menu_keycode[5]=111
+menu_keycode[6]=101
+menu_options=5
+menu_reboot=
+menu_timeout_command=boot
+menuset_initial=1
+menuset_name1=main
+menuset_name2=options
+menuset_name3=bootenv
+module_path=/platform/i86pc/amd64/
+optionsansi_caption[1]=Back to Main Menu ^[1m[Backspace]^[m
+optionsansi_caption[4]=^[1mS^[mingle User........... ^[34;1mOff^[m
+optionsansi_caption[5]=^[1mV^[merbose............... ^[34;1mOff^[m
+optionsansi_caption[6]=^[1mR^[meconfigure........... ^[34;1mOff^[m
+optionsansi_caption[8]=^[1mG^[mraphical Console..... ^[34;1mOff^[m
+optionsmenu_acpi=3
+optionsmenu_caption[1]=Back to Main Menu [Backspace]
+optionsmenu_caption[4]=[S]ingle User......... Off
+optionsmenu_caption[5]=[V]erbose............. Off
+optionsmenu_caption[6]=[R]econfigure......... Off
+optionsmenu_caption[8]=[G]raphical Console... Off       
+optionsmenu_command[1]=1 goto_menu
+optionsmenu_command[2]=cycle_osconsole
+optionsmenu_command[3]=cycle_acpi
+optionsmenu_command[4]=toggle_singleuser
+optionsmenu_command[5]=toggle_verbose
+optionsmenu_command[6]=toggle_reconfigure
+optionsmenu_command[7]=cycle_kmdb
+optionsmenu_command[8]=toggle_framebuffer
+optionsmenu_init[4]=init_singleuser
+optionsmenu_init[5]=init_verbose
+optionsmenu_init[6]=init_reconfigure
+optionsmenu_init[8]=init_framebuffer
+optionsmenu_keycode[1]=8
+optionsmenu_keycode[2]=99
+optionsmenu_keycode[3]=97
+optionsmenu_keycode[4]=115
+optionsmenu_keycode[5]=118
+optionsmenu_keycode[6]=114
+optionsmenu_keycode[7]=107
+optionsmenu_keycode[8]=103
+optionsmenu_kmdb=7
+optionsmenu_options=2
+optionsmenu_optionstext=Boot Options:
+optionsmenu_osconsole=2                                 
+optionstoggled_ansi[4]=^[1mS^[mingle User........... ^[32;7mOn^[m
+optionstoggled_ansi[5]=^[1mV^[merbose............... ^[32;7mOn^[m
+optionstoggled_ansi[6]=^[1mR^[meconfigure........... ^[32;7mOn^[m
+optionstoggled_ansi[8]=^[1mG^[mraphical Console..... ^[32;7mOn^[m
+optionstoggled_text[4]=[S]ingle User......... On
+optionstoggled_text[5]=[V]erbose............. On
+optionstoggled_text[6]=[R]econfigure......... On
+optionstoggled_text[8]=[G]raphical Console... On
+os_console=ttya
+pcibios.config1=1
+pcibios.config2=0
+pcibios.major=2
+pcibios.maxbus=2
+pcibios.minor=0
+prompt=${interpret}
+screen-#cols=80
+screen-#rows=25
+screen-font=8x16
+smbios.bios.reldate=04/01/2014
+smbios.bios.vendor=SeaBIOS
+smbios.bios.version=rel-1.16.3-0-ga6ed6b701f0a-prebuilt.qemu.org
+smbios.chassis.maker=QEMU
+smbios.chassis.version=pc-i440fx-10.0
+smbios.memory.enabled=2097152                           
+smbios.socket.enabled=1
+smbios.socket.populated=1
+smbios.system.maker=QEMU
+smbios.system.product=Standard PC (i440FX + PIIX, 1996)
+smbios.system.uuid=42078e8c-6a05-40e0-8a96-f43326a24863
+smbios.system.version=pc-i440fx-10.0
+smbios.version=2.8
+tem.bg_color=0
+tem.fg_color=7
+tem.inverse=false
+tem.inverse-screen=false
+toggled_ansi[1]=Boot ^[1mS^[mingle User ^[1m[Enter]^[m
+toggled_ansi[2]=Boot ^[1mM^[multi User
+toggled_text[1]=Boot [S]ingle User [Enter]
+toggled_text[2]=Boot [M]ulti User
+ttya-ignore-cd=true
+ttya-mode=9600,8,n,1,-
+ttya-rts-dtr-off=false
+ttyb-ignore-cd=true
+ttyb-mode=9600,8,n,1,-
+ttyb-rts-dtr-off=false
+ttyc-ignore-cd=true
+ttyc-mode=9600,8,n,1,-
+ttyc-rts-dtr-off=false                                  
+ttyd-ignore-cd=true
+ttyd-mode=9600,8,n,1,-
+ttyd-rts-dtr-off=false
+twiddle_divisor=16
+zfs_be_active=01
+zfs_be_currpage=1
+zfs_be_pages=1
+ok        
+
+
+
+тоесть дело в том что найти этот список внутри манов в полном обоеме хуй получится.
+а здесь они как на ладони.
+
+
+лоадер умеет читать зфс и вот те конфиги которые он читает 
+ксати из кли самого лоадера можно споокйойно ходит по папкам зфс и читать ффайлы!
+вот смотри ходим по папкам
+
+ok ls /boot
+/boot
+ d  acpi
+ d  conf.d
+ d  defaults
+ d  fonts
+ d  forth
+ d  solaris
+    loader
+    pxeboot
+    illumos-small.png
+    ooce.png
+    illumos-brand.png
+    pmbr
+    loader.rc
+    fenix.png
+    loader.help
+    gptzfsboot
+    solaris.xpm
+    loader32.efi
+    isoboot
+    loader64.efi
+    cdboot
+    illumos-logo.png
+    splashimage.xpm
+    loader.conf.local            
+
+
+
+
+а вот читаем файл прямо из лоадера
+
+ok 
+ok more /boot/loader.conf.local
+*** FILE /boot/loader.conf.local BEGIN ***
+#console="ttya,text"
+#os_console="ttya"
+#exec "framebuffer set 800x600x32"
+exec="framebuffer off"
+autoboot_delay="60"
+autoboot="60"
+#boot_multicons="YES"
+#boot-args="-v"
+verbose_loading="YES"
+#
+*** FILE /boot/loader.conf.local END ***
+
+
+
+так вот теперь по поводу списка файлов их которых лоаедер читает свои 
+пааметры. их целая куча
+публикую их в порядке считвания(плюс минус)
+
+/boot/defaults/loader.conf
+/boot/loader.conf         (этого файла зачасту просто нет)
+/boot/solaris/bootenv.rc  (здесь лежат еепром перменные)
+/boot/loader.conf.local
+
+
+вот этот файл 
+   /boot/loader.conf.local
+имеет самую сильную силу. его перменные в итоге пербивают все. 
+и если мы хоотим чтото изменить из перепенных которые понимает лоадер то их нужно втставлять 
+сюда.  у меня этот файл выглядит вот так
+
+
+
+ok 
+ok more /boot/loader.conf.local
+*** FILE /boot/loader.conf.local BEGIN ***
+#console="ttya,text"
+#os_console="ttya"
+#exec "framebuffer set 800x600x32"
+exec="framebuffer off"
+autoboot_delay="60"
+autoboot="60"
+#boot_multicons="YES"
+#boot-args="-v"
+verbose_loading="YES"
+#
+*** FILE /boot/loader.conf.local END ***
+
+
+
+вот эти строки
+*** FILE /boot/loader.conf.local BEGIN ***
+*** FILE /boot/loader.conf.local END ***
+их в файле нет.
+это чисто лоадер дорисоваывает
+
+если убрать коменты то остатется в чистом виде вот что 
+
+exec="framebuffer off"
+autoboot_delay="60"
+autoboot="60"
+verbose_loading="YES"
+
+
+тоесть совсем немного 
+
+
+в этот файл можно вставлять как перменне лоадера тогда они суются в виде
+  	key="value"
+например 
+	autoboot="60"
+
+и можно вставлять сами команды лоадера тогда они вставлтяс в виде
+	exec="команда "
+например 
+	exec="framebuffer off"
+
+
+
+чисто визуално можно отличтить какие пемернные осталсиь от фрибсд. они имеют вид
+  name.name2
+
+перменные еепром имею вид
+   name-name2
+
+перменные которые добавили прогамиситы это 
+   name_name2
+
+
+я призваю еепром перменные несовать в этот файл а совать их сразу в файл еепром
+а именно 
+
+	/boot/solaris/bootenv.rc
+
+
+вот мой контент этого файла
+
+setprop keyboard-layout 'US-English'
+setprop ata-dma-enabled '1'
+setprop atapi-cd-dma-enabled '1'
+setprop ttyd-rts-dtr-off 'false'
+setprop ttyd-ignore-cd 'true'
+setprop ttyc-rts-dtr-off 'false'
+setprop ttyc-ignore-cd 'true'
+setprop ttyb-rts-dtr-off 'false'
+setprop ttyb-ignore-cd 'true'
+setprop ttya-rts-dtr-off 'false'
+setprop ttya-ignore-cd 'true'
+setprop ttyd-mode '9600,8,n,1,-'
+setprop ttyc-mode '9600,8,n,1,-'
+setprop ttyb-mode '9600,8,n,1,-'
+setprop ttya-mode '9600,8,n,1,-'
+setprop lba-access-ok '1'
+setprop console 'ttya,text'      ***<<
+setprop os_console 'ttya'        ***<<
+setprop boot-args '-v'           ***<<
+
+
+
+звелочками я пометил  те строки которые я вставил сам
+
+
+
+
+самые важные самые прикольные перменные это вот эти
+
+
+       setprop console 'ttya,text'
+
+
+она говорит лоадеру о том куда ему выводить картинку пока он еще живой. пока 
+он еще не запустил ядро. и соотвттенно откуда он может также принимать нажатия кнопок.
+соовесвтенно лоадер может работаь сразу на нескольких устрйоствах. тоесть на видеократе
+и клаве воткнутой в сервер так и в ком порту. 
+
+
+
+вторая супежваная настройка
+
+       setprop os_console 'ttya'     
+
+
+она влияет на то что ее передает лоадер в ядро при его старте. и оно сообщает ядру
+какое утсроввто будет той самой консолью. тоесть куда ядро будет пихать свой аутпут
+и откуда будет принимать нажатия кнопок.
+прикол илюмос ядра в том что он вотличии от лодардера нехочет и неиумеет ни рисвать
+аутпут ни принимать кнопки из нескоьких утсройств. это либо видеокарта срвера плюс его клава
+либо это ком порт. чтото одно.
+
+
+параметры работы ком порта они обычно уже присутвтвуют сразу
+    setprop ttya-mode '9600,8,n,1,-'
+
+поэтму по их поводу париться неприходится
+
+
+еще раз пдочеркну что файл с еепром перменными читает и лоадер (которйый умулирует опенбут
+для которого еепром вобще то и был создан) и ядро
+так вот если я хочу чтобы лоадер вывыодил картинку и на ком порт
+и на вга карту а также читал нажатия кнопок по обоим каналам то я делаю
+
+
+       setprop console 'ttya,text'
+
+
+если я хочу чтобы операционка когда заррузится рисовала картнку и принимала кнопки по 
+ком порту я делаю 
+
+       setprop os_console 'ttya'     
+
+
+еще раз подчеркну что ядро в натсройке os_console не понимает если там несколько хреновин.
+только одна перваая и имеет силу.
+
+
+в файле loader.conf.local
+как видно  я изначально тоже сунул эти параметры
+console="ttya,text"
+os_console="ttya"
+
+
+а потом закоментирвал. 
+потому что если они есть в файле  	/boot/solaris/bootenv.rc
+то там они имеет большую силу. и бесполезно их вытсатвлять тогда в   loader.conf.local
+
+
+в целом пока хватит. нет времени
+
+а вот какой контент внутри boot_archive
+
+
+root@omnios:~# bootadm list-archive
+boot/acpi/tables
+boot/solaris/bootenv.rc
+etc/cluster/nodeid
+etc/dacf.conf
+etc/devices/devid_cache
+etc/devices/mdi_ib_cache
+etc/devices/mdi_scsi_vhci_cache
+etc/devices/retire_store
+etc/devices/pci_unitaddr_persistent
+etc/driver_aliases
+etc/driver_classes
+etc/mach
+etc/name_to_major
+etc/name_to_sysnum
+etc/path_to_inst
+etc/ppt_aliases
+etc/rtc_config
+etc/system
+etc/system.d
+etc/hostid
+etc/versions
+kernel
+platform/i86hvm/kernel
+platform/i86pc/kernel
+platform/i86xpv/kernel
+platform/i86pc/ucode/GenuineIntel
+platform/i86pc/ucode/AuthenticAMD
+
+
+
+про лоадер. стдя в нем можно налету менять в каком режиме работает видеокарта
+через команду framebuffer
+
+
+help framebuffer
+/
+        framebuffer on | off | get | list [depth] | set <display or mode number>
+
+        Switch framebuffer mode on or off, get current mode, list available
+        modes or set mode by using either display resolution or framebuffer
+        mode number. If the system does not provide display resolution via
+        EDID, the default resolution will be set to 800x600. If depth is not
+        specified, the best depth is used.
+
+
+вот можно потсмреть какие режимы поддерживает видкеократа
+
+
+
+ok framebuffer list
+DDC [DDC1] [DDC2]: EDID 1280x800 1280x960 1280x1024 1440x900 1680x1050 1600x1200 1920x1200 1920x1080 2048x1152
+VESA VBE Version 3.0
+SeaBIOS VBE(C) 2011
+Modes: 
+0x100=640x400x8  0x101=640x480x8  0x103=800x600x8  0x105=1024x768x8
+0x107=1280x1024x8  0x10d=320x200x15  0x10e=320x200x16  0x10f=320x200x24
+0x110=640x480x15  0x111=640x480x16  0x112=640x480x24  0x113=800x600x15
+0x114=800x600x16  0x115=800x600x24  0x116=1024x768x15  0x117=1024x768x16
+0x118=1024x768x24  0x119=1280x1024x15  0x11a=1280x1024x16  0x11b=1280x1024x24
+0x11c=1600x1200x8  0x11d=1600x1200x15  0x11e=1600x1200x16  0x11f=1600x1200x24
+0x140=320x200x32  0x141=640x400x32  0x142=640x480x32  0x143=800x600x32
+0x144=1024x768x32  0x145=1280x1024x32  0x146=320x200x8  0x147=1600x1200x32
+0x148=1152x864x8  0x149=1152x864x15  0x14a=1152x864x16  0x14b=1152x864x24
+0x14c=1152x864x32  0x175=1280x768x16  0x176=1280x768x24  0x177=1280x768x32
+0x178=1280x800x16  0x179=1280x800x24  0x17a=1280x800x32  0x17b=1280x960x16
+0x17c=1280x960x24  0x17d=1280x960x32  0x17e=1440x900x16  0x17f=1440x900x24
+0x180=1440x900x32  0x181=1400x1050x16  0x182=1400x1050x24  0x183=1400x1050x32
+0x184=1680x1050x16  0x185=1680x1050x24  0x186=1680x1050x32  0x187=1920x1200x16
+0x188=1920x1200x24  0x189=1920x1200x32  0x18a=2560x1600x16  0x18b=2560x1600x24
+0x18c=2560x1600x32  0x18d=1280x720x16  0x18e=1280x720x24  0x18f=1280x720x32
+0x190=1920x1080x16  0x191=1920x1080x24  0x192=1920x1080x32  0x193=1600x900x16
+0x194=1600x900x24  0x195=1600x900x32  0x196=2560x1440x16  0x197=2560x1440x24
+0x198=2560x1440x32  0x199=3840x2160x16  0x13=320x200x8
+
+
+выбираем режим. 
+
+ok framebuffer set 0x14b
+
+и активируем граф режим
+ok framebuffer on
+
+
+а если я хочу чисто тестовый режим видеократы то вот так 
+ok framebuffer off
+
+
+чтобы это задать через loader.conf.local то вот так
+exec="framebuffer set 0x14b"
+exec="framebuffer on"
+
+
+
+
+
+про ком порт его скорость настраиывается вот так
+	setprop ttya-mode '9600,8,n,1,-'
+через еепром файл
+
+или 
+	ttya-mode="9600,8,n,1,-"
+через loader.conf.local
+
+
+хотя это чисто еепром перменная. поэтому лушче пихать в еепром файл
+
+
+Далее.
+если у нас есть флэшка установочная соляриса. то ее можно смнтировать внутри
+установленного соляриса как ufs папку вот так и там спойкйоно все отрдактировать 
+как нам надо тоесть
+
+
+вот мы сидит внутри кли лоадера.
+вот мы там поменяли пременные кстати там это делается вот так
+ 	ok set key="value"
+
+так вот даем команду перечитать ее лоадером
+
+    ok read-conf
+
+дать команду на загрузку ядра и его запуск это вот так
+   ok boot
+
+а еше вот так
+
+   ok boot-conf
+
+не очень понимаю разницу.
+но если делаем boot то  в нем еще можно руками добить переенные которые 
+будут переданы ядру. у ядра есть два типа праармтеров которые ему преедаются . одни
+имеют только имя  а второые имеют вида ключ=значение.
+те коорые олько имя их мало и они вот какие 
+
+  -a 
+  -r 
+  -s   (сингл режим)
+  -v   (verbose)
+  -x
+
+про них можно прочитать в man kernel
+вот они укзаыват сявот в таком виде
+
+  ok boot -s 
+
+а те котоыре ключ значнеие они указываются вот так
+
+  ok boot -s    -B os_console=ttya  -B console=ttya
+
+
+но как правло все эти ключи можно задать через пермтенные самого лоадера.  а потом просто
+ввести 
+  
+  ok boot
+
+
+про эту команду лоадера boot есть даже отдеьный мануал !
+
+   # man boot
+
