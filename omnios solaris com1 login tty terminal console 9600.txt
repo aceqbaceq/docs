@@ -1,0 +1,39 @@
+| omnios
+| solaris
+| kernel
+| terminal
+| console
+
+у нас есть омниос. и у него логин раотает через видеокарту и клаву сервера.
+как нам сдела так чтобы можно было залогиниться на сервер чрез com1 порт 
+
+а вот как
+
+
+# 1. Прописываем параметры скорости в системную таблицу
+sttydefs -a com0 -i '9600 hupcl opost onlcr ofill' -f '9600'
+
+# 2. Создаем экземпляр службы для COM-порта
+svccfg -s system/console-login add com0
+
+svccfg -s system/console-login:com0 addpg ttymon application
+
+# 3. Указываем системе, что этот экземпляр должен работать с ПЕРВЫМ портом (/dev/term/a)
+svccfg -s system/console-login:com0 setprop ttymon/device = astring: "/dev/term/a"
+
+# 4. Связываем службу с настройками скорости "com0", которые мы создали в первом шаге
+svccfg -s system/console-login:com0 setprop ttymon/label = astring: "com0"
+
+# 5. Принудительно включаем режим терминала (а не модема)
+svccfg -s system/console-login:com0 setprop ttymon/mode = astring: "terminal"
+
+# 6. Обновляем конфигурацию, чтобы система "увидела" изменения свойств
+svcadm refresh system/console-login:com0
+
+# 7. Запускаем службу логина на этом порту
+svcadm enable system/console-login:com0
+
+# 8. Разрешаем пользователю root входить через этот порт
+# (Убираем ограничение, что root может зайти только с основного монитора)
+/usr/gnu/bin/sed -i 's/^CONSOLE=/#CONSOLE=/' /etc/default/login
+
