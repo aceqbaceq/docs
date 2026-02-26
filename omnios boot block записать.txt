@@ -1,0 +1,9 @@
+| omnios
+| solaris
+| boot block
+
+
+как записать boot block
+
+	# bootadm install-bootloader -v -f
+

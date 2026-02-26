@@ -1,0 +1,30 @@
+| omnios 
+| solaris
+| ipmp
+
+как зафигачить ipmp
+
+
+root@omniosx4540:~# dladm show-phys
+LINK         MEDIA                STATE      SPEED    DUPLEX   DEVICE
+nge0         Ethernet             unknown    0        unknown  nge0
+nge2         Ethernet             unknown    0        unknown  nge2
+nge1         Ethernet             unknown    0        unknown  nge1
+nge3         Ethernet             unknown    0        unknown  nge3
+mlxcx0       Ethernet             down       0        full     mlxcx0
+mlxcx1       Ethernet             down       0        full     mlxcx1
+root@omniosx4540:~# ipadm create-ip nge0
+ipadm create-ip nge1
+root@omniosx4540:~# ipadm create-ipmp ipmp0
+root@omniosx4540:~# ipadm add-ipmp -i nge0 -i nge1 ipmp0
+root@omniosx4540:~# ipadm create-addr -T static -a 192.168.0.214/24 ipmp0/v4
+root@omniosx4540:~# ipmpstat -g
+GROUP       GROUPNAME   STATE     FDT       INTERFACES
+ipmp0       ipmp0       failed    --        [nge1 nge0]
+root@omniosx4540:~# 
+root@omniosx4540:~# ipmpstat -i
+INTERFACE   ACTIVE  GROUP       FLAGS     LINK      PROBE     STATE
+nge1        no      ipmp0       -------   down      disabled  failed
+nge0        no      ipmp0       -------   down      disabled  failed
+
+

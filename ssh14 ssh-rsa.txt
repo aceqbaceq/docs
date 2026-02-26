@@ -1,0 +1,16 @@
+| ssh
+| sun
+| solaris
+
+
+трабл
+
+
+# scp sol-11_2-text-x86.usb  root@192.168.0.228:
+Unable to negotiate with 192.168.0.228 port 22: no matching host key type found. Their offer: ssh-rsa,ssh-dss
+scp: Connection closed
+
+решение
+# scp  -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa    sol-11_2-text-x86.usb  root@192.168.0.228:
+
+

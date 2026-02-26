@@ -12,7 +12,8 @@
 для этог ищем файлы размром 20МБ+ и которые менялись за эти сутки
 
 
-# find /opt -type f -name "*.log" -size +20971520c -mtime -1 -exec ls -lh {} \;
+    #   find /opt -type f -name "*.log" -size +20971520c -mtime -1 -exec ls -lh {} \;
+
 -rw-rw----   1 oracle   oinstall     47M Feb 20 19:41 /opt/oracle/diag/tnslsnr/spider01/listener/trace/listener.log
 -rw-r-----   1 oracle   oinstall     71M Feb 20 19:41 /opt/oracle/diag/tnslsnr/spider01/listener_scan4/trace/listener_scan4.log
 -rw-r-----   1 oracle   asmadmin    1.2G Feb 20 19:38 /opt/oracle/diag/rdbms/cmdb/cmdb1/trace/alert_cmdb1.log
@@ -75,4 +76,3 @@ root@spider01:~# find /var -type f -name "*.log" -size +20971520c -mtime -1 -exe
   # logadm -V
 
 
-  

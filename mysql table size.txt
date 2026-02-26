@@ -1,0 +1,17 @@
+| mysql
+| table
+| size
+
+
+узнать размер самой жирной таблцы в базе
+
+
+SELECT 
+    table_name AS "Table", 
+    ROUND(((data_length + index_length) / 1024 / 1024), 2) AS "Size (MB)" 
+FROM information_schema.TABLES 
+WHERE table_schema = "имя_таблицы" 
+ORDER BY (data_length + index_length) DESC 
+LIMIT 10;
+
+

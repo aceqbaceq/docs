@@ -1,0 +1,35 @@
+| x4540
+| omnios
+| disk
+| serial
+
+
+как узнат связь между именами дисков вида c0t0d0 и их серинйиики.
+два способа
+
+#  diskinfo -c
+TYPE    DISK                    VID      PID              SERIAL
+        SIZE          FLRS LOCATION
+SCSI    c2t0d0                  SEAGATE  ST32500NSSUN250G 0730B4ENNY 5QE4ENNY            
+          20.00 GiB   ??-- -
+SCSI    c2t1d0                  SEAGATE  ST32500NSSUN250G 0730B4EP7J 5QE4EP7J            
+          20.00 GiB   ??-- -
+SCSI    c2t2d0                  SEAGATE  ST32500NSSUN250G 0829B82FP7 9QE82FP7            
+
+
+
+
+
+# iostat -En
+c4t6d0           Soft Errors: 0 Hard Errors: 0 Transport Errors: 0 
+Vendor: ATA      Product: SEAGATE ST350063 Revision: L    Serial No: 9QG31V9S 
+Size: 500.11GB <500107862016 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 0 Recoverable: 0 
+Illegal Request: 0 Predictive Failure Analysis: 0 
+c4t7d0           Soft Errors: 0 Hard Errors: 0 Transport Errors: 0 
+Vendor: ATA      Product: SEAGATE ST350063 Revision: J    Serial No: 5QG0EYMB 
+Size: 500.11GB <500107862016 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 0 Recoverable: 0 
+Illegal Request: 0 Predictive Failure Analysis: 0 
+
+
