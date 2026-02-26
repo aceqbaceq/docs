@@ -36,4 +36,18 @@ nge0        no      ipmp0       -------   down      disabled  failed
   svcadm enable  ssh
   ssh root@192.168.0.214
 
+ route -p add default 192.168.0.225
+vi /etc/resolv.conf
+vi  /etc/nsswitch.conf
+svcs -a | grep client
+svcadm enable svc:/network/dns/client:default
+ping -s ya.ru
+pkg install nano
+pkg install pkg://extra.omnios/ooce/application/mc
+
+
+root@omniosv2:~# beadm create 03
+root@omniosv2:~# bootadm update-archive
+root@omniosv2:~# beadm  activate 03
+
 
