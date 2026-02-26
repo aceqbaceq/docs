@@ -28,3 +28,12 @@ nge1        no      ipmp0       -------   down      disabled  failed
 nge0        no      ipmp0       -------   down      disabled  failed
 
 
+  stty rows 47
+  stty cols 211
+  export TERM=ansi
+  vi /etc/ssh/sshd_config 
+  cat  /etc/ssh/sshd_config  | grep Permit
+  svcadm enable  ssh
+  ssh root@192.168.0.214
+
+
