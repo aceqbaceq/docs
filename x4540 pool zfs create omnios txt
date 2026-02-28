@@ -1,0 +1,33 @@
+| x4540
+| omnios
+| solaris
+| zpool
+| zfs
+
+
+формирую массив
+
+# zpool create -f -o ashift=12    -o autoreplace=on     -o failmode=continue    -o autotrim=on    -O compression=lz4    -O xattr=on    -O atime=off    -O recordsize=128k    -O normalization=formD    -O utf8only=on    -O canmount=off    POOL-FLOW3 raidz2 /dev/dsk/c2t4d0   /dev/dsk/c2t5d0  /dev/dsk/c2t6d0   /dev/dsk/c2t7d0
+
+
+
+# zdb -C POOL-FLOW3 | grep ashift
+                ashift: 12
+
+zpool add -f POOL-FLOW3 raidz2 c3t0d0 c3t1d0 c3t2d0 c3t3d0   raidz2 c3t4d0 c3t5d0 c3t6d0 c3t7d0
+zpool add -f POOL-FLOW3 raidz2 c4t0d0 c4t1d0 c4t2d0 c4t3d0   raidz2 c4t4d0 c4t5d0 c4t6d0 c4t7d0
+zpool add -f POOL-FLOW3 raidz2 c5t0d0 c5t1d0 c5t2d0 c5t3d0   raidz2 c5t4d0 c5t5d0 c5t6d0 c5t7d0
+zpool add -f POOL-FLOW3 raidz2 c6t0d0 c6t1d0 c6t2d0 c6t3d0   raidz2 c6t4d0 c6t5d0 c6t6d0 c6t7d0
+
+
+добавляю spare
+
+zpool add -f POOL-FLOW3 spare c7t0d0 
+zpool add -f POOL-FLOW3 spare c7t1d0 
+zpool add -f POOL-FLOW3 spare c7t2d0 
+zpool add -f POOL-FLOW3 spare c7t3d0 
+
+
+запускаю службу которая если диск сломактся то возьмет спейр и вставить в массив
+svcadm enable svc:/system/fmd:default
+

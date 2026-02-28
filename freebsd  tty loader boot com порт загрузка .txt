@@ -1,0 +1,43 @@
+| freebsd
+| console
+| com
+| tty
+| loader
+| boot
+
+полезная инфо в
+
+ # man loader
+ # man loader.conf
+ # man boot
+и очень полезная
+ # man loader_simp
+
+
+
+чтоб фрибсл давала кариинку на com порт
+
+root@fr2:~ # cat /boot/loader.conf
+boot_multicons="YES"
+boot_serial="YES"
+boot_verbose="YES"
+hint.uart.0.flags="0x10"
+comconsole_speed=115200
+console="comconsole,vidconsole"
+vesa_load="NO"
+kern.geom.label.disk_ident.enable="0"
+kern.geom.label.gptid.enable="0"
+cryptodev_load="YES"
+zfs_load="YES"
+ispfw_load="YES"
+isp_load="YES"
+
+
+
+чтоб фрибсл на com1 порту сидел и ждало нашего стука 
+тоесть там запускаем getty
+
+
+root@fr2:~ # cat /etc/ttys | grep -v '#'
+ttyu0	"/usr/libexec/getty 3wire.115200"	vt100	on secure
+
