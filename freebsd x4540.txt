@@ -5,34 +5,21 @@
 
 +++++++++++++++++
 [root@frrf ~]# cat /boot/loader.conf
+boot_multicons="YES"
+boot_serial="YES"
+boot_verbose="YES"
+hint.uart.0.flags="0x10"
+comconsole_speed=115200
+console="comconsole,vidconsole"
+vesa_load="NO"
 kern.geom.label.disk_ident.enable="0"
 kern.geom.label.gptid.enable="0"
 cryptodev_load="YES"
+zfs_load="YES"
+ispfw_load="YES"
+isp_load="YES"
 amdtemp_load="YES"
 
-boot_multicons="YES"
-boot_serial="YES"
-comconsole_port="0x3F8"
-comconsole_speed="9600"
-console="comconsole,vidconsole"
-
-zfs_load="YES"
-vfs.zfs.arc_max="6G" 
-
-
-### Qlogic FC
-# Оживляем карту и прошивку
-ispfw_load="YES"
-
-# Включаем режим раздачи (Target) на уровне железа
-hint.isp.0.role="3"
-hint.isp.1.role="3"
-hint.isp.0.execution_throttle="64"
-hint.isp.1.execution_throttle="64"
-
-# Загружаем движок раздачи (БЕЗ ЭТОГО РАБОТАТЬ НЕ БУДЕТ)
-ctl_load="YES"
-###
 ++++++++++++++++++++++
 
 
@@ -88,12 +75,133 @@ zpool create -f -o ashift=12 \
    POOL-FLOW2 raidz2 /dev/gpt/DISK4-*   /dev/gpt/DISK5-*  /dev/gpt/DISK6-*   /dev/gpt/DISK7-*
 
 
+for i in $(seq 8 4 36) ; do  zpool add POOL-FLOW2     raidz2    /dev/gpt/DISK$(($i+0))-*      /dev/gpt/DISK$(($i+1))-*   /dev/gpt/DISK$(($i+2))-*  /dev/gpt/DISK$(($i+3))-*; done 
+
+
+zpool add POOL-FLOW2 spare  /dev/gpt/DISK40-*
+zpool add POOL-FLOW2 spare  /dev/gpt/DISK41-*
+zpool add POOL-FLOW2 spare  /dev/gpt/DISK42-*
+zpool add POOL-FLOW2 spare  /dev/gpt/DISK43-*
+zpool add POOL-FLOW2 spare  /dev/gpt/DISK44-*
+zpool add POOL-FLOW2 spare  /dev/gpt/DISK45-*
+zpool add POOL-FLOW2 spare  /dev/gpt/DISK46-*
+zpool add POOL-FLOW2 spare  /dev/gpt/DISK47-*
+
+общая идея про пул. в сервер 48 дисков.
+первые 4 идут на загрузочную систему. mirror из 4 дисков. это слоты 0,1,2,3
+остатется 44 диска.
+берем по 4 диска и делаеи из них raidz2. выпадение любых двух дисков нам пофиг.
+таких полосок (vdev) делаем 9 штук. тоесть это слоты
+4-7
+8-11
+12-15
+16-19
+20-23
+24-27
+28-31
+32-35
+36-39
+
+остается 8 дисков
+40-43
+44-47
+
+из них 40-43 идут на spare диски
+44-47 временно тоже идут на spare диски. НО! далее 44-47 будут заменены на SLOG
+итого это выглядит вот так в конечном виде
+
+0   1   2   3   mirrorx4 , OS
+4   5   6   7   raidz2
+8   5   6   7   raidz2
+12  13  14  15  raidz2
+16  17  18  19  raidz2
+20  21  22  23  raidz2
+24  25  26  27  raidz2
+28  29  30  31  raidz2
+32  33  34  35  raidz2
+36  37  38  39  raidz2
+40  41  42  43  spare
+44  45  46  47  slog
+
+а пока это вот так
+
+  NAME                     STATE     READ WRITE CKSUM
+  POOL-FLOW2               ONLINE       0     0     0
+    raidz2-0               ONLINE       0     0     0
+      gpt/DISK4-9QG31V8Z   ONLINE       0     0     0
+      gpt/DISK5-5QG0EZV0   ONLINE       0     0     0
+      gpt/DISK6-5QG0EY6S   ONLINE       0     0     0
+      gpt/DISK7-5QG0ERVN   ONLINE       0     0     0
+    raidz2-1               ONLINE       0     0     0
+      gpt/DISK8-5QG0F2YQ   ONLINE       0     0     0
+      gpt/DISK9-5QG0EZHE   ONLINE       0     0     0
+      gpt/DISK10-5QG0ERST  ONLINE       0     0     0
+      gpt/DISK11-5QG0C5V8  ONLINE       0     0     0
+    raidz2-2               ONLINE       0     0     0
+      gpt/DISK12-5QG0BBLJ  ONLINE       0     0     0
+      gpt/DISK13-5QG0JBY2  ONLINE       0     0     0
+      gpt/DISK14-9QG31TG1  ONLINE       0     0     0
+      gpt/DISK15-9QG31VJ0  ONLINE       0     0     0
+    raidz2-3               ONLINE       0     0     0
+      gpt/DISK16-5QG0F4JL  ONLINE       0     0     0
+      gpt/DISK17-5QG0B10Q  ONLINE       0     0     0
+      gpt/DISK18-9QG31V9H  ONLINE       0     0     0
+      gpt/DISK19-5QG0EYHS  ONLINE       0     0     0
+    raidz2-4               ONLINE       0     0     0
+      gpt/DISK20-5QG0EZC3  ONLINE       0     0     0
+      gpt/DISK21-5QG0EV2R  ONLINE       0     0     0
+      gpt/DISK22-9QG31V9S  ONLINE       0     0     0
+      gpt/DISK23-5QG0EYMB  ONLINE       0     0     0
+    raidz2-5               ONLINE       0     0     0
+      gpt/DISK24-5QG0JBX8  ONLINE       0     0     0
+      gpt/DISK25-5QG0KLLQ  ONLINE       0     0     0
+      gpt/DISK26-5QG0B8AZ  ONLINE       0     0     0
+      gpt/DISK27-5QG0JBX9  ONLINE       0     0     0
+    raidz2-6               ONLINE       0     0     0
+      gpt/DISK28-5QG0B97J  ONLINE       0     0     0
+      gpt/DISK29-5QG0EZ57  ONLINE       0     0     0
+      gpt/DISK30-5QG0ERQL  ONLINE       0     0     0
+      gpt/DISK31-5QG0B8QZ  ONLINE       0     0     0
+    raidz2-7               ONLINE       0     0     0
+      gpt/DISK32-5QG0D79L  ONLINE       0     0     0
+      gpt/DISK33-5QG0B74F  ONLINE       0     0     0
+      gpt/DISK34-5QG0EZTR  ONLINE       0     0     0
+      gpt/DISK35-5QG0B7H2  ONLINE       0     0     0
+    raidz2-8               ONLINE       0     0     0
+      gpt/DISK36-5QG0EV5Z  ONLINE       0     0     0
+      gpt/DISK37-5QG0F4M9  ONLINE       0     0     0
+      gpt/DISK38-5QG0D7PD  ONLINE       0     0     0
+      gpt/DISK39-5QG0B8ZN  ONLINE       0     0     0
+  spares
+    gpt/DISK40-5QG0D7SE    AVAIL   
+    gpt/DISK41-5QG0C3Z1    AVAIL   
+    gpt/DISK42-5QG0LBAA    AVAIL   
+    gpt/DISK43-5QG0D7BW    AVAIL   
+    gpt/DISK44-5QG0B2PH    AVAIL   
+    gpt/DISK45-5QG0C406    AVAIL   
+    gpt/DISK46-5QG0B749    AVAIL   
+    gpt/DISK47-5QG0JC0X    AVAIL   
+
+
+++++++++++
+
 чтобы диски из спейр автмоатом востставнвливли выпавший диск нужно
 sysrc zfsd_enable="YES"
 service zfsd onestart
 +++++++++++++++++
+ставлю квоту
+# zpool list
+NAME         SIZE  ALLOC   FREE  CKPOINT  EXPANDSZ   FRAG    CAP  DEDUP    HEALTH  ALTROOT
+POOL-FLOW2  16.3T  3.76M  16.3T        -         -     0%     0%  1.00x    ONLINE  -
+
+# zfs list
+NAME                 USED  AVAIL     REFER  MOUNTPOINT
+POOL-FLOW2          1.82M  7.77T      140K  /POOL-FLOW2
 
 
+80% от 7.77T
+# zfs set quota=6.2T POOL-FLOW2
++++++++++++++++++
 на пуле юзаются диски
 
 Device Model:     SEAGATE ST3500630NS
@@ -101,68 +209,30 @@ User Capacity:    500,107,862,016 bytes [500 GB]
 
 
 их параметры
-лин чтение (77.1MB/s)
-лин  запись(71.8MB/s)
+лин чтение (76.0MB/s)
+лин  запись(46.0MB/s)
 иопсы 68-75
 
+на дисках кеш на запись на самом диске я отключил
 ++++++++++++++++++++++
-
-на собранном пуле
-
-        NAME                     STATE     READ WRITE CKSUM
-        POOL-FLOW2               ONLINE       0     0     0
-          raidz2-0               ONLINE       0     0     0
-            gpt/DISK4-9QG31V8Z   ONLINE       0     0     0
-            gpt/DISK5-5QG0EZV0   ONLINE       0     0     0
-            gpt/DISK6-5QG0EY6S   ONLINE       0     0     0
-            gpt/DISK7-5QG0ERVN   ONLINE       0     0     0
-          raidz2-1               ONLINE       0     0     0
-            gpt/DISK8-5QG0F2YQ   ONLINE       0     0     0
-            gpt/DISK9-5QG0EZHE   ONLINE       0     0     0
-            gpt/DISK10-5QG0ERST  ONLINE       0     0     0
-            gpt/DISK11-5QG0C5V8  ONLINE       0     0     0
-          raidz2-2               ONLINE       0     0     0
-            gpt/DISK16-5QG0F4JL  ONLINE       0     0     0
-            gpt/DISK17-5QG0B10Q  ONLINE       0     0     0
-            gpt/DISK18-9QG31V9H  ONLINE       0     0     0
-            gpt/DISK19-5QG0EYHS  ONLINE       0     0     0
-          raidz2-3               ONLINE       0     0     0
-            gpt/DISK20-5QG0EZC3  ONLINE       0     0     0
-            gpt/DISK21-5QG0EV2R  ONLINE       0     0     0
-            gpt/DISK22-9QG31V9S  ONLINE       0     0     0
-            gpt/DISK23-5QG0EYMB  ONLINE       0     0     0
-          raidz2-4               ONLINE       0     0     0
-            gpt/DISK24-5QG0JBX8  ONLINE       0     0     0
-            gpt/DISK25-5QG0KLLQ  ONLINE       0     0     0
-            gpt/DISK26-5QG0B8AZ  ONLINE       0     0     0
-            gpt/DISK27-5QG0JBX9  ONLINE       0     0     0
-          raidz2-5               ONLINE       0     0     0
-            gpt/DISK28-5QG0B97J  ONLINE       0     0     0
-            gpt/DISK29-5QG0EZ57  ONLINE       0     0     0
-            gpt/DISK30-5QG0ERQL  ONLINE       0     0     0
-            gpt/DISK31-5QG0B8QZ  ONLINE       0     0     0
-          raidz2-6               ONLINE       0     0     0
-            gpt/DISK32-5QG0D79L  ONLINE       0     0     0
-            gpt/DISK33-5QG0B74F  ONLINE       0     0     0
-            gpt/DISK34-5QG0EZTR  ONLINE       0     0     0
-            gpt/DISK35-5QG0B7H2  ONLINE       0     0     0
-          raidz2-7               ONLINE       0     0     0
-            gpt/DISK36-5QG0EV5Z  ONLINE       0     0     0
-            gpt/DISK37-5QG0F4M9  ONLINE       0     0     0
-            gpt/DISK38-5QG0D7PD  ONLINE       0     0     0
-            gpt/DISK39-5QG0B8ZN  ONLINE       0     0     0
-          raidz2-8               ONLINE       0     0     0
-            gpt/DISK12-5QG0BBLJ  ONLINE       0     0     0
-            gpt/DISK13-5QG0JBY2  ONLINE       0     0     0
-            gpt/DISK14-9QG31TG1  ONLINE       0     0     0
-            gpt/DISK15-9QG31VJ0  ONLINE       0     0     0
-        spares
-          gpt/DISK40-5QG0D7SE    AVAIL   
-          gpt/DISK41-5QG0C3Z1    AVAIL   
-          gpt/DISK42-5QG0LBAA    AVAIL   
-          gpt/DISK43-5QG0D7BW    AVAIL   
+на самом деле вначале из 44 дисков я собрал страйп.
+и померял его скорость
+лин запись w=1553MiB/s 
+лин чтение r=1642MiB/s
+рандом рид 8К iodepth=32 IOPS=2612
+рандом рид 8К iodepth=44 IOPS=2755
+рандом рид 8К iodepth=88 IOPS=2767
 
 
+если это анализировать то 
+лин скорсть чтения это  35МБ/с с диска (против 76МБ/с сырого)
+лин скрость записи это  37MB/c с диска (против 46МБ/с сырого)
+рандом рид это 63 IOPS с диска
+
+в целом я считаю норм. конечно хотелось бы выжимать 77МБ/с диска
+на счет скорости рандом ридов получсется отлично. через зфс слой мы выжали столько же
+иопсов как из сыроого диска
++++++++++++++++++++++++
 
 тоесть 9 рейдз2 вдев в каждом 2 диска под дата и 2 диска под парити.
 рейдз2 на лин скрости и записи рабоатет как страйп.
