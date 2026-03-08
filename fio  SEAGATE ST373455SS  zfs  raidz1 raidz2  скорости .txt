@@ -1,6 +1,10 @@
 | SEAGATE
 | ST373455SS
 | SEAGATE ST373455SS
+| SAS
+
+
+это SAS диски они резко отлиаются от того как себя ведут SATA диски. хаха хехе. пздец
 
 
 Vendor:               SEAGATE
