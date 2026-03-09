@@ -1,0 +1,153 @@
+| freebsd
+
+фрибсл идентикиация контроллеров и дисков 
+полезняха
+
+
+шаг первый
+
+
+# camcontrol devlist -v
+
+scbus0 on mps0 bus 0:
+<ATA INTEL SSDSC2KB48 0100>        at scbus0 target 5 lun 0 (pass0,da0)
+<SEAGATE ST373455SS 0001>          at scbus0 target 8 lun 0 (pass1,da1)
+<SEAGATE ST373455SS 0001>          at scbus0 target 9 lun 0 (pass2,da2)
+<ATA HGST HUS724020AL A8B0>        at scbus0 target 10 lun 0 (pass3,da3)
+<ATA HGST HUS724020AL A8B0>        at scbus0 target 11 lun 0 (pass4,da4)
+<>                                 at scbus0 target -1 lun ffffffff ()
+
+scbus1 on mpr0 bus 0:
+<ATA HGST HUS724020AL A8B0>        at scbus1 target 1 lun 0 (pass5,da5)
+<SEAGATE ST373455SS 0001>          at scbus1 target 2 lun 0 (pass6,da6)
+<ATA HGST HUS724020AL A8B0>        at scbus1 target 4 lun 0 (pass7,da7)
+<SEAGATE ST373455SS 0001>          at scbus1 target 5 lun 0 (pass8,da8)
+<ATA INTEL SSDSC2KB48 0100>        at scbus1 target 11 lun 0 (pass9,da9)
+<HP D2600 SAS AJ940A 0103>         at scbus1 target 24 lun 0 (ses0,pass10)
+<>                                 at scbus1 target -1 lun ffffffff ()
+
+scbus2 on mfi0 bus 0:
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 50 lun 0 (pass11,da10)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 51 lun 0 (pass12,da11)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 53 lun 0 (pass13,da12)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 54 lun 0 (pass14,da13)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 55 lun 0 (da28,pass33)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 56 lun 0 (pass15,da14)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 57 lun 0 (da27,pass32)
+<XYRATEX 3GSAS1.0-SATAEXP 1.05>    at scbus2 target 58 lun 0 (ses1,pass16)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 59 lun 0 (da26,pass31)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 60 lun 0 (pass17,da15)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 76 lun 0 (pass18,da16)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 77 lun 0 (pass19,da17)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 83 lun 0 (da34,pass39)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 86 lun 0 (da35,pass40)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 89 lun 0 (da32,pass37)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 92 lun 0 (da33,pass38)
+<XYRATEX 3GSAS1.0-SATAEXP 1.07>    at scbus2 target 93 lun 0 (ses2,pass20)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 96 lun 0 (da38,pass43)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 99 lun 0 (da39,pass44)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 100 lun 0 (da36,pass41)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 103 lun 0 (da37,pass42)
+<XYRATEX 3GSAS1.0-SATAEXP 1.07>    at scbus2 target 106 lun 0 (ses3,pass21)
+<XYRATEX 3GSAS1.0-SATAEXP 1.07>    at scbus2 target 109 lun 0 (ses4,pass22)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 110 lun 0 (pass23,da18)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 111 lun 0 (da31,pass36)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 112 lun 0 (pass24,da19)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 113 lun 0 (pass25,da20)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 114 lun 0 (da29,pass34)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 116 lun 0 (pass26,da21)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 117 lun 0 (pass27,da22)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 118 lun 0 (pass28,da23)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 119 lun 0 (da30,pass35)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 120 lun 0 (pass29,da24)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 121 lun 0 (pass30,da25)
+scbus-1 on xpt0 bus 0:
+<>                                 at scbus-1 target -1 lun ffffffff (xpt0)
+
+
+здесь мы видим какие диски daN на каком драйвере(контролеле) сидят 
+
+далее. мы видим что драйверы это mps0 mpr0 mfi0
+у ждоаго из них есть охуенные утилиты. так что по кадому можно получить кучу инфо
+
+
+
+# mpsutil show all
+Adapter:
+mps0 Adapter:
+       Board Name: SAS9207-8i
+   Board Assembly: 
+        Chip Name: LSISAS2308
+    Chip Revision: ALL
+    BIOS Revision: 7.27.01.01
+Firmware Revision: 20.00.07.00
+  Integrated RAID: no
+         SATA NCQ: ENABLED
+ PCIe Width/Speed: x8 (8.0 GB/sec)
+        IOC Speed: Full
+      Temperature: 35 C
+
+PhyNum  CtlrHandle  DevHandle  Disabled  Speed   Min    Max    Device
+0                              N                 1.5    6.0    SAS Initiator 
+1                              N                 1.5    6.0    SAS Initiator 
+...
+...
+
+
+
+
+
+
+
+
+
+
+# mprutil show all
+Adapter:
+mpr0 Adapter:
+       Board Name: SAS9305-16e
+   Board Assembly: 
+        Chip Name: LSISAS3216
+    Chip Revision: A1
+    BIOS Revision: 17.00.00.00
+Firmware Revision: 15.00.00.00
+  Integrated RAID: no
+         SATA NCQ: ENABLED
+ PCIe Width/Speed: x8 (8.0 GB/sec)
+        IOC Speed: Full
+      Temperature: 38 C
+
+PhyNum  CtlrHandle  DevHandle  Disabled  Speed   Min    Max    Device
+0       0001        0011       N         6.0     3.0    12     SAS Initiator 
+1       0001        0011       N         6.0     3.0    12     SAS Initiator 
+
+
+
+
+
+
+
+
+
+
+# mfiutil  show 
+mfiutil: The show command requires a sub-command.
+[root@backup-01 /home/krivosheeva]# mfiutil  show  adapter
+/dev/mfi0 Adapter:
+    Product Name: MegaRAID SAS 8344ELP
+   Serial Number: P121590707
+        Firmware: 7.0.1-0083
+     RAID Levels: JBOD, RAID0, RAID1, RAID5, RAID10, RAID50
+  Battery Backup: not present
+           NVRAM: 32K
+  Onboard Memory: 128M
+  Minimum Stripe: 8K
+  Maximum Stripe: 1M
+
+
+
+
+
+далее смотрим man от этих всех уилититиит
+
+

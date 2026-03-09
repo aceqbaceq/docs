@@ -891,3 +891,176 @@ config:
 
 нужно сделать снэпшоты через CRON
 
+
+
+
+
+UPDATE
+ситуация следующая
+
+# camcontrol devlist -v  
+scbus0 on mps0 bus 0:
+<ATA INTEL SSDSC2KB48 0100>        at scbus0 target 5 lun 0 (pass0,da0)
+<SEAGATE ST373455SS 0001>          at scbus0 target 8 lun 0 (pass1,da1)
+<SEAGATE ST373455SS 0001>          at scbus0 target 9 lun 0 (pass2,da2)
+<ATA HGST HUS724020AL A8B0>        at scbus0 target 10 lun 0 (pass3,da3)
+<ATA HGST HUS724020AL A8B0>        at scbus0 target 11 lun 0 (pass4,da4)
+<>                                 at scbus0 target -1 lun ffffffff ()
+
+
+scbus1 on mpr0 bus 0:
+<ATA HGST HUS724020AL A8B0>        at scbus1 target 1 lun 0 (pass5,da5)
+<SEAGATE ST373455SS 0001>          at scbus1 target 2 lun 0 (pass6,da6)
+<ATA HGST HUS724020AL A8B0>        at scbus1 target 4 lun 0 (pass7,da7)
+<SEAGATE ST373455SS 0001>          at scbus1 target 5 lun 0 (pass8,da8)
+<ATA INTEL SSDSC2KB48 0100>        at scbus1 target 11 lun 0 (pass9,da9)
+<HP D2600 SAS AJ940A 0103>         at scbus1 target 24 lun 0 (ses0,pass10)
+<>                                 at scbus1 target -1 lun ffffffff ()
+
+
+scbus2 on mfi0 bus 0:
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 50 lun 0 (pass11,da10)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 51 lun 0 (pass12,da11)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 53 lun 0 (pass13,da12)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 54 lun 0 (pass14,da13)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 55 lun 0 (da28,pass33)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 56 lun 0 (pass15,da14)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 57 lun 0 (da27,pass32)
+<XYRATEX 3GSAS1.0-SATAEXP 1.05>    at scbus2 target 58 lun 0 (ses1,pass16)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 59 lun 0 (da26,pass31)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 60 lun 0 (pass17,da15)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 76 lun 0 (pass18,da16)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 77 lun 0 (pass19,da17)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 83 lun 0 (da34,pass39)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 86 lun 0 (da35,pass40)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 89 lun 0 (da32,pass37)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 92 lun 0 (da33,pass38)
+<XYRATEX 3GSAS1.0-SATAEXP 1.07>    at scbus2 target 93 lun 0 (ses2,pass20)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 96 lun 0 (da38,pass43)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 99 lun 0 (da39,pass44)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 100 lun 0 (da36,pass41)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 103 lun 0 (da37,pass42)
+<XYRATEX 3GSAS1.0-SATAEXP 1.07>    at scbus2 target 106 lun 0 (ses3,pass21)
+<XYRATEX 3GSAS1.0-SATAEXP 1.07>    at scbus2 target 109 lun 0 (ses4,pass22)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 110 lun 0 (pass23,da18)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 111 lun 0 (da31,pass36)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 112 lun 0 (pass24,da19)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 113 lun 0 (pass25,da20)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 114 lun 0 (da29,pass34)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 116 lun 0 (pass26,da21)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 117 lun 0 (pass27,da22)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 118 lun 0 (pass28,da23)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 119 lun 0 (da30,pass35)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 120 lun 0 (pass29,da24)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 121 lun 0 (pass30,da25)
+scbus-1 on xpt0 bus 0:
+<>                                 at scbus-1 target -1 lun ffffffff (xpt0)
+
+на этом сервреере три дисковых контроллера
+и три разных массива "полок\enclosure" 
+значит вот это 
+
+scbus0 on mps0 bus 0:
+<ATA INTEL SSDSC2KB48 0100>        at scbus0 target 5 lun 0 (pass0,da0)
+<SEAGATE ST373455SS 0001>          at scbus0 target 8 lun 0 (pass1,da1)
+<SEAGATE ST373455SS 0001>          at scbus0 target 9 lun 0 (pass2,da2)
+<ATA HGST HUS724020AL A8B0>        at scbus0 target 10 lun 0 (pass3,da3)
+<ATA HGST HUS724020AL A8B0>        at scbus0 target 11 lun 0 (pass4,da4)
+<>                                 at scbus0 target -1 lun ffffffff ()
+
+
+это контроллер и enclosure на самом серевере Dell R720
+здесь сильный контроллер и полка из разряда точка точка. 
+вобщем тут проблем нет.
+
+
+далее
+scbus1 on mpr0 bus 0:
+<ATA HGST HUS724020AL A8B0>        at scbus1 target 1 lun 0 (pass5,da5)
+<SEAGATE ST373455SS 0001>          at scbus1 target 2 lun 0 (pass6,da6)
+<ATA HGST HUS724020AL A8B0>        at scbus1 target 4 lun 0 (pass7,da7)
+<SEAGATE ST373455SS 0001>          at scbus1 target 5 lun 0 (pass8,da8)
+<ATA INTEL SSDSC2KB48 0100>        at scbus1 target 11 lun 0 (pass9,da9)
+<HP D2600 SAS AJ940A 0103>         at scbus1 target 24 lun 0 (ses0,pass10)
+<>                                 at scbus1 target -1 lun ffffffff ()
+
+
+здесь ситуация такая. здесь контроллер тоже нормал.
+он через 4 канальный провод идет в полку hp d2600
+сама полка она поддрживает скорость 6Gb\s на канал
+а дальше интересно.  сама полка поддеживает только сас диски.
+а сата диски она не поддерживает через интерпозер.
+интерпозер выдает скорсть 3Гб\с
+дальше вот что. как работает передача данных для сас дисков.
+между полкой и контроллером провод на 4 канала.  как я укже скзаал он на 6ГБ\с
+если контроллер хочете прееддать даные на сас диск в поле то он выбирает любой канал
+и туда сует фрейм с дестинешен сас адресом порта сас диска. это работает как 
+комутация пакетов в эзернет свиче. тоест контролер может пихать этот пакет в любой канал в 
+проводе. а полка его принимает и кидает на сас диск.
+поэтому можно напихать сас дисков в полу и они все без прблем разделять срупут этих 4 каналов 
+в проводе. 
+с сата диском полная пизда. 
+интеопзер собщает полке что за ним сидит сата диск. 
+полка назначает этойму интеопзеру сас адрес. 
+и сообщает об этом все контроллеру.
+если контролллер хочет отолсать инфо на сата диск он звонит на полу.
+полка блокирует целиком один канал в проводе и пробрасывет его к диску.
+контроллер в этот канал пихает данные по STP протоколу.
+в чем миунсы. во первых интепозер работает на скроати 3ГБ\с поэтому првода в этот момент 
+один из его каналов работает на этой скорости. 3ГБ\с это 250Мб\с полезной скорсити. в целом 
+для одного диска ее хваит с головй. но! оказывется что полка закрепляет один  и тотже канал 
+внутрип првода для несколкьих дырок в своеем теле. тоесть условно для дырок 1-4 если там
+вставлен сата диск она всегда выбиаерает канал 1 в провде. это значит что у нас несколько 
+сата дисков будут драться за один канал в проводе. что я и вижу на праткике. 
+я запускаю запись на один сата диск скорсит 160МБ\с как диск из себ я и выжиываеммеает.
+но если  я праалелльно запусаю запись на другой сата диск то у меня на первом проседает 
+скросит и каждй из них пишет на 120МБ\с и суммарно 250МБъ что гвооит отом то они дерутся
+за один канал. в этом пизда этой полки. тоесть в нее лучше все таки вставлять тоько 
+сас диски. а не сата.
+
+ 
+
+
+ну и послденйи контрллер
+
+scbus2 on mfi0 bus 0:
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 50 lun 0 (pass11,da10)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 51 lun 0 (pass12,da11)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 53 lun 0 (pass13,da12)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 54 lun 0 (pass14,da13)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 55 lun 0 (da28,pass33)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 56 lun 0 (pass15,da14)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 57 lun 0 (da27,pass32)
+<XYRATEX 3GSAS1.0-SATAEXP 1.05>    at scbus2 target 58 lun 0 (ses1,pass16)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 59 lun 0 (da26,pass31)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 60 lun 0 (pass17,da15)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 76 lun 0 (pass18,da16)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 77 lun 0 (pass19,da17)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 83 lun 0 (da34,pass39)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 86 lun 0 (da35,pass40)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 89 lun 0 (da32,pass37)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 92 lun 0 (da33,pass38)
+<XYRATEX 3GSAS1.0-SATAEXP 1.07>    at scbus2 target 93 lun 0 (ses2,pass20)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 96 lun 0 (da38,pass43)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 99 lun 0 (da39,pass44)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 100 lun 0 (da36,pass41)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 103 lun 0 (da37,pass42)
+<XYRATEX 3GSAS1.0-SATAEXP 1.07>    at scbus2 target 106 lun 0 (ses3,pass21)
+<XYRATEX 3GSAS1.0-SATAEXP 1.07>    at scbus2 target 109 lun 0 (ses4,pass22)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 110 lun 0 (pass23,da18)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 111 lun 0 (da31,pass36)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 112 lun 0 (pass24,da19)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 113 lun 0 (pass25,da20)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 114 lun 0 (da29,pass34)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 116 lun 0 (pass26,da21)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 117 lun 0 (pass27,da22)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 118 lun 0 (pass28,da23)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 119 lun 0 (da30,pass35)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 120 lun 0 (pass29,da24)
+<ATA HGST HUS724020AL A8B0>        at scbus2 target 121 lun 0 (pass30,da25)
+scbus-1 on xpt0 bus 0:
+<>                                 at scbus-1 target -1 lun ffffffff (xpt0)
+
+
+он идет на кесератекс полки.
+фигня его в том что  его пропускная спообносиь всего 512МБ\с
