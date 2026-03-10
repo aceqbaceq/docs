@@ -1,0 +1,42 @@
+| seagate
+| ST3500630NS
+| 3.AYG
+| R720
+| DELL
+
+
+столкнулся с тем что на сервере DELL R720 
+с контррлллером 
+
+mps0@pci0:2:0:0:	class=0x010700 rev=0x05 hdr=0x00 vendor=0x1000 device=0x0087 subvendor=0x1028 subdevice=0x1f38
+    vendor     = 'Broadcom / LSI'
+    device     = 'SAS2308 PCI-Express Fusion-MPT SAS-2'
+    class      = mass storage
+    subclass   = SAS
+
+
+он никак сука не видит этот диск 
+
+
+=== START OF INFORMATION SECTION ===
+Device Model:     SEAGATE ST3500630NS
+Serial Number:    5QG0HBWL
+Firmware Version: 3.AYG
+User Capacity:    500,107,862,016 bytes [500 GB]
+Sector Size:      512 bytes logical/physical
+Device is:        Not in smartctl database 7.5/5706
+ATA Version is:   ATA/ATAPI-7 (minor revision not indicated)
+Local Time is:    Fri Mar  6 18:23:39 2026 MSK
+SMART support is: Available - device has SMART capability.
+SMART support is: Enabled
+AAM feature is:   Unavailable
+APM level is:     254 (maximum performance)
+Rd look-ahead is: Enabled
+Write cache is:   Enabled
+DSN feature is:   Unavailable
+ATA Security is:  Disabled, NOT FROZEN [SEC1]
+
+
+имеется ввиду именно ПОДЧЕКРИВАЮ именно только с этой прошивкой 3.AYG
+с остальными прошивкам вске заебаилсь.
+
