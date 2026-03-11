@@ -1,0 +1,15 @@
+| postfix
+| virtual_mailbox_limit
+| message_size_limit
+
+
+ошибка о том что размер почты меньше чем макс размер письма
+
+  grep   virtual_mailbox_limit    /postfix/etc/*
+  postconf -e "virtual_mailbox_limit = 62914560"
+  postfix/sbin/postfixctl stop
+  postfix/sbin/postfixctl start
+  postfix/sbin/postconf message_size_limit virtual_mailbox_limit
+  tail -f /var/log/syslog
+  grep   virtual_mailbox_limit    postfix/etc/*
+  
