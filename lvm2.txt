@@ -1,0 +1,24 @@
+| lvm
+| resize
+
+есть VM
+есть диск sda
+на нем есть vg который лежит на sda3 и на нем lv
+я увеличии диск sda
+как расширить раздел lvm sda3
+
+вначале идем в parted и там делаем 
+
+# parted 
+> resizepart 3
+
+а потом
+
+ pvresize /dev/sda3
+
+ lvextend -l +100%FREE /dev/mapper/имя_вашего_lv
+
+ resize2fs /dev/mapper/vg_lv0
+
+
+
