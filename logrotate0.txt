@@ -1,0 +1,14 @@
+| logrotate
+
+# cat /etc/logrotate.d/omada-mongo 
+/opt/tplink/EAPController/logs/mongod.log {
+    daily
+    rotate 3
+    compress
+    missingok
+    notifempty
+    copytruncate
+}
+
+
+
