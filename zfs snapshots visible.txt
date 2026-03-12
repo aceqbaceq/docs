@@ -1,0 +1,24 @@
+| zfs
+| snap
+| snashot
+
+
+если есть датасет и унего есть снэпшот то чтобы этот снэпшот уивдеть то нужно
+
+
+zfs get snapdir=visible POOL-ZFS-MAIN/ROOT/manjaro
+
+
+тогда появлется папка /.zfs и внури наши снэпшоты
+
+а если я хочу их спрятать то
+
+
+# zfs get snapdir POOL-ZFS-MAIN/ROOT/manjaro
+NAME                        PROPERTY  VALUE     SOURCE
+POOL-ZFS-MAIN/ROOT/manjaro  snapdir   hidden    local
+
+
+вход в папку /.zfs разрешен для всех. но внутри доступ к файлам и папкам в тчоности 
+как это есть на ориианальной ФС
+
