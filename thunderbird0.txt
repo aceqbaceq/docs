@@ -1,0 +1,26 @@
+| thunderbird
+
+охуенная вещь 
+жмем кнопку Alt
+вверху появелся меню  "File Edit New Go ...."
+
+идем в 
+
+
+Edit - settings - general 
+
+листаем вниз Language
+и там выбираем язык интерфейса.
+
+
+следующее
+
+Edit - settings - "privacy&security" 
+
+листамем вниз Passwords 
+saved passwords
+и там выираем сохраненные пароли от разных почт. можно удаялять их там
+
+
+это очень полезная вещь
+
