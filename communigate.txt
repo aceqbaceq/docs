@@ -1,0 +1,11 @@
+| communigate
+
+как его перезапускать
+только вот так и никак иначе
+
+
+   # /etc/init.d/CommunigatePro start
+
+
+
+
