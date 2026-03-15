@@ -25,16 +25,45 @@ Available IO engines:
   rdma
 
 
-они отличаются тем что 
 
 
-psync   O_DIRECT  
 
-sync    O_SYNC  
+они отличаются тем какие libc вызовы(команды) используются для чтение 
+или записи данных. тоесть 
 
-vsync  O_SYNC 
 
-pvsync   O_DIRECT + O_SYNC 
+sync
+
+    Basic read(2) or write(2) I/O. lseek(2) is used to position the I/O location. See fsync and fdatasync for syncing write I/Os.
+psync
+
+    Basic pread(2) or pwrite(2) I/O. Default on all supported operating systems except for Windows.
+
+
+io_uring
+
+    Fast Linux native asynchronous I/O. Supports async IO for both direct and buffered IO. This engine defines engine specific options.
+
+
+
+libaio
+
+    Linux native asynchronous I/O. Note that Linux may only support queued behavior with non-buffered I/O (set direct=1 or buffered=0). This engine defines engine specific options.
+
+posixaio
+    POSIX asynchronous I/O using aio_read(3) and aio_write(3).
+
+
+
+болшей частью движки предазначены для конкнетной ос. в фрибсл одно в линукс другое.
+и хотим ли мы сунуть в зфс сразу кучу иопсов или только один. 
+
+
+если же я хочу выбирать какого рода запоосы летят в зфс то  это флаг 
+
+--sync =1  ( файл отркыват с флагом O_SYNC)
+--sync =0  (файл оикрыается без флага O_SYNC)
+
 
 
 | smartctl
