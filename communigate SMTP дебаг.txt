@@ -1,0 +1,204 @@
+| communigate
+
+
+ПРИМЕР если я хочу посмтреть кто пробовал аутентфиирфтвася по паролю 
+# grep  SASL   today.log  | grep inp | tail -n 10
+SMTPI-291860([111.111.111.157]) SASL-0(LOGIN) inp: 155553@vasya.ru
+
+где 111.111.111.157 это ип с котрого клиент постучал на наш поточтовый сервер
+
+
+
+
+
+
+ПРИМЕР 
+если я хочу узнать пробовал ли сегодня конкретный клиент 'sergey@vasya.ru' отправить письмо по SMTP
+через ввод логина пароля
+
+
+# grep  SASL   today.log  | grep inp | grep  sergey@vasya.ru | tail -n 20
+SMTPI-264363([122.122.122.89]) SASL-0(LOGIN) inp: sergey@vasya.ru
+SMTPI-264415([49.49.49.58]) SASL-0(LOGIN) inp: sergey@vasya.ru
+SMTPI-264518([2.2.2.186]) SASL-0(LOGIN) inp: sergey@vasya.ru
+
+где 
+122.122.122.89 это ип с которого клиент постучаться на наш почт сервер
+
+
+
+
+
+
+
+ПРИМЕР.
+еще один подход проверить пробовал ли сегодня ктото отправлять почту от имени 
+юзера  kolya@vasya.ru
+
+# grep  'inp: MAIL FROM:<kolya@vasya.ru>'   today.log  | grep SMTP 
+15:49:39.336 5 SMTPI-282855([2.4.0.2]) inp: MAIL FROM:<kolya@vasya.ru> SIZE=341
+
+где 2.4.0.2 это ип адрес с котрого клиент посмтучать на почт сервер
+
+
+
+
+
+ПРИМЕР успешной аутентфикации и успешной отправки письмо через SMTP
+строки в логе если отправка по smtp прошла успешно
+
+ # grep vasya@pupkin.ru  today.log | tail -n 20
+
+SMTPI-282855([45.45.0.45]) SASL-0(CRAM-MD5) inp: vasya@pupkin.ru 6033e112e95e5c10056f8b14a3774d05
+SMTPI-282855([45.45.0.45]) 'vasya@pupkin.ru' connected from [45.45.0.45]:46974(temp client)
+SMTPI-282855([45.45.0.45]) 'vasya@pupkin.ru' disconnected ([45.45.0.45]:46974)
+SMTPI-282855([45.45.0.45]) inp: MAIL FROM:<vasya@pupkin.ru> SIZE=341
+SMTPI-282855([45.45.0.45]) out: 250 vasya@pupkin.ru sender accepted\r\n
+
+
+
+из них
+вот эти три строки показывают что по паролю автентфикация прошла успешно
+тоесть если я хочу увидеть где же строки которые показыают процесс входа по пароолю
+то это вот эти строки. причем это успешный результат
+SMTPI-282855([45.45.0.45]) SASL-0(CRAM-MD5) inp: vasya@pupkin.ru 6033e112e95e5c10056f8b14a3774d05
+SMTPI-282855([45.45.0.45]) 'vasya@pupkin.ru' connected from [45.45.0.45]:46974(temp client)
+SMTPI-282855([45.45.0.45]) 'vasya@pupkin.ru' disconnected ([45.45.0.45]:46974)
+
+
+
+а вот эти две это уже факт того что после ауткентификации
+прошла сама отправка тела письма успешно
+SMTPI-282855([45.45.0.45]) inp: MAIL FROM:<vasya@pupkin.ru> SIZE=341
+SMTPI-282855([45.45.0.45]) out: 250 vasya@pupkin.ru sender accepted\r\n
+
+
+где 45.45.0.45 это с какого ип вася  постучал на почтовый сервер
+
+
+
+
+
+
+
+ДАЛЕЕ. ПРИМЕР.
+КАК быстро найти всех тех кто не смог отправить письмо по SMTP
+из за каких то прблем с аутентфикацией
+
+# grep  "rejected: sender requires authentication"   today.log  | grep  @vasya
+SMTPI-199489([5.255.255.12]) Return-Path 'postmaster@vasya.ru' rejected: sender requires authentication
+SMTPI-204112([147.45.231.249]) Return-Path 'petya@vasya.ru' rejected: sender requires authentication
+SMTPI-211394([185.28.85.88]) Return-Path 'kolya@vasya.ru' rejected: sender requires authentication
+SMTPI-188245([5.255.255.12]) Return-Path 'av@vasya.ru' rejected: sender requires authentication
+
+
+
+
+далее я беру конретного клиента и смотрю почему
+у него возникли пролемы с аутентификацией
+
+SMTPI-188245([5.255.255.12]) Return-Path 'av@vasya.ru' rejected: sender requires authentication
+
+беру SMTPI айдишник и смотрю детали
+
+
+# grep SMTPI-188245   today.log
+SMTPI-188245([5.255.255.12]) got connection on [217.11.11.11]:25(vasya.ru) from [5.255.255.12]:42044
+SMTPI-188245([5.255.255.12]) out: 220 vasya.ru ESMTP CommuniGate Pro 5.2.20. It is you again :-(\r\n
+SMTPI-188245([5.255.255.12]) inp: EHLO [127.0.244.128]
+00:16:03.706 5 SMTPI-188245([5.255.255.12]) out: 250-vasya.ru your name is not [127.0.244.128]\r\n250-DSN\r\n250-SIZE 20971520\r\n250-STARTTLS\r\n250-AUTH LOGIN PLAIN CRAM-MD5 DIGEST-MD5 GSSAPI MSN NTLM\r\n250-ETRN\r\n250-TURN\r\n250-ATRN\r\n250-NO-SOLICITING\r\n250-HELP\r\n250-PIPELINING\r\n250 EH
+00:16:04.152 5 SMTPI-188245([5.255.255.12]) inp: MAIL FROM:<av@vasya.ru>
+00:16:04.152 1 SMTPI-188245([5.255.255.12]) Return-Path 'av@vasya.ru' rejected: sender requires authentication
+00:16:06.154 5 SMTPI-188245([5.255.255.12]) out: 575 av@vasya.ru sender requires authentication\r\n
+00:16:06.918 5 SMTPI-188245([5.255.255.12]) inp: RCPT TO:<av@vasya.ru>
+00:16:08.918 5 SMTPI-188245([5.255.255.12]) out: 501 Unknown command\r\n
+00:16:09.659 3 SMTPI-188245([5.255.255.12]) read failed. Error Code=connection closed by peer
+00:16:09.659 4 SMTPI-188245([5.255.255.12]) closing connection
+00:16:09.660 4 SMTPI-188245([5.255.255.12]) releasing stream
+
+
+почтовый сервер 217.11.11.11  получает конект от клиента с ип 5.255.255.12
+SMTPI-188245([5.255.255.12]) got connection on [217.11.11.11]:25(vasya.ru) from [5.255.255.12]:42044
+
+
+
+сервер в ответ шлет приветствие
+SMTPI-188245([5.255.255.12]) out: 220 vasya.ru ESMTP CommuniGate Pro 5.2.20. It is you again :-(\r\n
+
+
+клиент присылает ehlo
+SMTPI-188245([5.255.255.12]) inp: EHLO [127.0.244.128]
+
+
+
+сервер в ответ шлет методы через которые можно аутентфицирваться
+00:16:03.706 5 SMTPI-188245([5.255.255.12]) out: 250-vasya.ru your name is not [127.0.244.128]\r\n250-DSN\r\n250-SIZE 20971520\r\n250-STARTTLS\r\n250-AUTH LOGIN PLAIN CRAM-MD5 DIGEST-MD5 GSSAPI MSN NTLM\r\n250-ETRN\r\n250-TURN\r\n250-ATRN\r\n250-NO-SOLICITING\r\n250-HELP\r\n250-PIPELINING\r\n250 EH
+
+
+
+клиент вместо того чтобы аутентфиицрваться сразу пробует начать толкать письмо на отправку
+00:16:04.152 5 SMTPI-188245([5.255.255.12]) inp: MAIL FROM:<av@vasya.ru>
+
+
+
+
+сервер в ответ щлет клиента нахер
+00:16:04.152 1 SMTPI-188245([5.255.255.12]) Return-Path 'av@vasya.ru' rejected: sender requires authentication
+00:16:06.154 5 SMTPI-188245([5.255.255.12]) out: 575 av@vasya.ru sender requires authentication\r\n
+
+
+
+
+
+
+
+
+а вот еше пример про эту же тему
+
+# grep SMTPI-276065   today.log 
+SMTPI-276065([158.158.158.158]) got connection on [217.217.217.217]:25(vasya.ru) from [158.158.158.158]:51418
+SMTPI-276065([158.158.158.158]) out: 220 vasya.ru ESMTP CommuniGate Pro 5.2.20. It is you again :-(\r\n
+SMTPI-276065([158.158.158.158]) inp: EHLO [158.158.158.158]
+SMTPI-276065([158.158.158.158]) out: 250-vasya.ru is pleased to meet you\r\n250-DSN\r\n250-SIZE 20971520\r\n250-STARTTLS\r\n250-AUTH LOGIN PLAIN CRAM-MD5 DIGEST-MD5 GSSAPI MSN NTLM\r\n250-ETRN\r\n250-TURN\r\n250-ATRN\r\n250-NO-SOLICITING\r\n250-HELP\r\n250-PIPELINING\r\n250 EHLO\r\n
+SMTPI-276065([158.158.158.158]) inp: MAIL FROM:<mailbox@vasya.ru>
+SMTPI-276065([158.158.158.158]) Return-Path 'mailbox@vasya.ru' rejected: sender requires authentication
+SMTPI-276065([158.158.158.158]) out: 575 mailbox@vasya.ru sender requires authentication\r\n
+SMTPI-276065([158.158.158.158]) inp: QUIT
+SMTPI-276065([158.158.158.158]) out: 221 vasya.ru CommuniGate Pro SMTP closing connection\r\n
+SMTPI-276065([158.158.158.158]) closing connection
+SMTPI-276065([158.158.158.158]) releasing stream
+
+
+разбираю этот лог
+
+SMTPI-276065([158.158.158.158]) got connection on [217.217.217.217]:25(vasya.ru) from [158.158.158.158]:51418
+на ип адерс почтового сервера 217.217.217.217 постучал клиент с ип 158.158.158.158
+
+
+SMTPI-276065([158.158.158.158]) out: 220 vasya.ru ESMTP CommuniGate Pro 5.2.20. It is you again :-(\r\n
+севрер ответил в обратку (признак out) вот такой фразой 
+	"220 vasya.ru ESMTP CommuniGate Pro 5.2.20. It is you again :-("
+
+
+SMTPI-276065([158.158.158.158]) inp: EHLO [158.158.158.158]
+клиент прислал нам   "EHLO [158.158.158.158]"
+
+
+SMTPI-276065([158.158.158.158]) out: 250-vasya.ru is pleased to meet you\r\n250-DSN\r\n250-SIZE 20971520\r\n250-STARTTLS\r\n250-AUTH LOGIN PLAIN CRAM-MD5 DIGEST-MD5 GSSAPI MSN NTLM\r\n250-ETRN\r\n250-TURN\r\n250-ATRN\r\n250-NO-SOLICITING\r\n250-HELP\r\n250-PIPELINING\r\n250 EHLO\r\n
+наш сервер в обратку послал те методы аутенфиции которые мы поддержиываем
+
+
+SMTPI-276065([158.158.158.158]) inp: MAIL FROM:<mailbox@vasya.ru>
+киент положил хуй на аутентфикацию и сразу начал пробовать уже отправить письмо
+
+
+
+SMTPI-276065([158.158.158.158]) Return-Path 'mailbox@vasya.ru' rejected: sender requires authentication
+SMTPI-276065([158.158.158.158]) out: 575 mailbox@vasya.ru sender requires authentication\r\n
+наш сервер в ответ направил фразу что пошел нахер нужно аутаентфиицирваться для начала
+
+
+
+SMTPI-276065([158.158.158.158]) inp: QUIT
+клиент отключился 
+

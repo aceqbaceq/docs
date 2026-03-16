@@ -5,6 +5,8 @@
 ###########################################
 #      самые актуалные конфиги            #
 
+
+
 [root@x4540 ~]# cat /boot/loader.conf
 autoboot_delay="60"
 autoboot="60"
@@ -114,8 +116,208 @@ mountd_enable="YES"
 rpcbind_enable="YES"
 
 
+
+
+
+# cat /etc/ttys
+ttyu0  "/usr/libexec/getty 3wire.115200" vt100 on secure
+
+
+
+
+
+# cat /etc/resolv.conf
+nameserver 1.1.1.1
+nameserver 8.8.8.8
+
+
+
+
+# cat /etc/exports
+V4: /POOL-X4540 -network 100.69.55.0/24
+
+
+# zfs get all POOL-X4540/ds-1M | grep nfs
+POOL-X4540/ds-1M  sharenfs              -maproot=root -network 100.69.55.0/24  local
+POOL-X4540/ds-1M  acltype               nfsv4                                  default
+
+
+
+
+
+   # pkg install -y bash
+   # pkg install -y nano 
+   # pkg install -y fio
+   # pkg install -y bash
+   # pkg install -y mc
+   # chsh -s /usr/local/bin/bash
+   # pkg install smartmontools
+
+копириуе на комп скрипт arcstat 
+делаем его +x
+под него нужно питон 3 поставить
+   #  pkg install python3
+   # pkg install py311-sysctl
+
+   # arcstat 1
+
+
+
 #      самые актуалные конфиги            #
 ###########################################
+
+
+Если ставить фрибсд с флэшки 
+то после устнвоки загрузочный пул бдует вот такой
+
+
+  pool: zroot
+ state: ONLINE
+config:
+
+  NAME        STATE     READ WRITE CKSUM
+  zroot       ONLINE       0     0     0
+    mirror-0  ONLINE       0     0     0
+      da0p2   ONLINE       0     0     0
+      da1p2   ONLINE       0     0     0
+      da2p2   ONLINE       0     0     0
+      da3p2   ONLINE       0     0     0
+
+
+
+
+надо избавиться от приявязки к именам диков и перейти на GPT метки
+чтобыстало вот так
+
+
+  pool: zroot
+ state: ONLINE
+  scan: resilvered 1.05G in 00:00:34 with 0 errors on Sat Mar 14 23:02:48 2026
+config:
+
+  NAME                    STATE     READ WRITE CKSUM
+  zroot                   ONLINE       0     0     0
+    mirror-0              ONLINE       0     0     0
+      gpt/DISK3-9QE85DVA  ONLINE       0     0     0
+      gpt/DISK2-9QE82FP7  ONLINE       0     0     0
+      gpt/DISK1-5QE4EP7J  ONLINE       0     0     0
+      gpt/DISK0-5QE4ENNY  ONLINE       0     0     0
+
+
+
+для  этого поехали
+
+имееем разбиание диска
+
+[root@ ~]# gpart show da0
+=>      40  41942960  da0  GPT  (20G)
+        40      1024    1  freebsd-boot  (512K)
+      1064       984       - free -  (492K)
+      2048  41938944    2  freebsd-zfs  (20G)
+  41940992      2008       - free -  (1.0M)
+
+
+
+надо каждый диск по одному задетачить.
+разбивать заново ненадо.
+надо просто пменять гпт метку на 2 разделе.
+и обратно вставить в пул на базе этой метки. и все.
+и на всякий случай переписать загрузчик
+
+ # zpool detach zroot  da3p2
+ # smartctl -x /dev/da3 | grep -i serial
+    Serial Number:    9QE85DVA
+ # gpart modify -i 2 -l DISK2-9QE82FP7 da3
+ # zpool attach zroot  da0p2 /dev/gpt/DISK2-9QE82FP7
+ # gpart bootcode -b /boot/pmbr da3
+ # gpart bootcode -p /boot/gptzfsboot -i 1 da3
+
+и так с каждым диском
+в итоге получаем
+
+
+
+  NAME                    STATE     READ WRITE CKSUM
+  zroot                   ONLINE       0     0     0
+    mirror-0              ONLINE       0     0     0
+      gpt/DISK3-9QE85DVA  ONLINE       0     0     0
+      gpt/DISK2-9QE82FP7  ONLINE       0     0     0
+      gpt/DISK1-5QE4EP7J  ONLINE       0     0     0
+      gpt/DISK0-5QE4ENNY  ONLINE       0     0     0
+
+
+
+
+
+
+
+
+
+ДАЛЕЕ ЖЕЛЕЗО 
+Егожелезо.
+контролллера диысков
+
+]# pciconf -lv | grep mass -A1 -B1
+    device     = 'SAS1068E PCI-Express Fusion-MPT SAS'
+    class      = mass storage
+    subclass   = SCSI
+--
+    device     = 'SAS1068E PCI-Express Fusion-MPT SAS'
+    class      = mass storage
+    subclass   = SCSI
+--
+    device     = 'SAS1068E PCI-Express Fusion-MPT SAS'
+    class      = mass storage
+    subclass   = SCSI
+--
+    device     = 'SAS1068E PCI-Express Fusion-MPT SAS'
+    class      = mass storage
+    subclass   = SCSI
+--
+    device     = 'SAS1068E PCI-Express Fusion-MPT SAS'
+    class      = mass storage
+    subclass   = SCSI
+--
+    device     = 'SAS1068E PCI-Express Fusion-MPT SAS'
+    class      = mass storage
+    subclass   = SCSI
+
+
+
+
+Где SAS1068E это (https://docs.broadcom.com/doc/12352180) 
+Supports 8 PCI Express lanes at a transfer
+rate up to 2.5Gb/s per lane, full duplex
+■■ Automatically negotiates PCI Express
+link widths
+— Supports x8, x4, x1 link widths
+■■ Supports PCI Express hot plug
+■■ Power management support
+■■ PCI Express software is compatible with
+PCI and PCI-X software
+■■ 8-port SAS/SATA controller
+■■ Supports 2, 3, or 4 PHY wide SAS
+port configurations
+■■ Supports 1.5 and 3.0Gb/s SAS and SATA
+data transfer rates
+■■ Port independent auto-negotiation
+■■ Compatible with SATA target devices
+
+
+в итоге такой контроллер идет на 8 дисков. хотя он умеет и sas
+но на этом сервере разьемы только sata
+что важно что сата только 3Gb\s
+
+
+# mptutil -u5  show adapter
+mpt5 Adapter:
+       Board Name: UNUSED
+   Board Assembly: 
+        Chip Name: C1068E
+    Chip Revision: UNUSED
+      RAID Levels: none
+
+
 
 
 
@@ -190,7 +392,11 @@ zpool create -f -o ashift=12 \
    -O normalization=formD \
    -O utf8only=on \
    -O canmount=off \
+   -O checksum=blake3 \
    POOL-FLOW2 raidz2 /dev/gpt/DISK4-*   /dev/gpt/DISK5-*  /dev/gpt/DISK6-*   /dev/gpt/DISK7-*
+
+
+( вот эта фича    -O checksum=blake3  доступна с фрибсд 14.3 плюс минус)
 
 
 for i in $(seq 8 4 36) ; do  zpool add POOL-FLOW2     raidz2    /dev/gpt/DISK$(($i+0))-*      /dev/gpt/DISK$(($i+1))-*   /dev/gpt/DISK$(($i+2))-*  /dev/gpt/DISK$(($i+3))-*; done 
@@ -340,12 +546,14 @@ Sector Size:      512 bytes logical/physical
 для этог создаю пул СТРАЙП НА ГОЛЫХ ДИСКАХ
 
 
-zpool create -f -o ashift=12    -o autoreplace=on     -o failmode=continue    -o autotrim=on    -O compression=lz4    -O xattr=on    -O atime=off    -O recordsize=128k    -O normalization=formD    -O utf8only=on    -O canmount=off    POOL-FLOW3   /dev/gpt/DISK4-*  /dev/gpt/DISK12-*  /dev/gpt/DISK20-*  /dev/gpt/DISK28-*  /dev/gpt/DISK36-*  /dev/gpt/DISK40-*
+кхм.. тут раньше была комнада создания пула страйпа из голых дисков
+щас ее нет
 
 zfs create  -o compression=off -o  primarycache=metadata  -o secondarycache=metadata -o recordsize=1M  POOL-FLOW3/ds-1M
 
 sysctl -a | grep zfs | grep prefetch | grep disable
 sysctl vfs.zfs.prefetch.disable=1
+
 
 
 fio --randrepeat=1 --ioengine=posixaio --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-FLOW3/ds-1M/fio.dat  --bs=$((1024 *1024)) --iodepth=32  --size=50G  --readwrite=write --numjobs=1  --group_reporting
@@ -376,11 +584,101 @@ BW=1623MiB/s  (страйп 32 диска  50МБ/с на диск зфс пре
 
 
 +++++++++++++++++++++++
+RAIDZ2
 теперь вовзращаюсь к скоростным показателям собранногго пула 9xraidz2(4 диска)
-я ожидаю что лин ск-ть чтения будет 9x(74*2)=1330 MB\s
-лин запись тоже ожидаю в этом районе
+я ожидаю что лин ск-ть чтения будет 9x(74*0.5*4)=1330 MB\s
+лин запись вобщето должна быть равна томуже 1330МБ/с но! она не будет равна тому
+     потому что чтобы записать 1МБ полезных данных на рейдз2 из четрыех диков мы должны 
+     туда записать 2МБ сырых данных из которых 1МБ это плезные данные и 1МБ это парити
+     при записи в отличии от чтения каждый диск может рабооать на своей макс лин скрсьити 
+     записи на голый диск 74МБ/с ( а не на половинной как при чтении ) что круто и дает нам
+     74*36=2660МБ/с . потом вспомнаем что 50% это парити тоесть мусор тоесть фио эту част срупута
+     не увидит. тоесть фио увидит 1330МБ/с  , так вот прикол в том что у нас же сервер может
+     из за своих медленных шин читтаь либо писать всего 1600МБ/с сырого потока. А это значит что
+     полезного потока там будет всего 800МБ/с !!! так что из за это фигни скоррость записи 
+     будет вместо 1330МБ/с она будет 800МБ/с с точки зраения фио!!!!!
 по иопсам рандом рид я ожидаю 9*(78*2)=1404 IOPS
+итак ожидаемы теоретические цифры с этого пула на этом серервее
+  лин чтение 1330МБ/с
+  лин запись 800 МБ/с
+  рандом рид 1400 IOPS
 
+ТОЛЬКо прежде чем начат делать тесты нужно проверить одну очень важную ПОДЛЯНКУ
+она связана с зфс префетч по дефолту он ВКЛЮЧЕН
+
+#  sysctl  vfs.zfs.prefetch.disable
+vfs.zfs.prefetch.disable: 0
+
+НОя столкунлся что на фрибсл 13.5  при этом он НИХУЯ НЕРАБТАЕТ
+а это базоый фуционал очень нужный потому что куча программ читает через класичский read()
+который имеет один iopdept=1 поэтому если зфс заранее не будет через доплонительные свои ио запросы
+читать жанные с дисков то скрость чтения у обычных приожение типа cp или mc будет косимчески 
+уебищная. итак я проверяю на freebsd 14.3 работает ли преефетч
+для этого нужно сравнить чтение при iodeth=1 и 32
+оно недоложно комически отличаться если префетч работает
+
+# fio --randrepeat=1 --ioengine=posixaio --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-X4540/ds-1M/fio.dat   --bs=$((1024 *1024)) --iodepth=1  --runtime=30  --readwrite=read --numjobs=1  --group_reporting 
+test: (g=0): rw=read, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=posixaio, iodepth=1
+fio-3.40
+Starting 1 process
+Jobs: 1 (f=1): [R(1)][100.0%][r=1266MiB/s][r=1266 IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=2319: Sat Mar 14 21:58:23 2026
+  read: IOPS=1320, BW=1320MiB/s (1384MB/s)(38.7GiB/30004msec)
+
+
+а вот при iodepth=32 
+# fio --randrepeat=1 --ioengine=posixaio --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-X4540/ds-1M/fio.dat  --bs=$((1024 *1024)) --iodepth=32  --runtime=30  --readwrite=read --numjobs=1  --group_reporting
+test: (g=0): rw=read, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=posixaio, iodepth=32
+fio-3.40
+Starting 1 process
+Jobs: 1 (f=1): [R(1)][100.0%][r=1495MiB/s][r=1495 IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=2796: Sat Mar 14 23:35:37 2026
+  read: IOPS=1487, BW=1488MiB/s (1560MB/s)(43.7GiB/30065msec)
+
+
+видино что скрость BW=1320MiB/s  при iodepth=1
+                   BW=1488MiB/s  при iodepth=32
+тоесть префетч работает
+но есьт еще более крутой  пруф что он рабтает 
+
+[root@ ~]# zpool iostat -q POOL-X4540 1
+              capacity     operations     bandwidth    syncq_read    syncq_write   asyncq_read  asyncq_write   scrubq_read   trimq_write  rebuildq_write
+pool        alloc   free   read  write   read  write   pend  activ   pend  activ   pend  activ   pend  activ   pend  activ   pend  activ   pend  activ
+----------  -----  -----  -----  -----  -----  -----  -----  -----  -----  -----  -----  -----  -----  -----  -----  -----  -----  -----  -----  -----
+POOL-X4540   372G  15.9T    209     16   145M   178K      0      0      0      0      4     45      0      0      0      0      0      0      0      0
+POOL-X4540   372G  15.9T  2.43K      0  1.23G      0      0      0      0      0      4     68      0      0      0      0      0      0      0      0
+POOL-X4540   372G  15.9T  2.59K      0  1.30G      0      0      0      0      0      2     70      0      0      0      0      0      0      0      0
+POOL-X4540   372G  15.9T  2.47K      0  1.24G      0      0      0      0      0      0     25      0      0      0      0      0      0      0      0
+POOL-X4540   372G  15.9T  2.59K      0  1.30G      0      0      0      0      0      1     56      0      0      0      0      0      0      0      0
+POOL-X4540   372G  15.9T  2.46K      0  1.24G      0      0      0      0      0      0     28      0      0      0      0      0      0      0      0
+POOL-X4540   372G  15.9T    313      0   157M      0      0      0      0      0      0      0      0      0      0      0      0      0      0      0
+POOL-X4540   372G  15.9T      0      0      0      0      0      0      0      0      0      0      0      0      0      0      0      0      0      0
+POOL-X4540   372G  15.9T      0      0      0      0      0      0      0      0      0      0      0      0      0      0      0      0      0      0
+
+
+видно что асинк риды ненулевые! 
+
+такжен если префетч работает то будет вот что видно
+
+# arcstat 1
+    time  read  miss  miss%  dmis  dm%  pmis  pm%  mmis  mm%  size     c  avail
+22:28:10     0     0      0     0    0     0    0     0    0  798M  2.0G    55G
+22:28:11     0     0      0     0    0     0    0     0    0  798M  2.0G    55G
+22:28:12     0     0      0     0    0     0    0     0    0  798M  2.0G    55G
+22:28:13  1.2K   251     20     2    0   249  100     0    0  806M  2.0G    55G
+22:28:14  2.7K   541     19     0    0   541  100     0    0  806M  2.0G    55G
+22:28:15  2.7K   540     20     0    0   540  100     0    0  808M  2.0G    55G
+22:28:16  2.7K   548     20     0    0   548  100     0    0  809M  2.0G    55G
+22:28:17  2.7K   538     20     0    0   538  100     0    0  814M  2.0G    55G
+22:28:18  2.7K   546     20     0    0   546  100     0    0  814M  2.0G    55G
+
+колонка %pm дожна быть ненулевая
+
+
+
+
+
+далее я обьясняю теорию 
 я обясню. как я разбиралд в другой доке если у нас рейдз2 на 4 дисках то там получается
 что на диске идут практически поперменно дата блоки и парити блоки. блоки большие и требуется
 боьшое время чтобы и прочитать полезный блок и пропустить бесполезный парити блок ибо зфс
@@ -409,7 +707,48 @@ BW=1623MiB/s  (страйп 32 диска  50МБ/с на диск зфс пре
 
 
 
-теперьт что показал эксперимент тест 
+теперьт  эксперимент 
+для начала чтение,
+опция zfs prefecth активиована
+
+ iodepth=32 BW=1488MiB/s  
+ iodepth=16 BW=1463MiB/s
+ iodepth=8  BW=1445MiB/s  
+ iodepth=4  BW=1420MiB/s  
+ iodepth=2  BW=1387MiB/s  
+ iodepth=1  BW=1362MiB/s  
+ 
+
+итак скрось чтения отлично совпала с теорией,  правда вопрс  акак она может быть выше чем
+суммарная скрорсь чтения шпинделей (1330МБ/с) я думаю это за счет зфс префетч. он зарнанее 
+наваливывает иопсов прежде чем мы попрсим. 
+также видно что даже при iodepth=1 у нас с масива снимается его физически макисамаьная мощность.
+тоесть я также оценил и эфективнсть активрованного префетча. даже на иодепф=1 с влюченым префтетчем
+мы снимаем на чтении макс мощность с дисков. отдично.
+
+хотя еще подкючение к нфс я не распиывал. но тут же сразу проверю скорсть этогже чтения
+по NFS через 10G карточку (нфс примаунчен в синхронном режиме с точки рения клиента)
+утчем еще то что 10G это макимум в МБ срупут 1180  Мбайт/с ( с учетом вычета загоглоовков  Ethernet + IP + TCP + RPC + NFS). 
+
+ iodepth=32 BW=1168MiB/s
+ iodepth=16 BW=1168MiB/s
+ iodepth=8  BW=1146MiB/s  
+ iodepth=4  BW=1099MiB/s
+ iodepth=2  BW=808MiB/s 
+ iodepth=1  BW=523MiB/s
+
+
+отключать префетч и смотреть что будет неивижу смысла. будет пизда.
+вощнкиает вот какой вопрос.  видно вся эта связка карти NFS может через себя пропускать
+поток BW=1168MiB/s но при иодепф мы получем BW=523MiB/s вот вопрос поможет ли замена карт 10Г
+на 40Г чтобы поднять поток на иодепф=1 потому что этотрежим это основной режим работы многих 
+приложений. да конечо если будет много потокоов то они выжрут без пролем 1168МБ/с тоесть 10Г
+легко. но всеже интерсно (кстати даже 523МБ/с это скоротсть записи на ссд сата 6GB\s диск то
+нихрена себе на секундночку тоесть тоже отлчно)
+
+
+
+
 лин чтение BW=1341MiB/s (полное совпадение теории с экспериментом)
 рандом рид IOPS=1631    ( это по 181 иопс с однго рейдз2 или 90!! иопс снято с каждого диска 
                           что просто отлично!)
