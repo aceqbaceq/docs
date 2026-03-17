@@ -1,0 +1,126 @@
+| lsi
+| freebsd
+| avago
+| interrupt
+| interrupts
+
+
+очень полезная команда
+
+# mprutil show iocfacts
+          MsgVersion: 2.6
+           MsgLength: 17
+            Function: 0x3
+       HeaderVersion: 48,00
+           IOCNumber: 0
+            MsgFlags: 0x0
+               VP_ID: 0
+               VF_ID: 0
+       IOCExceptions: 0
+           IOCStatus: 0
+          IOCLogInfo: 0x0
+       MaxChainDepth: 128
+             WhoInit: 0x4
+       NumberOfPorts: 1
+      MaxMSIxVectors: 96
+       RequestCredit: 6528
+           ProductID: 0x2228
+     IOCCapabilities: 0x7a85c <ScsiTaskFull,DiagTrace,SnapBuf,EEDP,TransRetry,EventReplay,MSIXIndex,HostDisc,FastPath,RDPQArray>
+           FWVersion: 15.00.00.00
+ IOCRequestFrameSize: 64
+ MaxChainSegmentSize: 16
+       MaxInitiators: 32
+          MaxTargets: 1024
+     MaxSasExpanders: 64
+       MaxEnclosures: 65
+       ProtocolFlags: 0x3 <ScsiTarget,ScsiInitiator>
+  HighPriorityCredit: 8
+MaxRepDescPostQDepth: 65504
+      ReplyFrameSize: 32
+          MaxVolumes: 0
+        MaxDevHandle: 1136
+MaxPersistentEntries: 128
+        MinDevHandle: 17
+ CurrentHostPageSize: 0
+
+
+Судя по выводу команды mprutil, здесь указаны два параметра, связанных с глубиной очереди (кредитами):
+
+   1. Общая глубина очереди запросов (Request Credit): 6528. Это максимальное количество активных запросов, которые адаптер может обрабатывать одновременно.
+   2. Глубина очереди ответов (MaxRepDescPostQDepth): 65504. Это максимальный размер очереди для дескрипторов ответов (Reply Descriptors).
+
+Также стоит обратить внимание на:
+
+* HighPriorityCredit: 8 — зарезервировано для высокоприоритетных задач.
+* MaxChainDepth: 128 — максимальное количество элементов в цепочке SGE (Scatter Gather Elements) для одного запроса.
+
+Вам нужно рассчитать настройки драйвера ОС или вы диагностируете задержки (latency) под нагрузкой?
+
+
+
+
+также полезно постмреть сколько перрвыаваний и каких имеет наша карта
+
+# vmstat -i | grep mpr
+irq125: mpr0                     4842046          1
+
+
+как видно карта в пролете. она юзает только MSI прерывание
+хотя может исползовать MSI-X
+
+
+
+
+а вот еще полезнаяднк кмоанда
+
+
+# systat -vmstat
+
+    8 users    Load  0.00  0.00  0.00                  Mar 18 02:48:41
+   Mem usage:  14%Phy 13%Kmem                           VN PAGER   SWAP PAGER
+Mem:      REAL           VIRTUAL                        in   out     in   out
+       Tot   Share     Tot    Share     Free   count
+Act 92376K  19820K    514G   25324K     107G   pages
+All    99M  29136K    514G     120M                       ioflt  Interrupts
+Proc:                                                     cow     102 total
+  r   p   d    s   w   Csw  Trp  Sys  Int  Sof  Flt       zfod      2 ehci1 22
+              47       268    2  132   12                 ozfod     2 ehci0 23
+                                                         %ozfod     9 cpu0:timer
+ 0.0%Sys   0.0%Intr  0.0%User  0.0%Nice  100%Idle         daefr     6 cpu1:timer
+|    |    |    |    |    |    |    |    |    |    |       prcfr     5 cpu2:timer
+                                                          totfr    14 cpu3:timer
+                                           dtbuf          react     5 cpu4:timer
+Namei     Name-cache   Dir-cache   4232293 maxvn          pdwak     6 cpu5:timer
+   Calls    hits   %    hits   %     46016 numvn        4 pdpgs     4 cpu6:timer
+       3       3 100                 43218 frevn          intrn     1 cpu7:timer
+                                                      17G wire      1 cpu8:timer
+Disks   da0   da1   da2   da3   da4   da5   da7       11M act       4 cpu9:timer
+KB/t   0.00  0.00  0.00  0.00  0.00  0.00  0.00      182M inact     2 cpu10:time
+tps       0     0     0     0     0     0     0         0 laund     1 cpu11:time
+MB/s   0.00  0.00  0.00  0.00  0.00  0.00  0.00      107G free      8 cpu12:time
+%busy     0     0     0     0     0     0     0         0 buf       4 cpu13:time
+                                                                    3 cpu14:time
+                                                                    3 cpu15:time
+                                                                    2 cpu16:time
+                                                                    5 cpu17:time
+                                                                    1 cpu18:time
+                                                                    2 cpu19:time
+                                                                    4 cpu20:time
+                                                                      cpu21:time
+                                                                    1 cpu22:time
+                                                                      cpu23:time
+                                                                      igb0:rxq0
+                                                                      igb0:rxq1
+                                                                      igb0:rxq2
+                                                                      igb0:rxq3
+
+
+
+
+она врелаьном времени покзыавет куда идут наши интерпты
+
+
+
+
+покаывает кучу полезной инфо
+      MaxMSIxVectors: 96
