@@ -107,6 +107,9 @@ SATA Version is:  SATA 3.0, 6.0 Gb/s (current: 6.0 Gb/s)
 
 # fio --randrepeat=1 --ioengine=psync --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-04/ds2-128K/fio.dat  --bs=$((128 *1024)) --iodepth=1  --size=10G  --readwrite=randwrite --numjobs=1  --group_reporting --loops=5
 
+# fio --randrepeat=1 --ioengine=posixaio --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-R720/ds-1M/fio.dat  --bs=$((1024 *1024)) --iodepth=32  --size=40G  --readwrite=write --numjobs=1  --group_reporting 
+
+
 # gstat 
 # arcstat 1
 

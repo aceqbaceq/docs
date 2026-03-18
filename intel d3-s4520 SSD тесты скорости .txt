@@ -1,0 +1,63 @@
+| INTEL SSDSC2KB480GZ
+| ssd
+| d3-s4520
+
+
+=== START OF INFORMATION SECTION ===
+Model Family:     Intel/Solidigm S46x0/S45x0 Series SSDs
+Device Model:     INTEL SSDSC2KB480GZ
+Serial Number:    BTYI2242063X480BGN
+LU WWN Device Id: 5 5cd2e4 155d5cd21
+Firmware Version: 7CV10100
+User Capacity:    480,103,981,056 bytes [480 GB]
+Sector Sizes:     512 bytes logical, 4096 bytes physical
+Rotation Rate:    Solid State Device
+Form Factor:      2.5 inches
+TRIM Command:     Available, deterministic, zeroed
+Device is:        In smartctl database 7.5/5706
+ATA Version is:   ACS-3 T13/2161-D revision 5
+SATA Version is:  SATA 3.2, 6.0 Gb/s (current: 6.0 Gb/s) <==**==<==
+
+
+
+чтение 
+линейное
+bs=16K (размер page у этого диска)
+fio --randrepeat=1 --ioengine=posixaio --direct=1 --gtod_reduce=1 --name=test --filename=/dev/da29  --bs=$((16 *1024)) --iodepth=1 --runtime=30  --readwrite=read --numjobs=1  --group_reporting 
+
+
+iodepth=1 10.3k
+iodepth=2 16.8k
+iodepth=3 21.6k
+iodepth=4 22.9k
+
+
+запись
+линейное
+bs=16K (размер page у этого диска)
+# fio --randrepeat=1 --ioengine=posixaio --direct=1 --gtod_reduce=1 --name=test --filename=/dev/da29  --bs=$((16 *1024)) --iodepth=3 --runtime=30  --readwrite=write --numjobs=1  --group_reporting 
+
+iodepth=1 10.7k
+iodepth=2 17.3k
+iodepth=3 20.5k 
+iodepth=4 20.9k
+
+
+
+
+синхронная запись 
+ fio --randrepeat=1 --ioengine=posixaio --direct=1 --gtod_reduce=1 --name=test --filename=/dev/da29  --bs=$((16 *1024)) --iodepth=1 --runtime=30  --readwrite=write --numjobs=1  --group_reporting  --sync=1
+
+ iodepth=1 IOPS=10.8k
+ iodepth=2 IOPS=17.5k
+ iodepth=3 IOPS=20.4k
+ iodepth=4 IOPS=20.9k
+
+
+уменьшил до bs=4K
+iodepth=4  IOPS=43.9k
+
+
+4K rand read
+iodepth=32 IOPS=72.8K
+

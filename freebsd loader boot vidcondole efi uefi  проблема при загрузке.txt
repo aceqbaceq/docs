@@ -1,0 +1,26 @@
+| freebsd
+| loader
+| boot
+
+
+важная хуйня про loader
+если мы запускаемся на компе с BIOS то видеодрайвер назыается vidconsole
+а если на UEFI то efi 
+поэтому в
+  /boot/loader.conf
+разные строки
+
+
+для BIOS:
+console="vidconsole,comconsole"
+
+для UEFI:
+console="efi,comconsole"
+
+
+
+если на компе где UEFI лоадер грузится с настройкой
+console="vidconsole,comconsole"
+то на том экране где должно появится меню с красным логтипом вместо этгого будет наисно 
+что vidconsole недоступен.
+

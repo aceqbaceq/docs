@@ -1,0 +1,20 @@
+| SEAGATE ST3500630NS
+| 3.AYG
+
+
+Device Model:     SEAGATE ST3500630NS
+Serial Number:    5QG0HBWL
+Firmware Version: 3.AYG       ***<<<<  (это особая прошивка)
+User Capacity:    500,107,862,016 bytes [500 GB]
+Sector Size:      512 bytes logical/physical
+
+лин чтение 77.5MiB/s- 79.5MB/s
+лин запись 46.5MiB/s-47.1MiB/s
+рандом рид IOPS=130
+
+
+
+это особая прошивка
+на ней сокрсть не 70МБ/с а всего 46-47
+
+
