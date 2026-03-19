@@ -428,13 +428,33 @@ NumPhys   SAS Address     DevHandle   Parent  EncHandle  SAS Level
     class      = mass storage
     subclass   = RAID
 
+
+
+	# mfiutil show adapter
+/dev/mfi0 Adapter:
+    Product Name: MegaRAID SAS 8344ELP
+   Serial Number: P121590707
+        Firmware: 7.0.1-0083
+     RAID Levels: JBOD, RAID0, RAID1, RAID5, RAID10, RAID50
+  Battery Backup: not present
+           NVRAM: 32K
+  Onboard Memory: 128M
+  Minimum Stripe: 8K
+  Maximum Stripe: 1M
+
+
+((!!!! ВАНЖНАЯ ХУЙНЯ ПРО  КОНТРОЛЛЕР MegaRAID SAS 8344ELP  ))
 его ммксимальная скрость 
    455-465 МБ\с чтение
    455-465 МБ\с запись 
+что уебищно мало
+греется он очень сильно
 
-и еще толи драйвер толи сам контроллер виноват но по факту
+еще толи драйвер толи сам контроллер виноват но по факту
 на диски макс размер чтения записи льется в gstat как 64КБ
 тоесть если мы суем ио запрос 1МБ то на диск будет литься 16 кусков по 64КБ
+тость через него писать линейно на диски кусками по 1МБ нк получится он будет 
+в итоге разбивать наши крупные запросы и писать и читать на дисках кусками по 64КБ
 
 его подкрутка в loader.conf
 # sysctl hw.mfi
@@ -449,17 +469,6 @@ hw.mfi.event_class: 0
 hw.mfi.event_locale: 65535
 
 
-	# mfiutil show adapter
-/dev/mfi0 Adapter:
-    Product Name: MegaRAID SAS 8344ELP
-   Serial Number: P121590707
-        Firmware: 7.0.1-0083
-     RAID Levels: JBOD, RAID0, RAID1, RAID5, RAID10, RAID50
-  Battery Backup: not present
-           NVRAM: 32K
-  Onboard Memory: 128M
-  Minimum Stripe: 8K
-  Maximum Stripe: 1M
 
 
 mfiutil это встроенная от фрибсд утилита лдя упрваления LSI MEGARAID контрроллерами
