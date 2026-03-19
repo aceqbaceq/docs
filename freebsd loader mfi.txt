@@ -1,0 +1,11 @@
+| loader
+| freebsd
+| mfi
+
+при установке пишем в лоадер CLI
+
+
+set hw.mfi.allow_cam_disk_passthrough=1
+load mfip
+boot
+

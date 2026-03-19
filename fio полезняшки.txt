@@ -1,0 +1,11 @@
+| fio
+| полезняшки
+
+
+while true; do fio --randrepeat=1 --ioengine=posixaio --direct=1 --gtod_reduce=1 --name=test --filename=/POOL-POLKA1/ds-1M/fio.dat   --bs=$((1024 *1024)) --iodepth=32  --runtime=200  --readwrite=rw   --rwmixread=60       --numjobs=4  --group_reporting   --offset=0   --offset_increment=200M; done
+ 
+
+
+а еще зоны в фио позаоляет читать на дисках читать перескккакаивая через куски (эмулирует
+raidz логику)
+

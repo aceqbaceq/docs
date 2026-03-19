@@ -1,0 +1,6 @@
+| freebsd
+| ss
+| sockstat
+
+
+аналог ss(linux) это sockstat

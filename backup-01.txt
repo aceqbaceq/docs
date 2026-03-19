@@ -4,6 +4,130 @@
 
 backup-01
 
+##########################################################################
+#                 КОНФИГИ АКТУАЛЬНЫЕ                                     #
+
+
+
+ # cat /boot/loader.conf | grep -v '#'
+kern.msgbufsize="524288"
+
+kern.geom.label.disk_ident.enable="1"
+kern.geom.label.gpt.enable="1"
+kern.geom.label.gptid.enable="0"
+
+
+
+cryptodev_load="YES"
+
+
+
+
+
+mfi_load="YES"
+mfip_load="YES"
+hw.mfi.max_cmds="1000"
+hw.mfi.cmd_timeout="30"
+hw.mfi.allow_cam_disk_passthrough="1"
+kern.cam.da.maxio="131072"
+kern.ipc.maxphys="1048576"
+
+
+
+zfs_load="YES"
+
+
+
+
+vfs.zfs.vdev.async_write_min_active=1
+vfs.zfs.vdev.async_write_max_active=5
+
+vfs.zfs.vdev.trim_on_init=1
+
+
+ # 
+ # cat /etc/rc.conf | grep -v '#'
+hostname="backup-01"
+sshd_enable="YES"
+moused_nondefault_enable="NO"
+dumpdev="AUTO"
+zfs_enable="YES"
+
+
+ntpd_enable="YES"
+ntpd_flags="-g"
+
+
+ifconfig_igb0="up"
+ifconfig_igb1="up"
+ifconfig_igb2="down"
+ifconfig_igb3="down"
+
+
+ifconfig_ix0="up mtu 9000"
+ifconfig_ix1="up mtu 9000"
+
+
+cloned_interfaces="lagg0 vlan55  lagg1 vlan78"
+
+
+ifconfig_lagg0="laggproto lacp laggport igb0    laggport igb1      description '1G' "
+ifconfig_vlan55="inet 100.69.55.21 netmask 255.255.255.0  vlan 55 vlandev lagg0 mtu 1500     description 'SSH'  "
+
+
+
+ifconfig_lagg1="laggproto lacp laggport ix0    laggport ix1   mtu 9000   description '10G' "
+ifconfig_vlan78="inet 100.69.78.1 netmask 255.255.255.0  vlan 78 vlandev lagg1 mtu 9000     description 'BACKUP'  "
+
+
+defaultrouter="100.69.55.254"
+
+
+smartd_enable="YES"
+smartd_flags="-l local3"
+
+
+
+
+
+zfsd_enable="YES"
+ # 
+ # cat /etc/sysctl.conf | grep -v '#'
+
+vfs.zfs.min_auto_ashift=12
+ # 
+ # cat /etc/ttys | grep -v '#'
+ttys
+ # cat /etc/ttys | grep -v '#'
+console none                            unknown off secure
+ttyv0   "/usr/libexec/getty Pc"         xterm   onifexists secure
+ttyv1   "/usr/libexec/getty Pc"         xterm   onifexists secure
+ttyv2   "/usr/libexec/getty Pc"         xterm   onifexists secure
+ttyv3   "/usr/libexec/getty Pc"         xterm   onifexists secure
+ttyv4   "/usr/libexec/getty Pc"         xterm   onifexists secure
+ttyv5   "/usr/libexec/getty Pc"         xterm   onifexists secure
+ttyv6   "/usr/libexec/getty Pc"         xterm   onifexists secure
+ttyv7   "/usr/libexec/getty Pc"         xterm   onifexists secure
+ttyv8   "/usr/local/bin/xdm -nodaemon"  xterm   off secure
+ttyu0   "/usr/libexec/getty 3wire"      vt100   onifconsole secure
+ttyu1   "/usr/libexec/getty 3wire"      vt100   onifconsole secure
+ttyu2   "/usr/libexec/getty 3wire"      vt100   onifconsole secure
+ttyu3   "/usr/libexec/getty 3wire"      vt100   onifconsole secure
+dcons   "/usr/libexec/getty std.115200" vt100   off secure
+xc0     "/usr/libexec/getty Pc"         xterm   onifconsole secure
+rcons   "/usr/libexec/getty std.115200" vt100   onifconsole secure
+ # 
+[backup-01][                                          0- bash  1 bash  2 bash  3 bash  (4* bash)                                           ][03/19/26 23:00]
+
+
+#                 КОНФИГИ АКТУАЛЬНЫЕ                                     #
+##########################################################################
+
+
+
+
+
+
 
 загрузка идет через UEFI
 в ос стоит четыре загрузочных диска (zfs четырехкратный миррор)
@@ -74,7 +198,7 @@ Copyright (c) 2008-2012 LSI Corporation. All rights reserved
 его драйвер в фрибсл это mps0
 вот его свтроенная утилита для инфо
 
-[root@backup-01 /home/krivosheeva]# mpsutil show  devices
+ # mpsutil show  devices
 B____T    SAS Address      Handle  Parent    Device        Speed Enc  Slot  Wdt
 00   05   4433221103000000 0009    0001      SATA Target   6.0   0001 00    1
 00   11   4433221104000000 000a    0002      SATA Target   6.0   0001 07    1
@@ -82,9 +206,9 @@ B____T    SAS Address      Handle  Parent    Device        Speed Enc  Slot  Wdt
 00   09   5000c50001bd2e25 000c    0004      SAS Target    3.0   0001 04    1
 00   10   4433221106000000 000d    0005      SATA Target   6.0   0001 05    1
 
-[root@backup-01 /home/krivosheeva]# 
-[root@backup-01 /home/krivosheeva]# 
-[root@backup-01 /home/krivosheeva]# mpsutil show  all
+ # 
+ # 
+ # mpsutil show  all
 Adapter:
 mps0 Adapter:
        Board Name: SAS9207-8i
@@ -164,7 +288,7 @@ Copyright 2008-2017 Avago Technologies. All rights reserved.
 его драйвер MPR0 во фрибсд
 а вот утилита встроенная для работы с этим контроллером
 
-[root@backup-01 /home/krivosheeva]# mprutil show adapter
+ # mprutil show adapter
 mpr0 Adapter:
        Board Name: SAS9305-16e
    Board Assembly: 
@@ -196,10 +320,10 @@ PhyNum  CtlrHandle  DevHandle  Disabled  Speed   Min    Max    Device
 14                             N                 3.0    12     SAS Initiator 
 15                             N                 3.0    12     SAS Initiator 
 
-[root@backup-01 /home/krivosheeva]# 
-[root@backup-01 /home/krivosheeva]# 
-[root@backup-01 /home/krivosheeva]# 
-[root@backup-01 /home/krivosheeva]# mprutil show devices
+ # 
+ # 
+ # 
+ # mprutil show devices
 B____T    SAS Address      Handle  Parent    Device        Speed Enc  Slot  Wdt
           5001438006cdc87d 0011    0001      SMP Target    6.0   0002 00    8
           5001438006cdc841 0012    0011      SATA Target   3.0   0002 14    1
@@ -209,11 +333,11 @@ B____T    SAS Address      Handle  Parent    Device        Speed Enc  Slot  Wdt
           5001438006cdc84b 0016    0011      SATA Target   3.0   0002 24    1
           5001438006cdc87c 0017    0011      SEP Target    6.0   0002 00    1
 
-[root@backup-01 /home/krivosheeva]# 
-[root@backup-01 /home/krivosheeva]# 
-[root@backup-01 /home/krivosheeva]# 
-[root@backup-01 /home/krivosheeva]# 
-[root@backup-01 /home/krivosheeva]# mprutil show all
+ # 
+ # 
+ # 
+ # 
+ # mprutil show all
 Adapter:
 mpr0 Adapter:
        Board Name: SAS9305-16e
@@ -292,7 +416,7 @@ NumPhys   SAS Address     DevHandle   Parent  EncHandle  SAS Level
      23                                ???   ???   No Device     
      24      24        0017      6.0   6.0   6.0   SEP Target    
 
-[root@backup-01 /home/krivosheeva]# 
+ # 
 
 
 
@@ -303,6 +427,26 @@ NumPhys   SAS Address     DevHandle   Parent  EncHandle  SAS Level
     device     = 'MegaRAID SAS 1068'
     class      = mass storage
     subclass   = RAID
+
+его ммксимальная скрость 
+   455-465 МБ\с чтение
+   455-465 МБ\с запись 
+
+и еще толи драйвер толи сам контроллер виноват но по факту
+на диски макс размер чтения записи льется в gstat как 64КБ
+тоесть если мы суем ио запрос 1МБ то на диск будет литься 16 кусков по 64КБ
+
+его подкрутка в loader.conf
+# sysctl hw.mfi
+hw.mfi.allow_cam_disk_passthrough: 1
+hw.mfi.mrsas_enable: 0
+hw.mfi.msi: 1
+hw.mfi.cmd_timeout: 30
+hw.mfi.polled_cmd_timeout: 60
+hw.mfi.detect_jbod_change: 1
+hw.mfi.max_cmds: 1000
+hw.mfi.event_class: 0
+hw.mfi.event_locale: 65535
 
 
 	# mfiutil show adapter
@@ -365,7 +509,7 @@ Device Model:     HGST HUS724020ALA640
 
 а вот утилита которая покажет все структурут дисков по всем полкам
 
-[root@backup-01 /home/krivosheeva]# sesutil  show
+ # sesutil  show
 ses0: <HP D2600 SAS AJ940A 0103>; ID: 5001438006cdc840
 Desc            Dev     Model                     Ident                Size/Status
 -               -       -                         -                    Unsupported,  Swapped
@@ -543,7 +687,7 @@ zpool create -f -o ashift=12 \
 
 дл
 
-[root@backup-01 /home/krivosheeva]# zpool status -v POOL-01
+ # zpool status -v POOL-01
   pool: POOL-01
  state: ONLINE
 config:
@@ -722,7 +866,7 @@ config:
 как менять диск. вставили диск в полку.
 убедились что он появилсия в камконтрол по серийноному номеру
 
-[root@backup-01 /home/krivosheeva]# camcontrol inquiry da21
+ # camcontrol inquiry da21
 pass26: <ATA HGST HUS724020AL A8B0> Fixed Direct Access SPC-3 SCSI device
 pass26: Serial Number       PN1181P5H61SPW
 pass26: 150.000MB/s transfers, Command Queueing Enabled
@@ -731,7 +875,7 @@ pass26: 150.000MB/s transfers, Command Queueing Enabled
 посмотрели что про него говорит мегакли
 
 
-[root@backup-01 /home/krivosheeva]# /opt/MegaCli/MegaCli64 -PDList -aALL  | grep -i 61spw -B25 -A 25
+ # /opt/MegaCli/MegaCli64 -PDList -aALL  | grep -i 61spw -B25 -A 25
 
 
 
@@ -790,7 +934,7 @@ Drive has flagged a S.M.A.R.T alert : No
 
 
 bash: zpol: command not found
-[root@backup-01 /home/krivosheeva]# zpool status -v POOL-01
+ # zpool status -v POOL-01
   pool: POOL-01
  state: DEGRADED
 status: One or more devices has been taken offline by the administrator.
@@ -832,11 +976,11 @@ config:
             gpt/wwn-5d4de               ONLINE       0     0     0
 
 errors: No known data errors
-[root@backup-01 /home/krivosheeva]# zpool replace POOL-01     diskid/DISK-PN1181P5H6AG0W       /dev/diskid/DISK-PN1181P5H61SPW
+ # zpool replace POOL-01     diskid/DISK-PN1181P5H6AG0W       /dev/diskid/DISK-PN1181P5H61SPW
 
 
 
-[root@backup-01 /home/krivosheeva]# zpool status -v POOL-01
+ # zpool status -v POOL-01
   pool: POOL-01
  state: ONLINE
   scan: resilvered 3.76G in 00:00:37 with 0 errors on Thu Jan  1 23:07:16 2026
