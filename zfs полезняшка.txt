@@ -1,0 +1,5 @@
+| zfs
+| полезняшка
+
+zpool history POOL
+zpool events POOL

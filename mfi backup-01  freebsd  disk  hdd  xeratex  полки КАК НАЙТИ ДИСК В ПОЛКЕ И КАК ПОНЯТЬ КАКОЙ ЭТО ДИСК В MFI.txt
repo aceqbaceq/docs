@@ -1,0 +1,206 @@
+| mfi
+| backup-01
+| freebsd
+| disk
+| hdd
+| xeratex
+| полки
+| mfi backup-01  freebsd  disk  hdd  xeratex  полки
+
+
+в логах 
+ # dmesg
+видим
+
+mfi0: 1744027 (boot + 4760775s/0x0002/WARN) - Command timeout on PD 76(e0xff/s118) Path 5000bb521217f2f4 , CDB: 85 08 0e 00 d5 00 01 00 06 00 4f 00 c2 00 b0 0
+0
+mfi0: 1744028 (boot + 4760775s/0x0002/WARN) - PD 76(e0xff/s118) Path 5000bb521217f2f4  reset (Type 03)
+mfi0: 1744029 (boot + 4760840s/0x0002/WARN) - Command timeout on PD 76(e0xff/s118) Path 5000bb521217f2f4 , CDB: 85 08 0e 00 d5 00 01 00 06 00 4f 00 c2 00 b0 0
+0
+
+mfi0: 1744042 (boot + 4761230s/0x0002/WARN) - PD 78(e0xff/s120) Path 5000bb521217f2f3  reset (Type 03)
+mfi0: 1744043 (boot + 4761295s/0x0002/WARN) - Command timeout on PD 78(e0xff/s120) Path 5000bb521217f2f3 , CDB: 85 08 0e 00 d0 00 01 00 00 00 4f 00 c2 00 b0 0
+0
+
+
+возникает вопрос что это за диски  "PD 76" "PD 78"?
+
+
+
+
+
+
+# mfiutil show  drives 
+/dev/mfi0 Physical Drives:
+50 ( 1863G) UNCONFIGURED GOOD <HGST HUS724020AL A8B0 serial=PN1181P5H6E31W> SATA S50
+51 ( 1863G) UNCONFIGURED GOOD <HGST HUS724020AL A8B0 serial=PN1181P5H53B8W> SATA S51
+53 ( 1863G) UNCONFIGURED GOOD <HGST HUS724020AL A8B0 serial=PN2181P5H3Y0RX> SATA S53
+54 ( 1863G) UNCONFIGURED GOOD <HGST HUS724020AL A8B0 serial=PN1181P5H6H7LW> SATA S54
+55 ( 1863G) UNCONFIGURED GOOD <HGST HUS724020AL A8B0 serial=PN1181P5H6A19W> SATA E1:S0
+56 ( 1863G) UNCONFIGURED GOOD <HGST HUS724020AL A8B0 serial=PN1181P5H6AG8W> SATA S56
+57 ( 1863G) UNCONFIGURED GOOD <HGST HUS724020AL A8B0 serial=PN1181P5H6D4EW> SATA S57
+59 ( 1863G) UNCONFIGURED GOOD <HGST HUS724020AL A8B0 serial=PN1181P5H60KXW> SATA S59
+60 ( 1863G) UNCONFIGURED GOOD <HGST HUS724020AL A8B0 serial=PN1181P5H6E14W> SATA S60
+76 ( 1863G) UNCONFIGURED GOOD <HGST HUS724020AL A8B0 serial=PN1181P5H64RKW> SATA S76
+77 ( 1863G) UNCONFIGURED GOOD <HGST HUS724020AL A8B0 serial=PN1181P5H6ATTW> SATA S77
+83 ( 1863G) UNCONFIGURED GOOD <HGST HUS724020AL A8B0 serial=PN1181P5H6H7XW> SATA S83
+86 ( 1863G) UNCONFIGURED GOOD <HGST HUS724020AL A8B0 serial=PN2181P5H50X6X> SATA S86
+89 ( 1863G) UNCONFIGURED GOOD <HGST HUS724020AL A8B0 serial=PN1181P5H6H5DW> SATA S89
+92 ( 1863G) UNCONFIGURED GOOD <HGST HUS724020AL A8B0 serial=PN1181P5H5SEDW> SATA S92
+96 ( 1863G) UNCONFIGURED GOOD <HGST HUS724020AL A8B0 serial=PN1181P5H6G32W> SATA S96
+99 ( 1863G) UNCONFIGURED GOOD <HGST HUS724020AL A8B0 serial=PN1181P5H5VT3W> SATA S99
+100 ( 1863G) UNCONFIGURED GOOD <HGST HUS724020AL A8B0 serial=PN2181P5H3Y0JX> SATA S100
+103 ( 1863G) UNCONFIGURED GOOD <HGST HUS724020AL A8B0 serial=PN1181P5H5TAAW> SATA S103
+110 ( 1863G) UNCONFIGURED GOOD <HGST HUS724020AL A8B0 serial=PN1181P5H5TZNW> SATA S110
+111 ( 1863G) UNCONFIGURED GOOD <HGST HUS724020AL A8B0 serial=PN1181P5H63A2W> SATA E4:S0
+112 ( 1863G) UNCONFIGURED GOOD <HGST HUS724020AL A8B0 serial=PN1181P5H69BZW> SATA S112
+113 ( 1863G) UNCONFIGURED GOOD <HGST HUS724020AL A8B0 serial=PN1181P5H6HA9W> SATA S113
+114 ( 1863G) UNCONFIGURED GOOD <HGST HUS724020AL A8B0 serial=PN1181P5H6H7SW> SATA S114
+116 ( 1863G)UNCONFIGURED GOOD <HGST HUS724020AL A8B0 serial=PN1181P5H67ZRW> SATA S116
+117 ( 1863G) UNCONFIGURED GOOD <HGST HUS724020AL A8B0 serial=PN1181P5H6LPJW> SATA S117
+118 ( 1863G) UNCONFIGURED GOOD <HGST HUS724020AL A8B0 serial=PN1181P5H5SXAW> SATA S118
+119 ( 1863G) UNCONFIGURED GOOD <HGST HUS724020AL A8B0 serial=PN1181P5H6D4LW> SATA S119
+120 ( 1863G) UNCONFIGURED GOOD <HGST HUS724020AL A8B0 serial=PN1181P5H61SPW> SATA S120
+121 ( 1863G) UNCONFIGURED GOOD <HGST HUS724020AL A8B0 serial=PN1181P5H69X8W> SATA S121
+
+
+
+
+по мне то что в левой колонке это и есть PD N
+76 ( 1863G) UNCONFIGURED GOOD <HGST HUS724020AL A8B0 serial=PN1181P5H64RKW> SATA S76
+итак мы узани сериый номер PN1181P5H64RKW
+дальше смотри расклад по полкам
+
+
+
+# sesutil show
+ses0: <XYRATEX 3GSAS1.0-SATAEXP 1.05>; ID: 5000bb52116320ff
+Desc            Dev     Model                     Ident                Size/Status
+Overall Drives   -       -                         -                    OK
+Disk #1         da9     ATA HGST HUS724020AL      PN1181P5H6A19W       2T
+Disk #2         da11    ATA HGST HUS724020AL      PN1181P5H6D4EW       2T
+Disk #3         da12    ATA HGST HUS724020AL      PN1181P5H60KXW       2T
+Disk #4         -       -                         -                    Not Installed
+Disk #5         da8     ATA HGST HUS724020AL      PN1181P5H6H7LW       2T
+Disk #6         da10    ATA HGST HUS724020AL      PN1181P5H6AG8W       2T
+Disk #7         da6     ATA HGST HUS724020AL      PN1181P5H53B8W       2T
+Disk #8         da13    ATA HGST HUS724020AL      PN1181P5H6E14W       2T
+Disk #9         da7     ATA HGST HUS724020AL      PN2181P5H3Y0RX       2T
+Disk #10        da14    ATA HGST HUS724020AL      PN1181P5H64RKW       2T
+Disk #11        da5     ATA HGST HUS724020AL      PN1181P5H6E31W       2T
+Disk #12        da15    ATA HGST HUS724020AL      PN1181P5H6ATTW       2T
+
+Temperatures: Overall Temperature Sensors : 29 C, Temperature Sensor #1   : 25 C, Temperature Sensor #2   : 29 C
+Voltages: , , 3.3 Volt Sensor : 3.31 V, 5 Volt Sensor   : 5.01 V, 12 Volt Sensor  : 12.06 V
+
+ses1: <XYRATEX 3GSAS1.0-SATAEXP 1.07>; ID: 5000bb521215c0ff
+Desc            Dev     Model                     Ident                Size/Status
+Overall Drives   -       -                         -                    OK
+Disk #1         -       -                         -                    Not Installed
+Disk #2         -       -                         -                    Not Installed
+Disk #3         -       -                         -                    Not Installed
+Disk #4         -       -                         -                    Not Installed
+Disk #5         -       -                         -                    Not Installed
+Disk #6         -       -                         -                    Not Installed
+Disk #7         -       -                         -                    Not Installed
+Disk #8         -       -                         -                    Not Installed
+Disk #9         da18    ATA HGST HUS724020AL      PN1181P5H6H5DW       2T
+Disk #10        da19    ATA HGST HUS724020AL      PN1181P5H5SEDW       2T
+Disk #11        da16    ATA HGST HUS724020AL      PN1181P5H6H7XW       2T
+Disk #12        da17    ATA HGST HUS724020AL      PN2181P5H50X6X       2T
+
+Temperatures: Overall Temperature Sensors : 23 C, Temperature Sensor #1   : 22 C, Temperature Sensor #2   : 23 C
+Voltages: , , 3.3 Volt Sensor : 3.28 V, 5 Volt Sensor   : 5.01 V, 12 Volt Sensor  : 12.06 V
+
+ses2: <XYRATEX 3GSAS1.0-SATAEXP 1.07>; ID: 5000bb52121800ff
+Desc            Dev     Model                     Ident                Size/Status
+Overall Drives   -       -                         -                    OK
+Disk #1         -       -                         -                    Not Installed
+Disk #2         -       -                         -                    Not Installed
+Disk #3         -       -                         -                    Not Installed
+Disk #4         -       -                         -                    Not Installed
+Disk #5         -       -                         -                    Not Installed
+Disk #6         -       -                         -                    Not Installed
+Disk #7         -       -                         -                    Not Installed
+Disk #8         -       -                         -                    Not Installed
+Disk #9         da22    ATA HGST HUS724020AL      PN2181P5H3Y0JX       2T
+Disk #10        da23    ATA HGST HUS724020AL      PN1181P5H5TAAW       2T
+Disk #11        da20    ATA HGST HUS724020AL      PN1181P5H6G32W       2T
+Disk #12        da21    ATA HGST HUS724020AL      PN1181P5H5VT3W       2T
+
+Temperatures: Overall Temperature Sensors : 24 C, Temperature Sensor #1   : 23 C, Temperature Sensor #2   : 24 C
+Voltages: , , 3.3 Volt Sensor : 3.33 V, 5 Volt Sensor   : 5.04 V, 12 Volt Sensor  : 12.12 V
+
+ses3: <XYRATEX 3GSAS1.0-SATAEXP 1.07>; ID: 5000bb521217f0ff
+Desc            Dev     Model                     Ident                Size/Status
+Overall Drives   -       -                         -                    OK
+Disk #1         da25    ATA HGST HUS724020AL      PN1181P5H63A2W       2T
+Disk #2         da32    ATA HGST HUS724020AL      PN1181P5H6D4LW       2T
+Disk #3         da28    ATA HGST HUS724020AL      PN1181P5H6H7SW       2T
+Disk #4         -       -                         -                    Not Installed
+Disk #5         da24    ATA HGST HUS724020AL      PN1181P5H5TZNW       2T
+Disk #6         da34    ATA HGST HUS724020AL      PN1181P5H69X8W       2T
+Disk #7         da27    ATA HGST HUS724020AL      PN1181P5H6HA9W       2T
+Disk #8         da31    ATA HGST HUS724020AL      PN1181P5H5SXAW       2T
+Disk #9         da29    ATA HG7ST HUS724020AL      PN1181P5H67ZRW       2T
+Disk #10        da30    ATA HGST HUS724020AL      PN1181P5H6LPJW       2T
+Disk #11        da26    ATA HGST HUS724020AL      PN1181P5H69BZW       2T
+Disk #12        da33    ATA HGST HUS724020AL      PN1181P5H61SPW       2T
+
+Temperatures: Overall Temperature Sensors : 27 C, Temperature Sensor #1   : 23 C, Temperature Sensor #2   : 27 C
+Voltages: , , 3.3 Volt Sensor : 3.30 V, 5 Volt Sensor   : 5.01 V, 12 Volt Sensor  : 12.12 V
+
+
+
+в левой колонке указан слот с точки зрения самой полки
+полки XeraTex 
+имеют вот такую нумерацию слотов в своей голове
+
+
+
+|===============================|
+|		|		|		|		|
+|	1	|	2	|	3	|	4	|
+|===============================|
+|		|		|		|		|
+|	5	|	6	|	7	|	8	|
+|===============================|
+|		|		|		|		|
+|	9	|	10	|	11	|	12	|
+|===============================|
+
+
+
+тоесть запись  
+	Disk #12
+
+ознчает слот 12
+|===============================|
+|		|		|		|		|
+|		|		|		|		|
+|===============================|
+|		|		|		|		|
+|		|		|		|		|
+|===============================|
+|		|		|		|		|
+|		|		|		|	**	|
+|===============================|
+
+
+
+итак наш диск лежит на такойто полке и это 10-ый диск тоесть вот этот
+
+
+|===============================|
+|		|		|		|		|
+|		|		|		|		|
+|===============================|
+|		|		|		|		|
+|		|		|		|		|
+|===============================|
+|		|		|		|		|
+|		|	10	|		|		|
+|===============================|
+
+
+

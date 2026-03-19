@@ -880,6 +880,9 @@ config:
 вот эттот контроллер MegaRAID SAS 8344ELP через который подключены полки его полтолок на лин скрости 
 чтения 500 МБ/с (тестировалось на сата дисках , взможно на сас дисках было больше из за другого проктола)
 скорость лин записи 300МБ/с
+UPDATE обнолвенный данные по скрости этого контроллера
+лин чтение BW=463MiB/s
+лин запись BW=440MiB/s
 
 
 
@@ -1064,3 +1067,209 @@ scbus-1 on xpt0 bus 0:
 
 он идет на кесератекс полки.
 фигня его в том что  его пропускная спообносиь всего 512МБ\с
+
+
+===
+UPDATE
+
+        NAME                         STATE     READ WRITE CKSUM
+        POOL-01                      DEGRADED     0     0     0
+          mirror-0                   ONLINE       0     0     0
+            gpt/DISK-PN2181P5H3Y0RX  ONLINE       0     0     0
+            gpt/DISK-PN1181P5H67ZRW  ONLINE       0     0     0
+          mirror-1                   ONLINE       0     0     0
+            gpt/DISK-PN1181P5H64RKW  ONLINE       0     0     0
+            gpt/DISK-PN1181P5H6LPJW  ONLINE       0     0     0
+          mirror-2                   ONLINE       0     0     0
+            gpt/DISK-PN1181P5H6E31W  ONLINE       0     0     0
+            gpt/DISK-PN1181P5H69BZW  ONLINE       0     0     0
+          mirror-3                   ONLINE       0     0     0
+            gpt/DISK-PN1181P5H6ATTW  ONLINE       0     0     0
+            gpt/DISK-PN1181P5H61SPW  ONLINE       0     0     0
+          mirror-4                   ONLINE       0     0     0
+            gpt/DISK-PN1181P5H6H7LW  ONLINE       0     0     0
+            gpt/DISK-PN1181P5H5TZNW  ONLINE       0     0     0
+          mirror-5                   ONLINE       0     0     0
+            gpt/DISK-PN1181P5H6AG8W  ONLINE       0     0     0
+            gpt/DISK-PN1181P5H69X8W  ONLINE       0     0     0
+          mirror-6                   ONLINE       0     0     0
+            gpt/DISK-PN1181P5H53B8W  ONLINE       0     0     0
+            gpt/DISK-PN1181P5H6HA9W  ONLINE       0     0     0
+          mirror-7                   ONLINE       0     0     0
+            gpt/DISK-PN1181P5H6E14W  ONLINE       0     0     0
+            gpt/DISK-PN1181P5H5SXAW  ONLINE       0     0     0
+          mirror-9                   ONLINE       0     0     0
+            gpt/DISK-PN1181P5H6A19W  ONLINE       0     0     0
+            gpt/DISK-PN1181P5H63A2W  ONLINE       0     0     0
+          mirror-10                  ONLINE       0     0     0
+            gpt/DISK-PN1181P5H6D4EW  ONLINE       0     0     0
+            gpt/DISK-PN1181P5H6D4LW  ONLINE       0     0     0
+          mirror-11                  ONLINE       0     0     0
+            gpt/DISK-PN1181P5H60KXW  ONLINE       0     0     0
+            gpt/DISK-PN1181P5H6H7SW  ONLINE       0     0     0
+          mirror-12                  ONLINE       0     0     0
+            gpt/DISK-PN2181P5H3Y0JX  ONLINE       0     0     0
+            gpt/DISK-PN1181P5H6H5DW  ONLINE       0     0     0
+          mirror-13                  ONLINE       0     0     0
+            gpt/DISK-PN1181P5H5TAAW  ONLINE       0     0     0
+            gpt/DISK-PN1181P5H5SEDW  ONLINE       0     0     0
+          mirror-14                  ONLINE       0     0     0
+            gpt/DISK-PN1181P5H6G32W  ONLINE       0     0     0
+            gpt/DISK-PN1181P5H6H7XW  ONLINE       0     0     0
+          mirror-15                  ONLINE       0     0     0
+            gpt/DISK-PN1181P5H5VT3W  ONLINE       0     0     0
+            gpt/DISK-PN2181P5H50X6X  ONLINE       0     0     0
+        logs
+          mirror-8                   DEGRADED     0     0     0
+            gpt/wwn-598f9            ONLINE       0     0     0
+            1265742314344850511      UNAVAIL      0     0     0  was /dev/gpt/wwn-5d4de
+        spares
+          gpt/DISK-PN1181P5H6AW3W    AVAIL   
+          gpt/DISK-PN1181P5H68YPW    UNAVAIL   cannot open
+          gpt/DISK-PN1181P5H62BEW    AVAIL   
+          gpt/DISK-PN1181P5H6AEEW    UNAVAIL   cannot open
+
+
+
+
+# sesutil show
+ses0: <XYRATEX 3GSAS1.0-SATAEXP 1.05>; ID: 5000bb52116320ff
+Desc            Dev     Model                     Ident                Size/Status
+Overall Drives   -       -                         -                    OK
+Disk #1         da9     ATA HGST HUS724020AL      PN1181P5H6A19W       2T
+Disk #2         da11    ATA HGST HUS724020AL      PN1181P5H6D4EW       2T
+Disk #3         da12    ATA HGST HUS724020AL      PN1181P5H60KXW       2T
+Disk #4         -       -                         -                    Not Installed
+Disk #5         da8     ATA HGST HUS724020AL      PN1181P5H6H7LW       2T
+Disk #6         da10    ATA HGST HUS724020AL      PN1181P5H6AG8W       2T
+Disk #7         da6     ATA HGST HUS724020AL      PN1181P5H53B8W       2T
+Disk #8         da13    ATA HGST HUS724020AL      PN1181P5H6E14W       2T
+Disk #9         da7     ATA HGST HUS724020AL      PN2181P5H3Y0RX       2T
+Disk #10        da14    ATA HGST HUS724020AL      PN1181P5H64RKW       2T
+Disk #11        da5     ATA HGST HUS724020AL      PN1181P5H6E31W       2T
+Disk #12        da15    ATA HGST HUS724020AL      PN1181P5H6ATTW       2T
+
+Temperatures: Overall Temperature Sensors : 29 C, Temperature Sensor #1   : 25 C, Temperature Sensor #2   : 29 C
+Voltages: , , 3.3 Volt Sensor : 3.31 V, 5 Volt Sensor   : 5.01 V, 12 Volt Sensor  : 12.06 V
+
+ses1: <XYRATEX 3GSAS1.0-SATAEXP 1.07>; ID: 5000bb521215c0ff
+Desc            Dev     Model                     Ident                Size/Status
+Overall Drives   -       -                         -                    OK
+Disk #1         -       -                         -                    Not Installed
+Disk #2         -       -                         -                    Not Installed
+Disk #3         -       -                         -                    Not Installed
+Disk #4         -       -                         -                    Not Installed
+Disk #5         -       -                         -                    Not Installed
+Disk #6         -       -                         -                    Not Installed
+Disk #7         -       -                         -                    Not Installed
+Disk #8         -       -                         -                    Not Installed
+Disk #9         da18    ATA HGST HUS724020AL      PN1181P5H6H5DW       2T
+Disk #10        da19    ATA HGST HUS724020AL      PN1181P5H5SEDW       2T
+Disk #11        da16    ATA HGST HUS724020AL      PN1181P5H6H7XW       2T
+Disk #12        da17    ATA HGST HUS724020AL      PN2181P5H50X6X       2T
+
+Temperatures: Overall Temperature Sensors : 23 C, Temperature Sensor #1   : 22 C, Temperature Sensor #2   : 23 C
+Voltages: , , 3.3 Volt Sensor : 3.28 V, 5 Volt Sensor   : 5.01 V, 12 Volt Sensor  : 12.06 V
+
+ses2: <XYRATEX 3GSAS1.0-SATAEXP 1.07>; ID: 5000bb52121800ff
+Desc            Dev     Model                     Ident                Size/Status
+Overall Drives   -       -                         -                    OK
+Disk #1         -       -                         -                    Not Installed
+Disk #2         -       -                         -                    Not Installed
+Disk #3         -       -                         -                    Not Installed
+Disk #4         -       -                         -                    Not Installed
+Disk #5         -       -                         -                    Not Installed
+Disk #6         -       -                         -                    Not Installed
+Disk #7         -       -                         -                    Not Installed
+Disk #8         -       -                         -                    Not Installed
+Disk #9         da22    ATA HGST HUS724020AL      PN2181P5H3Y0JX       2T
+Disk #10        da23    ATA HGST HUS724020AL      PN1181P5H5TAAW       2T
+Disk #11        da20    ATA HGST HUS724020AL      PN1181P5H6G32W       2T
+Disk #12        da21    ATA HGST HUS724020AL      PN1181P5H5VT3W       2T
+
+Temperatures: Overall Temperature Sensors : 24 C, Temperature Sensor #1   : 23 C, Temperature Sensor #2   : 24 C
+Voltages: , , 3.3 Volt Sensor : 3.33 V, 5 Volt Sensor   : 5.04 V, 12 Volt Sensor  : 12.12 V
+
+ses3: <XYRATEX 3GSAS1.0-SATAEXP 1.07>; ID: 5000bb521217f0ff
+Desc            Dev     Model                     Ident                Size/Status
+Overall Drives   -       -                         -                    OK
+Disk #1         da25    ATA HGST HUS724020AL      PN1181P5H63A2W       2T
+Disk #2         da32    ATA HGST HUS724020AL      PN1181P5H6D4LW       2T
+Disk #3         da28    ATA HGST HUS724020AL      PN1181P5H6H7SW       2T
+Disk #4         -       -                         -                    Not Installed
+Disk #5         da24    ATA HGST HUS724020AL      PN1181P5H5TZNW       2T
+Disk #6         da34    ATA HGST HUS724020AL      PN1181P5H69X8W       2T
+Disk #7         da27    ATA HGST HUS724020AL      PN1181P5H6HA9W       2T
+Disk #8         da31    ATA HGST HUS724020AL      PN1181P5H5SXAW       2T
+Disk #9         da29    ATA HG7ST HUS724020AL      PN1181P5H67ZRW       2T
+Disk #10        da30    ATA HGST HUS724020AL      PN1181P5H6LPJW       2T
+Disk #11        da26    ATA HGST HUS724020AL      PN1181P5H69BZW       2T
+Disk #12        da33    ATA HGST HUS724020AL      PN1181P5H61SPW       2T
+
+Temperatures: Overall Temperature Sensors : 27 C, Temperature Sensor #1   : 23 C, Temperature Sensor #2   : 27 C
+Voltages: , , 3.3 Volt Sensor : 3.30 V, 5 Volt Sensor   : 5.01 V, 12 Volt Sensor  : 12.12 V
+
+
+
+
+
+
+крутейшая команда
+
+# zpool history POOL-01  | awk '{$1=""; print $0}'
+
+ zpool create -f -o ashift=12 -o autoreplace=on -o failmode=continue -o autotrim=on -O compression=zstd-3 -O xattr=sa -O atime=off -O recordsize=1M -O normalization=formD -O utf8only=on -O canmount=off -O checksum=blake3 POOL-01 mirror /dev/gpt/DISK-PN2181P5H3Y0RX /dev/gpt/DISK-PN1181P5H67ZRW
+ zpool add POOL-01 mirror /dev/gpt/DISK-PN1181P5H64RKW /dev/gpt/DISK-PN1181P5H6LPJW
+ zpool add POOL-01 mirror /dev/gpt/DISK-PN1181P5H6E31W /dev/gpt/DISK-PN1181P5H69BZW
+ zpool add POOL-01 mirror /dev/gpt/DISK-PN1181P5H6ATTW /dev/gpt/DISK-PN1181P5H61SPW
+ zpool add POOL-01 mirror /dev/gpt/DISK-PN1181P5H6H7LW /dev/gpt/DISK-PN1181P5H5TZNW
+ zpool add POOL-01 mirror /dev/gpt/DISK-PN1181P5H6AG8W /dev/gpt/DISK-PN1181P5H69X8W
+ zpool add POOL-01 mirror /dev/gpt/DISK-PN1181P5H53B8W /dev/gpt/DISK-PN1181P5H6HA9W
+ zpool add POOL-01 mirror /dev/gpt/DISK-PN1181P5H6E14W /dev/gpt/DISK-PN1181P5H5SXAW
+ zpool add POOL-01 spare /dev/gpt/DISK-PN1181P5H6AW3W
+ zpool add POOL-01 spare /dev/gpt/DISK-PN1181P5H68YPW
+ zpool add POOL-01 spare /dev/gpt/DISK-PN1181P5H62BEW
+ zpool add POOL-01 spare /dev/gpt/DISK-PN1181P5H6AEEW
+ zpool add POOL-01 log mirror /dev/gpt/wwn-598f9 /dev/gpt/wwn-5d4de
+ zpool import -c /etc/zfs/zpool.cache -a -N
+ zfs create POOL-01/proxmox1
+ zfs set mountpoint=/POOL-01/proxmox1 POOL-01/proxmox1
+ zfs create POOL-01/proxmox2
+ zfs set mountpoint=/POOL-01/proxmox2 POOL-01/proxmox2
+ zfs set quota=11.4TB POOL-01
+ zfs recv -F -s POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox
+ zfs recv -F -s POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox
+ zfs set compression=lz4 POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox
+ zfs set recordsize=128K POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox
+ zfs set atime=off POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox
+ zfs set xattr=sa POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox
+ zfs recv -F -s POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox
+ zfs recv -F -s POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox
+ zfs recv -F -s POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox
+ zpool add POOL-01 mirror /dev/gpt/DISK-PN1181P5H6A19W /dev/gpt/DISK-PN1181P5H63A2W
+ zpool add POOL-01 mirror /dev/gpt/DISK-PN1181P5H6D4EW /dev/gpt/DISK-PN1181P5H6D4LW
+ zpool add POOL-01 mirror /dev/gpt/DISK-PN1181P5H60KXW /dev/gpt/DISK-PN1181P5H6H7SW
+ zpool add POOL-01 mirror /dev/gpt/DISK-PN2181P5H3Y0JX /dev/gpt/DISK-PN1181P5H6H5DW
+ zpool add POOL-01 mirror /dev/gpt/DISK-PN1181P5H5TAAW /dev/gpt/DISK-PN1181P5H5SEDW
+ zpool add POOL-01 mirror /dev/gpt/DISK-PN1181P5H6G32W /dev/gpt/DISK-PN1181P5H6H7XW
+ zpool add POOL-01 mirror /dev/gpt/DISK-PN1181P5H5VT3W /dev/gpt/DISK-PN2181P5H50X6X
+ zfs set quota=21.7T POOL-01
+ zfs recv -F -s POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox
+ zfs recv -F -s POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox
+ zfs recv -F -s POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox
+ zfs recv -F -s POOL-01/PROXMOX1-sedna_ext_ru-DATASETNAME-share_slash_proxmox
+ zpool remove POOL-01 gpt/DISK-PN1181P5H6AW3W
+ zpool remove POOL-01 gpt/DISK-PN1181P5H68YPW
+ zpool remove POOL-01 gpt/DISK-PN1181P5H62BEW
+ zpool remove POOL-01 gpt/DISK-PN1181P5H6AEEW
+ zpool scrub POOL-01
+ zpool scrub -s POOL-01
+ zpool add POOL-01 spare gpt/DISK-PN1181P5H6AW3W
+ zpool add POOL-01 spare gpt/DISK-PN1181P5H68YPW
+ zpool add POOL-01 spare gpt/DISK-PN1181P5H62BEW
+ zpool add POOL-01 spare gpt/DISK-PN1181P5H6AEEW
+ zpool scrub POOL-01
+ zpool import -c /etc/zfs/zpool.cache -a -N
+ zpool export POOL-01
+ zpool import POOL-01
+
