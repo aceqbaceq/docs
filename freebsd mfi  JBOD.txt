@@ -1,0 +1,79 @@
+| mfi
+| freebsd
+
+взял вот такой пример для mfi карты (отсюда https://mwl.io/archives/2105)
+
+вот у нас контроллер который обсуиваеися драйвером mfi
+# mfiutil show adapter
+mfi0 Adapter:
+Product Name: Intel(R) RAID Controller SRCSASBB8I
+Serial Number: P102404308
+Firmware: 8.0.1-0029
+RAID Levels: JBOD, RAID0, RAID1, RAID5, RAID6, RAID10, RAID50
+Battery Backup: not present
+NVRAM: 32K
+Onboard Memory: 256M
+Minimum Stripe: 8k
+Maximum Stripe: 1M
+
+
+вот у него диски
+# mfiutil show drives
+mfi0 Physical Drives:
+14 ( 1863G) ONLINE SATA E1:S0
+15 ( 1863G) ONLINE SATA E1:S1
+
+
+тоесть номера 14 и 15 это его внутренняя нумерация она уже в ОС никак не видна
+юзеру
+
+вот этахуйня ксатти
+
+E1:S0
+
+это ообозначение где внуири полки лежит это дски тоест E1 это условое название полки
+S0 это номер слота внутри полки
+
+
+так вот этот контроелер он позволяет диск в ос выкинуть как JBOD
+для этого только нунжно укзаать номер диска 
+собсвтенно у нас 14 и 15 тогда
+
+# mfiutil create jbod 14
+# mfiutil create jbod 15
+
+
+после этого их можно увидеть вот так
+
+# mfiutil show volumes
+
+
+но мудить с тем чтобы для 48 дисков руками создатвать джботы это то еще удобноство
+плюс якобы это более тяжело будет потом раобать контроллеру с этим.
+поэтому есть дугой выход. можно внутр ос пробрстить диски без джбод ручного 
+вот так
+
+
+loader.conf
+
+mfi_load="YES"
+mfip_load="YES"
+hw.mfi.max_cmds="1000"
+hw.mfi.cmd_timeout="30"
+hw.mfi.allow_cam_disk_passthrough="1"
+kern.cam.da.maxio="131072"
+kern.ipc.maxphys="1048576"
+
+
+
+самый важный кусок это 
+
+mfi_load="YES"
+mfip_load="YES"
+hw.mfi.allow_cam_disk_passthrough="1"
+
+
+он привет к тому что все диски контрллер появлся внури фрибсл в camcontrol devlist
+без всяких ручных сзданий jbod
+
+

@@ -1,0 +1,20 @@
+| freebsd
+| top
+| kernel
+| полезняшка
+
+
+# top -ztS
+
+
+  PID USERNAME    THR PRI NICE   SIZE    RES STATE    C   TIME    WCPU COMMAND
+    0 root        389 -16    -     0B  6224K swapin   9  86:01  74.14% kernel
+    4 root          7 -16    -     0B   112K -       15   5:57   6.27% cam
+   12 root         10 -60    -     0B   160K WAIT     3   4:50   5.23% intr
+ 3504 root          1  20    -   210M    56M zio->i  19   0:47   1.82% aiod8
+ 3509 root          1  20    -   210M    56M zio->i  21   0:47   1.67% aiod15
+ 3519 root          1  20    -   210M    56M zio->i  18   0:47   1.45% aiod27
+ 3517 root          1  20    -   210M    56M zio->i   2   0:48   1.39% aiod25
+ 3521 root          1  20    -   210M    55M zio->i  23   0:46   1.33% aiod29
+
+
