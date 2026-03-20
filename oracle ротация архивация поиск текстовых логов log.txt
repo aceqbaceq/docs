@@ -76,3 +76,14 @@ root@spider01:~# find /var -type f -name "*.log" -size +20971520c -mtime -1 -exe
   # logadm -V
 
 
+
+
+еще пример
+/etc/logadm.conf
+/var/log/authlog -C 7 -a 'kill -HUP `cat /var/run/syslog.pid`' -s 100m -z 0
+
+
+запуск руками именно этого правила из logadm.conf
+
+#  logadm -v /var/log/authlog
+
