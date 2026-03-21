@@ -1,5 +1,262 @@
 | R720
 
+#########################################################
+#                      КОНФИГИ  СЕРВЕРА                 #
+
+
+[root@dell-r720-freebsd ~]# 
+[root@dell-r720-freebsd ~]# cat /boot/loader.conf
+
+# Драйвер Intel ixgbe
+if_ix_load="YES"
+
+# Тюнинг очередей под 12 ядер (ixgbe любит много очередей)
+hw.ix.num_queues="12"
+
+# Буферы дескрипторов (важно для 10Г, чтобы не было дропов)
+hw.ix.rxd="2048"
+hw.ix.txd="2048"
+
+
+autoboot_delay="60"
+autoboot="60"
+boot_multicons="YES"
+boot_serial="YES"
+boot_verbose="YES"
+hint.uart.0.flags="0x10"
+comconsole_speed=115200
+console="efi,comconsole"
+vesa_load="NO"
+kern.geom.label.disk_ident.enable="0"
+kern.geom.label.gptid.enable="0"
+cryptodev_load="YES"
+zfs_load="YES"
+ispfw_load="YES"
+isp_load="YES"
+
+# x4540
+#amdsmn_load="YES"
+#amdtemp_load="YES"
+
+
+# 10G карта 
+mlx5_core_load="YES"
+mlx5en_load="YES"
+
+# 40G карта
+mlx4en_load="YES"
+mlx4_core_load="YES"
+
+
+vfs.maxbcachebuf=1048576
+# Увеличиваем общий объем памяти под сетевые буферы (для 64Гб ОЗУ можно смело ставить 2Гб+)
+# Чтобы прерывания не прыгали по ядрам хаотично
+hw.mlx5.num_low_latency_queues=12
+# Оставь одно значение (1048576 — это отлично для 64ГБ)
+kern.ipc.nmbclusters="1048576"
+kern.ipc.nmbjumbop="524288"
+# Добавь вот это, чтобы не было паники ядра при нехватке памяти под mbuf
+kern.ipc.nmbjumbon="262144" 
+vfs.root_mount_always_wait=1
+
+
+
+ 
+# Разрешаем MSI-X для mpr0 всеми способами из мана и хираны
+hw.mpr.disable_msix="0"
+hw.mpr.disable_msi="0"
+dev.mpr.0.disable_msix="0"
+dev.mpr.0.disable_msi="0"
+hw.mpr.msi_enable="1"
+hint.mpr.0.msix_disable="0"
+hint.mpr.0.msi_enable="1"
+hint.mpr.0.max_msix="32"
+
+# Глобальные настройки PCI (важно для Dell)
+hw.pci.enable_msix="1"
+hw.pci.honor_msi_blacklist="0"
+
+# Ресурсы для команд (чтобы не было chain_alloc_fail)
+hw.mpr.max_chains="16384"
+hw.mpr.max_io_pages="4096"
+
+
+
+# Тюнинг ZFS 
+vfs.zfs.dirty_data_max="17179869184"
+vfs.zfs.vdev.aggregation_limit="16777216"
+vfs.zfs.vdev.max_active="1000"
+[root@dell-r720-freebsd ~]# 
+[root@dell-r720-freebsd ~]# 
+[root@dell-r720-freebsd ~]# 
+[root@dell-r720-freebsd ~]# 
+[root@dell-r720-freebsd ~]# 
+[root@dell-r720-freebsd ~]# 
+[root@dell-r720-freebsd ~]# 
+[root@dell-r720-freebsd ~]# 
+[root@dell-r720-freebsd ~]# 
+[root@dell-r720-freebsd ~]# 
+[root@dell-r720-freebsd ~]# 
+[root@dell-r720-freebsd ~]# 
+[root@dell-r720-freebsd ~]# 
+[root@dell-r720-freebsd ~]# 
+[root@dell-r720-freebsd ~]# 
+[root@dell-r720-freebsd ~]# 
+[root@dell-r720-freebsd ~]# 
+[root@dell-r720-freebsd ~]# cat /etc/sysctl.conf 
+# Отключаем ограничение скорости прерываний (Intel по умолчанию тормозит их)
+dev.ix.0.iflib.override_nrxds="2048"
+dev.ix.0.iflib.override_ntxds="2048"
+# Разрешаем карте молотить на полную
+hw.ix.0.fc=0 
+
+
+
+vfs.zfs.min_auto_ashift=12
+
+
+# Включаем современный алгоритм контроля перегрузок (CUBIC)
+net.inet.tcp.cc.algorithm=cubic
+# Разрешаем большие TCP окна
+net.inet.tcp.rfc1323=1
+# Важно для NFS: увеличиваем очередь входящих соединений
+kern.ipc.soacceptqueue=1024
+
+kern.ipc.maxsockbuf=16777216
+net.inet.tcp.sendbuf_max=16777216
+net.inet.tcp.recvbuf_max=16777216
+vfs.nfsd.srvmaxio=1048576
+
+
+# Увеличиваем максимальные размеры TCP окон
+net.inet.tcp.sendspace=1048576
+net.inet.tcp.recvspace=1048576
+net.inet.tcp.mssdflt=1460
+
+
+# Увеличиваем лимит открытых файлов и транзакций
+kern.maxfiles=200000
+vfs.root_mount_always_wait=1
+
+# Если используешь Jumbo Frames (MTU 9000), это маст-хэв:
+# (На 40Г и NFS очень рекомендуется включить MTU 9000 на обоих концах)
+
+
+# Тюнинг TCP для 10/40Г (чтобы подтверждения летели мгновенно)
+net.inet.tcp.delayed_ack=0
+net.inet.tcp.nodelay=1
+kern.ipc.nmbclusters=1048576
+
+
+
+# Плавность и скорость записи
+vfs.zfs.dirty_data_sync_percent=5
+vfs.zfs.delay_min_dirty_percent=90
+vfs.zfs.txg.timeout=1
+vfs.zfs.vdev.write_gap_limit=1073741824
+
+# Очереди асинхронной записи
+vfs.zfs.vdev.async_write_max_active=256
+vfs.zfs.vdev.async_write_min_active=64
+vfs.zfs.vdev.async_write_active_min_dirty_percent=5
+vfs.zfs.vdev.async_write_active_max_dirty_percent=10
+
+
+
+[root@dell-r720-freebsd ~]# 
+[root@dell-r720-freebsd ~]# 
+[root@dell-r720-freebsd ~]# 
+[root@dell-r720-freebsd ~]# 
+[root@dell-r720-freebsd ~]# 
+[root@dell-r720-freebsd ~]# 
+[root@dell-r720-freebsd ~]# 
+[root@dell-r720-freebsd ~]# 
+[root@dell-r720-freebsd ~]# 
+[root@dell-r720-freebsd ~]# 
+[root@dell-r720-freebsd ~]# 
+[root@dell-r720-freebsd ~]# 
+[root@dell-r720-freebsd ~]# 
+[root@dell-r720-freebsd ~]# 
+[root@dell-r720-freebsd ~]# 
+[root@dell-r720-freebsd ~]# 
+[root@dell-r720-freebsd ~]# 
+[root@dell-r720-freebsd ~]# 
+[root@dell-r720-freebsd ~]# 
+[root@dell-r720-freebsd ~]# 
+[root@dell-r720-freebsd ~]# 
+[root@dell-r720-freebsd ~]# 
+[root@dell-r720-freebsd ~]# 
+[root@dell-r720-freebsd ~]# 
+[root@dell-r720-freebsd ~]# 
+[root@dell-r720-freebsd ~]# 
+[root@dell-r720-freebsd ~]# 
+[root@dell-r720-freebsd ~]# 
+[root@dell-r720-freebsd ~]# 
+[root@dell-r720-freebsd ~]# 
+[root@dell-r720-freebsd ~]# cat /etc/rc.conf
+hostname="dell-r720-freebsd"
+sshd_enable="YES"
+moused_nondefault_enable="NO"
+# Set dumpdev to "AUTO" to enable crash dumps, "NO" to disable
+dumpdev="AUTO"
+zfs_enable="YES"
+zfsd_enable="YES"
+
+
+
+
+ifconfig_igb0="inet 192.168.0.245 netmask 255.255.255.0"
+defaultrouter="192.168.0.225"
+
+
+ifconfig_mce0="inet 100.69.55.3 netmask 255.255.255.0 mtu 9000 description NFS"
+
+
+nfs_server_enable="YES"
+nfs_server_flags="-u -t -n 256"
+nfs_server_maxio="1048576"
+nfsv4_server_enable="YES"
+nfsuserd_enable="YES"
+mountd_flags="-r"
+mountd_enable="YES"
+rpcbind_enable="YES"
+
+
+
+[root@dell-r720-freebsd ~]# 
+[root@dell-r720-freebsd ~]# 
+[root@dell-r720-freebsd ~]# 
+[root@dell-r720-freebsd ~]# 
+[root@dell-r720-freebsd ~]# 
+[root@dell-r720-freebsd ~]# cat /etc/exports 
+V4: /POOL-R720 -network 100.69.55.0/24
+/POOL-R720/ram_test -maproot=root -network 100.69.55.0/24
+[root@dell-r720-freebsd ~]# 
+[root@dell-r720-freebsd ~]# 
+[root@dell-r720-freebsd ~]# 
+[root@dell-r720-freebsd ~]# 
+[root@dell-r720-freebsd ~]# 
+
+
+
+
+#                      КОНФИГИ  СЕРВЕРА                 #
+#########################################################
+
+##########################################################
+#                      КОНФИГИ КЛИЕНТА ЛИНУКС            #
+
+
+
+
+#                      КОНФИГИ КЛИЕНТА ЛИНУКС            #
+##########################################################
+
+
+
+
+
+
 у него слоты есть с номерами 1 2 3 4 5 6 7
 которые втсвля.тся в райзер карты
 рамрпделение по сокектам цпу такое
@@ -25,3 +282,133 @@
 поставил 14 планок по 32GB LRDIMM (несовместмы с RDIMM)  
 
 
+##
+дисковый контроллер lsi9305-16e
+
+две карты в слотах сидящих на разных сокетах 
+лин чтение BW=7908MiB/s   (iodepth=32)
+лин запись BW=6241MiB/s   (iodepth=32)
+
+
+две карты в слотах сидящих на на одном сокете
+лин чтение BW=7705MiB/s   (iodepth=32)
+лин запись BW=6002MiB/s   (iodepth=32)
+
+
+
+один контрллер
+лин чтение BW=6365MiB/s   (iodepth=32)
+лин запись BW=5317MiB/s   (iodepth=32)
+
+
+
+ИТОГО ЛОКАЛЬНАЯ СКОРОСЬ МАССИВА
+дальше работаем с                                     <<<<============***!!!!!=====
+две карты в слотах сидящих на на одном сокете         <<<<============***!!!!!=====
+(iodepth=32)                                          <<<<============***!!!!!=====
+лин чтение BW=7705MiB/s                               <<<<============***!!!!!=====
+лин запись BW=6002MiB/s                               <<<<============***!!!!!=====
+(iodepth=1)                                           <<<<============***!!!!!=====
+лин чтение BW=2962MiB/s                               <<<<============***!!!!!=====
+лин запись BW=2416MiB/s                               <<<<============***!!!!!=====
+
+
+
+
+далее я сделл тест с RAMDISK
+  641  for i in $(seq 0 7); do mdconfig -a -t swap -s 1g -u $i; done
+  642  zpool create ram_pool md0 md1 md2 md3 md4 md5 md6 md7
+  643  zfs set compression=off ram_pool
+  644  zfs set sync=disabled ram_pool
+  645  zfs set recordsize=1M ram_pool
+  646  zfs set sharenfs="-maproot=root -network 100.69.55.0/24" ram_pool
+
+(iodepth=32)
+лин чтение  BW=11.9GiB/s
+лин запись  BW=4518MiB/s
+(iodepth=1)
+лин чтение  BW=1555MiB/s
+лин запись  BW=1550MiB/s
+
+такой скрости хватит чтобы проестировать 10G карту
+справшиыается нахеа страйп из рамдисков? потому что одно ядро может прокачать через себя из памяти 
+через VFS тлоько 1.5 GB\s  
+
+
+
+
+NFS
+вначале протестируем нфс через рам диск
+поклчил рамдиск по нфс
+(100.69.55.3:/ram_test on /mnt/nfs_ram type nfs4 (rw,relatime,vers=4.1,rsize=1048576,wsize=1048576,namlen=255,hard,proto=tcp,nconnect=16,timeo=600,retrans=2,sec=sys,clientaddr=100.69.55.2,local_lock=none,addr=100.69.55.3))
+соовсвтенно 
+
+(iodepth=32)
+лин чтение  BW=1178MiB/s
+лин запись  BW=1059MiB/s
+(iodepth=1)
+лин чтение  BW=400MiB/s
+лин запись  BW=BW=450MiB/s
+
+
+
+
+далее рабоотаю с зфс и шипиндели
+(на клиенте маунт синхронный
+# mount | grep nfs
+100.69.55.3:/ds-1M on /mnt/ds-1M type nfs4 (rw,relatime,sync,vers=4.1,rsize=1048576,wsize=1048576,namlen=255,hard,proto=tcp,nconnect=16,timeo=600,retrans=2,sec=sys,clientaddr=100.69.55.2,local_lock=none,addr=100.69.55.3)
+)
+карты на обоих концах  Mellanox Technologies MT27710 Family [ConnectX-4 Lx]  10G
+
+лин чтение iodepth=32 BW=1179MiB/s
+лин чтение iodepth=1  BW=466MiB/s  (<==???) (при том что на сервере при iodpth=1 BW=2888MiB/s)
+
+
+лин запись (на датасете врубил sync=disabled) iodepth=32 BW=1180MiB/s  (охуенно!)
+лин запись (на датасете врубил sync=disabled) iodepth=1  BW=545MiB/s   
+
+
+лин запись (на датасете вернул sync=standard) iodepth=32 BW=561MiB/s  
+лин запись (на датасете вернул sync=standard) iodepth=1  BW=42.3MiB/s   
+
+
+добавил на пул 4 диска ssd slog
+повторяю тест на запись
+лин запись (на датасете вернул sync=standard) iodepth=32 BW=1179MiB/s  (!! охуенно)
+лин запись (на датасете вернул sync=standard) iodepth=1  BW=332MiB/s   
+
+итого
+
+(iodepth=32)
+лин чтение  BW=1179MiB/s
+лин запись  BW=1179MiB/s
+(iodepth=1)
+лин чтение  BW=466MiB/s
+лин запись  BW=332MiB/s
+
+
+
+
+
+
+ИТОГО 
+	nfs+RAMDISK
+(iodepth=32)
+лин чтение  BW=1178MiB/s
+лин запись  BW=1059MiB/s
+(iodepth=1)
+лин чтение  BW=400MiB/s
+лин запись  BW=BW=450MiB/s
+
+
+	nfs+шпиндели
+(iodepth=32)
+лин чтение  BW=1179MiB/s
+лин запись  BW=1179MiB/s
+(iodepth=1)
+лин чтение  BW=466MiB/s
+лин запись  BW=332MiB/s
+
+
+тут видно одно очень важное что для nfs+iodepth=1 есть потолок чтения и записи 400-450MB\s
+на чтение и запись. неронка говорит что ни карта 40Г ни другой цпу это нерешит. а только RDMA
