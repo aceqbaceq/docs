@@ -1,0 +1,99 @@
+| ethtool
+| nic
+| сет карта
+| linux
+
+
+ест линукс ест набор сет карт. как узнать какой дравер обслудиываеи 
+какую карту
+
+
+
+2: enp3s0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel master vmbr0 state UP group default 3: enp1s0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 9000 qdisc mq state UP group default qlen 1000
+
+
+
+# ethtool enp3s0
+Settings for enp3s0:
+        Supported ports: [ TP    MII ]
+        Supported link modes:   10baseT/Half 10baseT/Full
+                                100baseT/Half 100baseT/Full
+                                1000baseT/Full
+        Supported pause frame use: Symmetric Receive-only
+        Supports auto-negotiation: Yes
+        Supported FEC modes: Not reported
+        Advertised link modes:  10baseT/Half 10baseT/Full
+                                100baseT/Half 100baseT/Full
+                                1000baseT/Full
+        Advertised pause frame use: Symmetric Receive-only
+        Advertised auto-negotiation: Yes
+        Advertised FEC modes: Not reported
+        Link partner advertised link modes:  10baseT/Half 10baseT/Full
+                                             100baseT/Half 100baseT/Full
+                                             1000baseT/Full
+        Link partner advertised pause frame use: No
+        Link partner advertised auto-negotiation: Yes
+        Link partner advertised FEC modes: Not reported
+        Speed: 1000Mb/s
+        Duplex: Full
+        Auto-negotiation: on
+        master-slave cfg: preferred slave
+        master-slave status: slave
+        Port: Twisted Pair
+        PHYAD: 0
+        Transceiver: external
+        MDI-X: Unknown
+        Supports Wake-on: pumbg
+        Wake-on: d
+        Link detected: yes
+
+
+вобщем это 1Гб сет карта
+
+
+
+# ethtool enp1s0
+Settings for enp1s0:
+        Supported ports: [ FIBRE ]
+        Supported link modes:   10000baseKX4/Full
+                                40000baseCR4/Full
+                                40000baseSR4/Full
+                                56000baseCR4/Full
+                                56000baseSR4/Full
+                                1000baseX/Full
+                                10000baseCR/Full
+                                10000baseSR/Full
+        Supported pause frame use: Symmetric Receive-only
+        Supports auto-negotiation: Yes
+        Supported FEC modes: Not reported
+        Advertised link modes:  10000baseKX4/Full
+                                40000baseCR4/Full
+                                40000baseSR4/Full
+                                1000baseX/Full
+                                10000baseCR/Full
+                                10000baseSR/Full
+        Advertised pause frame use: Symmetric
+        Advertised auto-negotiation: Yes
+        Advertised FEC modes: Not reported
+        Speed: 40000Mb/s
+        Duplex: Full
+        Auto-negotiation: off
+        Port: FIBRE
+        PHYAD: 0
+        Transceiver: internal
+        Supports Wake-on: d
+        Wake-on: d
+        Current message level: 0x00000014 (20)
+                               link ifdown
+        Link detected: yes
+
+
+
+это 40Гб карта
+
+
+
+
+
+
+

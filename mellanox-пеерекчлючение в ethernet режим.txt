@@ -40,60 +40,110 @@ Note: This option is not persistent.
 
 
 
-второй способ уэе чтобы навсегда. но он сложнее
+
+
+второй способ уже чтобы навсегда сменить режим работы портов. но он сложнее
+прежде всего нужно поставить ubuntu20 server
+очень важно именно убунту 20 постваить ибо тамошние версии утилиты работают сразу
+без всякого мудежа суперудобно и легко поэтому ставить только убунту20 !!!!
+именно на ней все идет максимально легко
+# cat /etc/*rel*
+DISTRIB_ID=Ubuntu
+DISTRIB_RELEASE=20.04
+DISTRIB_CODENAME=focal
+DISTRIB_DESCRIPTION="Ubuntu 20.04.6 LTS"
+NAME="Ubuntu"
+VERSION="20.04.6 LTS (Focal Fossa)"
+ID=ubuntu
+ID_LIKE=debian
+PRETTY_NAME="Ubuntu 20.04.6 LTS"
+VERSION_ID="20.04"
+HOME_URL="https://www.ubuntu.com/"
+SUPPORT_URL="https://help.ubuntu.com/"
+BUG_REPORT_URL="https://bugs.launchpad.net/ubuntu/"
+PRIVACY_POLICY_URL="https://www.ubuntu.com/legal/terms-and-policies/privacy-policy"
+VERSION_CODENAME=focal
+UBUNTU_CODENAME=focal
+
+
+далее ставим пакет
+    # apt update
+    # apt install mstflint -y
 
 
 
-для начала нужно стартануть сервис. без него утилиты ничего не увидят
 
-    # mst start
-Starting MST (Mellanox Software Tools) driver set
-Loading MST PCI module - Success
-Loading MST PCI configuration module - Success
-Create devices
-
-
-проверяем увидел ли сервис нашу плату
-
-    # mst status
-MST modules:
-------------
-    MST PCI module loaded
-    MST PCI configuration module loaded
-
-MST devices:
-------------
-/dev/mst/mt4099_pciconf0         - PCI configuration cycles access.
-                                   domain:bus:dev.fn=0000:01:00.0 addr.reg=88 data.reg=92 cr_bar.gw_offset=-1
-                                   Chip revision is: 01
-/dev/mst/mt4099_pci_cr0          - PCI direct access.
-                                   domain:bus:dev.fn=0000:01:00.0 bar=0xfe400000 size=0x100000
-                                   Chip revision is: 01
+ищем карту меланккс ее адерс на PCI шине
+# lspci | grep -i mell
+06:00.0 Network controller: Mellanox Technologies MT27500 Family [ConnectX-3]
 
 
 
+узнали  адрес  06:00.0 подставляем его
 
-смотрим параметры железки
 
-
-    # flint -d  /dev/mst/mt4099_pciconf0  q
+# mstflint -d 06:00.0 q
 Image type:            FS2
-FW Version:            2.10.0600
+FW Version:            2.42.5000
+FW Release Date:       5.9.2017
+Product Version:       02.42.50.00
+Rom Info:              type=PXE version=3.4.752
 Device ID:             4099
 Description:           Node             Port1            Port2            Sys image
-GUIDs:                 0002c903001bab00 0002c903001bab01 0002c903001bab02 0002c903001bab03 
-MACs:                                       0002c91bab00     0002c91bab01
+GUIDs:                 0002c903001baa80 0002c903001baa81 0002c903001baa82 0002c903001baa83 
+MACs:                                       0002c91baa80     0002c91baa81
 VSD:                   
 PSID:                  MT_1100120019
 
 
 
-    #lspci | grep -i mel
-01:00.0 Network controller: Mellanox Technologies MT27500 Family [ConnectX-3]
-root@test:/home/krivosheeva# cat /sys/bus/pci/devices/0000\:01\:00.0/mlx4_port1
-ib
+здест из важного вот что 
+    FW Version:            2.42.5000  (версия прошивки текущей)
+    PSID:                  MT_1100120019   (некий инденфтикатор котороый пригодится пожже)
 
 
+
+
+теперь выянвяем в каком режиме работают порты
+
+# mstconfig -d 06:00.0 query
+
+Device #1:
+----------
+
+Device type:    ConnectX3       
+Device:         06:00.0         
+
+Configurations:                              Next Boot
+         SRIOV_EN                            False(0)        
+         NUM_OF_VFS                          8               
+         LINK_TYPE_P1                        VPI(3)          
+         LINK_TYPE_P2                        VPI(3)          
+         LOG_BAR_SIZE                        3               
+         BOOT_PKEY_P1                        0               
+         BOOT_PKEY_P2                        0               
+         BOOT_OPTION_ROM_EN_P1               True(1)         
+         BOOT_VLAN_EN_P1                     False(0)        
+         BOOT_RETRY_CNT_P1                   0               
+         LEGACY_BOOT_PROTOCOL_P1             PXE(1)          
+         BOOT_VLAN_P1                        1               
+         BOOT_OPTION_ROM_EN_P2               True(1)         
+         BOOT_VLAN_EN_P2                     False(0)        
+         BOOT_RETRY_CNT_P2                   0               
+         LEGACY_BOOT_PROTOCOL_P2             PXE(1)          
+         BOOT_VLAN_P2                        1               
+         IP_VER_P1                           IPv4(0)         <==***===<
+         IP_VER_P2                           IPv4(0)         <==***===<
+         CQ_TIMESTAMP                        True(1)       
+
+
+
+этот значит что порты работют в Eth режиме.
+если там другое значит инфибенд режим. и мы хотим это поменять
+
+
+
+прошивку обновлять необязательно и можно этот шаг пропустить но желательно.
 скачиываем с сайта нвидиа нужную прошивку
 новая прошивка нужна потому что утилита которая меняет режим работы порта (IB->Eth) может неработать 
 с картой если на ней старая прошивка
@@ -104,12 +154,18 @@ ib
 
             CX353A-FCBT
 
+также внимательно нужно выбрать класс карты например ConnectX3 а не ConnectX3PRO
+чтоб нескачать нето.
 и скачиываем файл с прошивкой.
+также при выборе нужно отследит что прошифка имеет нужный PSID
+    PSID:                  MT_1100120019
+который мы узнали до этого
+тогда можно ее качать
 
 
 прошиваем
 
-    #flint -d /dev/mst/mt4099_pciconf0 -i fw-ConnectX3-rel-2_42_5000-MCX353A-FCB_A2-A5-FlexBoot-3.4.752.bin  burn
+    # mstflint -d -d 06:00.0 -i fw-ConnectX3-rel-2_42_5000-MCX353A-FCB_A2-A5-FlexBoot-3.4.752.bin  burn
 
     Current FW version on flash:  2.10.0600
     New FW version:               2.42.5000
@@ -118,102 +174,17 @@ Burning FS2 FW image without signatures - OK
 Restoring signature                     - OK
 
 
+перегружаемся ибо новая прошивка залита но она не активрованна.
+перегрузились проверяем что новая прошивка активна
 
+    # mstflint -d 06:00.0 q
 
-
-    # flint -d  /dev/mst/mt4099_pciconf0  q
-Image type:            FS2
-FW Version:            2.42.5000
-FW Version(Running):   2.10.0600
-FW Release Date:       5.9.2017
-Product Version:       02.42.50.00
-Rom Info:              type=PXE version=3.4.752
-Device ID:             4099
-Description:           Node             Port1            Port2            Sys image
-GUIDs:                 0002c903001bab00 0002c903001bab01 0002c903001bab02 0002c903001bab03 
-MACs:                                       0002c91bab00     0002c91bab01
-VSD:                   
-PSID:                  MT_1100120019
-
-
-
-
-текущая 
-FW Version(Running):   2.10.0600
-а новая суспендед 
-FW Version:            2.42.5000
-
-
-
-
-перегужаем комп чтобы прошивка вступила в строй
-
-    #reboot
-
-
-комп пеерегрузился 
-проверяем что новая прошивка вступила в силу
-
-    # mst start
-Starting MST (Mellanox Software Tools) driver set
-Loading MST PCI module - Success
-Loading MST PCI configuration module - Success
-Create devices
-
-
-    # flint -d  /dev/mst/mt4099_pciconf0  q
-Image type:            FS2
-FW Version:            2.42.5000   ***<<<<<
-FW Release Date:       5.9.2017
-Product Version:       02.42.50.00
-Rom Info:              type=PXE version=3.4.752
-Device ID:             4099
-Description:           Node             Port1            Port2            Sys image
-GUIDs:                 0002c903001bab00 0002c903001bab01 0002c903001bab02 0002c903001bab03 
-MACs:                                       0002c91bab00     0002c91bab01
-VSD:                   
-PSID:                  MT_1100120019
-
-
-итак новая прошивка втсуила в силу
-теперь смотрим вкаком режиме рабоатают порты
-
-
-    # mlxconfig -d /dev/mst/mt4099_pciconf0 q 
-
-Device #1:
-----------
-
-Device type:    ConnectX3       
-Device:         /dev/mst/mt4099_pciconf0
-
-Configurations:                                      Next Boot
-         SRIOV_EN                                    False(0)        
-         NUM_OF_VFS                                  8               
-         LINK_TYPE_P1                                VPI(3)          
-         LINK_TYPE_P2                                VPI(3)          
-         LOG_BAR_SIZE                                3               
-         BOOT_PKEY_P1                                0               
-         BOOT_PKEY_P2                                0               
-         BOOT_OPTION_ROM_EN_P1                       True(1)         
-         BOOT_VLAN_EN_P1                             False(0)        
-         BOOT_RETRY_CNT_P1                           0               
-         LEGACY_BOOT_PROTOCOL_P1                     PXE(1)          
-         BOOT_VLAN_P1                                1               
-         BOOT_OPTION_ROM_EN_P2                       True(1)         
-         BOOT_VLAN_EN_P2                             False(0)        
-         BOOT_RETRY_CNT_P2                           0               
-         LEGACY_BOOT_PROTOCOL_P2                     PXE(1)          
-         BOOT_VLAN_P2                                1               
-         IP_VER_P1                                   IPv4(0)         
-         IP_VER_P2                                   IPv4(0)         
-         CQ_TIMESTAMP                                True(1)         
-
-
+теперь можно пеерключить режим портов
 пеереключаем порты из IB в режим Ethernet
 
 
-    # mlxconfig -d /dev/mst/mt4099_pciconf0 set LINK_TYPE_P1=2 LINK_TYPE_P2=2
+
+    # mstconfig -d 06:00.0 set LINK_TYPE_P1=2 LINK_TYPE_P2=2
 
 Device #1:
 ----------
@@ -239,61 +210,7 @@ Applying... Done!
 
 
 перегрузили
-проверяем что теерь порты работают в режиме Ethernet
-
-
-        # mst start
-Starting MST (Mellanox Software Tools) driver set
-Loading MST PCI module - Success
-Loading MST PCI configuration module - Success
-Create devices
-
-
-
-    # flint -d  /dev/mst/mt4099_pciconf0  q
-Image type:            FS2
-FW Version:            2.42.5000
-FW Release Date:       5.9.2017
-Product Version:       02.42.50.00
-Rom Info:              type=PXE version=3.4.752
-Device ID:             4099
-Description:           Node             Port1            Port2            Sys image
-GUIDs:                 0002c903001bab00 0002c903001bab01 0002c903001bab02 0002c903001bab03 
-MACs:                                       0002c91bab00     0002c91bab01
-VSD:                   
-PSID:                  MT_1100120019
-
-
-    # mlxconfig -d /dev/mst/mt4099_pciconf0 q 
-
-Device #1:
-----------
-
-Device type:    ConnectX3       
-Device:         /dev/mst/mt4099_pciconf0
-
-Configurations:                                      Next Boot
-         SRIOV_EN                                    False(0)        
-         NUM_OF_VFS                                  8               
-         LINK_TYPE_P1                                ETH(2)        ***<<<  
-         LINK_TYPE_P2                                ETH(2)        ***<<<  
-         LOG_BAR_SIZE                                3               
-         BOOT_PKEY_P1                                0               
-         BOOT_PKEY_P2                                0               
-         BOOT_OPTION_ROM_EN_P1                       True(1)         
-         BOOT_VLAN_EN_P1                             False(0)        
-         BOOT_RETRY_CNT_P1                           0               
-         LEGACY_BOOT_PROTOCOL_P1                     PXE(1)          
-         BOOT_VLAN_P1                                1               
-         BOOT_OPTION_ROM_EN_P2                       True(1)         
-         BOOT_VLAN_EN_P2                             False(0)        
-         BOOT_RETRY_CNT_P2                           0               
-         LEGACY_BOOT_PROTOCOL_P2                     PXE(1)          
-         BOOT_VLAN_P2                                1               
-         IP_VER_P1                                   IPv4(0)         
-         IP_VER_P2                                   IPv4(0)         
-         CQ_TIMESTAMP                                True(1)         
-root@test:/home/krivosheeva# 
+проверяем что порты работают в режиме Ethernet
 
 
 готвоо!!

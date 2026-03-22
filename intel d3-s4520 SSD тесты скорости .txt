@@ -26,10 +26,17 @@ bs=16K (размер page у этого диска)
 fio --randrepeat=1 --ioengine=posixaio --direct=1 --gtod_reduce=1 --name=test --filename=/dev/da29  --bs=$((16 *1024)) --iodepth=1 --runtime=30  --readwrite=read --numjobs=1  --group_reporting 
 
 
-iodepth=1 10.3k
-iodepth=2 16.8k
-iodepth=3 21.6k
-iodepth=4 22.9k
+	iodepth=1 10.3k
+	iodepth=2 16.8k
+	iodepth=3 21.6k
+	iodepth=4 22.9k
+контроллер SATA controller: Intel Corporation 6 Series/C200 Series Chipset Family 6 port Desktop SATA AHCI Controller (rev 05)
+	iodepth=1 IOPS=12.2k
+	iodepth=2 
+	iodepth=3 
+	iodepth=4 
+
+
 
 
 запись
