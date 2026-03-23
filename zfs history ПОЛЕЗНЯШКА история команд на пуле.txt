@@ -1,0 +1,225 @@
+| zfs
+| полезняшка
+| история команд
+
+2012-04-11.12:49:25 zpool create store mirror c0t5000C5003F0A9AC2d0 c0t5000C5003F0A9B23d0 mirror c0t5000C5003F0A741Ad0 c0t5000C5003F0AA14Bd0
+2012-04-11.13:00:37 zpool add store mirror c0t5000C5003F0ACEE0d0 c0t5000C5003F0ADFF9d0 mirror c0t5000C5003F0AEFC7d0 c0t5000C5003F0B0B9Cd0 mirror c0t5000C5003F0B2A0Fd0 c0t5000C5003F0B6545d0 mirror c0t5000C5003F0D39E3d0 c0t5000C5003F0E8DD0d0 mirror c0t5000C5003F0F3198d0 c0t5000C5003F10F893d0
+2012-04-11.13:32:26 zpool add store mirror c0t5000C50035AB3583d0 c0t5000C50035DC7BF8d0 mirror c0t5000C50035DC351Cd0 c0t5000C50035DC7549d0 mirror c0t5000C50035E7D54Ed0 c0t5000C50035E7D260d0 mirror c0t5000C50035E7D348d0 c0t5000C50035E7E7F0d0 mirror c0t5000C50035E7EBE3d0 c0t5000C50035E7F666d0 mirror c0t5000C50035E9E8B4d0 c0t5000C50035E78F62d0 mirror c0t5000C50035E79BE1d0 c0t5000C50035E83D20d0
+2012-04-11.13:39:00 zpool add store mirror c0t5000C5003F0AB3FBd0 c0t5000C5003F0AB5C6d0
+2012-04-11.13:44:04 zpool add store mirror c0t5000C50035E83449d0 c0t5000C50035F4E9ECd0
+2012-04-11.13:47:40 zpool add store spare c0t5000C500361F8A73d0 c0t5000C500361F88C8d0
+2012-04-11.14:46:50 zfs create store/backupdb
+2012-04-11.15:12:48 zfs set sharenfs=on store/backupdb
+2012-04-11.15:14:11 zfs set sharenfs=on store/backupdb
+2012-04-11.15:22:05 zfs set sharenfs=off store/backupdb
+2012-04-11.15:22:22 zfs create store/backupdb/paydb
+2012-04-11.15:22:52 zfs set sharenfs=on store/backupdb/paydb
+2012-04-12.11:32:01 zfs create store/backupdb/spider
+2012-04-12.11:32:41 zfs set sharenfs=on store/backupdb/spider
+2012-04-12.15:35:45 zfs create store/space
+2012-04-12.15:36:42 zfs set sharenfs=on store/space
+2012-04-24.16:00:46 zfs create store/backupdb/cmdb
+2012-04-24.16:01:38 zfs set sharenfs=on store/backupdb/cmdb
+2012-05-17.12:08:29 zfs create store/zones
+2012-05-17.12:18:20 zfs set mountpoint=/zones store/zones
+2012-05-18.15:36:14 zfs create store/zones/bk01
+2012-08-15.09:56:55 zfs create store/backupdb/nabs
+2012-08-15.09:57:25 zfs set sharenfs=on store/backupdb/nabs
+2012-08-15.10:06:25 zfs set sharenfs=off store/backupdb/nabs
+2012-08-15.10:08:09 zfs set sharenfs=on store/backupdb/nabs
+2012-08-23.11:59:59 zfs create store/backupdb/mon
+2012-08-23.12:00:29 zfs set sharenfs=on store/backupdb/mon
+2012-08-23.12:05:13 zfs set sharenfs=off store/backupdb/mon
+2012-08-29.16:43:53 zfs create store/backup-all
+2012-12-03.17:33:34 zfs create store/backupdb/spider04
+2012-12-03.17:34:12 zfs set sharenfs=on store/backupdb/spider04
+2012-12-03.17:58:01 zfs destroy store/backupdb/spider04
+2012-12-24.16:47:51 zfs create -o sharenfs=on store/backupdb/suu
+2012-12-26.11:30:17 zfs create -o sharenfs=on store/backupdb/12c
+2013-01-25.12:54:13 zfs set quota=12T store/space
+2013-01-25.12:54:39 zfs set reservation=12T store/space
+2013-01-25.12:55:06 zfs set reservation=none store/space
+2013-01-25.12:55:36 zfs set reservation=12T store/space
+2013-06-24.11:13:35 zfs set sharenfs=on store/backupdb/mon
+2014-01-22.15:50:22 zfs create store/backupdb/ldap
+2014-01-22.15:50:52 zfs set sharenfs=rw=*,root=@10.253.12.21:@10.255.254.21:@10.247.254.21 store/backupdb/ldap
+2014-01-22.15:52:43 zfs set sharenfs=rw=@10.253.12.21:@10.255.254.21:@10.247.254.21,root=@10.253.12.21:@10.255.254.21:@10.247.254.21 store/backupdb/ldap
+2014-01-22.15:53:13 zfs set sharenfs=rw=10.253.12.21:10.255.254.21:10.247.254.21,root=@10.253.12.21:@10.255.254.21:@10.247.254.21 store/backupdb/ldap
+2014-01-22.15:54:49 zfs set sharenfs=rw=10.255.254.21:10.247.254.21,root=@10.255.254.21:@10.247.254.21 store/backupdb/ldap
+2014-01-22.15:55:24 zfs set sharenfs=rw=10.253.12.21:10.255.254.21:10.247.254.21,root=@10.253.12.21:@10.255.254.21:@10.247.254.21 store/backupdb/ldap
+2014-01-22.15:56:40 zfs set sharenfs=rw=10.255.254.21:10.247.254.21,root=@10.255.254.21:@10.247.254.21 store/backupdb/ldap
+2014-01-22.15:57:10 zfs set sharenfs=rw=10.253.12.21:10.255.254.21:10.247.254.21,root=@10.253.12.21:@10.255.254.21:@10.247.254.21 store/backupdb/ldap
+2014-01-22.16:01:10 zfs set sharenfs=rw=@10.253.12.21:@10.255.254.21:@10.247.254.21,root=@10.253.12.21:@10.255.254.21:@10.247.254.21 store/backupdb/ldap
+2014-01-22.16:02:18 zfs set sharenfs=rw=10.253.12.21:10.255.254.21:10.247.254.21,root=@10.253.12.21:@10.255.254.21:@10.247.254.21 store/backupdb/ldap
+2014-01-22.16:07:30 zfs set sharenfs=rw=*,root=@10.253.12.21:@10.255.254.21:@10.247.254.21 store/backupdb/ldap
+2014-01-22.16:10:43 zfs set sharenfs=rw=*,root=@10.253.12.21/32:@10.255.254.21/32:@10.247.254.21/32 store/backupdb/ldap
+2014-01-22.16:13:58 zfs set sharenfs=rw=10.255.254.21:10.247.254.21,root=@10.253.12.21/32:@10.255.254.21/32:@10.247.254.21/32 store/backupdb/ldap
+2014-01-22.16:14:29 zfs set sharenfs=rw=10.253.12.21:10.255.254.21:10.247.254.21,root=@10.253.12.21/32:@10.255.254.21/32:@10.247.254.21/32 store/backupdb/ldap
+2014-06-17.11:43:41 zpool clear store c0t5000C5003F0ACEE0d0
+2014-06-17.11:47:59 zpool detach store c0t5000C500361F88C8d0
+2014-08-25.13:01:21 zfs set sharenfs=rw=10.254.254.247,root=10.254.254.247 store/space
+2014-08-25.14:39:50 zpool detach store c0t5000C50035DC7BF8d0
+2014-08-25.14:54:48 zpool add store spare c0t5000C500660E1D42d0
+2014-08-25.17:25:03 zpool detach store c0t5000C50035E7EBE3d0
+2014-08-26.11:55:18 zpool add store spare c0t5000C50035E7EBE3d0
+2014-12-22.16:01:04 zfs create -o sharenfs=on store/backupdb/cluster
+2014-12-22.16:02:09 zfs set quota=500G store/backupdb/cluster
+2014-12-22.16:16:52 zfs set sharenfs=rw=*,root=10.254.254.5:10.254.254.6 store/backupdb/cluster
+2014-12-22.16:29:01 zfs set sharenfs=rw=10.254.254.5:10.254.254.6,root=@10.254.254.5/32:@10.254.254.6/32 store/backupdb/cluster
+2014-12-22.16:33:58 zfs set sharenfs=rw=*,root=@10.254.254.5/32:@10.254.254.6/32 store/backupdb/cluster
+2014-12-22.16:35:56 zfs set sharenfs=rw=10.254.254.5,root=@10.254.254.5/32:@10.254.254.6/32 store/backupdb/cluster
+2014-12-22.16:39:37 zfs set sharenfs=rw=@10.254.254.5/32:@10.254.254.6/32,root=@10.254.254.5/32:@10.254.254.6/32 store/backupdb/cluster
+2014-12-22.16:40:19 zfs set sharenfs=rw=@10.254.254.5/32,root=@10.254.254.5/32:@10.254.254.6/32 store/backupdb/cluster
+2014-12-22.16:42:17 zfs set sharenfs=rw=10.254.254.5,root=@10.254.254.5/32:@10.254.254.6/32 store/backupdb/cluster
+2014-12-22.16:43:24 zfs set sharenfs=rw=@10.254.254.5/32,root=@10.254.254.5/32:@10.254.254.6/32 store/backupdb/cluster
+2014-12-22.16:45:58 zfs set sharenfs=rw=10.254.254.5:10.254.254.6,root=@10.254.254.5/32:@10.254.254.6/32 store/backupdb/cluster
+2014-12-22.16:47:29 zfs set sharenfs=rw=@10.254.254.5/32:@10.254.254.6/32,root=@10.254.254.5/32:@10.254.254.6/32 store/backupdb/cluster
+2014-12-22.16:50:21 zfs set sharenfs=rw=10.254.254.5:10.254.254.6,root=@10.254.254.5/32:@10.254.254.6/32 store/backupdb/cluster
+2014-12-22.16:51:32 zfs set sharenfs=rw=@10.254.254.5/32:@10.254.254.6/32,root=@10.254.254.5/32:@10.254.254.6/32 store/backupdb/cluster
+2015-02-06.14:25:44 zfs set sharenfs=rw=10.254.254.247:10.254.254.237,root=10.254.254.247:10.254.254.237 store/space
+2015-03-16.12:33:52 zfs set sharenfs=rw=10.254.254.247:10.254.254.237:10.254.254.238,root=10.254.254.247:10.254.254.237:10.254.254.238 store/space
+2015-03-16.13:09:55 zfs set sharenfs=rw=@10.254.254.247/32:@10.254.254.237/32:@10.254.254.238/32,root=@10.254.254.247/32:@10.254.254.237/32:@10.254.254.238/32 store/space
+2015-03-25.13:35:32 zfs set sharenfs=rw=@10.254.254.247/32:@10.254.254.237/32:@10.254.254.238/32:@10.254.254.239/32,root=@10.254.254.247/32:@10.254.254.237/32:@10.254.254.238/32:@10.254.254.239/32 store/space
+2015-11-19.15:10:43 zpool attach store c0t5000C50035AB3583d0 c0t5000CCA369E484B7d0
+2015-11-19.15:14:09 zpool attach store c0t5000C50035E7D260d0 c0t5000CCA369F0B314d0
+2015-11-20.09:28:47 zpool detach store c0t5000C50035E7D54Ed0
+2015-11-20.12:25:18 zpool detach store c0t5000C50035E78F62d0
+2015-11-20.12:26:23 zpool detach store c0t5000C5003F0AB3FBd0
+2015-11-20.13:24:09 zpool add store spare c0t5000CCA369D53F31d0 c0t5000CCA369DCEF2Dd0
+2015-12-04.09:24:03 zfs set sharenfs=rw=10.253.12.21:10.255.254.21:10.247.254.21,root=@10.253.12.21/32:@10.255.254.21/32:@10.247.254.21/32 store/backupdb/ldap
+2015-12-04.09:30:21 zfs set sharenfs=rw=@10.253.12.21/32:@10.255.254.21/32:@10.247.254.21/32,root=@10.253.12.21/32:@10.255.254.21/32:@10.247.254.21/32 store/backupdb/ldap
+2015-12-28.12:39:09 zpool detach store c0t5000CCA369E484B7d0
+2015-12-28.12:41:17 zpool add store spare c0t5000CCA369DCC6F7d0
+2015-12-28.12:42:47 zpool clear store
+2016-07-27.15:48:45 zpool detach store c0t5000C5003F0A9B23d0
+2016-07-27.15:53:49 zpool add store spare c0t5000CCA369EB64A0d0
+2016-11-02.11:36:42 zpool clear store
+2016-11-02.11:39:25 zpool detach store c0t5000C50035E7F666d0
+2016-11-02.11:43:40 zpool attach store c0t5000C500361F88C8d0 c0t5000C50035E7F666d0
+2016-11-03.09:59:44 zpool detach store c0t5000CCA369DCC6F7d0
+2016-11-03.10:01:08 zpool add store spare c0t5000CCA369DCC6F7d0
+2016-11-03.14:24:41 zpool remove store c0t5000CCA369EB64A0d0
+2016-11-03.15:15:11 zpool add -f store spare c0t5000CCA369E063A4d0
+2016-11-03.15:39:10 zpool remove store spare c0t5000CCA369E063A4d0
+2016-11-03.16:09:10 zpool add -f store spare c0t5000CCA369E063A4d0
+2017-03-02.16:34:57 zpool detach store c0t5000C50035E7F666d0
+2017-03-02.16:49:10 zpool add -f store spare c0t5000CCA369DF7587d0
+2018-07-25.10:22:56 zpool detach store c0t5000C50035E83D20d0
+2018-07-25.10:23:26 zpool detach store c0t5000C50035E83449d0
+2018-07-25.11:25:33 zpool add store spare c0t5000CCA369DC31DAd0 c0t5000CCA369C27334d0
+2018-10-29.11:30:04 zpool detach store c0t5000C50035AB3583d0
+2019-10-02.12:34:22 zfs create store/global
+2020-06-29.16:34:38 zfs create store/global/proxmox
+2020-09-07.15:31:03 zpool detach store c0t5000C500660E1D42d0
+2020-09-08.15:14:34 zpool attach store c0t5000C5003F0AB5C6d0 c0t5000CCA369F3C564d0p1
+2020-09-09.15:38:33 zfs set sharenfs=on store/global/proxmox
+2020-09-09.15:39:53 zfs set sharenfs=on store/global/proxmox @1100.100.0.0/24
+2020-09-09.15:41:19 zfs set sharenfs=on prot=nfs store/global/proxmox
+2020-09-09.15:53:32 zfs set sharenfs=rw=@100.100.0.0/24 store/global/proxmox
+2020-09-09.15:55:06 zfs set sharenfs=rw=*,root=@100.100.0.0/24 store/global/proxmox
+2023-02-10.09:52:29 zpool add store spare c0t5000C50035AB3583d0
+2023-02-10.10:06:57 zpool set autoreplace=on store
+2024-03-29.14:31:19 zpool scrub store
+2024-04-01.09:03:05 zpool detach store c0t5000C5003F0ADFF9d0
+2024-04-01.09:03:39 zpool detach store c0t5000C50035E7E7F0d0
+2024-04-01.10:28:37 zpool scrub store
+2024-04-01.10:29:41 zpool clear store
+2024-04-01.10:36:38 zpool scrub -s store
+2024-04-01.10:42:03 zpool add -f store spare c0t50014EE656E54B11d0
+2024-04-01.12:17:02 zpool clear store
+2024-04-01.12:17:43 zpool scrub store
+2024-04-01.12:18:13 zpool scrub -s store
+2024-04-02.10:25:04 zfs recv store/test
+2024-04-02.10:34:45 zfs set mountpoint=/store/test store/test
+2024-04-02.10:37:01 zfs set mountpoint=/store/test/mail store/test/mail
+2024-04-02.10:38:07 zfs set mountpoint=/store/test/mail/mbox store/test/mail/mbox
+2024-04-02.10:38:28 zfs set mountpoint=/store/test/mbox store/test/mail/mbox
+2024-04-02.10:40:42 zfs set mountpoint=/store/test/mbox store/test/mail/mbox
+2024-04-02.10:42:00 zfs set mountpoint=/store/test/mbox store/test/mail/mbox
+2024-04-02.10:52:57 zfs set mountpoint=/store/test/filebox store/test/filebox
+2024-04-02.10:55:53 zfs destroy -r store/test
+2024-04-15.16:48:55 zpool scrub store
+2024-04-16.10:20:35 zpool clear store
+2024-04-16.10:21:25 zpool scrub store
+2024-04-16.10:21:56 zpool scrub -s store
+2024-04-17.10:45:32 zpool scrub store
+2024-04-18.09:16:26 zpool clear store
+2024-07-18.09:11:44 zpool scrub store
+2024-07-18.09:27:36 zpool detach store c0t5000C50035E7D348d0
+2024-07-18.10:29:57 zpool scrub -s store
+2024-07-18.10:34:00 zpool add store spare c0t5000C50078C224ACd0
+2024-07-18.10:46:50 zpool add store spare c0t5000C5007B000A84d0
+2024-07-18.10:48:18 zpool remove store c0t5000C5007B000A84d0
+2024-07-18.10:55:55 zpool attach store c0t5000CCA369E063A4d0 c0t5000C5007B000A84d0
+2024-07-18.10:57:08 zpool detach store c0t5000C5007B000A84d0
+2024-07-18.10:58:34 zpool add store spare c0t5000C5007B000A84d0
+2025-02-11.15:08:55 zpool scrub store
+2025-02-12.15:41:28 zpool scrub -s store
+2025-02-12.16:05:51 zpool replace store c0t5000C50035AB3583d0 c0t5000C50078C224ACd0
+2025-02-13.08:01:17 zpool clear store
+2025-02-13.08:07:43 zpool scrub store
+2025-02-13.08:08:12 zpool scrub -s store
+2025-02-13.08:09:54 zpool scrub store
+2025-02-13.08:10:40 zpool scrub -s store
+2025-02-13.08:12:56 zpool scrub store
+2025-02-18.14:10:42 zpool offline store c0t5000C500361F88C8d0
+2025-02-18.14:45:29 zpool detach store c0t5000C500361F88C8d0
+2025-02-18.15:02:33 zpool add store spare c0t5000C50078E32DEBd0
+2025-02-19.10:51:10 zpool replace store c0t5000C50035AB3583d0 c0t5000C50078E32DEBd0
+2025-02-20.11:09:47 zpool detach store c0t5000C50035AB3583d0
+2025-02-20.11:47:44 zpool add store spare c0t5000C50066CC42C9d0
+2025-02-20.11:48:14 zpool clear store
+2025-02-20.11:48:56 zpool scrub store
+2025-02-24.14:56:33 zpool scrub -s store
+2025-02-24.15:47:47 zpool scrub store
+2025-08-26.17:36:20 zpool replace store c0t5000C5003F0ACEE0d0 c0t5000C5007B000A84d0
+2025-08-29.13:30:30 zpool detach store c0t5000C5003F0ACEE0d0
+2025-08-29.13:56:57 zpool add store spare c0t5000C50066FB5A29d0
+2025-08-29.14:07:34 zpool replace store c0t5000CCA369DCC6F7d0 c0t5000C50066CC42C9d0
+2025-09-10.09:53:17 zpool detach store c0t5000CCA369DCC6F7d0
+2025-09-10.09:58:47 zpool clear store
+2025-09-10.12:38:10 zpool add store spare c0t5000C5007BB8BC2Ad0
+2025-12-10.15:16:02 zpool add store spare c0t5000CCA24ED0BB5Ed0
+2025-12-10.15:44:10 zpool replace store c0t5000C50035E9E8B4d0 c0t5000C5007BB8BC2Ad0
+2025-12-10.15:47:03 zpool offline store c0t5000CCA369E063A4d0
+2025-12-10.15:49:16 zpool detach store c0t5000CCA369E063A4d0
+2025-12-11.14:48:26 zpool detach store c0t5000C50035E9E8B4d0
+2025-12-11.14:49:26 zpool clear store
+2025-12-11.14:54:57 zpool replace store c0t5000C50035F4E9ECd0 c0t5000CCA24ED0BB5Ed0
+2025-12-11.18:17:57 zpool add store spare /dev/dsk/c0t5000CCA24ED10AE6d0
+2025-12-12.17:41:29 zpool replace store c0t5000CCA24ED0BB5Ed0 c0t5000CCA24ED10AE6d0
+2025-12-13.15:42:59 zpool detach store c0t5000CCA24ED0BB5Ed0
+2025-12-13.15:43:20 zpool remove store c0t5000CCA24ED0BB5Ed0
+2025-12-13.15:43:57 zpool replace store c0t5000C50035F4E9ECd0 c0t5000CCA24ED0BB5Ed0
+2025-12-13.16:15:08 zpool clear store
+2025-12-13.16:16:16 zpool detach store c0t5000CCA24ED10AE6d0
+2025-12-13.16:16:52 zpool remove store c0t5000CCA24ED10AE6d0
+2025-12-13.16:17:39 zpool replace store c0t5000C50066FB5A29d0 c0t5000CCA24ED10AE6d0
+2025-12-14.17:12:49 zpool clear store
+2025-12-14.17:14:33 zpool detach store c0t5000C50066FB5A29d0
+2025-12-14.17:27:21 zpool detach store c0t5000CCA24ED0BB5Ed0
+2025-12-14.17:32:21 zpool clear store c0t5000C50035F4E9ECd0
+2025-12-14.17:32:21 zpool clear store c0t5000CCA24ED10AE6d0
+2025-12-14.17:36:46 zpool scrub store
+2025-12-14.17:46:38 zpool scrub -s store
+2025-12-14.17:59:11 zpool attach store c0t5000C5003F0E8DD0d0 c0t5000CCA24ED0BB5Ed0
+2025-12-14.19:19:41 zpool attach store c0t5000C50035F4E9ECd0 c0t5000CCA24ED10C8Fd0
+2025-12-15.14:09:59 zpool detach store c0t5000C50035F4E9ECd0
+2025-12-15.18:53:06 zpool add store spare c0t5000C50066FB5A29d0
+2025-12-15.18:55:08 zpool detach store c0t5000CCA24ED0BB5Ed0
+2025-12-15.18:55:39 zpool add store spare c0t5000CCA24ED0BB5Ed0
+2025-12-15.19:00:56 zpool scrub store
+2025-12-15.19:04:36 zpool scrub -s store
+2026-01-12.19:53:16 zfs create -o compression=gzip-6 -o recordsize=128K store/ds-dedup-128K
+2026-01-12.20:32:48 zfs destroy store/ds-dedup-128K
+2026-01-12.20:33:04 zfs create -o compression=gzip-6 -o recordsize=128K store/ds-gzip6-128K
+2026-01-12.20:33:35 zfs create -o compression=off -o recordsize=128K store/ds-nocompress-128K
+2026-01-12.21:02:49 zfs destroy store/ds-gzip6-128K
+2026-01-12.21:03:20 zfs destroy store/ds-nocompress-128K
+2026-01-25.00:36:05 zfs receive -F -u store/zvol-mail.ext.ru
+2026-01-25.18:18:19 zfs create -o compression=on -o primarycache=metadata -o secondarycache=metadata -o recordsize=128k store/ds-test-128k
+2026-01-29.23:43:28 zfs create -V 1g store/mail.ext.ru_quorum
+2026-01-29.23:57:59 zfs set sync=disabled store/mail.ext.ru_quorum
+2026-03-09.18:27:29 zpool scrub store
+2026-03-22.21:36:00 zpool replace store c0t5000C50078C224ACd0 c0t5000C5007A6898E1d0
+2026-03-22.21:41:41 zpool set failmode=continue store
