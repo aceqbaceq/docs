@@ -1,0 +1,19 @@
+| backup-01
+| mfi
+| xeratex
+
+поатвил на тестирование належность полок xeratex
+и вот в логах контроллера я вижу
+
+
+# mfiutil show events
+1748214 (boot + 235143s/DRIVE/WARN) - Command timeout on PD 60(e0xff/s96) Path 5000bb52121800f0 , CDB: 28 00 16 43 fa 88 00 00 80 00
+1748215 (boot + 235143s/DRIVE/WARN) - PD 60(e0xff/s96) Path 5000bb52121800f0  reset (Type 03)
+
+# mfiutil   show drives | grep "60 "
+60 ( 1863G) UNCONFIGURED GOOD <HGST HUS724020AL A8B0 serial=PN1181P5H6E14W> SATA S60
+
+
+вот найден диск с проблемами PN1181P5H6E14W либо с его интерпозером
+
+
