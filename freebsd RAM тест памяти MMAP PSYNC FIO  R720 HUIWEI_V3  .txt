@@ -1,0 +1,337 @@
+| freebsd
+| R720
+| mdconfig
+| ram 
+| rest
+| ramdisk
+
+
+сервер R720
+этот сервер поколения памяти DDR3
+тест его памяти
+
+два сокета  
+	# sysctl hw.model
+	hw.model: Intel(R) Xeon(R) CPU E5-2643 v2 @ 3.50GHz
+	каждый сокет имеет 6 физ ядер
+
+
+память это 4 планки (по две на сокет 32GB LRDIMM 1866MT\s (15GB\s max ))
+каналов памяти на один сокет 4 штуки. но так как на сокете 2 планки то занято по 2 канала
+на каждый сокет. тоесть в теории каждый сокет может читать макс 30ГБ\с из памяти.
+если добавит еще по 2 планки на каждый сокет то каждый сокет ссможет читать на скорости 60ГБ\с
+
+
+создаю рам диск
+
+
+	# mount -t tmpfs -o size=10G tmpfs /mnt/mmap/
+
+
+аллоцирую память под него не акбы как а только на нума0 области
+
+# cpuset -l 0-5 -n 0   fio --name=raw-ram --filename=/mnt/mmap/fio.mmap  --ioengine=mmap --rw=write --bs=1M --direct=1 --numjobs=1 --size=10G --time_based --group_reporting    --randrepeat=1  --gtod_reduce=1
+
+
+теперь тест на чтение через два разных способа
+
+
+# cpuset -l 0-5 -n 0  fio --name=raw-ram --filename=/mnt/mmap/fio.mmap  --ioengine=mmap --rw=read  --bs=1M --direct=1 --numjobs=6 --runtime=50 --time_based --group_reporting    --randrepeat=1  --gtod_reduce=1
+raw-ram: (g=0): rw=read, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=mmap, iodepth=1
+...
+fio-3.40
+Starting 6 processes
+Jobs: 6 (f=6): [R(6)][100.0%][r=20.3GiB/s][r=20.8k IOPS][eta 00m:00s]
+raw-ram: (groupid=0, jobs=6): err= 0: pid=3191: Wed Mar 25 01:05:48 2026
+  read: IOPS=20.6k, BW=20.1GiB/s (21.6GB/s)(1006GiB/50015msec)
+   bw (  MiB/s): min= 2222, max=38035, per=100.00%, avg=21150.79, stdev=610.69, samples=583
+   iops        : min= 2221, max=38034, avg=21150.65, stdev=610.62, samples=583
+  cpu          : usr=43.36%, sys=47.76%, ctx=272957, majf=0, minf=516858
+  IO depths    : 1=100.0%, 2=0.0%, 4=0.0%, 8=0.0%, 16=0.0%, 32=0.0%, >=64=0.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     issued rwts: total=1030644,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=1
+
+Run status group 0 (all jobs):
+   READ: bw=20.1GiB/s (21.6GB/s), 20.1GiB/s-20.1GiB/s (21.6GB/s-21.6GB/s), io=1006GiB (1081GB), run=50015-50015msec
+
+
+
+
+
+# cpuset -l 0-5 -n 0  fio --name=raw-ram --filename=/mnt/mmap/fio.mmap  --ioengine=psync --rw=read  --bs=1M --direct=1 --numjobs=6 --runtime=50 --time_based --group_reporting    --randrepeat=1  --gtod_reduce=1
+raw-ram: (g=0): rw=read, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=psync, iodepth=1
+...
+fio-3.40
+Starting 6 processes
+Jobs: 6 (f=6): [R(6)][100.0%][r=29.2GiB/s][r=29.9k IOPS][eta 00m:00s]
+raw-ram: (groupid=0, jobs=6): err= 0: pid=3200: Wed Mar 25 01:06:52 2026
+  read: IOPS=28.1k, BW=27.5GiB/s (29.5GB/s)(1373GiB/50002msec)
+   bw (  MiB/s): min= 1439, max=30240, per=100.00%, avg=28605.62, stdev=764.61, samples=585
+   iops        : min= 1435, max=30240, avg=28605.43, stdev=764.72, samples=585
+  cpu          : usr=0.78%, sys=97.37%, ctx=12844, majf=0, minf=1536
+  IO depths    : 1=100.0%, 2=0.0%, 4=0.0%, 8=0.0%, 16=0.0%, 32=0.0%, >=64=0.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     issued rwts: total=1405812,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=1
+
+Run status group 0 (all jobs):
+   READ: bw=27.5GiB/s (29.5GB/s), 27.5GiB/s-27.5GiB/s (29.5GB/s-29.5GB/s), io=1373GiB (1474GB), run=50002-50002msec
+
+
+
+итого
+через mmap   BW=20.1GiB/s
+через psync  BW=27.5GiB/s
+
+
+
+
+
+
+следущий сервер это 
+	# dmidecode | grep V3
+	Product Name: RH2288H V3
+
+это сервер покаоления памяти DDR4
+
+у него два сокета на каждом стоит
+# sysctl hw.model
+hw.model: Intel(R) Xeon(R) CPU E5-2699 v3 @ 2.30GHz
+оно имеет 18 физ ядер (но как видно не таких сокростных как у делл)
+
+
+и стоит 20 планок памяти по 16GB на скрости 1600 MT\s
+
+
+
+
+также созадаю рам диск и делаю тест его памяти
+
+
+[root@fr-1 ~]# mount -t tmpfs -o size=10G tmpfs /mnt/mmap/
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# cpuset -l 0-10 -n 0   fio --name=raw-ram --filename=/mnt/mmap/fio.mmap  --ioengine=mmap --rw=write --bs=1M --direct=1 --numjobs=1 --size=10G --time_based --group_reporting    --randrepeat=1  --gtod_reduce=1
+
+
+
+
+
+
+[root@fr-1 ~]# 
+[root@fr-1 ~]# cpuset -l 0-17 -n 0  fio --name=raw-ram --filename=/mnt/mmap/fio.mmap  --ioengine=mmap --rw=read  --bs=1M --direct=1 --numjobs=18 --runtime=50 --time_based --group_reporting    --randrepeat=1  --gtod_reduce=1
+raw-ram: (g=0): rw=read, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=mmap, iodepth=1
+...
+fio-3.40
+Starting 18 processes
+Jobs: 18 (f=18): [R(18)][100.0%][r=14.3GiB/s][r=14.6k IOPS][eta 00m:00s]
+raw-ram: (groupid=0, jobs=18): err= 0: pid=5656: Wed Mar 25 01:07:55 2026
+  read: IOPS=13.7k, BW=13.4GiB/s (14.4GB/s)(672GiB/50077msec)
+   bw (  MiB/s): min=10529, max=28304, per=100.00%, avg=14918.69, stdev=183.70, samples=1657
+   iops        : min=10528, max=28304, avg=14915.87, stdev=183.74, samples=1657
+  cpu          : usr=63.64%, sys=32.35%, ctx=32032, majf=0, minf=348430
+  IO depths    : 1=100.0%, 2=0.0%, 4=0.0%, 8=0.0%, 16=0.0%, 32=0.0%, >=64=0.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     issued rwts: total=687644,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=1
+
+Run status group 0 (all jobs):
+   READ: bw=13.4GiB/s (14.4GB/s), 13.4GiB/s-13.4GiB/s (14.4GB/s-14.4GB/s), io=672GiB (721GB), run=50077-50077msec
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# cpuset -l 0-17 -n 0  fio --name=raw-ram --filename=/mnt/mmap/fio.mmap  --ioengine=psync --rw=read  --bs=1M --direct=1 --numjobs=18 --runtime=50 --time_based --group_reporting    --randrepeat=1  --gtod_reduce=1
+raw-ram: (g=0): rw=read, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=psync, iodepth=1
+...
+fio-3.40
+Starting 18 processes
+Jobs: 18 (f=18): [R(18)][100.0%][r=66.5GiB/s][r=68.1k IOPS][eta 00m:00s]
+raw-ram: (groupid=0, jobs=18): err= 0: pid=5675: Wed Mar 25 01:09:21 2026
+  read: IOPS=63.0k, BW=61.5GiB/s (66.0GB/s)(3075GiB/50016msec)
+   bw (  MiB/s): min=23016, max=73190, per=100.00%, avg=65341.35, stdev=511.50, samples=1719
+   iops        : min=23009, max=73190, avg=65340.93, stdev=511.55, samples=1719
+  cpu          : usr=0.30%, sys=96.20%, ctx=32758, majf=0, minf=4608
+  IO depths    : 1=100.0%, 2=0.0%, 4=0.0%, 8=0.0%, 16=0.0%, 32=0.0%, >=64=0.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     issued rwts: total=3148764,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=1
+
+Run status group 0 (all jobs):
+   READ: bw=61.5GiB/s (66.0GB/s), 61.5GiB/s-61.5GiB/s (66.0GB/s-66.0GB/s), io=3075GiB (3302GB), run=50016-50016msec
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+
+
+
+итого
+через mmap   BW=13.4GiB/s
+через psync  BW=61.5GiB/s
+
+
+
+
+
+
+итого еще раз по серверам
+DELL R720
+через mmap   BW=20.1GiB/s
+через psync  BW=27.5GiB/s
+
+
+HUIWEI
+через mmap   BW=13.4GiB/s
+через psync  BW=61.5GiB/s
+
+
+если на делл добавить планок памяи то он тоже покажет 60ГБ\с
+
+
+
+
+
+
+
+далее следущий тест памяти но уже когда на ее базе создается полноценный рам диск
+тоесть блочное устрйоство через GEOM и всю эту хуйню. 
+
+
+
+# cpuset -n 0 mdconfig -a -t malloc -s 12g -u 100
+повится файл /deb/md100
+
+
+аллоцирую  в нем память
+# cpuset -l 0-5 -n 0 fio --name=raw-ram --filename=/dev/md100 --ioengine=psync --rw=write --bs=1M --direct=1 --numjobs=1 --size=12G   --group_reporting    --randrepeat=1  --gtod_reduce=1
+
+
+тестирую чтение
+
+
+DELL R720
+# cpuset -l 0-5 -n 0 fio --name=raw-ram --filename=/dev/md100 --ioengine=psync --rw=read --bs=1M --direct=1 --numjobs=1 --runtime=50   --group_reporting    --randrepeat=1  --gtod_reduce=1
+raw-ram: (g=0): rw=read, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=psync, iodepth=1
+fio-3.40
+Starting 1 process
+Jobs: 1 (f=1): [R(1)][100.0%][r=1447MiB/s][r=1447 IOPS][eta 00m:00s]
+raw-ram: (groupid=0, jobs=1): err= 0: pid=3278: Wed Mar 25 01:35:29 2026
+  read: IOPS=1458, BW=1459MiB/s (1530MB/s)(12.0GiB/8423msec)
+   bw (  MiB/s): min= 1374, max= 1546, per=99.78%, avg=1455.62, stdev=47.27, samples=16
+   iops        : min= 1374, max= 1546, avg=1455.62, stdev=47.27, samples=16
+  cpu          : usr=0.30%, sys=9.78%, ctx=12293, majf=0, minf=256
+  IO depths    : 1=100.0%, 2=0.0%, 4=0.0%, 8=0.0%, 16=0.0%, 32=0.0%, >=64=0.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     issued rwts: total=12288,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=1
+
+Run status group 0 (all jobs):
+   READ: bw=1459MiB/s (1530MB/s), 1459MiB/s-1459MiB/s (1530MB/s-1530MB/s), io=12.0GiB (12.9GB), run=8423-8423msec
+
+
+нумдоджобс больше 1 нет смысла делать так как /dev/md100 файл он недает более чем 
+одному потоку к нему присавыаться одноврменно , они просто будут стоять и драться за доступ
+к файлу. метод mmap тут тоже не прокатывается толко psync
+
+
+HUIWEI
+
+# cpuset -l 0-5 -n 0 fio --name=raw-ram --filename=/dev/md100 --ioengine=psync --rw=read --bs=1M --direct=1 --numjobs=1 --runtime=50   --group_reporting    --randrepeat=1  --gtod_reduce=1
+raw-ram: (g=0): rw=read, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=psync, iodepth=1
+fio-3.40
+Starting 1 process
+Jobs: 1 (f=1): [R(1)][100.0%][r=2679MiB/s][r=2679 IOPS][eta 00m:00s]
+raw-ram: (groupid=0, jobs=1): err= 0: pid=5744: Wed Mar 25 01:38:37 2026
+  read: IOPS=2649, BW=2650MiB/s (2779MB/s)(12.0GiB/4637msec)
+   bw (  MiB/s): min= 2548, max= 2712, per=99.94%, avg=2648.44, stdev=48.58, samples=9
+   iops        : min= 2548, max= 2712, avg=2648.44, stdev=48.58, samples=9
+  cpu          : usr=0.65%, sys=13.35%, ctx=12297, majf=0, minf=256
+  IO depths    : 1=100.0%, 2=0.0%, 4=0.0%, 8=0.0%, 16=0.0%, 32=0.0%, >=64=0.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     issued rwts: total=12288,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=1
+
+Run status group 0 (all jobs):
+   READ: bw=2650MiB/s (2779MB/s), 2650MiB/s-2650MiB/s (2779MB/s-2779MB/s), io=12.0GiB (12.9GB), run=4637-4637msec
+
+
+
+Итого 
+DELL R720
+чтение BW=1459MiB/s
+
+HUIWEI
+чтение BW=2650MiB/s
+
+
+
+теперь тестиру запись
+DELL
+[root@backup-01 ~]# cpuset -l 0-5 -n 0 fio --name=raw-ram --filename=/dev/md100 --ioengine=psync --rw=write --bs=1M --direct=1 --numjobs=1 --runtime=50   --group_reporting    --randrepeat=1  --gtod_reduce=1
+raw-ram: (g=0): rw=write, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=psync, iodepth=1
+fio-3.40
+Starting 1 process
+Jobs: 1 (f=1): [W(1)][100.0%][w=1065MiB/s][w=1065 IOPS][eta 00m:00s]
+raw-ram: (groupid=0, jobs=1): err= 0: pid=3285: Wed Mar 25 01:40:18 2026
+  write: IOPS=1117, BW=1117MiB/s (1171MB/s)(12.0GiB/10999msec); 0 zone resets
+   bw (  MiB/s): min= 1046, max= 1254, per=99.99%, avg=1117.09, stdev=65.79, samples=22
+   iops        : min= 1046, max= 1254, avg=1117.09, stdev=65.79, samples=22
+  cpu          : usr=5.25%, sys=8.08%, ctx=12291, majf=0, minf=0
+  IO depths    : 1=100.0%, 2=0.0%, 4=0.0%, 8=0.0%, 16=0.0%, 32=0.0%, >=64=0.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     issued rwts: total=0,12288,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=1
+
+Run status group 0 (all jobs):
+  WRITE: bw=1117MiB/s (1171MB/s), 1117MiB/s-1117MiB/s (1171MB/s-1171MB/s), io=12.0GiB (12.9GB), run=10999-10999msec
+
+
+
+
+HUWIEIE
+
+[root@fr-1 ~]# cpuset -l 0-5 -n 0 fio --name=raw-ram --filename=/dev/md100 --ioengine=psync --rw=write --bs=1M --direct=1 --numjobs=1 --runtime=50   --group_reporting    --randrepeat=1  --gtod_reduce=1
+raw-ram: (g=0): rw=write, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=psync, iodepth=1
+fio-3.40
+Starting 1 process
+Jobs: 1 (f=1): [W(1)][100.0%][w=1410MiB/s][w=1410 IOPS][eta 00m:00s]
+raw-ram: (groupid=0, jobs=1): err= 0: pid=5751: Wed Mar 25 01:40:25 2026
+  write: IOPS=1375, BW=1375MiB/s (1442MB/s)(12.0GiB/8935msec); 0 zone resets
+   bw (  MiB/s): min= 1244, max= 1412, per=99.89%, avg=1373.76, stdev=37.52, samples=17
+   iops        : min= 1244, max= 1412, avg=1373.76, stdev=37.52, samples=17
+  cpu          : usr=5.12%, sys=9.21%, ctx=12309, majf=0, minf=0
+  IO depths    : 1=100.0%, 2=0.0%, 4=0.0%, 8=0.0%, 16=0.0%, 32=0.0%, >=64=0.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     issued rwts: total=0,12288,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=1
+
+Run status group 0 (all jobs):
+  WRITE: bw=1375MiB/s (1442MB/s), 1375MiB/s-1375MiB/s (1442MB/s-1442MB/s), io=12.0GiB (12.9GB), run=8935-8935msec
+
+
+
+ИТОГО
+
+DELL
+чтение BW=1459MiB/s
+запись BW=1117MiB/s
+
+HUIWEI
+чтение BW=2650MiB/s
+запись BW=1375MiB/s
+
+
+
+
+
+
+
+

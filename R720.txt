@@ -542,23 +542,8 @@ options zfs zfs_arc_max=17179869184
 
 
 
-далее я тестирую скорость самой памяти на базе одного md 
- # mdconfig -a -t malloc -s 12g -u 99
-ЧТЕНИЕ ПАМЯТИ
-# fio --name=raw-ram --filename=/dev/md99 --ioengine=psync --rw=read --bs=1M --direct=1 --numjobs=1 --runtime=7 --time_based --group_reporting  --gtod_reduce=1
-  read: IOPS=1363, BW=1363MiB/s (1429MB/s)(9598MiB/7041msec)
-
-iodepth=1  BW=1363MiB/s (для сравнения huwei v4 BW=2749MiB/s)
-iodepth=2  BW=4002MiB/s
-iodepth=4  BW=3939MiB/s
-iodepth=8  BW=4047MiB/s
-
-ЗАПИСЬ ПАМЯТИ
-iodepth=1  BW=1001MiB/s (для сравнения huwei v4 BW=1361MiB/s)
-iodepth=2  BW=1820MiB/s
-iodepth=4  BW=1867MiB/s
-iodepth=8  BW=3083MiB/s (<==???)
-
+далее я провел тест памяти этого сервера
+'freebsd RAM тест памяти MMAP PSYNC FIO  R720 HUIWEI_V3  .txt'
 
 
 
