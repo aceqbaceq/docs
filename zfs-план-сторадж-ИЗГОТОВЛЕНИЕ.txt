@@ -6,6 +6,11 @@
 
 
 * вырубить hyper threading
+  loader.conf
+  machdep.hyperthreading_allowed="0"
+  
+* устанвоить beadm
+
 * ос ставим на 2-4 зфс миррор диска (или usb) на uefi желательно и нужно
   прописать в nvram все эти диски как меню загрузки
 
