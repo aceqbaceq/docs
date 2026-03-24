@@ -1,0 +1,14 @@
+| mc
+| крказоябры
+| стрелки неработают
+
+
+как сделать так чтобы при старте не было каркозябр 
+и чтобы работали стрелки
+
+echo 'export LANG=en_US.UTF-8' >> ~/.bashrc
+echo 'export TERM=dtterm' >> ~/.bashrc
+echo "alias mc='/opt/csw/bin/mc -a'" >> ~/.bashrc
+echo "alias mc='/opt/csw/bin/mc -a'" >> ~/.profile
+
+
