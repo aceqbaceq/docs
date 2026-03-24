@@ -315,8 +315,30 @@ V4: /POOL-R720 -network 100.69.55.0/24
 
 
 
-далее я сделл тест с RAMDISK
-  641  for i in $(seq 0 7); do mdconfig -a -t swap -s 1g -u $i; done
+далее я тестирую скорость самой памяти на базе одного md 
+ # mdconfig -a -t malloc -s 12g -u 99
+ЧТЕНИЕ ПАМЯТИ
+# fio --name=raw-ram --filename=/dev/md99 --ioengine=psync --rw=read --bs=1M --direct=1 --numjobs=1 --runtime=7 --time_based --group_reporting  --gtod_reduce=1
+  read: IOPS=1363, BW=1363MiB/s (1429MB/s)(9598MiB/7041msec)
+
+iodepth=1  BW=1363MiB/s (для сравнения huwei v4 BW=2749MiB/s)
+iodepth=2  BW=4002MiB/s
+iodepth=4  BW=3939MiB/s
+iodepth=8  BW=4047MiB/s
+
+ЗАПИСЬ ПАМЯТИ
+iodepth=1  BW=1001MiB/s (для сравнения huwei v4 BW=1361MiB/s)
+iodepth=2  BW=1820MiB/s
+iodepth=4  BW=1867MiB/s
+iodepth=8  BW=3083MiB/s (<==???)
+
+
+
+
+
+
+далее я накинул  ZFS поверх RAMDISK на базе нескольких mdN
+  641  for i in $(seq 0 7); do  mdconfig -a -t swap -s 1g -u $i; done
   642  zpool create ram_pool md0 md1 md2 md3 md4 md5 md6 md7
   643  zfs set compression=off ram_pool
   644  zfs set sync=disabled ram_pool
@@ -330,9 +352,11 @@ V4: /POOL-R720 -network 100.69.55.0/24
 лин чтение  BW=1555MiB/s
 лин запись  BW=1550MiB/s
 
+интресно вот это проанализировать 
 такой скрости хватит чтобы проестировать 10G карту
 справшиыается нахеа страйп из рамдисков? потому что одно ядро может прокачать через себя из памяти 
 через VFS тлоько 1.5 GB\s  
+интересно что чтение зфс на рамдиске 
 
 
 
@@ -392,16 +416,16 @@ NFS
 
 
 ИТОГО 
-	nfs+RAMDISK
+	nfs+ZFS+RAMDISK
 (iodepth=32)
 лин чтение  BW=1178MiB/s
 лин запись  BW=1059MiB/s
 (iodepth=1)
 лин чтение  BW=400MiB/s
-лин запись  BW=BW=450MiB/s
+лин запись  BW=450MiB/s
 
 
-	nfs+шпиндели
+	nfs+ZFS+шпиндели
 (iodepth=32)
 лин чтение  BW=1179MiB/s
 лин запись  BW=1179MiB/s
@@ -412,3 +436,4 @@ NFS
 
 тут видно одно очень важное что для nfs+iodepth=1 есть потолок чтения и записи 400-450MB\s
 на чтение и запись. неронка говорит что ни карта 40Г ни другой цпу это нерешит. а только RDMA
+

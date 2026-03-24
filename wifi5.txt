@@ -246,9 +246,7 @@ tap11.2@tap11:master br1
 vlan субинтрфйесы
 
 
-# nmcli connection add   type tun  mode tap owner 1000 group 1000  ifname tap11  con-name tap11 autoconnect yes save yes ipv4.method disabled ipv6.method disabled
-master br1
-
+# nmcli connection add   type tun  mode tap owner 1000 group 1000  ifname tap11  con-name tap11 autoconnect yes save yes ipv4.method disabled ipv6.method disabled master br1
 # nmcli conn up tap11
 
 
