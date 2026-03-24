@@ -1,0 +1,756 @@
+| huawei v4
+| freebsd
+| nfs
+| iscsi
+
+
+#####################################
+
+сервер ГОЛОВНОЙ
+
+
+
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# cat /boot/loader.conf
+kern.geom.label.disk_ident.enable="1"
+kern.geom.label.gptid.enable="0"
+kern.vty=vt
+hw.vga.textmode=1
+cryptodev_load="YES"
+ispfw_load="YES"
+isp_load="YES"
+dev.igb.0.iflib.override_nrxqs="1"
+dev.igb.0.iflib.override_ntxqs="1"
+dev.igb.1.iflib.override_nrxqs="1"
+dev.igb.1.iflib.override_ntxqs="1"
+hw.iflib.igb_max_msix="1"
+mlx4en_load="YES"
+mlx4_core_load="YES"
+mlx5_core_load="YES"
+mlx5en_load="YES"
+ispfw_load="YES"
+isp_load="YES"
+zfs_load="YES"
+iscsi_initiator_load="YES"
+geom_multipath_load="YES"
+vfs.maxbcachebuf=1048576
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# cat /etc/rc.conf
+hostname="fr-1"
+sshd_enable="YES"
+ntpd_enable="YES"
+ntpd_sync_on_start="YES"
+ntpd_flags="-g"
+powerd_enable="YES"
+moused_nondefault_enable="NO"
+# Set dumpdev to "AUTO" to enable crash dumps, "NO" to disable
+dumpdev="NO"
+zfs_enable="YES"
+zfsd_enable="YES"
+
+
+ifconfig_igb0="up"
+ifconfig_igb1="up"
+ifconfig_ix0="up mtu 9000"
+ifconfig_ix1="up mtu 9000"
+ifconfig_mce0="up mtu 9000"
+ifconfig_mce1="up mtu 9000"
+ifconfig_mlxen0="up mtu 9000"
+ifconfig_mlxen2="up mtu 9000"
+
+
+cloned_interfaces="lagg1 lagg2 vlan55 vlan78 vlan33 vlan11 vlan12"
+
+
+
+ifconfig_lagg1="laggproto lacp laggport ix0    laggport ix1      description '10G' "
+ifconfig_lagg2="laggproto lacp laggport mce0   laggport mce1     description '40G' "
+
+
+# vlan 55 SSH
+ifconfig_vlan55="inet 100.69.55.1 netmask 255.255.255.0  vlan 55 vlandev lagg1 mtu 1500     description 'SSH'  "
+
+
+# vlan 78 BACKUP
+ifconfig_vlan78="inet 100.68.78.1 netmask 255.255.255.0  vlan 78 vlandev lagg1     description 'BACKUP'  "
+
+
+# vlan 33 NFS
+ifconfig_vlan33="inet 100.68.33.1 netmask 255.255.255.0  vlan 33 vlandev lagg2     description 'NFS' "
+
+
+
+# vlan 11 ISCSI на первой карте
+ifconfig_vlan11="inet 100.69.11.1 netmask 255.255.255.0 vlan 11 vlandev mlxen0 mtu 9000 description 'ISCSI-A'"
+
+# vlan 12 ISCSI на второй карте
+ifconfig_vlan12="inet 100.69.12.1 netmask 255.255.255.0 vlan 12 vlandev mlxen2 mtu 9000 description 'ISCSI-B'"
+
+
+
+
+defaultrouter="100.69.55.254"
+
+
+netwait_enable="YES"
+netwait_ip="100.69.11.4 100.69.11.5" # Укажите IP вашего iSCSI таргета (хранилища)
+netwait_if="vlan11"
+netwait_timeout="30"
+iscsid_enable="YES"        # демон iSCSI
+iscsictl_enable="YES"      # контроллер сессий  
+iscsictl_flags="-Aa"
+
+
+
+
+
+nfs_server_maxio="1048576"
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# cat /etc/sysctl.conf 
+#
+#  This file is read when going to multi-user and its contents piped thru
+#  ``sysctl'' to adjust kernel values.  ``man 5 sysctl.conf'' for details.
+#
+
+# Uncomment this to prevent users from seeing information about processes that
+# are being run under another UID.
+#security.bsd.see_other_uids=0
+vfs.zfs.min_auto_ashift=12
+
+kern.iscsi.fail_on_disconnection=1
+kern.iscsi.iscsid_timeout=10
+
+net.link.lagg.default_use_flowid=1
+
+
+kern.ipc.maxsockbuf=16777216
+net.inet.tcp.sendbuf_max=16777216
+net.inet.tcp.recvbuf_max=16777216
+vfs.nfsd.srvmaxio=1048576
+
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# cat /etc/exports 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# 
+[root@fr-1 ~]# cat /etc/iscsi.conf 
+
+
+fr-2-target-vlan11 {
+    initiatorname  = "iqn.1994-09.org.freebsd:fr-1:01:abcd1234567890fr-1";
+    TargetName = "iqn.2005-10.org.freenas.ctl:fr-2";
+    TargetAddress = "100.69.11.2:3260";
+}
+
+
+
+
+fr-2-target-vlan12 {
+    initiatorname  = "iqn.1994-09.org.freebsd:fr-1:01:abcd1234567890fr-1";
+    TargetName = "iqn.2005-10.org.freenas.ctl:fr-2";
+    TargetAddress = "100.69.12.2:3260";
+}
+
+
+
+
+
+
+
+
+
+
+fr-3-target-vlan11 {
+    initiatorname  = "iqn.1994-09.org.freebsd:fr-1:01:abcd1234567890fr-1";
+    TargetName = "iqn.2005-10.org.freenas.ctl:fr-3";
+    TargetAddress = "100.69.11.3:3260";
+}
+
+
+
+
+fr-3-target-vlan12 {
+    initiatorname  = "iqn.1994-09.org.freebsd:fr-1:01:abcd1234567890fr-1";
+    TargetName = "iqn.2005-10.org.freenas.ctl:fr-3";
+    TargetAddress = "100.69.12.3:3260";
+}
+
+
+
+
+
+
+
+
+
+fr-4-target-vlan11 {
+    initiatorname  = "iqn.1994-09.org.freebsd:fr-1:01:abcd1234567890fr-1";
+    TargetName = "iqn.2005-10.org.freenas.ctl:fr-4";
+    TargetAddress = "100.69.11.4:3260";
+}
+
+
+
+
+fr-4-target-vlan12 {
+    initiatorname  = "iqn.1994-09.org.freebsd:fr-1:01:abcd1234567890fr-1";
+    TargetName = "iqn.2005-10.org.freenas.ctl:fr-4";
+    TargetAddress = "100.69.12.4:3260";
+}
+
+
+
+
+
+fr-5-target-vlan11 {
+    initiatorname  = "iqn.1994-09.org.freebsd:fr-1:01:abcd1234567890fr-1";
+    TargetName = "iqn.2005-10.org.freenas.ctl:fr-5";
+    TargetAddress = "100.69.11.5:3260";
+}
+
+
+fr-5-target-vlan12 {
+    initiatorname  = "iqn.1994-09.org.freebsd:fr-1:01:abcd1234567890fr-1";
+    TargetName = "iqn.2005-10.org.freenas.ctl:fr-5";
+    TargetAddress = "100.69.12.5:3260";
+}
+
+[root@fr-1 ~]# 
+
+#############################################################################
+
+
+
+
+
+
+
+
+
+
+################################################################################
+сервер МИНЬОН
+
+
+[root@fr-2 ~]# 
+[root@fr-2 ~]# cat /boot/loader.conf
+kern.geom.label.disk_ident.enable="1"
+kern.geom.label.gptid.enable="0"
+cryptodev_load="YES"
+#dev.igb.0.iflib.override_nrxqs="1"
+#dev.igb.0.iflib.override_ntxqs="1"
+#dev.igb.1.iflib.override_nrxqs="1"
+#dev.igb.1.iflib.override_ntxqs="1"
+#hw.iflib.igb_max_msix="1"
+zfs_load="YES"
+
+
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# cat /etc/rc.conf
+hostname="fr-2"
+sshd_enable="YES"
+ntpd_enable="YES"
+ntpd_sync_on_start="YES"
+ntpd_flags="-g"
+
+moused_nondefault_enable="NO"
+# Set dumpdev to "AUTO" to enable crash dumps, "NO" to disable
+dumpdev="NO"
+zfs_enable="YES"
+
+
+
+ifconfig_em0="down"
+ifconfig_em1="down"
+ifconfig_ix0="up mtu 9000"
+ifconfig_ix1="up mtu 9000"
+
+
+cloned_interfaces="lagg0  vlan55  vlan11 vlan12" 
+#cloned_interfaces="vlan55  vlan11 vlan12" 
+
+
+
+ifconfig_lagg0="up laggproto lacp laggport em0 laggport em1 description '1G' "
+# vlan 55 SSH
+#ifconfig_vlan55="vlan 55 vlandev ix0 100.69.55.2/24 description 'SSH'  "
+ifconfig_vlan55="vlan 55 vlandev lagg0 100.69.55.2/24 description 'SSH'  "
+
+
+
+
+
+# vlan 11 ISCSI на первой карте
+ifconfig_vlan11="inet 100.69.11.2 netmask 255.255.255.0 vlan 11 vlandev ix0 mtu 9000 description 'ISCSI-A'"
+
+# vlan 12 ISCSI на второй карте
+ifconfig_vlan12="inet 100.69.12.2 netmask 255.255.255.0 vlan 12 vlandev ix1 mtu 9000 description 'ISCSI-B'"
+
+
+
+
+
+defaultrouter="100.69.55.254"
+
+
+
+smartd_enable="YES"
+smartd_flags="-l local3"
+
+ctld_enable="YES"
+
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# cat /etc/sysctl.conf 
+#
+#  This file is read when going to multi-user and its contents piped thru
+#  ``sysctl'' to adjust kernel values.  ``man 5 sysctl.conf'' for details.
+#
+
+# Uncomment this to prevent users from seeing information about processes that
+# are being run under another UID.
+#security.bsd.see_other_uids=0
+vfs.zfs.min_auto_ashift=12
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+[root@fr-2 ~]# cat /etc/ctl.conf 
+portal-group "default" {
+}
+
+# ПОРТАЛ 1 (ix0 10G)
+portal-group "pg1" {
+    tag "0x0001"
+    discovery-filter "portal-name"
+    discovery-auth-group "no-authentication"
+    listen "100.69.11.2:3260"      
+    option "ha_shared" "on"
+}
+
+# ПОРТАЛ 2 (ix1 10G) ← НОВЫЙ!
+portal-group "pg2" {
+    tag "0x0002"                   # РАЗНЫЙ TAG!
+    discovery-filter "portal-name"
+    discovery-auth-group "no-authentication"
+    listen "100.69.12.2:3260"     
+    option "ha_shared" "on"
+}
+
+
+
+
+
+
+lun "Z1X2RSTT00009445CWXM" {
+    ctl-lun "0"
+    path "/dev/diskid/DISK-Z1X2RSTT00009445CWXM"
+    blocksize "4096"
+    device-id "FR-2 Z1X2RSTT00009445CWXM"
+    option "vendor" "FR-2"  
+    option "product" "Z1X2RSTT00009445CWXM"
+    serial "Z1X2RSTT00009445CWXM"
+    option "naa" "0x5000c50059052e6f"
+    option "insecure_tpc" "on"
+    option "rpm" "7200"
+    option "writecache" "on" 
+    option "readcache" "on" 
+
+}
+
+
+
+lun "Z1X2W9290000W45140RV" {
+    ctl-lun "1"
+    path "/dev/diskid/DISK-Z1X2W9290000W45140RV"
+    device-id "FR-2 Z1X2W9290000W45140RV"
+    option "vendor" "FR-2"
+    option "product" "Z1X2W9290000W45140RV"
+    blocksize "4096"
+    serial "Z1X2W9290000W45140RV"
+    option "naa" "0x5000c500591bb197"
+    option "insecure_tpc" "on"
+    option "rpm" "7200"
+    option "writecache" "on" 
+    option "readcache" "on" 
+
+}
+
+
+
+
+
+
+lun "Z1X4VRLL0000R535Y7J1" {
+    ctl-lun "2"
+    path "/dev/diskid/DISK-Z1X4VRLL0000R535Y7J1"
+    device-id "FR-2 Z1X4VRLL0000R535Y7J1"
+    option "vendor" "FR-2"
+    option "product" "Z1X4VRLL0000R535Y7J1"
+    blocksize "4096"
+    serial "Z1X4VRLL0000R535Y7J1"
+    option "naa" "0x5000c5008399edd3"
+    option "insecure_tpc" "on"
+    option "rpm" "7200"
+    option "writecache" "on" 
+    option "readcache" "on" 
+
+}
+
+
+
+
+
+
+
+
+
+lun "Z1X2RSNY0000W448X9PY" {
+    ctl-lun "3"
+    path "/dev/diskid/DISK-Z1X2RSNY0000W448X9PY"
+    device-id "FR-2 Z1X2RSNY0000W448X9PY"
+    option "vendor" "FR-2"
+    option "product" "Z1X2RSNY0000W448X9PY"
+    blocksize "4096"
+    serial "Z1X2RSNY0000W448X9PY"
+    option "naa" "0x5000c50059053143"
+    option "insecure_tpc" "on"
+    option "rpm" "7200"
+    option "writecache" "on" 
+    option "readcache" "on" 
+
+}
+
+
+
+
+
+
+
+lun "Z1X2WB5C0000W448X9YC" {
+    ctl-lun "4"
+    path "/dev/diskid/DISK-Z1X2WB5C0000W448X9YC"
+    device-id "FR-2 Z1X2WB5C0000W448X9YC"
+    option "vendor" "FR-2"
+    option "product" "Z1X2WB5C0000W448X9YC"
+    blocksize "4096"
+    serial "Z1X2WB5C0000W448X9YC"
+    option "naa" "0x5000c500591b61e3"
+    option "insecure_tpc" "on"
+    option "rpm" "7200"
+    option "writecache" "on" 
+    option "readcache" "on" 
+
+}
+
+
+
+
+
+
+lun "Z1X2RSSG0000W448XADY" {
+    ctl-lun "5"
+    path "/dev/diskid/DISK-Z1X2RSSG0000W448XADY"
+    device-id "FR-2 Z1X2RSSG0000W448XADY"
+    option "vendor" "FR-2"
+    option "product" "Z1X2RSSG0000W448XADY"
+    blocksize "4096"
+    serial "Z1X2RSSG0000W448XADY"
+    option "naa" "0x5000c50059052f4f"
+    option "insecure_tpc" "on"
+    option "rpm" "7200"
+    option "writecache" "on" 
+    option "readcache" "on" 
+
+}
+
+
+
+
+
+
+lun "Z1X4VXRT0000R535YADD" {
+    ctl-lun "6"
+    path "/dev/diskid/DISK-Z1X4VXRT0000R535YADD"
+    device-id "FR-2 Z1X4VXRT0000R535YADD"
+    option "vendor" "FR-2"
+    option "product" "Z1X4VXRT0000R535YADD"
+    blocksize "4096"
+    serial "Z1X4VXRT0000R535YADD"
+    option "naa" "0x5000c500839a2117"
+    option "insecure_tpc" "on"
+    option "rpm" "7200"
+    option "writecache" "on" 
+    option "readcache" "on" 
+
+}
+
+
+
+lun "Z1X2RSTY00009444V679" {
+    ctl-lun "7"
+    path "/dev/diskid/DISK-Z1X2RSTY00009444V679"
+    device-id "FR-2 Z1X2RSTY00009444V679"
+    option "vendor" "FR-2"
+    option "product" "Z1X2RSTY00009444V679"
+    blocksize "4096"
+    serial "Z1X2RSTY00009444V679"
+    option "naa" "0x5000c50059052fb3"
+    option "insecure_tpc" "on"
+    option "rpm" "7200"
+    option "writecache" "on" 
+    option "readcache" "on" 
+
+}
+
+
+
+
+
+lun "Z1X2RSRQ0000W4513QD7" {
+    ctl-lun "8"
+    path "/dev/diskid/DISK-Z1X2RSRQ0000W4513QD7"
+    device-id "FR-2 Z1X2RSRQ0000W4513QD7"
+    option "vendor" "FR-2"
+    option "product" "Z1X2RSRQ0000W4513QD7"
+    blocksize "4096"
+    serial "Z1X2RSRQ0000W4513QD7"
+    option "naa" "0x5000c50059052f93"
+    option "insecure_tpc" "on"
+    option "rpm" "7200"
+    option "writecache" "on" 
+    option "readcache" "on" 
+
+}
+
+
+
+
+lun "Z1X2X22A0000W4513NH3" {
+    ctl-lun "9"
+    path "/dev/diskid/DISK-Z1X2X22A0000W4513NH3"
+    device-id "FR-2 Z1X2X22A0000W4513NH3"
+    option "vendor" "FR-2"
+    option "product" "Z1X2X22A0000W4513NH3"
+    blocksize "4096"
+    serial "Z1X2X22A0000W4513NH3"
+    option "naa" "0x5000c500591bf833"
+    option "insecure_tpc" "on"
+    option "rpm" "7200"
+    option "writecache" "on" 
+    option "readcache" "on" 
+
+}
+
+
+
+lun "Z1X2W8C00000W4513NCC" {
+    ctl-lun "10"
+    path "/dev/diskid/DISK-Z1X2W8C00000W4513NCC"
+    device-id "FR-2 Z1X2W8C00000W4513NCC"
+    option "vendor" "FR-2"
+    option "product" "Z1X2W8C00000W4513NCC"
+    blocksize "4096"
+    serial "Z1X2W8C00000W4513NCC"
+    option "naa" "0x5000c500591bd6a3"
+    option "insecure_tpc" "on"
+    option "rpm" "7200"
+    option "writecache" "on" 
+    option "readcache" "on" 
+
+}
+
+
+lun "Z1X4T88A0000R524FWW4" {
+    ctl-lun "13"
+    path "/dev/diskid/DISK-Z1X4T88A0000R524FWW4"
+    device-id "FR-2 Z1X4T88A0000R524FWW4"
+    option "vendor" "FR-2"
+    option "product" "Z1X4T88A0000R524FWW4"
+    blocksize "4096"
+    serial "Z1X4T88A0000R524FWW4"
+    option "naa" "0x5000c5008391d1cf"
+    option "insecure_tpc" "on"
+    option "rpm" "7200"
+    option "writecache" "on" 
+    option "readcache" "on" 
+
+}
+
+
+
+
+
+
+
+
+
+
+
+auth-group "ag4tg1_1" {
+    initiator-name "iqn.1994-09.org.freebsd:fr-1:01:abcd1234567890fr-1"
+    auth-type "none"
+}
+
+# TARGET С ОБОИМИ ПОРТАЛАМИ!
+target "iqn.2005-10.org.freenas.ctl:fr-2" {
+    alias "fr-2"
+    auth-group "ag4tg1_1"      
+
+    # ОБОИ ПОРТАЛА!
+    portal-group "pg1"           # IP1 100.69.11.2
+    portal-group "pg2"           # IP2 100.69.12.2
+
+
+
+
+    lun "0" "Z1X2RSTT00009445CWXM" 
+    lun "1" "Z1X2W9290000W45140RV" 
+    lun "2" "Z1X4VRLL0000R535Y7J1" 
+    lun "3" "Z1X2RSNY0000W448X9PY" 
+    lun "4" "Z1X2WB5C0000W448X9YC" 
+    lun "5" "Z1X2RSSG0000W448XADY" 
+    lun "6" "Z1X4VXRT0000R535YADD" 
+    lun "7" "Z1X2RSTY00009444V679" 
+    lun "8" "Z1X2RSRQ0000W4513QD7" 
+    lun "9" "Z1X2X22A0000W4513NH3" 
+    lun "10" "Z1X2W8C00000W4513NCC" 
+    lun "13" "Z1X4T88A0000R524FWW4" 
+
+
+
+
+
+}
+
+
+[root@fr-2 ~]# 
+[root@fr-2 ~]# 
+###################################################################################
+
+
+
+
