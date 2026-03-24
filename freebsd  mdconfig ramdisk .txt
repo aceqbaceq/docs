@@ -1,0 +1,15 @@
+| freebsd
+| mdconfig
+| ram 
+| rest
+| ramdisk
+
+
+# mdconfig -a -t malloc -s 12g -u 100
+
+# fio --name=raw-ram --filename=/dev/md99 --ioengine=psync --rw=read --bs=1M --direct=1 --numjobs=1 --runtime=10 --time_based --group_reporting    --randrepeat=1  --gtod_reduce=1
+
+
+# mdconfig -d -u md100
+
+
