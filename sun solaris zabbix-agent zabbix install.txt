@@ -7,10 +7,36 @@
 
 если солярис 11
 
+
+вроде вот это самый простой способ
+
+
+
 -bash-3.00# mkdir Downloads && cd Downloads
 -bash-3.00# isainfo -kv
 64-bit sparcv9 kernel modules
 -bash-3.00#  curl -k -O https://cdn.zabbix.com/zabbix/binaries/stable/6.0/6.0.5/zabbix_agent-6.0.5-solaris-11-sparc-openssl.p5p
+
+
+pkg install --no-refresh -g /root/down/zabbix_agent-6.0.5-solaris-11-sparc-openssl.p5p zabbix-agent
+
+у нас появяатся файлы
+
+/etc/opt/zabbix-agent/zabbix_agentd.conf
+/lib/svc/manifest/system/zabbix-agent.xml
+/opt/zabbix-agent/bin/zabbix_get
+/opt/zabbix-agent/bin/zabbix_sender
+/opt/zabbix-agent/sbin/zabbix_agentd
+/opt/zabbix-agent/man/man8/zabbix_agentd.8
+/opt/zabbix-agent/man/man1/zabbix_get.1
+/opt/zabbix-agent/man/man1/zabbix_sender.1
+/var/zabbix/run/zabbix_agentd.pid
+/var/log/zabbix/zabbix_agentd.log
+/var/svc/log/system-zabbix-agent:default.log
+/root/down/zabbix_agent-6.0.5-solaris-11-sparc-openssl.p5p
+
+
+если он на чтото ругается то деаем вот так
 
 groupadd zabbix
 useradd -g zabbix -d /var/lib/zabbix -s /bin/false zabbix
@@ -30,7 +56,30 @@ root@master:~/Downloads# usermod -g zabbix zabbix
 
 # pkg install -v --no-refresh -g ./zabbix_agent-6.0.5-solaris-11-sparc-openssl.p5p zabbix-agent
 
+
+
+модицируем конфиг 
+/etc/opt/zabbix-agent/zabbix_agentd.conf
+
+и запускаем сервис
+svcadm enable  zabbix-agent
+
+проверяем сттус
+svcs zabbix-agent
+
+и еще можно влогах посмотреть
+cat /var/log/zabbix/zabbix_agentd.log
+cat /var/svc/log/system-zabbix-agent:default.log
+
+
+
+
+=====
 если солярис10
 pkgadd -G -d zabbix_agent-6.0.33-solaris-10-sparc-openssl.pkg
+
+
+
+
 
 
