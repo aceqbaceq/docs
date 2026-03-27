@@ -107,3 +107,10 @@ Width x4 (downgraded)
 
 
 
+а вот когда все ок
+
+# lspci -vv -s 07:00.0 | grep -E "LnkCap|LnkSta"
+        LnkCap: Port #8, Speed 8GT/s, Width x8, ASPM L0s, Exit Latency L0s unlimited
+        LnkSta: Speed 5GT/s (downgraded), Width x8
+        LnkCap2: Supported Link Speeds: 2.5-8GT/s, Crosslink- Retimer- 2Retimers- DRS-
+        LnkSta2: Current De-emphasis Level: -6dB, EqualizationComplete- EqualizationPhase1-
