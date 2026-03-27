@@ -1,0 +1,109 @@
+| pci-express
+| lspci
+| freebsd
+| mellanox
+
+узнать на ккой сростти работает  pci-e карта
+
+
+# pciconf -lvvc | grep -i mell -A 5 -B5
+                     0 VFs configured out of 64 supported
+                     First VF RID Offset 0x0180, VF RID Stride 0x0002
+                     VF Device ID 0x10ed
+                     Page Sizes: 4096 (enabled), 8192, 65536, 262144, 1048576, 4194304
+mlx4_core0@pci0:66:0:0:	class=0x020000 rev=0x00 hdr=0x00 vendor=0x15b3 device=0x1003 subvendor=0x15b3 subdevice=0x0051
+    vendor     = 'Mellanox Technologies'
+    device     = 'MT27500 Family [ConnectX-3]'
+    class      = network
+    subclass   = ethernet
+    cap 01[40] = powerspec 3  supports D0 D3  current D0
+    cap 03[48] = VPD
+--
+
+
+
+# pciconf -clv pci0:66:0:0
+mlx4_core0@pci0:66:0:0:	class=0x020000 rev=0x00 hdr=0x00 vendor=0x15b3 device=0x1003 subvendor=0x15b3 subdevice=0x0051
+    vendor     = 'Mellanox Technologies'
+    device     = 'MT27500 Family [ConnectX-3]'
+    class      = network
+    subclass   = ethernet
+    cap 01[40] = powerspec 3  supports D0 D3  current D0
+    cap 03[48] = VPD
+    cap 11[9c] = MSI-X supports 128 messages, enabled
+                 Table in map 0x10[0x7c000], PBA in map 0x10[0x7d000]
+    cap 10[60] = PCI-Express 2 endpoint max data 256(512)
+                 max read 4096
+                 link x2(x8) speed 8.0(8.0) ASPM disabled(L0s)
+    cap 09[c0] = vendor (length 24)
+    ecap 000e[100] = ARI 1
+    ecap 0003[148] = Serial 1 0002c903001baaa0
+    ecap 0001[154] = AER 2 0 fatal 0 non-fatal 0 corrected
+    ecap 0019[18c] = PCIe Sec 1 lane errors 0
+[root@dell-r720-freebsd ~]# poweroff
+
+
+
+
+здесь важно вот что 
+
+
+                 link x2(x8) speed 8.0(8.0) ASPM disabled(L0s)
+
+
+ оно гвортит от том что карта могла бы рабьать на скрости x8 но она работает
+ по факту на сркости x2 
+ в данном случае карта какаято ебнутьая
+
+
+а вот когда все окей
+
+
+]# pciconf -clv pci0:66:0:0
+mlx4_core0@pci0:66:0:0: class=0x028000 rev=0x00 hdr=0x00 vendor=0x15b3 device=0x1003 subvendor=0x15b3 subdevice=0x0051
+    vendor     = 'Mellanox Technologies'
+    device     = 'MT27500 Family [ConnectX-3]'
+    class      = network
+    cap 01[40] = powerspec 3  supports D0 D3  current D0
+    cap 03[48] = VPD
+    cap 11[9c] = MSI-X supports 128 messages, enabled
+                 Table in map 0x10[0x7c000], PBA in map 0x10[0x7d000]
+    cap 10[60] = PCI-Express 2 endpoint max data 256(512)
+                 max read 4096
+                 link x8(x8) speed 8.0(8.0) ASPM disabled(L0s)
+    cap 09[c0] = vendor (length 24)
+    ecap 000e[100] = ARI 1
+    ecap 0003[148] = Serial 1 0002c903001baa80
+    ecap 0001[154] = AER 2 0 fatal 0 non-fatal 0 corrected
+    ecap 0019[18c] = PCIe Sec 1 lane errors 0
+
+
+
+
+тоесть 
+                 link x8(x8) speed 8.0(8.0) ASPM disabled(L0s)
+
+
+
+
+                 
+
+
+
+ а вот как это же проряервять в LINUX
+
+
+ <pre># lspci -vv -s 07:00.0 | grep -E &quot;LnkCap|LnkSta&quot;
+		LnkCap:	Port #8, Speed 8GT/s, Width x8, ASPM L0s, Exit Latency L0s unlimited
+		LnkSta:	Speed 5GT/s (downgraded), Width x4 (downgraded)
+		LnkCap2: Supported Link Speeds: 2.5-8GT/s, Crosslink- Retimer- 2Retimers- DRS-
+		LnkSta2: Current De-emphasis Level: -6dB, EqualizationComplete- EqualizationPhase1-</pre>
+
+
+
+вот показана реальная скоросьт карты в слоте
+
+Width x4 (downgraded)
+
+
+
