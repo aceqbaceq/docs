@@ -990,6 +990,25 @@ net.ipv6.conf.lo.disable_ipv6 = 1
 
 
 
+
+
+     # cat /etc/pve/storage.cfg 
+dir: local
+	path /var/lib/vz
+	content vztmpl,iso
+	shared 0
+
+nfs: NFS-FREENAS-1
+	export /POOL-01/ds-proxmox-128K
+	path /mnt/pve/NFS-FREENAS-1
+	server 100.68.33.1
+	content images
+	options vers=3,sync,nconnect=8
+	preallocation off
+	prune-backups keep-all=1
+
+
+
 #################################################################
 
 
