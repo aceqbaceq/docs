@@ -1,0 +1,234 @@
+dell r720 connectX3 серер нфс
+hw.model: Intel(R) Xeon(R) CPU E5-2643 v2 @ 3.50GHz
+локальная скрость BW=7742MiB/s
+
+
+
+
+huiwevevi v3  клиент нфс
+Intel(R) Xeon(R) CPU E5-2699 v3 @ 2.30GHz
+
+
+
+
+
+на клиенте на карте connect X4 получаю срупут
+BW=4355MiB/s
+
+# numactl --cpunodebind=0 --membind=0 fio --randrepeat=1 --ioengine=io_uring --direct=1 --gtod_reduce=1 --name=test --filename=/mnt/ds-1M/fio.dat --bs=1M --iodepth=32 --runtime=30 --readwrite=read --numjobs=1 --group_reporting
+test: (g=0): rw=read, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=io_uring, iodepth=32
+fio-3.39
+Starting 1 process
+Jobs: 1 (f=1): [R(1)][100.0%][r=4379MiB/s][r=4379 IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=6688: Sun Mar 29 21:50:00 2026
+  read: IOPS=4354, BW=4355MiB/s (4566MB/s)(128GiB/30011msec)
+
+
+на этом же серверер клиенте нфс на карте connwct X3 получаю
+BW=3155MiB/s
+
+# numactl --cpunodebind=0 --membind=0  fio --randrepeat=1 --ioengine=io_uring --direct=1 --gtod_reduce=1 --name=test --filename=/mnt/ds-1M/fio.dat --bs=1M --iodepth=32 --runtime=30 --readwrite=read --numjobs=1 --group_reporting
+test: (g=0): rw=read, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=io_uring, iodepth=32
+fio-3.39
+Starting 1 process
+Jobs: 1 (f=1): [R(1)][100.0%][r=3157MiB/s][r=3157 IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=9107: Sun Mar 29 21:59:26 2026
+  read: IOPS=3154, BW=3155MiB/s (3308MB/s)(92.5GiB/30026msec)
+
+
+
+
+потом я подкрутил настройки на этом же клиенте
+auto enp129s0
+iface enp129s0 inet static
+    mtu 9000
+    address 100.69.55.4/24
+    # Вот эта магия:
+    post-up /usr/sbin/ethtool -L enp129s0 rx 32 tx 32 && /usr/local/bin/set_irq_affinity.sh enp129s0
+
+
+и он ингода (непонятно пчему не всегда ) стал покзыат   BW=4598MiB/s !!!
+
+# numactl --cpunodebind=0 --membind=0  fio --randrepeat=1 --ioengine=io_uring --direct=1 --gtod_reduce=1 --name=test --filename=/mnt/ds-1M/fio.dat --bs=1M --iodepth=32 --runtime=30 --readwrite=read --numjobs=1 --group_reporting
+test: (g=0): rw=read, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=io_uring, iodepth=32
+fio-3.39
+Starting 1 process
+Jobs: 1 (f=1): [R(1)][100.0%][r=4472MiB/s][r=4472 IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=4428: Sun Mar 29 23:22:24 2026
+  read: IOPS=4598, BW=4598MiB/s (4822MB/s)(135GiB/30008msec)
+
+
+
+
+
+
+
+
+
+итак на делл connectx4 я вставил
+а на хуйвей в3 стоит коннектx3
+
+
+root@huveiv3:~# numactl --cpunodebind=0 --membind=0  fio --randrepeat=1 --ioengine=io_uring --direct=1 --gtod_reduce=1 --name=test --filename=/mnt/ds-1M/fio.dat --bs=1M --iodepth=32 --runtime=30 --readwrite=read --numjobs=1 --group_reporting
+  read: IOPS=3516, BW=3517MiB/s (3688MB/s)(103GiB/30009msec)
+
+
+root@huveiv3:~# numactl --cpunodebind=1 --membind=1  fio --randrepeat=1 --ioengine=io_uring --direct=1 --gtod_reduce=1 --name=test --filename=/mnt/ds-1M/fio.dat --bs=1M --iodepth=32 --runtime=30 --readwrite=read --numjobs=1 --group_reporting
+  read: IOPS=1948, BW=1948MiB/s (2043MB/s)(57.1GiB/30022msec)
+
+
+тут видна разница когда фио крутитнся на томже цпу и тойже памяти что и карта сеетвая 
+или на сосднем нума домене
+
+так как цпу на хуйвее всего 2.4 и карта конект x3 то скосрть BW=3517MiB/s   а не BW=4355MiB/s
+чтобы на хуйвее скорсть стала BW=4355MiB/s то нужно либо более скоростные ядра или карта серии connect x4
+
+
+
+
+
+
+
+для прикола более старый сервер на цпу
+Intel(R) Xeon(R) CPU           X5650  @ 2.67GHz
+на нем pci-ex v2 (а не v3)
+и на нем pci-ex x8  выдает скорость 
+
+PCIe 3.0 x8:
+
+    Скорость одной линии: ~985 МБ/с.
+    Итого x8: ~7.88 Гбайт/с (~63 Гбит/с).
+    Этого с запасом хватает для 40Г сетевухи.
+
+PCIe 2.0 x8:
+
+    Скорость одной линии: ~500 МБ/с.
+    Итого x8: ~4.0 Гбайт/с (~32 Гбит/с).
+    Здесь ты упрешься в «бутылочное горлышко» шины.
+
+
+
+
+и у него разница на разных нума нодах вобще МИНИМАЛНАЯ! СХУЯЛИ НЕПОНИМАЮ!
+
+
+root@R710:~# numactl --cpunodebind=1 --membind=1  fio --randrepeat=1 --ioengine=io_uring --direct=1 --gtod_reduce=1 --name=test --filename=/mnt/ds-1M/fio.dat --bs=1M --iodepth=32 --runtime=30 --readwrite=read --numjobs=1 --group_reporting
+  read: IOPS=3229, BW=3229MiB/s (3386MB/s)(94.7GiB/30025msec)
+
+
+root@R710:~# numactl --cpunodebind=0 --membind=0  fio --randrepeat=1 --ioengine=io_uring --direct=1 --gtod_reduce=1 --name=test --filename=/mnt/ds-1M/fio.dat --bs=1M --iodepth=32 --runtime=30 --readwrite=read --numjobs=1 --group_reporting
+  read: IOPS=3305, BW=3305MiB/s (3466MB/s)(96.9GiB/30011msec)
+
+
+
+
+получается если карта connect x3 то похуй какого полкоколнения цпу
+Intel(R) Xeon(R) CPU E5-2699 v3 @ 2.30GHz
+Intel(R) Xeon(R) CPU           X5650  @ 2.67GHz
+
+и какая версия pci-ex v3 или в2 
+резутатат все равнодин и тотже BW=3305MiB/s
+
+
+
+
+ну ладно BW=3155MiB/s показвыает стабильно с хоста
+
+
+# mount -t nfs -o vers=4.2,sync,nconnect=16,rsize=1048576,wsize=1048576 100.69.55.3:/ds-1M /mnt/ds-1M
+
+root@huveiv3:~# ethtool -L enp3s0  rx 32 tx 32
+root@huveiv3:~# 
+root@huveiv3:~# /usr/local/bin/set_irq_affinity.sh enp3ы0
+---------------------------------------
+Optimizing IRQs for Single port traffic
+---------------------------------------
+Error - interface enp3ы0 does not exists
+No IRQs found for enp3ы0.
+
+
+done.
+root@huveiv3:~# /usr/local/bin/set_irq_affinity.sh enp3s0
+---------------------------------------
+Optimizing IRQs for Single port traffic
+---------------------------------------
+Note: interface name is not in /proc/interrupts, using the pci device IRQs
+Discovered irqs for enp3s0: 153 154 155 156 157 158 159 160 161 162 163 164 165 166 167 168 169 170 171 172 173 174 175 176 177 178 179 180 181 182 183 184 185 186 187 188 189
+Assign irq 153 core_id 0
+Assign irq 154 to its affinity_hint 00,00000000,00000001
+Assign irq 155 to its affinity_hint 00,00000000,00000002
+Assign irq 156 to its affinity_hint 00,00000000,00000004
+Assign irq 157 to its affinity_hint 00,00000000,00000008
+Assign irq 158 to its affinity_hint 00,00000000,00000010
+Assign irq 159 to its affinity_hint 00,00000000,00000020
+Assign irq 160 to its affinity_hint 00,00000000,00000040
+Assign irq 161 to its affinity_hint 00,00000000,00000080
+Assign irq 162 to its affinity_hint 00,00000000,00000100
+Assign irq 163 to its affinity_hint 00,00000000,00000200
+Assign irq 164 to its affinity_hint 00,00000000,00000400
+Assign irq 165 to its affinity_hint 00,00000000,00000800
+Assign irq 166 to its affinity_hint 00,00000000,00001000
+Assign irq 167 to its affinity_hint 00,00000000,00002000
+Assign irq 168 to its affinity_hint 00,00000000,00004000
+Assign irq 169 to its affinity_hint 00,00000000,00008000
+Assign irq 170 to its affinity_hint 00,00000000,00010000
+Assign irq 171 to its affinity_hint 00,00000000,00020000
+Assign irq 172 to its affinity_hint 00,00000000,00040000
+Assign irq 173 to its affinity_hint 00,00000000,00080000
+Assign irq 174 to its affinity_hint 00,00000000,00100000
+Assign irq 175 to its affinity_hint 00,00000000,00200000
+Assign irq 176 to its affinity_hint 00,00000000,00400000
+Assign irq 177 to its affinity_hint 00,00000000,00800000
+Assign irq 178 to its affinity_hint 00,00000000,01000000
+Assign irq 179 to its affinity_hint 00,00000000,02000000
+Assign irq 180 to its affinity_hint 00,00000000,04000000
+Assign irq 181 to its affinity_hint 00,00000000,08000000
+Assign irq 182 to its affinity_hint 00,00000000,10000000
+Assign irq 183 to its affinity_hint 00,00000000,20000000
+Assign irq 184 to its affinity_hint 00,00000000,40000000
+Assign irq 185 to its affinity_hint 00,00000000,80000000
+Assign irq 186 to its affinity_hint 00,00000001,00000000
+Assign irq 187 to its affinity_hint 00,00000002,00000000
+Assign irq 188 to its affinity_hint 00,00000004,00000000
+Assign irq 189 to its affinity_hint 00,00000008,00000000
+
+
+done.
+root@huveiv3:~# 
+root@huveiv3:~# 
+root@huveiv3:~# numactl --cpunodebind=0 --membind=0  fio --randrepeat=1 --ioengine=io_uring --direct=1 --gtod_reduce=1 --name=test --filename=/mnt/ds-1M/fio.dat --bs=1M --iodepth=32 --runtime=30 --readwrite=read --numjobs=1 --group_reporting
+test: (g=0): rw=read, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=io_uring, iodepth=32
+fio-3.39
+Starting 1 process
+Jobs: 1 (f=1): [R(1)][100.0%][r=3510MiB/s][r=3510 IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=3642: Sun Mar 29 23:56:33 2026
+  read: IOPS=3583, BW=3583MiB/s (3757MB/s)(105GiB/30025msec)
+   bw (  MiB/s): min= 3436, max= 4090, per=100.00%, avg=3588.86, stdev=93.37, samples=59
+   iops        : min= 3436, max= 4090, avg=3588.78, stdev=93.41, samples=59
+  cpu          : usr=2.01%, sys=3.92%, ctx=101106, majf=0, minf=5
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.1%, 8=0.1%, 16=0.1%, 32=100.0%, >=64=0.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.1%, 64=0.0%, >=64=0.0%
+     issued rwts: total=107582,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=32
+
+Run status group 0 (all jobs):
+   READ: bw=3583MiB/s (3757MB/s), 3583MiB/s-3583MiB/s (3757MB/s-3757MB/s), io=105GiB (113GB), run=30025-30025msec
+root@huveiv3:~# 
+
+
+
+потом комп постоял и вот резуьльтат
+# numactl --cpunodebind=0 --membind=0  fio --randrepeat=1 --ioengine=io_uring --direct=1 --gtod_reduce=1 --name=test --filename=/mnt/ds-1M/fio.dat --bs=1M --iodepth=32 --runtime=30 --readwrite=read --numjobs=1 --group_reporting
+test: (g=0): rw=read, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=io_uring, iodepth=32
+fio-3.39
+Starting 1 process
+Jobs: 1 (f=1): [R(1)][100.0%][r=4584MiB/s][r=4584 IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=6250: Mon Mar 30 00:07:06 2026
+  read: IOPS=4658, BW=4659MiB/s (4885MB/s)(137GiB/30016msec)
+
+
+BW=4659MiB/s  (!!!)
+
+
+
