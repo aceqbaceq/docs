@@ -5,7 +5,7 @@
 устанвока
 
   522  pkgadd -G -d http://get.opencsw.org/now
-  525  /opt/csw/bin/pkgutil -i mc  -p pkgaddopts:-G
+  525  /opt/csw/bin/pkgutil -i sudo  -p pkgaddopts:-G
 
 
 запуск
