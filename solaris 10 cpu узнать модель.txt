@@ -1,0 +1,35 @@
+| solaris 10
+| cpu 
+| model
+
+узнат  модцель процессора
+
+
+bash-3.00# kstat -m cpu_info | grep implementation
+
+        implementation                  UltraSPARC-T1 (cpuid 0 clock 1000 MHz)
+        implementation                  UltraSPARC-T1 (cpuid 1 clock 1000 MHz)
+        implementation                  UltraSPARC-T1 (cpuid 2 clock 1000 MHz)
+        implementation                  UltraSPARC-T1 (cpuid 3 clock 1000 MHz)
+        implementation                  UltraSPARC-T1 (cpuid 4 clock 1000 MHz)
+        implementation                  UltraSPARC-T1 (cpuid 5 clock 1000 MHz)
+        implementation                  UltraSPARC-T1 (cpuid 6 clock 1000 MHz)
+        implementation                  UltraSPARC-T1 (cpuid 7 clock 1000 MHz)
+        implementation                  UltraSPARC-T1 (cpuid 8 clock 1000 MHz)
+        implementation                  UltraSPARC-T1 (cpuid 9 clock 1000 MHz)
+        implementation                  UltraSPARC-T1 (cpuid 10 clock 1000 MHz)
+        implementation                  UltraSPARC-T1 (cpuid 11 clock 1000 MHz)
+        implementation                  UltraSPARC-T1 (cpuid 12 clock 1000 MHz)
+        implementation                  UltraSPARC-T1 (cpuid 13 clock 1000 MHz)
+        implementation                  UltraSPARC-T1 (cpuid 14 clock 1000 MHz)
+        implementation                  UltraSPARC-T1 (cpuid 15 clock 1000 MHz)
+        implementation                  UltraSPARC-T1 (cpuid 16 clock 1000 MHz)
+        implementation                  UltraSPARC-T1 (cpuid 17 clock 1000 MHz)
+        implementation                  UltraSPARC-T1 (cpuid 18 clock 1000 MHz)
+        implementation                  UltraSPARC-T1 (cpuid 19 clock 1000 MHz)
+        implementation                  UltraSPARC-T1 (cpuid 20 clock 1000 MHz)
+        implementation                  UltraSPARC-T1 (cpuid 21 clock 1000 MHz)
+        implementation                  UltraSPARC-T1 (cpuid 22 clock 1000 MHz)
+        implementation                  UltraSPARC-T1 (cpuid 23 clock 1000 MHz)
+
+        

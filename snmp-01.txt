@@ -1,0 +1,45 @@
+
+(*)Версия соляриса
+
+# uname -ar
+SunOS  5.11 11.2 sun4v sparc SUNW,SPARC-Enterprise-T5220
+
+
+
+(*)конфиг SNMP сервера
+
+# cat /etc/net-snmp/snmp/snmpd.conf  | grep -v '#'
+
+
+rocommunity vasya 100.100.0.1 -V systemview
+view systemview included .1.3.6.1.2.1.25
+
+
+(*)служба
+
+# svcadm enable net-snmp
+# svcs net-snmp
+STATE          STIME    FMRI
+online         23:12:18 svc:/application/management/net-snmp:default
+
+
+
+(*)статус сокета
+
+# netstat -an -P udp | grep 161
+
+      *.11161                             Idle
+      *.11161                                                       Idle       
+
+
+
+
+(*) проверка трафика ломиться ктото на сервер или нет
+
+# snoop -d aggr0.12 udp port 161
+Using device aggr0.12 (promiscuous mode)
+
+
+(*) проверка с клиента
+
+snmpwalk -v 2c -c oassinfra <IP_сервера>

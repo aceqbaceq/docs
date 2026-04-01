@@ -229,6 +229,24 @@ test: (groupid=0, jobs=1): err= 0: pid=6250: Mon Mar 30 00:07:06 2026
 
 
 BW=4659MiB/s  (!!!)
+и даже
+BW=4697MiB/s
 
 
+
+далее я сделал sync=disabled на пуле
+и запустил запись
+
+# numactl --cpunodebind=0 --membind=0  fio --randrepeat=1 --ioengine=io_uring --direct=1 --gtod_reduce=1 --name=test --filename=/mnt/ds-1M/fio.dat --bs=1M --iodepth=32 --runtime=30 --readwrite=write --numjobs=1 --group_reporting
+test: (g=0): rw=write, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=io_uring, iodepth=32
+fio-3.39
+Starting 1 process
+Jobs: 1 (f=1): [W(1)][100.0%][w=4624MiB/s][w=4624 IOPS][eta 00m:00s]
+test: (groupid=0, jobs=1): err= 0: pid=105133: Tue Mar 31 00:36:16 2026
+  write: IOPS=4488, BW=4489MiB/s (4707MB/s)(132GiB/30011msec); 0 zone resets
+
+
+BW=4489MiB/s 
+
+(при том что локалная скосррость записи при sync=disabled равна  BW=6189MiB/s)
 

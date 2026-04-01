@@ -1,0 +1,26 @@
+| solaris 10
+| dns
+| resolvere
+
+настрыиается очень просто (вотличииот 11)
+
+# cat /etc/resolv.conf 
+domain local 
+nameserver 1.1.1.1
+
+
+# cat /etc/nsswitch.conf  | grep hosts
+hosts:      dns files
+
+
+
+переазапуск службы
+
+# svcadm restart name-service-cache
+
+
+ВСЕ!
+
+
+
+
