@@ -12,7 +12,9 @@
 добватить
 
 
-PATH=/opt/csw/sbin:/opt/csw/bin:$PATH
+PATH=/opt/csw/sbin:/opt/csw/bin:/usr/sbin:/usr/bin:/bin:/sbin:/usr/bin:/usr/local/bin:/usr/ccs/bin:/usr/sfw/bin:$PATH
 export PATH
+
+
 
 
