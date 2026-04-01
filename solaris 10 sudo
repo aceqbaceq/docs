@@ -1,0 +1,15 @@
+| solaris 
+| solaris 10 
+| sudo
+
+в нем нет sudo по дефолту
+ставим его из opencsw
+
+так вот файл sudoers он тоже лежит в ебенево
+
+  # /opt/csw/sbin/visudo -f /etc/opt/csw/sudoers
+
+чтобы система для всех юзеров автоматом искаала бинарнкии по пути /opt/csw/bin или sbin
+нужно PATH добавить в /etc/profle
+
+
