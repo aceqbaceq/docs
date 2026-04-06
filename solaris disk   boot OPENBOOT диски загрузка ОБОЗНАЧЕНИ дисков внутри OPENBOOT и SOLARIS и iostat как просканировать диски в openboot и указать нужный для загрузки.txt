@@ -1,0 +1,265 @@
+| solaris
+| disk
+| boot
+| openboot
+| scsi
+| загрузка
+
+
+про протокол scsi и иже с ним.
+
+комп включился и контроллер дисков ожил.
+он вначале по протоколу SMP (sas manaement protol) опрашывает свои
+порты. ему с той сороны полка либо сразу голые диски сообщают о дырках в котоыре
+они воткнуты. и контроллер каждую такую дырку называет TARGET. на дырке сидит scsi устрйоство.
+оно имеет scsi wwwn. оно его сообщает. внутри этого scsi устрйоства есть один или более LUN
+и каждый такой лун солярис назывет diskN или d0 хотя этониккой не диск это LUN суука.
+исходя из этого солярис создает нам вот такие штуки
+
+   c0t0d0
+   c0t1d0
+   c2t2d0
+
+по хоршему тут должно быол быт написано 
+
+   c0t0LUN0
+   c0t0LUN0
+   c2t2LUN0
+
+
+c0 - контроллер
+t1 - это номер дырки в которую воткнуто scsi устрйоство. под дыркой понимается дырка 
+на той стороны sas enclosure
+
+[   контроллер          ]                [    sas enclosere               ]
+   контроллер ---- порт --- провод --- порт                дырка -- диск
+                                                           дырка -- диск
+                                                           дырка -- диск
+
+
+как правило в дырку вотнкнут просто диск. тоеть хрень у которогй олько один LUN
+но может быть и более сложное устсрсвтово которое имеет болше чем один LUN
+
+
+поэтому чаще всего мы имеем d0 а не d5 или d8
+
+честнр говоря какой нахуй таргет имеет тот или ной диск я не понимаю зачем это нужно
+потому что при передаче данных по проводу  от контроллера в полку по SCSI протолку  в проводе летит только wwn диска. никакого номера дырки\таргета там нихуя нет.
+
+выгялиттак. мы пишем в /dev/dsk/c0t0d0 тогда драйвер смотрит у себя в таблице какой wwn
+имеет диск который сидит на такой то дырке и уже в провод сует наши байты и адрес назначения
+такойто wwn 
+
+
+итак со смыслом cNtNdN разодрались. это типа такая добвнялшака от соляриса чбтобы мы примерно
+представляли где этот диск воткнут.
+
+
+
+теперь вот про что.
+
+
+
+
+        NAME          STATE     READ WRITE CKSUM
+        rpool         ONLINE       0     0     0
+          mirror-0    ONLINE       0     0     0
+            c0t1d0s0  ONLINE       0     0     0
+            c0t0d0s0  ONLINE       0     0     0  17.7G resilvered
+
+
+
+
+
+-bash-3.00# format
+Searching for disks...done
+
+AVAILABLE DISK SELECTIONS:
+       0. c0t0d0 <SUN72G cyl 14087 alt 2 hd 24 sec 424>
+          /pci@780/pci@0/pci@9/scsi@0/sd@0,0
+       1. c0t1d0 <SUN72G cyl 14087 alt 2 hd 24 sec 424>
+          /pci@780/pci@0/pci@9/scsi@0/sd@1,0
+       2. c0t2d0 <FUJITSU-MAY2073RCSUN72G-0501-68.37GB>
+          /pci@780/pci@0/pci@9/scsi@0/sd@2,0
+Specify disk (enter its number): 1
+
+partition> p
+Current partition table (original):
+Total disk cylinders available: 14087 + 2 (reserved cylinders)
+
+Part      Tag    Flag     Cylinders         Size            Blocks
+  0       root    wm       0 - 14086       68.35GB    (14087/0/0) 143349312
+  1       swap    wu       0                0         (0/0/0)             0
+  2     backup    wu       0 - 14086       68.35GB    (14087/0/0) 143349312
+  3 unassigned    wm       0                0         (0/0/0)             0
+  4 unassigned    wm       0                0         (0/0/0)             0
+  5 unassigned    wm       0                0         (0/0/0)             0
+  6        usr    wm       0                0         (0/0/0)             0
+  7 unassigned    wm       0                0         (0/0/0)             0
+
+partition> 
+
+
+
+итак диск(а точнее LUN) c0t0d0 разбит на слайсы 0,1,2,3,4,5,6,7
+
+каждый из слайсов имеет вот такой адрес
+
+# ls  -1al /dev/dsk/c0t1d0s0
+ /dev/dsk/c0t1d0s0 -> ../../devices/pci@780/pci@0/pci@9/scsi@0/sd@1,0:a
+
+# ls  -1al /dev/dsk/c0t1d0s2
+/dev/dsk/c0t1d0s2 -> ../../devices/pci@780/pci@0/pci@9/scsi@0/sd@1,0:c
+
+где
+pci@780/pci@0/pci@9/ это некая pci адресация на шине pci всяких там мостов разветивителей
+
+scsi@0 это типа скази контроллер
+
+
+sd@1,0:a  это типа отображает диск на этом контролере с TARGET=1 LUN=0  SLICE=a(или 0 что одно
+и тоже)
+
+тоестьв вот это
+
+scsi@0/sd@1,0:a  = c0 t1 d0 s0
+
+
+справшиывается нахуй в этом нужно разбираться? а потому что при загрузке в OPENBOOT 
+там указывается с какого диска грузится не в виде c0t0d0 а как раз в виде  pci адреса
+тоесть это для нас солярис создает "удобный" адрес диска как c0t0d0s0
+а для себя самого он юзает ../../devices/pci@780/pci@0/pci@9/scsi@0/sd@1,0:a
+нам бы это похуй если бы не загрузка через OPENBOOT который нчиего незнает про c0t0d0
+а знает только про pci адреса
+
+вот мы сидим в алом 
+и вводим команду
+
+{0} ok  probe-scsi-all
+This command may hang the system if a Stop-A or halt command
+has been executed.  Please type reset-all to reset the system 
+before executing this command. 
+Do you wish to continue? (y/n) y
+/pci@780/pci@0/pci@9/scsi@0
+
+MPT Version 1.05, Firmware Version 1.09.00.00
+
+Target 0 
+Unit 0   Disk     FUJITSU MAY2073RCSUN72G 0501    143374738 Blocks, 73 GB
+  SASAddress 500000e01465a9e2  PhyNum 0 
+Target 1 
+Unit 0   Disk     FUJITSU MAY2073RCSUN72G 0501    143374738 Blocks, 73 GB
+  SASAddress 500000e0169bb312  PhyNum 1 
+Target 2 
+Unit 0   Disk     FUJITSU MAY2073RCSUN72G 0501    143374738 Blocks, 73 GB
+  SASAddress 500000e01491ffc2  PhyNum 2 
+
+
+здесь нам показали pci адрес дискового контролелера
+
+		/pci@780/pci@0/pci@9/scsi@0
+
+и диски
+
+Target 1 
+Unit 0   Disk     FUJITSU MAY2073RCSUN72G 0501    143374738 Blocks, 73 GB
+  SASAddress 500000e0169bb312  PhyNum 1 
+
+а именно то что этот диск имеет TARGET=1  LUN=0(или DISK=0) 
+
+соотвасвтенно если я хочу загрузится с этого диска я ввожу
+
+{ok} boot /pci@780/pci@0/pci@9/scsi@0/disk@1,0:a
+
+
+тут видна очередная подьебка. если внутри соляриса адрес диска выглядел бы как
+		/pci@780/pci@0/pci@9/scsi@0/sd@1,0:a
+то в обенбут он имеет адрес
+		/pci@780/pci@0/pci@9/scsi@0/disk@1,0:a
+
+
+
+
+
+есть еще моемент где эта енутая pci адресайия дисков пригоджается
+если солярис находит ошибку на диске то он в консоли рриисует адрес диска имеено в 
+pci нотации
+
+
+WARNING: /pci@780/pci@0/pci@9/scsi@0/sd@2,0 (sd0):
+        Error for Command: read(10)                Error Level: Retryable
+        Requested Block: 61874688                  Error Block: 61874736
+        Vendor: FUJITSU                            Serial Number: 0708S08LLL  
+        Sense Key: Media Error
+        ASC: 0x11 (read retries exhausted), ASCQ: 0x1, FRU: 0x0
+
+
+а именно 
+
+			/pci@780/pci@0/pci@9/scsi@0/sd@2,0
+
+правда туже рядышком он дает еще одну расшифроку  (sd0)
+где sd0 еще один ебанутый способ оохначения дисков.
+связь между одним и друим указана вот тут
+
+
+
+	# grep sd /etc/path_to_inst
+"/pci@780/pci@0/pci@9/scsi@0/sd@2,0" 0 "sd"
+"/pci@780/pci@0/pci@9/scsi@0/sd@0,0" 1 "sd"
+"/pci@780/pci@0/pci@9/scsi@0/sd@1,0" 3 "sd"
+"/pci@780/pci@0/pci@9/scsi@0/sd@3,0" 4 "sd"
+"/pci@780/pci@0/pci@9/scsi@0/sd@4,0" 5 "sd"
+
+
+
+
+вот эту нотацию дисков через sdN  можно встреить в iostat
+
+
+-bash-3.00# iostat -E
+sd0       Soft Errors: 2 Hard Errors: 21 Transport Errors: 9 
+Vendor: FUJITSU  Product: MAY2073RCSUN72G  Revision: 0501 Serial No: 0708S08LLL 
+Size: 73.41GB <73407865856 bytes>
+Media Error: 18 Device Not Ready: 0 No Device: 3 Recoverable: 2 
+Illegal Request: 7 Predictive Failure Analysis: 0 
+
+sd1       Soft Errors: 0 Hard Errors: 0 Transport Errors: 0 
+Vendor: FUJITSU  Product: MAY2073RCSUN72G  Revision: 0501 Serial No: 0706S08F2V 
+Size: 73.41GB <73407865856 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 0 Recoverable: 0 
+Illegal Request: 5 Predictive Failure Analysis: 0 
+
+sd2       Soft Errors: 0 Hard Errors: 0 Transport Errors: 1 
+Vendor: MATSHITA Product: CD-RW  CW-8124   Revision: DZ13 Serial No:  
+Size: 0.00GB <0 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 0 Recoverable: 0 
+Illegal Request: 1 Predictive Failure Analysis: 0 
+
+sd3       Soft Errors: 0 Hard Errors: 0 Transport Errors: 0 
+Vendor: FUJITSU  Product: MAY2073RCSUN72G  Revision: 0501 Serial No: 0729S0CCTD 
+Size: 73.41GB <73407865856 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 0 Recoverable: 0 
+Illegal Request: 4 Predictive Failure Analysis: 0 
+
+
+
+
+
+итак в этом куске было рассмотрено
+  1) три способа обознчения дисков и слайсов на них ВНУТРИ СОЛЯРИСА
+     c0t2d0s0
+     /pci@780/pci@0/pci@9/scsi@0/sd@2,0:a
+     sd0
+
+  2) один способ обоанчения дисков в OPENBOOT
+     /pci@780/pci@0/pci@9/scsi@0/disk@2,0:a
+
+
+  3) как найти и правильно укзаать диск с которого грузтся в openboot
+
+
+
+
+ВОТ ТАКАЯ ЕБНААЯ ХУЕТА
+
