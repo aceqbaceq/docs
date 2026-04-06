@@ -243,6 +243,15 @@ Media Error: 0 Device Not Ready: 0 No Device: 0 Recoverable: 0
 Illegal Request: 4 Predictive Failure Analysis: 0 
 
 
+ТАКЖЕ ВАЖНО!!
+  как сделать диск загрузочным
+
+    # installboot /usr/platform/`uname -i`/lib/fs/zfs/bootblk /dev/rdsk/c0t0d0s0
+
+причем я настаиваю что эту хуйню нужно делать только после того как 
+диск полностью отрезилверился. потому что я делал до и нихуя не грузился он тогда 
+с этого диска
+
 
 
 
@@ -257,7 +266,242 @@ Illegal Request: 4 Predictive Failure Analysis: 0
 
 
   3) как найти и правильно укзаать диск с которого грузтся в openboot
+  
+  4) как сделать диск загрузчоным
 
+
+
+вот еще раз пример
+поппали мы в openBOOT 
+это можно сделать в алом через 
+
+    sc> break -c
+либо из соляриса через 
+    # halt
+
+
+
+
+{ok}
+
+замеч что openboot он не в режиме алом виден а в режиме консоли
+тоесть
+
+ sc> breal -c
+ sc> console -f
+
+{ok}
+
+сканиурем все доатстуаные диски
+
+{0} ok probe-scsi-all
+/pci@780/pci@0/pci@9/scsi@0
+
+
+Target 0 
+Unit 0   Disk     FUJITSU MAY2073RCSUN72G 0501    143374738 Blocks, 73 GB
+  SASAddress 500000e01465a9e2  PhyNum 0 
+Target 1 
+Unit 0   Disk     FUJITSU MAY2073RCSUN72G 0501    143374738 Blocks, 73 GB
+  SASAddress 500000e0169bb312  PhyNum 1 
+Target 2 
+Unit 0   Disk     FUJITSU MAY2073RCSUN72G 0501    143374738 Blocks, 73 GB
+  SASAddress 500000e01491ffc2  PhyNum 2 
+
+здесь мы видим адрес диск контроллера 
+
+  /pci@780/pci@0/pci@9/scsi@0
+
+и диски
+
+тогда нужно написать 
+
+ {ok}  boot   /pci@780/pci@0/pci@9/scsi@0/disk@(номер таргета),(номер юнита):имя слайса
+
+
+тоесть 
+{0} ok boot /pci@780/pci@0/pci@9/scsi@0/disk@0,0:a
+
+причем я проверил нужноименно имя слайса. если вместо ":a" поставить ":0" то идешь нахуй
+загрузка закончится пиздецом
+
+
+если диск efi и там не слайсов то как я понимаю нужно вот так
+
+{0} ok boot /pci@780/pci@0/pci@9/scsi@0/disk@0,0
+
+
+
+тперь как настроить загрузку так чтобы несколько дисков солярис
+пробовал 
+грузмися в опенбут
+и смотрим что унас настроенро в плане алиасов
+алиасы это короткие имена чтобы не писать длинуную хрень
+
+
+
+{11} ok devalias
+ttya                     /pci@7c0/pci@0/pci@1/pci@0/isa@2/serial@0,3f8
+nvram                    /virtual-devices/nvram@3
+net3                     /pci@7c0/pci@0/pci@2/network@0,1
+net2                     /pci@7c0/pci@0/pci@2/network@0
+net1                     /pci@780/pci@0/pci@1/network@0,1
+net0                     /pci@780/pci@0/pci@1/network@0
+net                      /pci@780/pci@0/pci@1/network@0
+ide                      /pci@7c0/pci@0/pci@1/pci@0/ide@8
+cdrom                    /pci@7c0/pci@0/pci@1/pci@0/ide@8/cdrom@0,0:f
+disk3                    /pci@780/pci@0/pci@9/scsi@0/disk@3
+disk2                    /pci@780/pci@0/pci@9/scsi@0/disk@2
+disk1                    /pci@780/pci@0/pci@9/scsi@0/disk@1
+disk0                    /pci@780/pci@0/pci@9/scsi@0/disk@0
+disk                     /pci@780/pci@0/pci@9/scsi@0/disk@0
+scsi                     /pci@780/pci@0/pci@9/scsi@0
+virtual-console          /virtual-devices/console@1
+name                     aliases
+
+вот у нас ест тут несолкьк дисков
+disk3                    /pci@780/pci@0/pci@9/scsi@0/disk@3
+disk2                    /pci@780/pci@0/pci@9/scsi@0/disk@2
+disk1                    /pci@780/pci@0/pci@9/scsi@0/disk@1
+disk0                    /pci@780/pci@0/pci@9/scsi@0/disk@0
+disk                     /pci@780/pci@0/pci@9/scsi@0/disk@0
+
+но мне ненрристя так как указан только таргет , не указан лун и не указан слайс.
+щас мы поправим.
+наши загрузчные диски это c0t0d0 c0t1d0
+щас их найдем
+
+
+{11} ok probe-scsi-all
+This command may hang the system if a Stop-A or halt command
+has been executed.  Please type reset-all to reset the system 
+before executing this command. 
+Do you wish to continue? (y/n) y
+/pci@780/pci@0/pci@9/scsi@0
+
+MPT Version 1.05, Firmware Version 1.09.00.00
+
+Target 0 
+Unit 0   Disk     FUJITSU MAY2073RCSUN72G 0501    143374738 Blocks, 73 GB
+  SASAddress 500000e01465a9e2  PhyNum 0 
+Target 1 
+Unit 0   Disk     FUJITSU MAY2073RCSUN72G 0501    143374738 Blocks, 73 GB
+  SASAddress 500000e0169bb312  PhyNum 1 
+Target 2 
+Unit 0   Disk     FUJITSU MAY2073RCSUN72G 0501    143374738 Blocks, 73 GB
+  SASAddress 500000e01491ffc2  PhyNum 2 
+
+
+значит наши загрузоные слайсы это 
+
+
+/pci@780/pci@0/pci@9/scsi@0/disk@0,0:a
+/pci@780/pci@0/pci@9/scsi@0/disk@1,0:a
+
+сделам для них алиасы
+
+прсмотри ткущиъ алиасов
+
+{0} ok devalias
+
+boot1                    /pci@780/pci@0/pci@9/scsi@0/disk@1,0:a
+boot0                    /pci@780/pci@0/pci@9/scsi@0/disk@0,0:a
+ttya                     /pci@7c0/pci@0/pci@1/pci@0/isa@2/serial@0,3f8
+nvram                    /virtual-devices/nvram@3
+net3                     /pci@7c0/pci@0/pci@2/network@0,1
+net2                     /pci@7c0/pci@0/pci@2/network@0
+net1                     /pci@780/pci@0/pci@1/network@0,1
+net0                     /pci@780/pci@0/pci@1/network@0
+net                      /pci@780/pci@0/pci@1/network@0
+ide                      /pci@7c0/pci@0/pci@1/pci@0/ide@8
+cdrom                    /pci@7c0/pci@0/pci@1/pci@0/ide@8/cdrom@0,0:f
+disk3                    /pci@780/pci@0/pci@9/scsi@0/disk@3
+disk2                    /pci@780/pci@0/pci@9/scsi@0/disk@2
+disk1                    /pci@780/pci@0/pci@9/scsi@0/disk@1
+disk0                    /pci@780/pci@0/pci@9/scsi@0/disk@0
+disk                     /pci@780/pci@0/pci@9/scsi@0/disk@0
+scsi                     /pci@780/pci@0/pci@9/scsi@0
+virtual-console          /virtual-devices/console@1
+name                     aliases
+
+
+как удалять алиасы я так нихуя и непнял. команда
+
+ {ok} nvunalias нихуя не работает
+
+можно сделать очень грубо. спросбить все на дефолт
+
+  # set-defaults
+
+и применить
+
+   # reset-all  (по факту они ничего нерестит а применяет новые настройки )
+
+
+далее создаю новые алиасы
+
+{0} ok nvalias boot0 /pci@780/pci@0/pci@9/scsi@0/disk@0,0:a
+{0} ok nvalias boot1 /pci@780/pci@0/pci@9/scsi@0/disk@1,0:a
+
+
+далее нужно добавить эти новые диски в устройства с которых он грузится
+для этого printenv покжает вообще все хуйнюшки
+
+
+{0} ok 
+{0} ok printenv
+Variable Name           Value                          Default Value
+
+ttya-rts-dtr-off        false                          false
+ttya-ignore-cd          true                           true
+reboot-command                                         
+security-mode           none                           No default
+security-password                                      No default
+security-#badlogins     0                              No default
+verbosity               min                            min
+pci-mem64?              false                          false
+diag-switch?            false                          false
+local-mac-address?      true                           true
+fcode-debug?            false                          false
+scsi-initiator-id       7                              7
+oem-logo                                               No default
+oem-logo?               false                          false
+oem-banner                                             No default
+oem-banner?             false                          false
+ansi-terminal?          true                           true
+screen-#columns         80                             80
+
+
+но нам нужна одна
+
+{0} ok printenv boot-device 
+boot-device =          disk net
+
+меняю на 
+
+
+{0} ok setenv boot-device boot0 boot1        
+boot-device =           boot0 boot1
+
+проверяю
+{0} ok printenv boot-device
+boot-device =           boot0 boot1
+
+
+
+все sun будет пвтатся грузится с двух дисков 
+
+еще вот этот параметр влияет на то автоматом ли сан пытается грузиь ос
+
+ok printenv auto-boot?
+auto-boot? =            true
+
+("auto-boot?" это такое ебанутое название ключа )
+
+ 
+
+думаю это можно и из соляриса тоже правтиь. но хуй знает как  чеез команду eeprom 
+я полагаю
 
 
 
