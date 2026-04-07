@@ -662,6 +662,48 @@ nvramrc =               devalias boot1 /pci@780/pci@0/pci@9/scsi@0/disk@1,0:a
 еще и имя кернела и параметры его запуска. 
 
 
+
+еще ебанизм
+как я уже сказал после созаняи алиаса ты его хуй изменишь.
+спасает только перезагрзука
+и может быть несколко алиасво с одним именем
+
+{1b} ok devalias     
+disk                     ""
+disk                     NULL
+boot0                    /pci@780/pci@0/pci@9/scsi@0/disk@0,0:a
+boot1                    /pci@780/pci@0/pci@9/scsi@0/disk@1,0:a
+ttya                     /pci@7c0/pci@0/pci@1/pci@0/isa@2/serial@0,3f8
+nvram                    /virtual-devices/nvram@3
+net3                     /pci@7c0/pci@0/pci@2/network@0,1
+net2                     /pci@7c0/pci@0/pci@2/network@0
+net1                     /pci@780/pci@0/pci@1/network@0,1
+net0                     /pci@780/pci@0/pci@1/network@0
+net                      /pci@780/pci@0/pci@1/network@0
+ide                      /pci@7c0/pci@0/pci@1/pci@0/ide@8
+cdrom                    /pci@7c0/pci@0/pci@1/pci@0/ide@8/cdrom@0,0:f
+disk3                    /pci@780/pci@0/pci@9/scsi@0/disk@3
+disk2                    /pci@780/pci@0/pci@9/scsi@0/disk@2
+disk1                    /pci@780/pci@0/pci@9/scsi@0/disk@1
+disk0                    /pci@780/pci@0/pci@9/scsi@0/disk@0
+disk                     /pci@780/pci@0/pci@9/scsi@0/disk@0
+scsi                     /pci@780/pci@0/pci@9/scsi@0
+virtual-console          /virtual-devices/console@1
+name                     aliases
+
+как виднно тут 
+
+disk                     ""
+disk                     NULL
+disk                     /pci@780/pci@0/pci@9/scsi@0/disk@0
+
+
+как бы чего бляльльь?!?!?!?!?!!?
+нет ответа
+
+
+
+
 ВОТ ТАКАЯ ЕБНААЯ ХУЕТА
 
 
