@@ -1,0 +1,19 @@
+| solaris
+| sparc
+| openboot
+
+как узнать mac адрес сет карты наверно первой сет карты
+
+{1} ok .enet-addr
+0:14:4f:7e:88:e6
+
+
+или
+{1} ok banner
+
+Sun Fire T200, No Keyboard
+Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+OpenBoot 4.26.1, 8064 MB memory available, Serial #75401446.
+Ethernet address 0:14:4f:7e:88:e6, Host ID: 847e88e6.
+
+
