@@ -1,0 +1,11 @@
+| mutt
+| smtp
+
+как отослать письмо в командной строке
+
+
+cat servers.txt  | mutt -e 'set from="vasya@kk.ru"; set smtp_url="smtp://10.3.2.5:25/";set ssl_starttls=no; set ssl_force_tls=no' -s "ТЕМА" -- petya@bb.ru
+
+
+
+
