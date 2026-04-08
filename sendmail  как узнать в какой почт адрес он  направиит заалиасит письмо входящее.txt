@@ -1,0 +1,31 @@
+| sendmail
+| user
+| domain
+
+
+
+если  у меня есть sendmail
+и я хочу поять если на него придет письмо для vasya@komar.ru
+то в какой ящик в итоге сендмйл сунет письмо
+это можно проверить вот так налету
+
+
+# /usr/lib/sendmail -bv  vasya@komar.ru
+vasya@komar.ru... deliverable: mailer local, user vasya
+
+
+это значит что он сунет письмо в /var/mail/vasya файл (там где хрантся письма для
+юзера vasya который создан в /etc/passwd)
+
+
+а вот вариант другой ситации
+
+# /usr/lib/sendmail -bv  postmaster@komar.ru
+vasya... deliverable: mailer local, user vasya
+
+
+тоесть влтетевшая почта для postmaster@komar.ru будет в итоге сунута в /var/mail/vasya
+
+
+
+
