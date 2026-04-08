@@ -1,0 +1,22 @@
+| solaris
+| cpu 
+| server model
+
+солярис
+как узнать модель серера на котором он сидит
+
+
+
+#  prtdiag -v | head -n 10
+System Configuration: Sun Microsystems Sun Fire X4500
+BIOS Configuration: American Megatrends Inc. 0ABIG025 07/17/2009
+BMC Configuration: IPMI 2.0 (KCS: Keyboard Controller Style)
+
+==== Processor Sockets ====================================
+
+Version                          Location Tag
+-------------------------------- --------------------------
+Dual Core AMD Opteron(tm) Processor 290 CPU1
+Dual Core AMD Opteron(tm) Processor 290 CPU2
+
+
