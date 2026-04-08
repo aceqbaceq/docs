@@ -1,0 +1,17 @@
+| mail
+| mutt
+| sendmail 
+| 454
+
+
+
+получаем ошрбку
+
+SMTP session failed: 454 4.7.1 <k2@c.ru>: Relay access denied
+SMTP session failed: cannot add recipient <k2@c.ru>
+Could not send the message.
+
+
+это значит что почтарь октазыается отправяолять почту
+обычно потому что при отправке не было атентифкиации
+

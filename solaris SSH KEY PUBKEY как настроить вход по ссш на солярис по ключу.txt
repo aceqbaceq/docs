@@ -1,0 +1,109 @@
+| solaris
+| ssh
+| pubkey
+
+задача сделтаь так чтобы можно было на солярис заходит по ssh ключам
+
+
+на компе клеинта нужно 
+
+
+
+
+(1) на компе клиента сгенеировать rsa ключ
+потому что друние он не понимает
+
+   $ ssh-keygen -t rsa -b 2048 -m PEM -f ~/.ssh/id_solaris
+
+
+
+
+
+(1.5) на компе клиента скопирвать ключ на сервер
+  
+   $ ssh-copy-id -i ~/.ssh/id_solaris.pub   PROD-host
+
+
+
+
+
+(2) на компе клиента 
+$ nano  ~/.ssh/config 
+
+Host     PROD-host       21.21.21.21
+HostName    21.21.21.21
+IdentitiesOnly yes
+PubkeyAcceptedAlgorithms +ssh-rsa
+HostKeyAlgorithms +ssh-rsa
+IdentityFile ~/.ssh/id_solaris
+Port 22
+User  vasya
+ForwardAgent yes
+
+
+
+(3) на сервере актиирвирвать логирование ssh входов в файл messages
+нам нужно чтобы сислог сообщения уровня важности auth.info падали в /var/adm/messages
+
+	# cat  /etc/syslog.conf  | grep auth.info
+	*.err;kern.debug;daemon.notice;auth.info;mail.crit      /var/adm/messages
+
+	# svcadm refresh system/system-log
+
+
+генерируем тестовую мессагу 
+	# logger -p auth.info "CHECK_LOG_NOW"
+
+проверяем что в mesages чтото теперь есть
+	# grep "CHECK_LOG_NOW" /var/adm/messages
+	host.ru vasya: [ID 702911 auth.info] CHECK_LOG_NOW
+
+
+идем в ссш сервер конфиг и правим его
+
+	# cat /etc/ssh/sshd_config | grep LogLevel
+	LogLevel INFO
+
+
+также в сервере ссш нужнодобавить настройки по входу по пуб ключу
+
+	# cat /etc/ssh/sshd_config | ggrep -i pub -A1
+	PubkeyAuthentication yes
+	AuthorizedKeysFile .ssh/authorized_keys
+
+
+
+	#  svcadm restart ssh
+	# svcs ssh
+	STATE          STIME    FMRI
+	online          1:38:05 svc:/network/ssh:default
+
+
+теперь на срвере ловим логи входа по ссш в messages
+
+	# tail -f /var/adm/messages
+	host.ru sshd[4473]: [ID 800047 auth.info] Received signal 15; terminating.
+	host.ru sshd[4840]: [ID 800047 auth.info] Server listening on :: port 22.
+	host.ru sshd[4840]: [ID 800047 auth.info] Server listening on 0.0.0.0 port 22.
+
+
+если там пусто значит логинг неработает
+
+
+
+(4) на компе клиента запускаем
+
+   $ ssh PROD-host
+
+либо если хотим целиком руками
+   $ ssh -o "PubkeyAcceptedKeyTypes +ssh-rsa" -o "IdentitiesOnly=yes" -i ~/.ssh/id_solaris  vasya@21.21.21.21
+
+ вход должен состоться. либо на серер в мессаждес будет написано почему он не состоялся
+
+
+если вход призошел то на сервере в mesages бует напсиано
+
+Apr  9 01:42:30 host.ru sshd[4903]: [ID 800047 auth.info] Accepted publickey for vasya from 1.4.0.44 port 54692 ssh2
+
+
+

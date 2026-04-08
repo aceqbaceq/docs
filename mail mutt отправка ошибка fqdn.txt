@@ -1,0 +1,25 @@
+| mutt
+| mail
+| sendmail
+
+
+при отправке получаю ошибку
+
+
+# echo "test $(date)"  | mutt -e 'set from="k@c.ru"; set smtp_url="smtp://mail.ru/";set ssl_starttls=no; set ssl_force_tls=no' -s "test $(date)" -- k2@c.ru
+SMTP session failed: 504 5.5.2 <C-moy-comp>: Helo command rejected: need fully-qualified hostname
+SMTP session failed: cannot add recipient <k2@c.ru>
+
+
+
+ошибка в том что мутт делает helo(или ehlo ) и туда подтавляте fqdn компа 
+а в hosts его просто нету потэтому он шлет просто хостнейм а удаленый потчтарь 
+шлет нахуй.
+выход нужно либо в hosts добавить fqdn хоста
+либо в mutt всаить параметр fqdn 
+
+set hostname="mail.ru"
+
+тоесть 
+# echo "test $(date)"  | mutt -e 'set from="k@c.ru"; set smtp_url="smtp://mail.ru/";set ssl_starttls=no; set ssl_force_tls=no; set hostname="moy-comp.ru"' -s "test $(date)" -- k2@c.ru
+

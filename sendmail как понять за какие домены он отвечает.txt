@@ -1,0 +1,10 @@
+| sendmail
+| domains
+
+
+как узнать для каких доменов sendmail   принимает почту
+
+
+# cat  /etc/mail/local-host-names
+vasya.ru
+
