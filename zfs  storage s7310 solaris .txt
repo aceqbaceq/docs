@@ -43,6 +43,44 @@ disk-021     HDD 21      ok        HITACHI                 H7210CA30SUN1.0T     
 disk-022     HDD 22      ok        SEAGATE                 ST31001NSSUN1.0T                                          9WK2Y92Q            7200 
 disk-023     HDD 23      ok        HITACHI                 H7210CA30SUN1.0T                                          JPW9K0N11B7PYL      7200 
 
+
+а вот пример когда она показывает что диск сломался
+
+disk-000     HDD 0       ok        SEAGATE                 ST31001NSSUN1.0T                                          9WK3ATZP            7200 
+disk-001     HDD 1       ok        HITACHI                 H7210CA30SUN1.0T                                          JPW9K0N13PJJML      7200 
+disk-002     HDD 2       ok        HITACHI                 HUA7210SASUN1.0T                                          GTF002PAJUWZLF      20000
+disk-003     HDD 3       ok        HITACHI                 H7210CA30SUN1.0T                                          JPW9K0N13JHAPL      7200 
+disk-004     HDD 4       ok        HITACHI                 H7210CA30SUN1.0T                                          JPW9K0N13LHVPL      7200 
+disk-005     HDD 5       ok        SEAGATE                 ST31000NSSUN1.0T                                          9QJ4KQ7A            7200 
+disk-006     HDD 6       ok        SEAGATE                 ST31000NSSUN1.0T                                          9QJ7ZADB            7200 
+disk-007     HDD 7       ok        HITACHI                 H7210CA30SUN1.0T                                          JPW9K0N13MTRAL      7200 
+disk-008     HDD 8       ok        SEAGATE                 ST31000NSSUN1.0T                                          9QJ40SPP            7200 
+disk-009     HDD 9       ok        SEAGATE                 ST31000NSSUN1.0T                                          9QJ39WPS            7200 
+disk-010     HDD 10      ok        SEAGATE                 ST31000NSSUN1.0T                                          9QJ4TZ4X            7200 
+disk-011     HDD 11      faulted   SEAGATE                 ST31000NSSUN1.0T                                          9QJ4W9VA            7200 
+disk-012     HDD 12      ok        HITACHI                 H7210CA30SUN1.0T                                          JPW9K0N13N8KSL      7200   <<<<<<<<<<<<<<<<<
+disk-013     HDD 13      ok        SEAGATE                 ST31000NSSUN1.0T                                          9QJ4EJPF            7200 
+disk-014     HDD 14      ok        HITACHI                 H7210CA30SUN1.0T                                          JPW9K0N13HRL2L      7200 
+disk-015     HDD 15      ok        HITACHI                 H7210CA30SUN1.0T                                          JPW9K0J82JDR7L      7200 
+disk-016     HDD 16      ok        SEAGATE                 ST31000NSSUN1.0T                                          9QJ3BS5X            7200 
+disk-017     HDD 17      ok        HITACHI                 HUA7210SASUN1.0T                                          GTE000PAJ9DSAE      20000
+disk-018     HDD 18      ok        HITACHI                 H7210CA30SUN1.0T                                          JPW9K0N13JRJEL      7200 
+disk-019     HDD 19      ok        HITACHI                 H7210CA30SUN1.0T                                          JPW9K0N13PK23L      7200 
+disk-020     HDD 20      ok        SEAGATE                 ST31000NSSUN1.0T                                          9QJ43J7G            7200 
+disk-021     HDD 21      ok        HITACHI                 H7210CA30SUN1.0T                                          JPW9K0N13PDKPL      7200 
+disk-022     HDD 22      ok        SEAGATE                 ST31001NSSUN1.0T                                          9WK2Y92Q            7200 
+disk-023     HDD 23      ok        HITACHI                 H7210CA30SUN1.0T                                          JPW9K0N11B7PYL      7200 
+fan-000      FAN 0/0     ok        Sun Microsystems, Inc.  -                                                         unknown           
+fan-001      FAN 0/1     ok        Sun Microsystems, Inc.  -                                                         unknown           
+fan-002      FAN 1/0     ok        Sun Microsystems, Inc.  -                                                         unknown           
+fan-003      FAN 1/1     ok        Sun Microsystems, Inc.  -                                                         unknown           
+psu-000      PSU 0       ok        Sun Microsystems, Inc.  300-2169-01                                               2029QTF-1014QC504B
+psu-001      PSU 1       ok        Sun Microsystems, Inc.  300-2169-01                                               2029QTF-1014QC504C
+slot-000     SIM 0       ok        Sun Microsystems, Inc.  375-3584-02                                               2029QTF-1008QC10BA
+slot-001     SIM 1       ok        Sun Microsystems, Inc.  375-3584-02                                               2029QTF-1016QC10CB
+
+
+
 если ввести
 
 > shell

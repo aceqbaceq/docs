@@ -208,6 +208,7 @@ WARNING: /pci@780/pci@0/pci@9/scsi@0/sd@2,0 (sd0):
 связь между одним и друим указана вот тут
 
 
+(!!!) 
 
 	# grep sd /etc/path_to_inst
 "/pci@780/pci@0/pci@9/scsi@0/sd@2,0" 0 "sd"
