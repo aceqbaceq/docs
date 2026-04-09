@@ -3,4 +3,9 @@
 
 обредка диска sas
 
+в FREEBSD
 sg_format --resize --count=125829120 /dev/da1
+
+в LINUX (пакет sg3-utils)
+sg_format --resize --count=143374738 /dev/sdb
+

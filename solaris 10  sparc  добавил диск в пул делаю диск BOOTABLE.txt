@@ -1,0 +1,31 @@
+| solaris 10
+| zfs
+| sparc
+
+
+имеем пул щдобавил новый диск
+
+bash-3.00# zpool status rpool
+  pool: rpool
+ state: ONLINE
+status: One or more devices is currently being resilvered.  The pool will
+        continue to function, possibly in a degraded state.
+action: Wait for the resilver to complete.
+ scrub: resilver in progress for 0h3m, 2.83% done, 1h47m to go
+config:
+
+        NAME          STATE     READ WRITE CKSUM
+        rpool         ONLINE       0     0     0
+          mirror-0    ONLINE       0     0     0
+            c0t1d0s0  ONLINE       0     0     0
+            c0t0d0s0  ONLINE       0     0     0  1.41G resilvered
+
+errors: No known data errors
+
+
+делаю его бутабл
+
+
+# bash-3.00# installboot /usr/platform/$(uname -i)/lib/fs/zfs/bootblk /dev/rdsk/c0t0d0s0
+
+

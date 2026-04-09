@@ -1,0 +1,10 @@
+| zabbix
+| agent
+
+
+простой запрос как сделаь
+
+
+
+/opt/zabbix-agent/bin/zabbix_get -s 127.0.0.1 -k system.hostname
+

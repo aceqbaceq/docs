@@ -1,0 +1,58 @@
+| postfix
+| ext
+
+поиск зависщих сессий
+
+cat /var/log/syslog  | grep "timeout after END-OF-MESSAGE"
+
+
+
+
+как послать письма на почт сервер
+
+	$ cat 01.bash 
+#!/bin/bash
+
+
+SERVER="17.10.3.26"  # Укажи IP своего Postfix
+RECIPIENT="eeva@ext.ru" # Кому шлем (можно несуществующий)
+SENDER="eeva@ext.ru"
+
+echo "Начинаем тест: 70 писем по одному коннекту на каждое..."
+
+for i in {1..10}
+do
+    START=$(date +%s%N)
+    
+# Обновленная команда для цикла в скрипте:
+
+echo "Test" | mutt -s "Test $i" \
+    -e "set smtp_url=smtp://$SERVER:25" \
+    -e "set ssl_force_tls=no" \
+    -e "set ssl_starttls=no" \
+    -e "set ssl_verify_host=no" \
+    -e "set ssl_verify_dates=no" \
+    -e "set copy=no" \
+    -e "set hostname=ext.ru" \
+    "eeva@ext.ru"
+
+
+
+
+
+
+    
+    EXIT_CODE=$?
+    END=$(date +%s%N)
+    DIFF=$(echo "scale=3; ($END - $START) / 1000000000" | bc)
+
+    if [ $EXIT_CODE -eq 0 ]; then
+        echo "Письмо $i: отправлено за $DIFF сек."
+    else
+        echo "Письмо $i: ОШИБКА (код $EXIT_CODE) за $DIFF сек."
+    fi
+done
+
+echo "Тест завершен."
+
+
