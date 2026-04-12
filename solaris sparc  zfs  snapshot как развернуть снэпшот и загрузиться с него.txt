@@ -1,0 +1,493 @@
+| solaris
+| boot
+| zfs
+| snapshot
+| T1000
+| T2000
+
+
+МЕГАСУКА ВАЖНЫЙ МЕТАРИАЛ
+
+
+
+
+bash-3.00# 
+bash-3.00# echo | format
+Searching for disks...done
+
+
+AVAILABLE DISK SELECTIONS:
+       0. c2t0d0 <SUN146G cyl 14087 alt 2 hd 24 sec 848>
+          /pci@780/pci@0/pci@9/scsi@0/sd@0,0
+       1. c2t2d0 <HP-EH0146FARUB-HPD7 cyl 54224 alt 2 hd 4 sec 1322>
+          /pci@780/pci@0/pci@9/scsi@0/sd@2,0
+       2. c2t3d0 <FUJITSU-MAY2073RCSUN72G-0501-68.36GB>
+          /pci@780/pci@0/pci@9/scsi@0/sd@3,0
+Specify disk (enter its number): Specify disk (enter its number): 
+bash-3.00# 
+bash-3.00# dd if=/dev/zero bs=1024k count=100 of=/dev/dsk/c2t3d0s2                              
+dd: /dev/dsk/c2t3d0s2: open: I/O error
+bash-3.00# dd if=/dev/zero bs=1024k count=100 of=/dev/dsk/c2t3d0s2
+dd: /dev/dsk/c2t3d0s2: open: I/O error
+bash-3.00# dd if=/dev/zero bs=1024k count=100 of=/dev/dsk/c2t3d0  
+100+0 records in
+100+0 records out
+bash-3.00# 
+bash-3.00# dd if=/dev/zero bs=1024k of=/dev/dsk/c2t3d0  seek=$((73400057856 /1024 /1024 -100))  
+write: No such device or address
+101+0 records in
+101+0 records out
+bash-3.00# 
+bash-3.00# 
+bash-3.00# format -e
+Searching for disks...done
+
+c2t3d0: configured with capacity of 68.36GB
+
+
+AVAILABLE DISK SELECTIONS:
+       0. c2t0d0 <SUN146G cyl 14087 alt 2 hd 24 sec 848>
+          /pci@780/pci@0/pci@9/scsi@0/sd@0,0
+       1. c2t2d0 <HP-EH0146FARUB-HPD7 cyl 54224 alt 2 hd 4 sec 1322>
+          /pci@780/pci@0/pci@9/scsi@0/sd@2,0
+       2. c2t3d0 <FUJITSU-MAY2073RCSUN72G-0501-68.36GB>
+          /pci@780/pci@0/pci@9/scsi@0/sd@3,0
+Specify disk (enter its number): 2
+selecting c2t3d0
+[disk formatted]
+Disk not labeled.  Label it now? yes^C
+bash-3.00# format   
+Searching for disks...done
+
+c2t3d0: configured with capacity of 68.36GB
+
+
+AVAILABLE DISK SELECTIONS:
+       0. c2t0d0 <SUN146G cyl 14087 alt 2 hd 24 sec 848>
+          /pci@780/pci@0/pci@9/scsi@0/sd@0,0
+       1. c2t2d0 <HP-EH0146FARUB-HPD7 cyl 54224 alt 2 hd 4 sec 1322>
+          /pci@780/pci@0/pci@9/scsi@0/sd@2,0
+       2. c2t3d0 <FUJITSU-MAY2073RCSUN72G-0501-68.36GB>
+          /pci@780/pci@0/pci@9/scsi@0/sd@3,0
+Specify disk (enter its number): 2
+selecting c2t3d0
+[disk formatted]
+Disk not labeled.  Label it now? yes
+
+
+FORMAT MENU:
+        disk       - select a disk
+        type       - select (define) a disk type
+        partition  - select (define) a partition table
+        current    - describe the current disk
+        format     - format and analyze the disk
+        repair     - repair a defective sector
+        label      - write label to the disk
+        analyze    - surface analysis
+        defect     - defect list management
+        backup     - search for backup labels
+        verify     - read and display labels
+        inquiry    - show vendor, product and revision
+        volname    - set 8-character volume name
+        !<cmd>     - execute <cmd>, then return
+        quit
+format> p
+
+
+PARTITION MENU:
+        0      - change `0' partition
+        1      - change `1' partition
+        2      - change `2' partition
+        3      - change `3' partition
+        4      - change `4' partition
+        5      - change `5' partition
+        6      - change `6' partition
+        select - select a predefined table
+        modify - modify a predefined partition table
+        name   - name the current table
+        print  - display the current table
+        label  - write partition map and label to the disk
+        !<cmd> - execute <cmd>, then return
+        quit
+partition> p
+Current partition table (original):
+Total disk sectors available: 143343070 + 16384 (reserved sectors)
+
+Part      Tag    Flag     First Sector         Size         Last Sector
+  0        usr    wm                34       68.35GB          143343070    
+  1 unassigned    wm                 0           0               0    
+  2 unassigned    wm                 0           0               0    
+  3 unassigned    wm                 0           0               0    
+  4 unassigned    wm                 0           0               0    
+  5 unassigned    wm                 0           0               0    
+  6 unassigned    wm                 0           0               0    
+  8   reserved    wm         143343071        8.00MB          143359454    
+
+partition> label ^C
+bash-3.00# quit
+bash: quit: command not found
+bash-3.00# format -e
+Searching for disks...done
+
+
+AVAILABLE DISK SELECTIONS:
+       0. c2t0d0 <SUN146G cyl 14087 alt 2 hd 24 sec 848>
+          /pci@780/pci@0/pci@9/scsi@0/sd@0,0
+       1. c2t2d0 <HP-EH0146FARUB-HPD7 cyl 54224 alt 2 hd 4 sec 1322>
+          /pci@780/pci@0/pci@9/scsi@0/sd@2,0
+       2. c2t3d0 <FUJITSU-MAY2073RCSUN72G-0501-68.36GB>
+          /pci@780/pci@0/pci@9/scsi@0/sd@3,0
+Specify disk (enter its number): 2
+selecting c2t3d0
+[disk formatted]
+
+
+FORMAT MENU:
+        disk       - select a disk
+        type       - select (define) a disk type
+        partition  - select (define) a partition table
+        current    - describe the current disk
+        format     - format and analyze the disk
+        repair     - repair a defective sector
+        label      - write label to the disk
+        analyze    - surface analysis
+        defect     - defect list management
+        backup     - search for backup labels
+        verify     - read and display labels
+        inquiry    - show vendor, product and revision
+        scsi       - independent SCSI mode selects
+        cache      - enable, disable or query SCSI disk cache
+        volname    - set 8-character volume name
+        !<cmd>     - execute <cmd>, then return
+        quit
+format> fdisk
+`fdisk' is not expected.
+format> label
+[0] SMI Label
+[1] EFI Label
+Specify Label type[1]: 0
+Auto configuration via format.dat[no]? yes
+format> p
+
+
+PARTITION MENU:
+        0      - change `0' partition
+        1      - change `1' partition
+        2      - change `2' partition
+        3      - change `3' partition
+        4      - change `4' partition
+        5      - change `5' partition
+        6      - change `6' partition
+        7      - change `7' partition
+        select - select a predefined table
+        modify - modify a predefined partition table
+        name   - name the current table
+        print  - display the current table
+        label  - write partition map and label to the disk
+        !<cmd> - execute <cmd>, then return
+        quit
+partition> p
+Current partition table (default):
+Total disk cylinders available: 14086 + 2 (reserved cylinders)
+
+Part      Tag    Flag     Cylinders         Size            Blocks
+  0       root    wm       0                0         (0/0/0)             0
+  1       swap    wu       0                0         (0/0/0)             0
+  2     backup    wu       0 - 14085       68.35GB    (14086/0/0) 143339136
+  3 unassigned    wm       0                0         (0/0/0)             0
+  4 unassigned    wm       0                0         (0/0/0)             0
+  5 unassigned    wm       0                0         (0/0/0)             0
+  6        usr    wm       0 - 14085       68.35GB    (14086/0/0) 143339136
+  7 unassigned    wm       0                0         (0/0/0)             0
+
+partition> 0
+Part      Tag    Flag     Cylinders         Size            Blocks
+  0       root    wm       0                0         (0/0/0)             0
+
+Enter partition id tag[root]: 
+Enter partition permission flags[wm]: 
+Enter new starting cyl[0]: 
+Enter partition size[0b, 0c, 0e, 0.00mb, 0.00gb]: 14085e
+partition> p
+Current partition table (unnamed):
+Total disk cylinders available: 14086 + 2 (reserved cylinders)
+
+Part      Tag    Flag     Cylinders         Size            Blocks
+  0       root    wm       0 - 14085       68.35GB    (14086/0/0) 143339136
+  1       swap    wu       0                0         (0/0/0)             0
+  2     backup    wu       0 - 14085       68.35GB    (14086/0/0) 143339136
+  3 unassigned    wm       0                0         (0/0/0)             0
+  4 unassigned    wm       0                0         (0/0/0)             0
+  5 unassigned    wm       0                0         (0/0/0)             0
+  6        usr    wm       0 - 14085       68.35GB    (14086/0/0) 143339136
+  7 unassigned    wm       0                0         (0/0/0)             0
+
+partition> 1
+Part      Tag    Flag     Cylinders         Size            Blocks
+  1       swap    wu       0                0         (0/0/0)             0
+
+Enter partition id tag[swap]: unassigned
+Enter partition permission flags[wu]: wm
+Enter new starting cyl[0]: 
+Enter partition size[0b, 0c, 0e, 0.00mb, 0.00gb]: 0
+partition> p
+Current partition table (unnamed):
+Total disk cylinders available: 14086 + 2 (reserved cylinders)
+
+Part      Tag    Flag     Cylinders         Size            Blocks
+  0       root    wm       0 - 14085       68.35GB    (14086/0/0) 143339136
+  1 unassigned    wm       0                0         (0/0/0)             0
+  2     backup    wu       0 - 14085       68.35GB    (14086/0/0) 143339136
+  3 unassigned    wm       0                0         (0/0/0)             0
+  4 unassigned    wm       0                0         (0/0/0)             0
+  5 unassigned    wm       0                0         (0/0/0)             0
+  6        usr    wm       0 - 14085       68.35GB    (14086/0/0) 143339136
+  7 unassigned    wm       0                0         (0/0/0)             0
+
+partition> 2
+Part      Tag    Flag     Cylinders         Size            Blocks
+  2     backup    wu       0 - 14085       68.35GB    (14086/0/0) 143339136
+
+Enter partition id tag[backup]: 
+Enter partition permission flags[wu]: wm
+Enter new starting cyl[0]: 
+Enter partition size[143339136b, 14086c, 14085e, 69989.81mb, 68.35gb]: 
+partition> p
+Current partition table (unnamed):
+Total disk cylinders available: 14086 + 2 (reserved cylinders)
+
+Part      Tag    Flag     Cylinders         Size            Blocks
+  0       root    wm       0 - 14085       68.35GB    (14086/0/0) 143339136
+  1 unassigned    wm       0                0         (0/0/0)             0
+  2     backup    wm       0 - 14085       68.35GB    (14086/0/0) 143339136
+  3 unassigned    wm       0                0         (0/0/0)             0
+  4 unassigned    wm       0                0         (0/0/0)             0
+  5 unassigned    wm       0                0         (0/0/0)             0
+  6        usr    wm       0 - 14085       68.35GB    (14086/0/0) 143339136
+  7 unassigned    wm       0                0         (0/0/0)             0
+
+partition> 6
+Part      Tag    Flag     Cylinders         Size            Blocks
+  6        usr    wm       0 - 14085       68.35GB    (14086/0/0) 143339136
+
+Enter partition id tag[usr]: unassigned
+Enter partition permission flags[wm]: 
+Enter new starting cyl[0]: 
+Enter partition size[143339136b, 14086c, 14085e, 69989.81mb, 68.35gb]: 0
+partition> p
+Current partition table (unnamed):
+Total disk cylinders available: 14086 + 2 (reserved cylinders)
+
+Part      Tag    Flag     Cylinders         Size            Blocks
+  0       root    wm       0 - 14085       68.35GB    (14086/0/0) 143339136
+  1 unassigned    wm       0                0         (0/0/0)             0
+  2     backup    wm       0 - 14085       68.35GB    (14086/0/0) 143339136
+  3 unassigned    wm       0                0         (0/0/0)             0
+  4 unassigned    wm       0                0         (0/0/0)             0
+  5 unassigned    wm       0                0         (0/0/0)             0
+  6 unassigned    wm       0                0         (0/0/0)             0
+  7 unassigned    wm       0                0         (0/0/0)             0
+
+partition> w
+`w' is not expected.
+partition> label
+[0] SMI Label
+[1] EFI Label
+Specify Label type[0]: 0
+Ready to label disk, continue? yes
+
+partition> 
+partition> 
+partition> p
+Current partition table (unnamed):
+Total disk cylinders available: 14086 + 2 (reserved cylinders)
+
+Part      Tag    Flag     Cylinders         Size            Blocks
+  0       root    wm       0 - 14085       68.35GB    (14086/0/0) 143339136
+  1 unassigned    wm       0                0         (0/0/0)             0
+  2     backup    wm       0 - 14085       68.35GB    (14086/0/0) 143339136
+  3 unassigned    wm       0                0         (0/0/0)             0
+  4 unassigned    wm       0                0         (0/0/0)             0
+  5 unassigned    wm       0                0         (0/0/0)             0
+  6 unassigned    wm       0                0         (0/0/0)             0
+  7 unassigned    wm       0                0         (0/0/0)             0
+
+partition> quit
+
+
+FORMAT MENU:
+        disk       - select a disk
+        type       - select (define) a disk type
+        partition  - select (define) a partition table
+        current    - describe the current disk
+        format     - format and analyze the disk
+        repair     - repair a defective sector
+        label      - write label to the disk
+        analyze    - surface analysis
+        defect     - defect list management
+        backup     - search for backup labels
+        verify     - read and display labels
+        save       - save new disk/partition definitions
+        inquiry    - show vendor, product and revision
+        scsi       - independent SCSI mode selects
+        cache      - enable, disable or query SCSI disk cache
+        volname    - set 8-character volume name
+        !<cmd>     - execute <cmd>, then return
+        quit
+format> quit
+bash-3.00# 
+
+
+
+
+bash-3.00# 
+bash-3.00# zpool create rpool2 c2t3d0s0                                                       
+bash-3.00# 
+bash-3.00# ls                          
+bin              devices          guests           lib              net              proc             rpool2           tmp              vol
+boot             etc              home             mnt              opt              root             sbin             usr
+dev              export           kernel           nds-install.log  platform         rpool            system           var
+bash-3.00# cd /root
+bash-3.00# 
+
+
+bash-3.00# cat  ./all_in_one.zfs  |  zfs receive -Fvu -d rpool2
+
+receiving full stream of rpool@2026-03-21 into rpool2@2026-03-21
+received 17,7KB stream in 3 seconds (5,91KB/sec)
+receiving full stream of rpool/ROOT@2026-03-21 into rpool2/ROOT@2026-03-21
+received 13,6KB stream in 1 seconds (13,6KB/sec)
+receiving full stream of rpool/ROOT/zfsBE@2026-03-21 into rpool2/ROOT/zfsBE@2026-03-21
+received 7,98GB stream in 237 seconds (34,5MB/sec)
+receiving full stream of rpool/dump@2026-03-21 into rpool2/dump@2026-03-21
+received 1,95GB stream in 72 seconds (27,7MB/sec)
+receiving full stream of rpool/swap@2026-03-21 into rpool2/swap@2026-03-21
+received 2,03GB stream in 70 seconds (29,7MB/sec)
+
+
+(!! ОХУЕННО ВАЖНАЯ КОМАНДА)
+тут охуенно важно вставить -F zfs
+без этого клюа будет уставолен загрузчик для UFS нахуй нам ненужный
+
+    #   installboot -F zfs /usr/platform/`uname -i`/lib/fs/zfs/bootblk /dev/rdsk/c2t1d0s0 
+(!! ОХУЕННО ВАЖНАЯ КОМАНДА)
+
+
+bash-3.00# zpool list
+NAME     SIZE  ALLOC   FREE    CAP  HEALTH  ALTROOT
+rpool    136G  30,8G   105G    22%  ONLINE  -
+rpool2    68G  11,8G  56,2G    17%  ONLINE  -
+bash-3.00# 
+bash-3.00# 
+bash-3.00# zpool status -v
+  pool: rpool
+ state: ONLINE
+ scrub: none requested
+config:
+
+        NAME          STATE     READ WRITE CKSUM
+        rpool         ONLINE       0     0     0
+          mirror-0    ONLINE       0     0     0
+            c2t0d0s0  ONLINE       0     0     0
+            c2t2d0s0  ONLINE       0     0     0
+
+errors: No known data errors
+
+  pool: rpool2
+ state: ONLINE
+ scrub: none requested
+config:
+
+        NAME        STATE     READ WRITE CKSUM
+        rpool2      ONLINE       0     0     0
+          c2t3d0s0  ONLINE       0     0     0
+
+errors: No known data errors
+bash-3.00# 
+bash-3.00# zpool export pool2
+cannot open 'pool2': no such pool
+bash-3.00# zpool export rpool2
+bash-3.00# 
+bash-3.00# 
+bash-3.00# cfgadm -al | grep c2t3d0
+c2::dsk/c2t3d0                 disk         connected    configured   unknown
+bash-3.00# 
+bash-3.00# cfgadm -c unconfigure c2::dsk/c2t3d0
+bash-3.00# 
+
+# reboot
+
+
+грузимся с cd
+
+
+{ok}   boot cdrom -s
+
+
+# echo | format
+Searching for disks...done
+
+
+AVAILABLE DISK SELECTIONS:
+       0. c0t0d0 <SUN72G cyl 14086 alt 2 hd 24 sec 424>
+          /pci@780/pci@0/pci@9/scsi@0/sd@0,0
+Specify disk (enter its number): Specify disk (enter its number): 
+
+
+# zpool import
+  pool: rpool2
+    id: 8131942054419529325
+ state: ONLINE
+status: The pool is formatted using an older on-disk version.
+action: The pool can be imported using its name or numeric identifier, though
+        some features will not be available without an explicit 'zpool upgrade'.
+config:
+
+        rpool2      ONLINE
+          c0t0d0s0  ONLINE
+
+# zpool list
+no pools available
+
+# zpool import -f rpool2 rpool
+cannot mount '/rpool': failed to create mountpoint
+cannot mount '/rpool': failed to create mountpoint
+cannot mount 'rpool/ROOT': failure mounting parent dataset
+
+# zpool set bootfs=rpool/ROOT/zfsBE rpool
+# installboot /usr/platform/sun4v/lib/fs/zfs/bootblk /dev/rdsk/c0t0d0s0
+# zpool export rpool
+# sync
+# sync
+# cfgadm -al
+Ap_Id                          Type         Receptacle   Occupant     Condition
+c0                             scsi-sas     connected    configured   unknown
+c0::dsk/c0t0d0                 disk         connected    configured   unknown
+c1                             scsi-bus     connected    configured   unknown
+c1::dsk/c1t0d0                 CD-ROM       connected    configured   unknown
+usb0/1                         unknown      empty        unconfigured ok
+usb0/2                         unknown      empty        unconfigured ok
+usb1/1.1                       unknown      empty        unconfigured ok
+usb1/1.2                       unknown      empty        unconfigured ok
+usb1/1.3                       unknown      empty        unconfigured ok
+usb1/1.4                       unknown      empty        unconfigured ok
+usb1/2                         unknown      empty        unconfigured ok
+# cfgadm -c unconfigure c0::dsk/c0t0d0
+# cfgadm -al
+Ap_Id                          Type         Receptacle   Occupant     Condition
+c0                             scsi-sas     connected    unconfigured unknown
+c0::dsk/c0t0d0                 disk         connected    unconfigured unknown
+c1                             scsi-bus     connected    configured   unknown
+c1::dsk/c1t0d0                 CD-ROM       connected    configured   unknown
+usb0/1                         unknown      empty        unconfigured ok
+usb0/2                         unknown      empty        unconfigured ok
+usb1/1.1                       unknown      empty        unconfigured ok
+usb1/1.2                       unknown      empty        unconfigured ok
+usb1/1.3                       unknown      empty        unconfigured ok
+usb1/1.4                       unknown      empty        unconfigured ok
+usb1/2                         unknown      empty        unconfigured ok
+# 
+SC Alert: DISK at HDD0 has been removed.
+
+
+

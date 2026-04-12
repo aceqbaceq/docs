@@ -1,0 +1,89 @@
+| solaris
+| sparc
+| boot
+| openboot
+
+
+
+
+ login: root
+Password: 
+Last login: Sun Apr 12 17:49:56 on console
+Sun Microsystems Inc.   SunOS 5.10      Generic January 2005
+
+-bash-3.00# halt
+syncing file systems... done
+Program terminated
+
+{ok}
+
+{4} ok probe-scsi-all
+This command may hang the system if a Stop-A or halt command
+has been executed.  Please type reset-all to reset the system 
+before executing this command. 
+Do you wish to continue? (y/n) y
+/pci@7c0/pci@0/pci@8/scsi@2
+
+MPT Version 1.05, Firmware Version 1.06.00.00
+
+Target 0 
+Unit 0   Disk     SEAGATE ST973402SSUN72G 0603    143374738 Blocks, 73 GB
+  SASAddress 5000c5000b918dbd  PhyNum 0 
+Target 1 
+Unit 0   Disk     SEAGATE ST973402SSUN72G 0400    143374738 Blocks, 73 GB
+  SASAddress 5000c50003d842e1  PhyNum 1 
+
+{4} ok 
+{4} ok probe-scsi-all
+This command may hang the system if a Stop-A or halt command
+has been executed.  Please type reset-all to reset the system 
+before executing this command. 
+Do you wish to continue? (y/n) y
+/pci@7c0/pci@0/pci@8/scsi@2
+
+MPT Version 1.05, Firmware Version 1.06.00.00
+
+Target 0 
+Unit 0   Disk     SEAGATE ST973402SSUN72G 0603    143374738 Blocks, 73 GB
+  SASAddress 5000c5000b918dbd  PhyNum 0 
+Target 1 
+Unit 0   Disk     SEAGATE ST973402SSUN72G 0400    143374738 Blocks, 73 GB
+  SASAddress 5000c50003d842e1  PhyNum 1 
+
+{4} ok 
+{4} ok 
+{4} ok printenv boot-device
+boot-device =           disk disk1 disk2 net
+{4} ok devalias
+disk2                    /pci@7c0/pci@0/pci@8/scsi@2/disk@1,0
+disk1                    /pci@7c0/pci@0/pci@8/scsi@2/disk@0,0
+nvram                    /virtual-devices/nvram@3
+net3                     /pci@7c0/pci@0/pci@8/network@1,1
+net2                     /pci@7c0/pci@0/pci@8/network@1
+net1                     /pci@7c0/pci@0/network@4,1
+net0                     /pci@7c0/pci@0/network@4
+net                      /pci@7c0/pci@0/network@4
+disk                     /pci@7c0/pci@0/pci@8/scsi@2/disk@0,0
+scsi                     /pci@7c0/pci@0/pci@8/scsi@2
+ttya                     /ebus@800/serial@0,c2c000
+virtual-console          /virtual-devices/console@1
+name                     aliases
+{4} ok boot /pci@7c0/pci@0/pci@8/scsi@2/disk@1,0:a
+
+SC Alert: Host System has Reset
+
+
+Sun Fire(TM) T1000, No Keyboard
+Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+OpenBoot 4.26.1, 16256 MB memory available, Serial #69337008.
+Ethernet address 0:14:4f:21:ff:b0, Host ID: 8421ffb0.
+
+
+
+Boot device: /pci@7c0/pci@0/pci@8/scsi@2/disk@1,0:a  File and args: 
+zfs-file-system 
+Loading: /platform/SUNW,Sun-Fire-T1000/boot_archive
+ramdisk-root hsfs-file-system 
+Loading: /platform/SUNW,Sun-Fire-T1000/kernel/sparcv9/unix
+SunOS Release 5.10 Version Generic_142909-17 64-bit
+Copyright (c) 1983, 2010, Oracle and/or its affiliates. All rights reserved.

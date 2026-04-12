@@ -1,0 +1,101 @@
+| sparc
+| openboot
+| boot
+| break -c
+
+
+рассматривю две ситации
+
+(1)
+вот у нас работает солярис он запущен
+и я захожу в ALOM
+и делаю
+
+sc> break -c
+
+потом иду в консоль и в опенбует запускаю
+
+> probe-scsi-all
+и получаю хуйню
+он пишет что диски есть но их рзмер 0 байт
+
+
+вторая ситация
+(2)
+серер грузтся
+я делаю досточно рано или подно break -c
+и вижу на экране MMU хуйню
+
+
+{0} ok probe-scsi-all
+This command may hang the system if a Stop-A or halt command
+has been executed.  Please type reset-all to reset the system 
+before executing this command. 
+Do you wish to continue? (y/n) y
+/pci@7c0/pci@0/pci@8/scsi@2
+
+MPT Version 1.05, Firmware Version 1.06.00.00
+
+ERROR: /pci@7c0: Last Trap: Fast Data Access MMU Miss
+
+
+
+
+в обоих случая суть в том что сервер тормлзить можно только в опреденном
+месте иначе пошел нахуй.
+
+
+
+КАК НАДО ДЕЛАТЬ ПРАВИЛЬНО:
+Если мы внутри работабдющего соляриса то нужно тыкныть
+
+ # halt
+
+тогда мы поаадем в опенбут и probe-scsi-all отработаем нормально
+аминь
+
+
+Если же мы вклоючили сервер и хотим чтобы probe-scsi-all отарботал хорошо то 
+нужно дождаться вот этого баннера в консоли
+
+
+
+Sun Fire(TM) T1000, No Keyboard
+Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+OpenBoot 4.26.1, 16256 MB memory available, Serial #69337008.
+Ethernet address 0:14:4f:21:ff:b0, Host ID: 8421ffb0.
+
+
+
+и вот тут резко жмем #. чтобы попсть в ALOM и там вбиваем
+
+sc> break -c
+
+если  мы делсем это раньше или позже то пошел нахуй
+пичем у нас бувално пара секунд
+
+и вот тоько тогда мы сможем коректно наайти дисик
+
+
+{0} ok probe-scsi-all
+/pci@7c0/pci@0/pci@8/scsi@2
+
+MPT Version 1.05, Firmware Version 1.06.00.00
+
+Target 0 
+Unit 0   Disk     SEAGATE ST973402SSUN72G 0603    143374738 Blocks, 73 GB
+  SASAddress 5000c5000b918dbd  PhyNum 0 
+Target 1 
+Unit 0   Disk     SEAGATE ST973402SSUN72G 0400    143374738 Blocks, 73 GB
+  SASAddress 5000c50003d842e1  PhyNum 1 
+
+
+
+а значит и загрузится рукками с тог одиска с кторого хотим
+аминь
+
+
+
+СУКА
+
+

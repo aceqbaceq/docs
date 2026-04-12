@@ -1,0 +1,4 @@
+mdh10-cn02> setsc sc_powerstatememory true
+mdh10-cn02> setsc sys_autorestart reset 
+
+
