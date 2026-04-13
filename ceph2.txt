@@ -701,12 +701,10 @@ Aug 09 00:00:33 hst1 ceph-osd[5610]: 2025-08-09T00:00:33.619+0300 7fce30aa9700 -
 
 
 
-
-
-
-
-
-
+##############################################################
+>>>>>>>>>>>                                <<<<<<<<<<<<<<<<<<
+>>>>>>>>>>> УДАЛЕНИЕ ДИСКА С CEPH С ХОСТА  <<<<<<<<<<<<<<<<<<
+>>>>>>>>>>>                                <<<<<<<<<<<<<<<<<<
 
 
 алогритм не удаления OSD  а замены диска в OSD
@@ -780,47 +778,60 @@ osd.4 down in  weight 1 up_from 952 up_thru 952 down_at 954 last_clean_interval 
 
 
 
+перед тем как уничтьожить OSD
+узнаем из каких дисков он составлен
+
+
+# ceph-volume lvm list 7
+
+
+====== osd.7 =======
+
+  [block]       /dev/ceph-644c33c1-2d63-499f-b0df-0fb492731de1/osd-block-4f64af4f-3f70-4b32-8231-361323a6b124
+
+      block device              /dev/ceph-644c33c1-2d63-499f-b0df-0fb492731de1/osd-block-4f64af4f-3f70-4b32-8231-361323a6b124
+      block uuid                Gi5vuw-3FLJ-HPUu-aEMB-I9q6-VafB-lfcRAx
+      cephx lockbox secret      
+      cluster fsid              67bf77ff-87ea-483a-8b66-9a45c34f5cc6
+      cluster name              ceph
+      crush device class        hdd
+      db device                 /dev/ceph-87836a31-9722-4287-8046-bbc22f99c11a/osd-db-666e6a5c-b9c7-49cf-942e-42674493cde1
+      db uuid                   ARpxgW-47x2-R7x7-7pxi-K9KA-rBfZ-3a3rmb
+      encrypted                 0
+      osd fsid                  4f64af4f-3f70-4b32-8231-361323a6b124
+      osd id                    7
+      osdspec affinity          
+      type                      block
+      vdo                       0
+      devices                   /dev/sdb
+
+  [db]          /dev/ceph-87836a31-9722-4287-8046-bbc22f99c11a/osd-db-666e6a5c-b9c7-49cf-942e-42674493cde1
+
+      block device              /dev/ceph-644c33c1-2d63-499f-b0df-0fb492731de1/osd-block-4f64af4f-3f70-4b32-8231-361323a6b124
+      block uuid                Gi5vuw-3FLJ-HPUu-aEMB-I9q6-VafB-lfcRAx
+      cephx lockbox secret      
+      cluster fsid              67bf77ff-87ea-483a-8b66-9a45c34f5cc6
+      cluster name              ceph
+      crush device class        hdd
+      db device                 /dev/ceph-87836a31-9722-4287-8046-bbc22f99c11a/osd-db-666e6a5c-b9c7-49cf-942e-42674493cde1
+      db uuid                   ARpxgW-47x2-R7x7-7pxi-K9KA-rBfZ-3a3rmb
+      encrypted                 0
+      osd fsid                  4f64af4f-3f70-4b32-8231-361323a6b124
+      osd id                    7
+      osdspec affinity          
+      type                      db
+      vdo                       0
+      devices                   /dev/sdg
 
 
 
-далее
-
-  ceph osd safe-to-destroy osd.7
-  ceph osd destroy 7 --yes-i-really-mean-it
-
-при этом никакой движухи в плане перемещения ПГ в кластере нет
-далее вствляю новый диск в сервер sdf
-
-вспоминает какие диски входят в состав OSD
-
-  ceph-volume lvm  list
-
-
-зачистить эти диски
-
- ceph-volume lvm zap /dev/sdc --destroy
- ceph-volume lvm zap /dev/sda --destroy
-
-
-ceph-volume lvm create --osd-id 0 --data /dev/sde --block.db /dev/sdf
-
-проблема что он его сразу стартует. иу него коэфиц равен  1
+тоесть это 
+     sdb
+     sdg
 
 
 
-systemctl start ceph-osd@7
-
-ceph osd in osd7
-
-теперь начнется движуха с пг. но она уже связана с дургим что данные обратно 
-на этот пг заливаются.
-
-вот в итоге я заменил диск и при этом пг в кластере на стадии "изьятия" диска из сервера произошла тлоко 1 раз.
-что скажешь
-
-
-
-
+ЕЩЕ раз полезный совет
 как выянить какие диски входят в состави каких OSD
 
       ceph-volume lvm  list
@@ -865,6 +876,225 @@ ceph osd in osd7
       vdo                       0
       devices                   /dev/sdd    (<!!<!****************<<!<)
 
+
+
+
+
+
+
+
+далее просто проверка что безоапасно удалить данный OSD
+
+   ceph osd destroy 7
+
+далее так как ceph установлен на базе proxmox
+то удаление идет вот так
+
+  # pveceph osd destroy 7 --cleanup
+
+( это ненадо
+  ceph osd destroy 7 --yes-i-really-mean-it  )
+
+мы разобрали OSD 
+но грязь  на дисках еще осталась 
+перед тем как вытащить диск из компа нужно их окончателно почтисистить
+для этого вспоминаем какие диски входят в состав OSD
+и зачищаем эти диски
+
+ ceph-volume lvm zap /dev/sdc --destroy
+ ceph-volume lvm zap /dev/sda --destroy
+
+теперь диски полностью уброаны из цеф и полнось зачищены.
+можно вынимать.
+
+
+ТУТ внимание. если мы юзаем не голые диски а диски на базе raid LUN (типа hp ssacli)
+то нам надо выяснить в какие LUN-ы мапятся наши sdb и sdg
+для этого вводим команду
+
+
+	# ssacli ctrl slot=0 show config detail
+
+   Array: B                             <<<***<<<<
+      Interface Type: Solid State SATA
+      Unused Space: 0 MB (0.00%)
+      Used Space: 447.10 GB (100.00%)
+      Status: OK
+      Array Type: Data 
+      Smart Path: disable
+
+
+      Logical Drive: 2
+         Size: 447.10 GB
+         Fault Tolerance: 0
+         Heads: 255
+         Sectors Per Track: 32
+         Cylinders: 65535
+         Strip Size: 256 KB
+         Full Stripe Size: 256 KB
+         Status: OK
+         Caching:  Enabled
+         Unique Identifier: 600508B1001C99436558FCAD4E986A02
+         Disk Name: /dev/sdb                                     <<<***<<<
+         Mount Points: None
+         Logical Drive Label: Logical Drive 2
+         Drive Type: Data
+         LD Acceleration Method: Controller Cache
+
+
+      physicaldrive 1I:1:2   <<<***<<<
+         Port: 1I
+         Box: 1
+         Bay: 2
+         Status: OK
+         Drive Type: Data Drive
+         Interface Type: Solid State SATA
+         Size: 480 GB
+         Drive exposed to OS: False
+         Logical/Physical Block Size: 512/4096
+         Firmware Revision: XCV10132
+         Serial Number: BTYG847303YW480BGN
+         WWID: 3000000000000001
+         Model: ATA     INTEL SSDSC2KG48
+         SATA NCQ Capable: True
+         SATA NCQ Enabled: True
+         Current Temperature (C): 24
+         Maximum Temperature (C): 34
+         SSD Smart Trip Wearout: Not Supported
+         PHY Count: 1
+         PHY Transfer Rate: 3.0Gbps
+         PHY Physical Link Rate: Unknown
+         PHY Maximum Link Rate: Unknown
+         Sanitize Erase Supported: False
+         Shingled Magnetic Recording Support: None
+
+
+
+
+тоесть сразу видно что диск /dev/sdb он 
+сидит в ARRAY B
+и что он сидит в дырке 1I:1:2
+
+первое нам дает инфо какой LUN удалять
+
+      ssacli ctrl slot=0 array b  delete forced
+
+второе дает то что мы можем эту дырку подсветить на сервере
+
+      ssacli ctrl slot=0 pd 1I:1:2    modify led=on
+
+идем на сервер через ILO веб морду  "system information" - "drives"
+и проверяем что там показано что там лампочка на диске замигала.
+идем к серверу вытаскиываем старый диск и вставляем новый.
+при этом никакой движухи в плане перемещения ПГ в кластере нет
+
+
+
+
+
+
+
+
+
+после того как втставил новый диск его тоже нужно зачистить
+
+    ceph-volume lvm zap /dev/sdc --destroy
+
+
+
+
+
+
+далее если мы рабботаем не с дисками а RAID LUN ами
+то нужно создать LUN
+
+    ssacli ctrl slot=0 create type=ld raid=0 drives=1I:1:2 drivetype=sas   (  drivetype=sas  для HDD SAS дисков, drivetype=ss_sata для SSD SATA )
+
+
+
+далее нужно выяснить под какой буквой этот LUN виден в ОС (она может поменться)
+вводим уже туже самую команду
+
+    #  ssacli ctrl slot=0 show config detail
+
+
+   Array: B                                      <<<***<<<
+      Interface Type: Solid State SATA
+      Unused Space: 0 MB (0.00%)
+      Used Space: 447.10 GB (100.00%)
+      Status: OK
+      Array Type: Data 
+      Smart Path: disable
+
+
+      Logical Drive: 2
+         Size: 447.10 GB
+         Fault Tolerance: 0
+         Heads: 255
+         Sectors Per Track: 32
+         Cylinders: 65535
+         Strip Size: 256 KB
+         Full Stripe Size: 256 KB
+         Status: OK
+         Caching:  Enabled
+         Unique Identifier: 600508B1001C99436558FCAD4E986A02
+         Disk Name: /dev/sdb                                      <<<***<<<
+         Mount Points: None
+         Logical Drive Label: Logical Drive 2
+         Drive Type: Data
+         LD Acceleration Method: Controller Cache
+
+
+      physicaldrive 1I:1:2    <<<***<<<
+         Port: 1I
+         Box: 1
+         Bay: 2
+         Status: OK
+         Drive Type: Data Drive
+         Interface Type: Solid State SATA
+         Size: 480 GB
+         Drive exposed to OS: False
+         Logical/Physical Block Size: 512/4096
+         Firmware Revision: XCV10132
+         Serial Number: BTYG847303YW480BGN
+         WWID: 3000000000000001
+         Model: ATA     INTEL SSDSC2KG48
+         SATA NCQ Capable: True
+         SATA NCQ Enabled: True
+         Current Temperature (C): 24
+         Maximum Temperature (C): 34
+         SSD Smart Trip Wearout: Not Supported
+         PHY Count: 1
+         PHY Transfer Rate: 3.0Gbps
+         PHY Physical Link Rate: Unknown
+         PHY Maximum Link Rate: Unknown
+         Sanitize Erase Supported: False
+         Shingled Magnetic Recording Support: None
+
+
+
+
+тоесть я нашел что диск в дырке 1I:1:2 он представлен в сторону OS как /dev/sdb
+
+
+
+а теперь уже зная это создаем новый OSD.7
+
+ ceph-volume lvm create --osd-id 7 --data /dev/sdb --block.db /dev/sdf
+
+
+по идее все готово
+
+
+проблема что он его сразу стартует. иу него коэфиц равен  1
+по идее все, но можно дополнитльно
+
+  systemctl start ceph-osd@7
+
+  ceph osd in 7
+
+теперь начнется движуха с пг. но она уже связана с дургим что данные обратно 
+на этот пг заливаются.
 
 
 
