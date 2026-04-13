@@ -508,6 +508,11 @@ AVAILABLE DISK SELECTIONS:
 Specify disk (enter its number): Specify disk (enter its number): 
 
 
+
+
+
+
+
 # zpool import
   pool: rpool2
     id: 8131942054419529325
@@ -524,7 +529,79 @@ config:
 no pools available
 
 
+перед тем как итмплотроваб пул нужно на хосте 
+изменит hostid потому что солярис его впшиет в свойвтва пула 
+и нам надо чтобы он был такойже как на конечном компе будушем
 
+(!! )
+нужно взять с хоста на который мы хотим сунут ьдиск и узнать его hostid
+и нужно на хосте на котором cdrom выставить этот hostid 
+используя этот скрипт
+
+###################################################
+bash
+
+#!/bin/bash
+
+# Проверка ввода
+if [ -z "$1" ]; then
+    echo "Usage: $0 <hostid_hex>"
+    echo "Example: $0 846b012e"
+    exit 1
+fi
+
+# Убираем 0x, если пользователь его ввел
+INPUT=$(echo $1 | sed 's/0x//g' | tr '[:upper:]' '[:lower:]')
+
+# Переводим HEX в десятичное число
+# В Solaris hostid на SPARC — это знаковое целое, 
+# поэтому используем расчет через printf
+DEC_VAL=$(printf "%u" 0x$INPUT)
+
+echo "Target HostID: $INPUT"
+echo "Decimal Serial: $DEC_VAL"
+
+# Переводим каждую цифру десятичного числа в её ASCII код (в HEX виде)
+# Например, цифра '2' станет '32'
+HEX_OUTPUT=""
+for (( i=0; i<${#DEC_VAL}; i++ )); do
+    char="${DEC_VAL:$i:1}"
+    hex_char=$(printf '%x' "'$char")
+    HEX_OUTPUT="$HEX_OUTPUT $hex_char"
+done
+
+# Добавляем финальные нули (null-terminator для строки в памяти ядра)
+MDB_STRING="$HEX_OUTPUT 00 00"
+
+echo "------------------------------------------------------------"
+echo "Run this on your Solaris machine:"
+echo ""
+echo "echo \"hw_serial/v$MDB_STRING\" | mdb -kw"
+echo "------------------------------------------------------------"
+###################################################
+
+вводим в него hostid нашего конечнрого компа
+и получаем строчку
+
+
+$ ./solaris-hostid-generator.bash 846b012e
+Target HostID: 846b012e
+Decimal Serial: 2221605166
+------------------------------------------------------------
+Run this on your Solaris machine:
+
+echo "hw_serial/v 32 32 32 31 36 30 35 31 36 36 00 00" | mdb -kw
+------------------------------------------------------------
+
+вот эту строчу и нужно ввести в баш строке в солярисе который мы загрузидись с cdrom
+
+    # echo "hw_serial/v 32 32 32 31 36 30 35 31 36 36 00 00" | mdb -kw
+
+она нам смнеить hostid на компе.
+(!!)
+
+
+теперь можно импортовать пул
 
 
 # zpool import -f -R /tmp/a rpool2 rpool
@@ -543,17 +620,25 @@ cannot find: /tmp/a/etc/cluster/nodeid: No such file or directory
 cannot find: /tmp/a/etc/mach: No such file or directory
 
 
-неделаем export а сразу ребутимся
-это сделаем наш этот хост родным для этрго zfs
-# reboot
-syncing file systems... done
+# zpool export rpool
+
+
+# cfgadm -al
+# cfgadm -c unconfigure ....
+
+можно вытаскивать диск
+
 
 
 
 
 КОНЕЧНЫЙ КОМП
 
-{0} ok boot /pci@7c0/pci@0/pci@8/scsi@2/disk@0,0:a -rv
+{0} ok boot /pci@7c0/pci@0/pci@8/scsi@2/disk@0,0:a
+
+
+ПОБЕДА!
+
 
 
 

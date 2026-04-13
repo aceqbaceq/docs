@@ -1,0 +1,40 @@
+#!/bin/bash
+
+# Проверка ввода
+if [ -z "$1" ]; then
+    echo "Usage: $0 <hostid_hex>"
+    echo "Example: $0 846b012e"
+    exit 1
+fi
+
+# Убираем 0x, если пользователь его ввел
+INPUT=$(echo $1 | sed 's/0x//g' | tr '[:upper:]' '[:lower:]')
+
+# Переводим HEX в десятичное число
+# В Solaris hostid на SPARC — это знаковое целое, 
+# поэтому используем расчет через printf
+DEC_VAL=$(printf "%u" 0x$INPUT)
+
+echo "Target HostID: $INPUT"
+echo "Decimal Serial: $DEC_VAL"
+
+# Переводим каждую цифру десятичного числа в её ASCII код (в HEX виде)
+# Например, цифра '2' станет '32'
+HEX_OUTPUT=""
+for (( i=0; i<${#DEC_VAL}; i++ )); do
+    char="${DEC_VAL:$i:1}"
+    hex_char=$(printf '%x' "'$char")
+    HEX_OUTPUT="$HEX_OUTPUT $hex_char"
+done
+
+# Добавляем финальные нули (null-terminator для строки в памяти ядра)
+MDB_STRING="$HEX_OUTPUT 00 00"
+
+echo "------------------------------------------------------------"
+echo "Run this on your Solaris machine:"
+echo ""
+echo "echo \"hw_serial/v$MDB_STRING\" | mdb -kw"
+echo "------------------------------------------------------------"
+###################################################
+
+
