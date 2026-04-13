@@ -14,7 +14,8 @@ $ sudo cryptsetup  --type luks2 luksFormat ./redmi9.luks
 	Requested maximum PBKDF memory can not be zero.
 
 
-$ sudo cryptsetup luksOpen  ./redmi9.luks  redmi9
+# cryptsetup luksOpen  ./redmi9.luks  redmi9  (старый формат команды)
+# cryptsetup open ./redmi9.luks  luks-data  (новый формат команды)
 (!!) EBANNIII SHUT!! VTOROI PARAMETER ETO NE PAPKA SUKA! ETO BUDUSHEE IMYA V /DEV/MAPPER/REDMI9 (!!!)
 	при этом создается устройство в /dev/mapper
 (!!) ВАЖНО! здесь есть тривальный но рально ебанутый момент. ВНАЧАЛЕ нужно будет 

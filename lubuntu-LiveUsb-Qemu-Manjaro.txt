@@ -10,7 +10,8 @@
 смотрим на как /dev/sd* сидит наш внешний диск
     lsblk -S                                                                                                                                                                              
 на этом внешнем диске все закрыто LUKS-ом
-    cryptsetup -v luksOpen /dev/sda luks-sda
+    cryptsetup -v luksOpen /dev/sda luks-sda  (старый формат команды)
+    cryptsetup open  /dev/sda  luks-sda (новый формат команды)
 монтируем его в ~/Downloads                                                                                                                                              
     mount /dev/mapper/luks-sda /home/lubuntu/Downloads/                                                                                                                  
 
