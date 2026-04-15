@@ -1,0 +1,177 @@
+| sun
+| solaris
+| iostat
+
+
+в солярисе iostat 
+показывает полезно про ошибки на дисках.
+она их фиксирует с момента загрузки
+тоесть после перезагрузки эти счетчики сбрасываются!
+
+
+
+утилиту 
+можно вот так запустить
+
+ #  iostat -En
+
+
+c0t5000C5007A6898E1d0 Soft Errors: 0 Hard Errors: 0 Transport Errors: 0 
+Vendor: ATA      Product: ST2000NM0033-9ZM Revision: SN06 Serial No:  
+Size: 2000.40GB <2000398933504 bytes>
+Media Error: 0 Device Not Ready: 0 No Device: 0 Recoverable: 0 
+Illegal Request: 1 Predictive Failure Analysis: 0 
+
+первые три ошибки их определяет само ядро. грубо говорят путем того что оно шлет
+запрос а в итоге не получает ответ
+
+Soft Error - это вот что. ос послала на диск запрос. он несправился вернул ошибку
+тогда драйве еще раз отпраляет запрос (макс 3-5 раз) и если повторная попытка удалась 
+то прибавляеся этот счетчик. мы получил результат за счет того что мы сами несколко раз 
+инициировали запрос
+
+Hard Errors: 0
+
+
+на покажет ошибки на дисках за все время юзанья этих дисков (тоесть вкючая время до 
+перезагрузки)
+
+
+Transport Errors: 0   
+
+это значит ошибка произошла между диском и портом компа (как он это определяет хз)
+
+следущие ошибки нам напрямую сообщает контроллер самого диска
+
+Media Error: 0 Device Not Ready: 0 No Device: 0 Recoverable: 0 
+Illegal Request: 1 Predictive Failure Analysis: 0 
+
+где
+Media Error: 0 
+это прблемы с блинами
+
+
+Device Not Ready: 0 
+No Device: 0
+эти я не совсем понимаю разницу
+
+
+Recoverable: 0 
+это диск сообщает что у него внутри были ошибки но он сам с ними справился
+
+
+Illegal Request: 1 
+это кога мы нанего послали команду а он не понял что надо делать
+и нам об этом сказал
+
+
+Predictive Failure Analysis: 0 
+это сам диск пытается предсказать когда грохентся диск
+
+
+
+
+а можно еще иостат вот так запусить
+а iostat -en показывает 
+
+# iostat -en
+  ---- errors --- 
+  s/w h/w trn tot device
+    0   0   0   0 c0t5000C50035E7EBE3d0
+    0   0   0   0 c0t5000C50035DC7549d0
+    0   0   0   0 c0t5000C50035DC351Cd0
+    0   0   0   0 c0t5000C500359C3F8Ed0
+    0   0   0   0 c0t5000C5003F0E8DD0d0
+    0   0   0   0 c0t5000C50035E7D260d0
+    0   0   0   0 c0t5000C50035E79BE1d0
+    0   0   0   0 c0t5000C5003F0A9AC2d0
+    0   0   0   0 c0t5000C500359C2F53d0
+    0   0   0   0 c0t5000C5003F0D39E3d0
+    0   0   0   0 c0t5000C5003F10F893d0
+    0   0   0   0 c0t5000C5003F0B6545d0
+    0   0   0   0 c0t5000C5003F0AB5C6d0
+    0   0   0   0 c0t5000C5003F0AEFC7d0
+    0   0   0   0 c0t5000C5003F0F3198d0
+    0   0   0   0 c0t5000C5003F0A741Ad0
+    0   0   0   0 c0t5000C5003F0AA14Bd0
+    0   0   0   0 c0t5000C5003F0B0B9Cd0
+    0   0   0   0 c0t5000C5003F0B2A0Fd0
+    0   0   0   0 c0t5000CCA369F0B314d0
+    0   0   0   0 c0t5000CCA369D53F31d0
+    0   0   0   0 c0t5000CCA369DCEF2Dd0
+    0   0   0   0 c0t5000CCA369C27334d0
+    0   0   0   0 c0t5000CCA369DF7587d0
+    0   0   0   0 c0t5000CCA369DC31DAd0
+    0   0   0   0 c0t5000C5007B000A84d0
+    0   0   0   0 c0t5000CCA369F3C564d0
+    0   0   0   0 c0t50014EE656E54B11d0
+    0   0   0   0 c0t5000C50066CC42C9d0
+    0   0   0   0 c0t5000C50078E32DEBd0
+    0   3 215 218 c0t5000C50078C224ACd0
+    0   0   0   0 c0t5000C50066FB5A29d0
+    0   0   0   0 c0t5000C5007BB8BC2Ad0
+   13   0   0  13 c0t5000CCA24ED10AE6d0
+    0   0   0   0 c0t5000CCA24ED0BB5Ed0
+    0   0   0   0 c0t5000CCA24ED10C8Fd0
+    0   0   0   0 c0t5000C5007A6898E1d0
+    0   0   0   0 rawflowdb3:vold(pid566)
+
+
+как видно он из тех ошибок что обсудили показыает всего три.
+зато очень наглядно чтобы оценить есть ли пробелмы с дисками
+правда солярис такой парень он даже если вытащить диск он о нем порой
+оставляем все равно запись 
+поэтому нужно всегда проверяеть это ральный диск или это уже фантом
+
+берем паницента
+    0   3 215 218 c0t5000C50078C224ACd0
+
+
+# zpool status -v | grep c0t5000C50078C224ACd0
+видим что в пуле его нет
+
+
+# echo | format | grep c0t5000C50078C224ACd0
+Fetch Capacity failed
+      22. c0t5000C50078C224ACd0 <drive type unknown>
+видно что и формат о нем херню пишет
+значит это фантом давно вытащенный диск
+
+
+
+
+
+
+
+еще пример
+
+-bash-4.1$ iostat -en
+  ---- errors --- 
+  s/w h/w trn tot device
+    0   0   0   0 c7t0d0
+    0 9777   0 9777 c8t0d0
+    0   0   0   0 c7t1d0
+    0   0   0   0 c0t60A9800044337746653F45343848707Ad0
+    0   0   0   0 c0t60A9800044337746653F453438487135d0
+    0   0   0   0 c0t60A9800044343357352445432D527336d0
+    0   0   0   0 c0t60A9800044337746653F453438487141d0
+    0   0   0   0 c0t60A9800044337746653F453438487139d0
+    0   0   0   0 c0t60A9800044343357352445432D527334d0
+    0   0   0   0 c0t60A9800044343357352445432D527332d0
+    0   0   0   0 c7t3d0
+    0   0   0   0 nfs-home.ext.ru:/export/nfs-home/krivosheeva
+-bash-4.1$ su -
+Password: 
+su: Sorry
+-bash-4.1$ su -
+Password: 
+su: Sorry
+-bash-4.1$ su -
+Password: 
+Warning: 2 failed authentication attempts since last successful authentication.  The latest at Tue Apr 14 20:55 2026.
+Oracle Corporation      SunOS 5.11      11.1    September 2012
+root@spider01:~# 
+root@spider01:~# 
+root@spider01:~# echo | format | grep c8t0d0
+root@spider01:~# 
+

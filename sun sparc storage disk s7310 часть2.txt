@@ -76,3 +76,64 @@
             c2t5000CCA39CF1E106d0    ONLINE       0     0     0
 
 
+
+
+
+
+
+итак вот эти диски нужно вытащить
+            c2t5000C5002D7E7D73d0  ONLINE       0     0   737
+            c2t5000C5002DC24995d0  ONLINE       0     0   410
+
+
+s7310# smartctl -d scsi  -i /dev/rdsk/c2t5000C5002D7E7D73d0 | grep Serial
+Serial number: 9WK2Y92Q 
+
+s7310# smartctl -d scsi  -i /dev/rdsk/c2t5000C5002DC24995d0 | grep Serial
+Serial number: 9WK3ATZP  
+
+
+
+в итоге я инвалидов вытащил
+и вставил +2 диска в спейр
+
+      c2t5000C50014F2C66Bd0    AVAIL
+      c2t5000C50014CAA36Dd0    AVAIL
+
+
+
+
+
+
+        NAME                       STATE     READ WRITE CKSUM
+        pool1                      ONLINE       0     0     2
+          raidz2-0                 ONLINE       0     0     0
+            c2t5000C50014F9C3CCd0  ONLINE       0     0     0
+            c2t5000CCA39CF37E1Dd0  ONLINE       0     0     0
+            c2t5000CCA39CF3465Cd0  ONLINE       0     0     0
+            c2t5000CCA39CF4017Ed0  ONLINE       0     0     0
+            c2t5000C5002076C68Dd0  ONLINE       0     0     0
+            c2t5000C500112362DFd0  ONLINE       0     0     0
+            c2t5000CCA216E7F558d0  ONLINE       0     0     0
+            c2t5000CCA39CF16CDAd0  ONLINE       0     0     0
+            c2t5000C50015AD60ECd0  ONLINE       0     0     0
+            c2t5000CCA39CF2B0BBd0  ONLINE       0     0     0
+            c2t5000C50014EBCDE1d0  ONLINE       0     0     0
+          raidz2-1                 ONLINE       0     0     4
+            c2t5000C50014FDFD5Ed0  ONLINE       0     0     0
+            c2t5000CCA39CF1C60Dd0  ONLINE       0     0     0
+            c2t5000CCA39CD33485d0  ONLINE       0     0     0
+            c2t5000CCA39CF41260d0  ONLINE       0     0     0
+            c2t5000CCA396E3A4AFd0  ONLINE       0     0     0
+            c2t5000C500154E3CADd0  ONLINE       0     0     0
+            c2t5000CCA216E07638d0  ONLINE       0     0     0
+            c2t5000C5001586D98Bd0  ONLINE       0     0     0
+            c2t5000C50011146E5Ed0  ONLINE       0     0     0
+            c2t5000CCA39CF41061d0  ONLINE       0     0     0
+            c2t5000CCA39CF1E106d0  ONLINE       0     0     0
+        spares
+          c2t5000C50014F2C66Bd0    AVAIL   
+          c2t5000C50014CAA36Dd0    AVAIL   
+
+
+

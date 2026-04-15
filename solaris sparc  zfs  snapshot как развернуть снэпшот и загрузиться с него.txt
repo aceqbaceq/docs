@@ -16,9 +16,9 @@
 1. загрузчик
     загрузик должен быть обязателно для zfs
     вот это правильный вариант
-    # installboot -F zfs /usr/platform/`uname -i`/lib/fs/zfs/bootblk /dev/rdsk/c2t1d0s0
+>>      # installboot -F zfs /usr/platform/`uname -i`/lib/fs/zfs/bootblk /dev/rdsk/c2t1d0s0
     а вот этот вариант полная хуйня он посавить загрузик для UFS
-    # installboot  /usr/platform/`uname -i`/lib/fs/zfs/bootblk /dev/rdsk/c2t1d0s0
+ХУЙНЯ!!>># installboot  /usr/platform/`uname -i`/lib/fs/zfs/bootblk /dev/rdsk/c2t1d0s0 
     если загрузчик неверный то при загрузке sparc недойдет до надписи Sunos
     а вылеезет надпись типа file is not executable
     а именно
