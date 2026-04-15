@@ -1,0 +1,86 @@
+| sparc
+| boot
+| alom
+
+
+
+еще раз покзыают как  указать диск с коорого грузиться в alom sparc
+
+если мы внутри соляриса то 
+
+
+bash-3.00# halt    
+
+попадаем в {ok} OPENBOOT
+
+если же мы только включили сервер то ждлем таблицу
+в коносоли
+
+SPARC Enterprise T5220, No Keyboard
+Copyright (c) 1998, 2010, Oracle and/or its affiliates. All rights reserved.
+OpenBoot 4.30.8.a, 16256 MB memory available, Serial #95494368.
+Ethernet address 0:21:28:b1:20:e0, Host ID: 85b120e0.
+
+тутже жмем #.
+и в АЛОМ пишем
+
+sc> break -c
+возращаемся в консоль
+sc> console -f
+
+и мы должны увидеть приглащшение OPENBOOT
+
+{ok}
+
+ищем диски которые он видит
+
+{0} ok probe-scsi-all
+/pci@0/pci@0/pci@2/scsi@0
+
+MPT Version 1.05, Firmware Version 1.27.02.00
+
+Target 0 
+Unit 0   Disk     HP      EH0146FARUB     HPD7    286749488 Blocks, 146 GB
+  SASAddress 5001f83014a4d502  PhyNum 0 
+Target 1 
+Unit 0   Disk     HITACHI H103014SCSUN146GA2A8    286739329 Blocks, 146 GB
+  SASAddress 5000cca00ad3ace1  PhyNum 1 
+
+
+можно заметитт хрень
+  /pci@0/pci@0/pci@2/scsi@0
+это адрес контроллера дисков
+
+выбираем диск с кторого хотим грузится
+и пишем
+
+{0} ok boot /pci@0/pci@0/pci@2/scsi@0/disk@0,0:a
+
+где  /pci@0/pci@0/pci@2/scsi@0/  это адрес контроллера дисков
+disk@ - просто запомнить
+
+
+0,0 - первая цифра это номер таргета а вторая номер юнита
+например у диска
+Target 0 
+Unit 0   Disk     HP      EH0146FARUB     HPD7    286749488 Blocks, 146 GB
+  SASAddress 5001f83014a4d502  PhyNum 0 
+
+это 0,0
+
+а у диска
+
+Target 1 
+Unit 0   Disk     HITACHI H103014SCSUN146GA2A8    286739329 Blocks, 146 GB
+  SASAddress 5000cca00ad3ace1  PhyNum 1 
+
+
+это 1,0
+
+
+
+
+:a - это имя слайса с которого грузится
+
+все!
+

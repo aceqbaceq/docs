@@ -1,0 +1,27 @@
+| nfs
+| linux
+| freebsd
+| zfs
+| fstab
+
+
+
+
+на сервере
+
+
+	# zfs get sharenfs  zroot/ds-BACKUP-1M
+NAME                PROPERTY  VALUE                        SOURCE
+zroot/ds-BACKUP-1M  sharenfs  -maproot=root 192.168.0.225  local
+
+	# cat /etc/exports 
+пусто
+
+
+
+
+на клиенте
+ # cat /etc/fstab
+192.168.0.246:/zroot/ds-BACKUP-1M	/home/noroot/mnt/NFS	 nfs    defaults,timeo=900,retrans=5,nfsvers=3,_netdev  0  0
+
+

@@ -1,0 +1,78 @@
+| s7310
+| sun
+| sparc
+| storage
+
+
+14 apr 2026
+
+
+замена дисков
+
+        
+        NAME                       STATE     READ WRITE CKSUM
+        pool1                      ONLINE       0     0    75
+          raidz2-0                 ONLINE       0     0     0
+            c2t5000C50014F9C3CCd0  ONLINE       0     0     0
+            c2t5000CCA39CF37E1Dd0  ONLINE       0     0     0
+            c2t5000CCA39CF3465Cd0  ONLINE       0     0     0
+            c2t5000CCA39CF4017Ed0  ONLINE       0     0     0
+            c2t5000C5002076C68Dd0  ONLINE       0     0     0
+            c2t5000C500112362DFd0  ONLINE       0     0     0
+            c2t5000CCA216E7F558d0  ONLINE       0     0     0
+            c2t5000CCA39CF16CDAd0  ONLINE       0     0     0
+            c2t5000C50015AD60ECd0  ONLINE       0     0     0
+            c2t5000CCA39CF2B0BBd0  ONLINE       0     0     0
+            c2t5000C50014EBCDE1d0  ONLINE       0     0     0
+          raidz2-1                 ONLINE       0     0   150
+            c2t5000C50014FDFD5Ed0  ONLINE       0     0     0
+            c2t5000CCA39CF1C60Dd0  ONLINE       0     0     0
+            c2t5000CCA39CD33485d0  ONLINE       0     0     0
+            c2t5000CCA39CF41260d0  ONLINE       0     0     0
+            c2t5000CCA396E3A4AFd0  ONLINE       0     0     0
+            c2t5000C500154E3CADd0  ONLINE       0     0     0
+            c2t5000C5002D7E7D73d0  ONLINE       0     0   737
+            c2t5000C5001586D98Bd0  ONLINE       0     0     0
+            c2t5000C5002DC24995d0  ONLINE       0     0   410
+            c2t5000CCA39CF41061d0  ONLINE       0     0     0
+            c2t5000CCA39CF1E106d0  ONLINE       0     0     0
+        spares
+          c2t5000CCA216E07638d0    AVAIL   
+          c2t5000C50011146E5Ed0    AVAIL   
+
+
+
+запустил замену
+
+        NAME                         STATE     READ WRITE CKSUM
+        pool1                        ONLINE       0     0    75
+          raidz2-0                   ONLINE       0     0     0
+            c2t5000C50014F9C3CCd0    ONLINE       0     0     0
+            c2t5000CCA39CF37E1Dd0    ONLINE       0     0     0
+            c2t5000CCA39CF3465Cd0    ONLINE       0     0     0
+            c2t5000CCA39CF4017Ed0    ONLINE       0     0     0
+            c2t5000C5002076C68Dd0    ONLINE       0     0     0
+            c2t5000C500112362DFd0    ONLINE       0     0     0
+            c2t5000CCA216E7F558d0    ONLINE       0     0     0
+            c2t5000CCA39CF16CDAd0    ONLINE       0     0     0
+            c2t5000C50015AD60ECd0    ONLINE       0     0     0
+            c2t5000CCA39CF2B0BBd0    ONLINE       0     0     0
+            c2t5000C50014EBCDE1d0    ONLINE       0     0     0
+          raidz2-1                   ONLINE       0     0   150
+            c2t5000C50014FDFD5Ed0    ONLINE       0     0     0
+            c2t5000CCA39CF1C60Dd0    ONLINE       0     0     0
+            c2t5000CCA39CD33485d0    ONLINE       0     0     0
+            c2t5000CCA39CF41260d0    ONLINE       0     0     0
+            c2t5000CCA396E3A4AFd0    ONLINE       0     0     0
+            c2t5000C500154E3CADd0    ONLINE       0     0     0
+            replacing-6              ONLINE       0     0     3
+              c2t5000C5002D7E7D73d0  ONLINE       0     0   737  (resilvering)
+              c2t5000CCA216E07638d0  ONLINE       0     0     0  (resilvering)
+            c2t5000C5001586D98Bd0    ONLINE       0     0     0
+            replacing-8              ONLINE       0     0     0
+              c2t5000C5002DC24995d0  ONLINE       0     0   414
+              c2t5000C50011146E5Ed0  ONLINE       0     0     0  (resilvering)
+            c2t5000CCA39CF41061d0    ONLINE       0     0     0
+            c2t5000CCA39CF1E106d0    ONLINE       0     0     0
+
+

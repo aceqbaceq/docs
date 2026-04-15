@@ -1,0 +1,59 @@
+| sparc
+| boot
+| openboot
+| disk
+
+типичная ситация
+
+есть пул 
+
+# zpool status -v
+
+  pool: rpool
+ state: ONLINE
+ scrub: none requested
+config:
+
+        NAME          STATE     READ WRITE CKSUM
+        rpool         ONLINE       0     0     0
+          mirror      ONLINE       0     0     0
+            c0t0d0s0  ONLINE       0     0     0
+            c0t1d0s0  ONLINE       0     0     0
+
+
+я хочу прверить как там в openboot устанволено
+будет ли он пробовать оба диска при загрузке
+
+
+# halt
+
+
+смотрю что там прписано как загрузочная хрень в опенбут
+{c} ok printenv boot-device
+boot-device =           disk net
+
+ага тут только один диск указан
+а какой?
+
+{c} ok devalias
+disk3                    /pci@780/pci@0/pci@9/scsi@0/disk@3
+disk2                    /pci@780/pci@0/pci@9/scsi@0/disk@2
+disk1                    /pci@780/pci@0/pci@9/scsi@0/disk@1
+disk0                    /pci@780/pci@0/pci@9/scsi@0/disk@0
+disk                     /pci@780/pci@0/pci@9/scsi@0/disk@0
+
+
+тоесть диск c0t0
+как видно из свойства пула у нас еще есть c0t1
+он в алиасах есть как disk1
+значит надо его тоже добавить
+
+
+{c} ok setenv boot-device disk disk1 
+boot-device =           disk disk1
+{c} ok boot disk1
+
+применяем новые параметры
+{c} reset-all
+
+

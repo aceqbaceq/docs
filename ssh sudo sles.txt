@@ -1,0 +1,16 @@
+| ssh
+| sudo
+| sles
+
+в sles по дефолту такая фигня
+вводим
+
+ $ sudo vasya
+
+но он ждет не пароль от васи а пароль от рута!
+чтобы эту херню отключить идем в visudo и коментируем две строки
+
+
+#Defaults targetpw   # ask for the password of the target user i.e. root
+#ALL	ALL=(ALL) ALL   # WARNING! Only use this together with 'Defaults targetpw'!
+

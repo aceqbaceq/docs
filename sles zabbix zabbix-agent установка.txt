@@ -1,0 +1,142 @@
+| sles
+| zabbix
+| zabbix-agent
+
+как поставить забикс агент на  SLES 11 а точнее "11.4"
+
+
+
+
+нужны пакеты
+	zabbix-1.8.12-1.el5.x86_64.rpm
+	zabbix-agent-1.8.12-1.el5.x86_64.rpm
+
+
+
+
+но также нужно чтобы был доступ к DVD с дистрибутивом
+вот у меня есьть DVD в таком виде
+
+ # df -h
+/dev/loop1      5.2G  5.2G     0 100% /mnt/sles11sp4_dvd2_iso
+/dev/loop2      3.2G  3.2G     0 100% /mnt/sles11sp4_dvd1_iso
+
+
+
+тогда я их включаю в дистрибуиитива пакетов
+
+ # zypper ar -t plaindir /mnt/sles11sp4_dvd1_iso SLES_PLAIN_1
+ # zypper ar -t plaindir /mnt/sles11sp4_dvd2_iso SLES_PLAIN_2
+
+получаем вот такое
+# zypper lr -u
+# | Alias                                            | Name                                             | Enabled | Refresh | URI                                                                             
+--+--------------------------------------------------+--------------------------------------------------+---------+---------+---------------------------------------------------------------------------------
+1 | SLES_PLAIN_1                                     | SLES_PLAIN_1                                     | Yes     | No      | dir:///mnt/sles11sp4_dvd1_iso                                                   
+2 | SLES_PLAIN_2                                     | SLES_PLAIN_2                                     | Yes     | No      | dir:///mnt/sles11sp4_dvd2_iso                                                   
+3 | SUSE-Linux-Enterprise-Server-11-SP4 11.4.4-1.109 | SUSE-Linux-Enterprise-Server-11-SP4 11.4.4-1.109 | Yes     | No      | cd:///?devices=/dev/disk/by-id/usb-TEAC_DV-W28SS-R_ABCDEF0123456789-0:0,/dev/sr0
+4 | opensuse                                         | opensuse                                         | No      | No      | http://download.opensuse.orh/repositories/server:mon:         
+
+
+
+ставим пакеты
+ # zypper install zabbix-1.8.12-1.el5.x86_64.rpm
+ # zypper install zabbix-agent-1.8.12-1.el5.x86_64.rpm
+
+
+
+
+теперт модифицируем конфиг
+	# cat /etc/zabbix/zabbix_agentd.conf | grep -v '#'
+
+Include=/etc/zabbix/zabbix_agentd.d/
+
+PidFile=/var/zabbix/zabbix_agentd.pid
+
+
+LogFile=/var/zabbix/zabbix_agentd.log
+
+
+Server=SERVER-IP
+
+
+
+ServerActive=SERVER-IP
+Hostname=NAME-OF-HOST
+
+UserParameter=net.tcp.isport[*],netstat -an | grep  -c $1
+UserParameter=zpool.degraded,/usr/sbin/zpool list | grep -c DEGRADED
+
+
+# mkdir /etc/rc.d/init.d/
+# touch /etc/rc.d/init.d/functions
+# mkdir /var/zabbix
+# chown zabbix /var/zabbix
+ 
+
+тестовый запуск вручную
+# /usr/sbin/zabbix_agentd -c /etc/zabbix/zabbix_agentd.conf
+
+# ps -ef | grep zabb
+
+
+создаем конфиг для сервиса
+надо именно руками потому что то что входит в комплект ооно для редхата а в слес 
+оно неработает
+	# cat /etc/init.d/zabbix-agent
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides:          zabbix-agent
+# Required-Start:    $network $remote_fs
+# Required-Stop:     $network $remote_fs
+# Default-Start:     3 5
+# Default-Stop:      0 1 2 6
+# Short-Description: Zabbix agent
+### END INIT INFO
+
+. /lib/lsb/init-functions
+
+CONF=/etc/zabbix/zabbix_agentd.conf
+BIN=/usr/sbin/zabbix_agentd
+
+case "$1" in
+    start)
+        echo -n "Starting Zabbix agent "
+        start_daemon $BIN -c $CONF
+        rc_status -v
+        ;;
+    stop)
+        echo -n "Shutting down Zabbix agent "
+        killproc -TERM $BIN
+        rc_status -v
+        ;;
+    restart)
+        $0 stop
+        $0 start
+        ;;
+    status)
+        echo -n "Checking for Zabbix agent "
+        checkproc $BIN
+        rc_status -v
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|status|restart}"
+        exit 1
+        ;;
+esac
+rc_exit
+
+
+
+	# service zabbix-agent start 
+	# service zabbix-agent status
+    Checking for Zabbix agent                running
+
+
+
+включаем сервис в автозагрузку
+	# chmod +x /etc/init.d/zabbix-agent
+	# chkconfig zabbix-agent on
+
+
+

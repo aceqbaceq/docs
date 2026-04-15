@@ -1,0 +1,9 @@
+| T5220
+| alom
+| lom
+
+в его меню консоль лежит в тут 
+
+
+> start HOST/console
+

@@ -1,0 +1,37 @@
+| solaris
+| disk
+
+
+как на лету вытащить диск из соляриса
+
+
+bash-3.00# zpool status -v
+  pool: rpool
+ state: ONLINE
+ scrub: none requested
+config:
+
+        NAME          STATE     READ WRITE CKSUM
+        rpool         ONLINE       0     0     0
+          mirror-0    ONLINE       0     0     0
+            c0t1d0s0  ONLINE       0     0     0
+            c0t0d0s0  ONLINE       0     0     0
+
+
+убираем его из пула
+bash-3.00# zpool detach rpool c0t1d0s0
+
+
+отключаем его из сервера
+bash-3.00# cfgadm -al
+Ap_Id                          Type         Receptacle   Occupant     Condition
+c0                             scsi-sata    connected    configured   unknown
+c0::dsk/c0t0d0                 disk         connected    configured   unknown
+c0::dsk/c0t1d0                 disk         connected    configured   unknown
+
+
+bash-3.00# cfgadm -c unconfigure c0::dsk/c0t1d0
+
+
+вытаскивыаем из корпуса. на диске должна горетт прекрасная синяя лампочка
+

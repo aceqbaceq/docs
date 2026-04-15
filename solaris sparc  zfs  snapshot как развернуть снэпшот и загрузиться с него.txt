@@ -21,7 +21,9 @@
     # installboot  /usr/platform/`uname -i`/lib/fs/zfs/bootblk /dev/rdsk/c2t1d0s0
     если загрузчик неверный то при загрузке sparc недойдет до надписи Sunos
     а вылеезет надпись типа file is not executable
-
+    а именно
+        Boot device: /pci@0/pci@0/pci@2/scsi@0/disk@1,0:a  File and args: 
+        The file just loaded does not appear to be executable.
 
 2. для того чтобы раскать снэпшот нужно вначале создать пул. ибо он невходит в состав
    снэпшота. так вот суперважно узнать какая версися пула была наисходной системе суука.
