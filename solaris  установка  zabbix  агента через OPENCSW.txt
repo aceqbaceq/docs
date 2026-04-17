@@ -1,0 +1,103 @@
+| zabbix 
+| solaris
+
+
+ставим zabbix agent на солярис 11 через opencsw
+
+
+
+
+# cat /etc/*rel*
+                             Oracle Solaris 11.2 X86
+  Copyright (c) 1983, 2015, Oracle and/or its affiliates.  All rights reserved.
+                             Assembled 17 March 2015
+
+поставили сам пакет
+
+~# pkginfo | grep zabb
+application CSWzabbix-agent           zabbix_agent - Zabbix monitoring system agent
+
+
+но там нет манифеста чтобы в сервис превратить
+
+
+файл манифеста
+
+root@rawflowdb2:~# cat /var/tmp/
+Display all 243 possibilities? (y or n)^C
+root@rawflowdb2:~# cat /var/tmp/zabbix_agent.xml 
+<?xml version="1.0"?>
+<!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
+<service_bundle type="manifest" name="zabbix_agent">
+  <service name="network/zabbix-agent" type="service" version="1">
+    <create_default_instance enabled="false"/>
+    <single_instance/>
+    
+    <!-- Оставляем только зависимость от сети -->
+    <dependency name="network" grouping="require_all" restart_on="error" type="service">
+      <service_fmri value="svc:/milestone/network:default"/>
+    </dependency>
+
+    <!-- Команда запуска и остановки -->
+    <exec_method type="method" name="start" exec="/opt/csw/sbin/zabbix_agentd -c /etc/opt/csw/zabbix_agentd.conf" timeout_seconds="60"/>
+    <exec_method type="method" name="stop" exec=":kill" timeout_seconds="60"/>
+    
+    <stability value="Unstable"/>
+    
+    <template>
+      <common_name>
+        <loctext xml:lang="C">Zabbix Agent</loctext>
+      </common_name>
+    </template>
+  </service>
+</service_bundle>
+
+
+
+
+
+
+
+#  svccfg import /var/tmp/zabbix_agent.xml
+
+пример конфига самого 
+
+# cat /etc/opt/csw/zabbix_agentd.conf
+
+PidFile=/var/zabbix/zabbix_agentd.pid
+LogFile=/var/zabbix/zabbix_agentd.log
+Server=$SERVER-DNS\IP
+ServerActive=$SERVER-DNS\IP
+Hostname=$HOSTNAME
+UserParameter=net.tcp.isport[*],netstat -an | grep  -c $1
+UserParameter=zpool.degraded,/usr/sbin/zpool list | grep -c DEGRADED
+
+
+
+
+
+
+
+#  svcadm enable network/zabbix-agent
+# svcs -pv zabbix-agent
+STATE          NSTATE        STIME    CTID      FMRI
+online         -              1:22:25       406 svc:/network/zabbix-agent:default
+                1:22:25    11172 zabbix_agentd
+                1:22:25    11173 zabbix_agentd
+                1:22:25    11174 zabbix_agentd
+                1:22:25    11175 zabbix_agentd
+                1:22:25    11176 zabbix_agentd
+                1:22:25    11177 zabbix_agentd
+
+
+# ps -ef | grep zab
+  zabbix 11176 11172   0 01:22:26 ?           0:00 /opt/csw/sbin/zabbix_agentd -c /etc/opt/csw/zabbix_agentd.conf
+  zabbix 11177 11172   0 01:22:26 ?           0:00 /opt/csw/sbin/zabbix_agentd -c /etc/opt/csw/zabbix_agentd.conf
+  zabbix 11174 11172   0 01:22:26 ?           0:00 /opt/csw/sbin/zabbix_agentd -c /etc/opt/csw/zabbix_agentd.conf
+    root 11240 11109   0 01:32:10 pts/2       0:00 grep zab
+  zabbix 11172     1   0 01:22:26 ?           0:00 /opt/csw/sbin/zabbix_agentd -c /etc/opt/csw/zabbix_agentd.conf
+  zabbix 11173 11172   0 01:22:26 ?           0:01 /opt/csw/sbin/zabbix_agentd -c /etc/opt/csw/zabbix_agentd.conf
+  zabbix 11175 11172   0 01:22:26 ?           0:00 /opt/csw/sbin/zabbix_agentd -c /etc/opt/csw/zabbix_agentd.conf
+
+
+по идее готоово

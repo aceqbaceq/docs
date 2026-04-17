@@ -1,0 +1,60 @@
+| telegram 
+| proxy
+
+
+вот здесь
+
+https://github.com/alexbers/mtprotoproxy?tab=readme-ov-file
+
+
+
+$ git clone -b stable https://github.com/alexbers/mtprotoproxy.git; cd mtprotoprox
+
+
+модфицируем конфиг 
+---
+# cat config.py 
+PORT = 443
+
+USERS = {
+    "tg":  "234-02934-0294-02394",
+}
+
+MODES = {
+    "classic": False,
+
+    "secure": False,
+
+    "tls": True
+}
+
+TLS_DOMAIN = "vasya.com"
+----
+
+
+
+вот этот ключ "tg":  "234-02934-0294-02394" генерируем вот так
+	# openssl rand -hex 16
+da1bce8accf5583376babd218c2fa18b
+
+
+
+
+
+
+заппускаем
+
+# docker compose up -d
+
+# docker-compose logs
+
+в логах будет написнаа ссылка
+
+tg: tg://proxy?server=1.1.6.9&port=443&secret=ee4bb706c652e636f6d
+
+которую нужно открыть  в телеграме она пропишет прокси
+
+готово
+
+
+
