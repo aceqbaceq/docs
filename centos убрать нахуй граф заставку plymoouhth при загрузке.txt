@@ -1,0 +1,19 @@
+| centos
+| граф заставка
+
+
+в centos при загурзке идет граф экран 
+как его анхуй убрать
+это plymouth
+
+нужно УБРАТЬ из граба параметры ядра
+
+	rhgb quiet
+
+
+или из  /etc/default/grub
+убрать из строки GRUB_CMDLINE_LINUX=  эти парамтреы  rhgb quiet
+и пеерсобарать граб
+
+grub2-mkconfig -o /boot/grub2/grub.cfg
+

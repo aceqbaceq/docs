@@ -1,0 +1,4 @@
+| linux
+| init 3
+
+systemctl isolate multi-user.target

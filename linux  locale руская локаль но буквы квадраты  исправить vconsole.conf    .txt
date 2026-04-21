@@ -1,0 +1,49 @@
+| linux
+| locale
+
+
+
+спсок уставноелных локелей
+
+
+# localectl list-locales | grep en_US
+
+уставнить английскую локаль
+
+dnf install langpacks-en
+
+
+еще момент может быть устанвлена рукская локаль
+но шрифт к ней выставлен хуевый без пддежвки руского языка
+
+идем в 
+
+vi /etc/vconsole.conf
+
+сморим что там написано
+
+KEYMAP="ru"
+FONT="eurolat"
+
+надо чтобы название шифрифта было с подержкой рус языка
+
+
+ищем тут шрифты 
+
+ls /usr/lib/kbd/consolefonts | grep cyr
+
+с cyr*
+
+находим и тестируем
+
+setfont cyr-sun16
+
+если стало окей то 
+
+
+vi /etc/vconsole.conf
+
+
+KEYMAP="ru"
+FONT="cyr-sun16"
+
