@@ -1,0 +1,111 @@
+##############################################################
+
+    server sun T2000
+       The physical processor has 32 virtual processors (0-31)
+       UltraSPARC-T1 (chipid 0, clock 1000 MHz)
+       на сервере сокет один
+       на цпу 8 блоков alu
+
+
+            8 потоков
+                  sign    verify    sign/s verify/s
+rsa 2048 bits 0.014939s 0.000429s     66.9   2333.7  (8.3/1cpu 291/1cpu)
+
+
+
+            16 потоков  
+                  sign    verify    sign/s verify/s
+rsa 2048 bits 0.009297s 0.000261s    107.6   3831.9  (6.68/1cpu  239/1cpu)
+
+
+
+            24 потока
+                  sign    verify    sign/s verify/s
+rsa 2048 bits 0.007632s 0.000214s    131.0   4675.0   (5.46/1cpu  195/1cpu)
+
+
+            32 потока
+                  sign    verify    sign/s verify/s
+rsa 2048 bits 0.007334s 0.000208s    136.4   4807.6  (4.25/1cpu  150/1cpu)
+
+
+
+
+      загрузка цпу
+формальная   фактическая
+   25%           49%
+   50%           78%
+   75%           96%
+  100%           100%
+
+
+#######################################################################################
+
+       server x2200 
+       AMD Opteron(tm) Processor 2220 @ 2.80GHz  (2 ядра 2 треда)
+       (на cpunecmhmark его условная скрость 506 синг тред 1106 мултитред)
+       на сервере 2 сокета
+
+
+   1 поток
+                  sign    verify    sign/s verify/s
+rsa 2048 bits 0.001894s 0.000062s    528.0  16129.0
+
+
+   2 потока
+                  sign    verify    sign/s verify/s
+rsa 2048 bits 0.000948s 0.000031s   1054.6  32522.5
+
+
+  4 потока
+                  sign    verify    sign/s verify/s
+rsa 2048 bits 0.000478s 0.000016s   2091.0  64516.1
+
+
+  8 потоков
+                  sign    verify    sign/s verify/s
+rsa 2048 bits 0.000474s 0.000015s   2107.7  67615.4
+
+видно что на 8 потоков также как на 4 потока. 
+все верно потому что физ ядер на сервер всего 4 штуки
+зато честные в отличии от спаррка
+
+
+##################################################################
+
+    server Supermicro X8DTU 
+    cpu Intel(r) Xeon(r) CPU           E5645  @ 2.40GHz  (6 ядер 12 тредов)
+       (на cpunecmhmark его условная скрость 1131 синг тред 4921 мултитред)
+    на сервере  2 сокета
+
+
+  1 поток
+                  sign    verify    sign/s verify/s
+rsa 2048 bits 0.002553s 0.000080s    391.7  12500.0
+
+
+
+  2 потока
+                  sign    verify    sign/s verify/s
+rsa 2048 bits 0.001273s 0.000040s    785.2  25158.2
+
+
+
+ 4 потока
+                  sign    verify    sign/s verify/s
+rsa 2048 bits 0.000636s 0.000020s   1571.6  49232.2
+
+
+
+  8 потоков
+                  sign    verify    sign/s verify/s
+rsa 2048 bits 0.000333s 0.000011s   3004.7  94684.5
+
+
+  
+  12 потоков
+                  sign    verify    sign/s verify/s
+rsa 2048 bits 0.000237s 0.000007s   4222.5 140274.8
+
+###################################################################
+
