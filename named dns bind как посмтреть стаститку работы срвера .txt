@@ -1,0 +1,26 @@
+|
+|
+| named
+
+
+options {
+        directory       "/opt/named/var";
+        pid-file        "run/pid";
+        dump-file       "named_dump.db";
+        statistics-file "named.stats";
+
+
+ значит /opt/named/var/named.stats
+ содержм статиутиску по серверу
+
+ это файл можно обновить вот так
+
+ # > /opt/named/var/named.stats
+
+
+ # rndc stats
+
+ и так можно понять скоко реквестов валится на суврер
+ узнать стаитиуку
+
+ 
