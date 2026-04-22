@@ -2,6 +2,9 @@
 | perf
 | dnsperf
 
+если это линукс то 
+
+# apt install dnsperf
 
 for i in {1..1000000}; do echo "dev-$://xn--b1aedoqhcc5a.com A" >> input.txt; done
 
@@ -11,4 +14,11 @@ dnsperf -s 10.254.254.234  -d input.txt -l 20 -c 10 -Q 100
 -l 60: тест длится 60 секунд.
 -c 50: количество одновременных клиентов (потоков).
 -Q 1000: ограничение до 1000 запросов в секунду (если убрать, он будет бить «в пол» на максимум возможностей).
+
+
+если это солярис на спарк то 
+https://www.dns-oarc.net/tools/dnsperf
+а именно
+https://www.dns-oarc.net/files/dnsperf/2.1.0.0/dnsperf-2.1.0.0-1-solaris-10-sparc.tar.gz
+
 
