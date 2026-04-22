@@ -1,0 +1,9 @@
+| sun
+| spar
+| solaris
+| cpu 
+
+как узнать модель цпу
+
+/usr/sbin/psrinfo -pv
+
