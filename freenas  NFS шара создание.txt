@@ -1,0 +1,12 @@
+| freenas
+| NFS
+
+
+когда создаю шару то важно там нажать галочки
+/
+
+All dirs
+quiet
+enabled
+MapAlluser=ROOT
+
