@@ -1,0 +1,19 @@
+| oracle
+| asm
+
+полезные команды
+
+
+# su - oracle
+
+$ asmcmd
+ASMCMD> 
+ASMCMD> lsdg
+State    Type    Rebal  Sector  Block       AU  Total_MB  Free_MB  Req_mir_free_MB  Usable_file_MB  Offline_disks  Voting_files  Name
+MOUNTED  EXTERN  N         512   4096  1048576   3481600   182795                0          182795              0             N  DATA/
+MOUNTED  EXTERN  N         512   4096  1048576     30490      742                0             742              0             N  FCACHE1/
+MOUNTED  EXTERN  N         512   4096  1048576   1024000   844912                0          844912              0             N  FRA/
+MOUNTED  EXTERN  N         512   4096  1048576    511808   503480                0          503480              0             N  REDO/
+MOUNTED  EXTERN  N         512   4096  1048576    512000   465775                0          465775              0             Y  VOTING/
+
+

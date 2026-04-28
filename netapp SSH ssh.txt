@@ -1,0 +1,11 @@
+| netapp
+| ssh
+
+
+заходим по ssh
+если нетап старйы то ссш у него тоже старый поэтому
+
+
+# docker run --rm -it alpine:3.3 sh -c "apk add --no-cache openssh-client && ssh -o KexAlgorithms=+diffie-hellman-group1-sha1 -o HostKeyAlgorithms=+ssh-rsa -c 3des-cbc root@NETAPP_IP"
+
+

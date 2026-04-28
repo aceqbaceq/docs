@@ -1,0 +1,85 @@
+| netapp
+| полезные команды
+
+
+список дисков
+
+> storage show disk -x  
+DISK     SHELF BAY SERIAL               VENDOR   MODEL            REV
+-------- --------- -------------------- -------- ---------------- ----
+3b.00.0    0    0  Y3F0A0JQFUZ6         NETAPP   X422_TAL13600A10 NA00
+0a.00.1    0    1  Y3F0A0K1FUZ6         NETAPP   X422_TAL13600A10 NA00
+3b.00.2    0    2  Y3F0A06HFUZ6         NETAPP   X422_TAL13600A10 NA00
+0a.00.3    0    3  S0M1HCM60000B420JPF1 NETAPP   X422_SLTNG600A10 NA00
+3b.00.4    0    4  Y3E0A1MFFUZ6         NETAPP   X422_TAL13600A10 NA00
+0a.00.5    0    5  Y3F0A0J4FUZ6         NETAPP   X422_TAL13600A10 NA00
+3b.00.6    0    6  Y3F0A0W2FUZ6         NETAPP   X422_TAL13600A10 NA00
+0a.00.7    0    7  Y3E0A1HMFUZ6         NETAPP   X422_TAL13600A10 NA00
+
+
+
+статус чегототам
+> cf status
+Controller Failover enabled, na01-cn03 is up.
+RDMA Interconnect is up (Link 0 up, Link 1 up).
+
+
+
+инфо по адаптеры
+
+> fcp show adapter -v     
+Slot:                    0c
+Description:             Fibre Channel Target Adapter 0c (QLogic 2432 (2462) rev. 2)
+Status:                  ONLINE
+Host Port Address:       0x0c0700
+Firmware Rev:            5.8.0
+...
+
+Slot:                    0d
+Description:             Fibre Channel Target Adapter 0d (QLogic 2432 (2462) rev. 2)
+Status:                  ONLINE
+Host Port Address:       0x0b0700
+...
+
+
+
+
+список инциаторов а также имена Fc портов хоста
+> fcp show initiator      
+Initiators connected on adapter 0c:
+Portname                  Group
+--------                  -----
+21:00:00:24:ff:3e:cc:70   g2
+21:00:00:e0:8b:94:9f:a1   S4
+
+
+Initiators connected on adapter 0d:
+Portname                  Group
+--------                  -----
+21:00:00:24:ff:3e:cc:71   g2
+21:01:00:e0:8b:b4:9f:a1   S4
+
+
+
+
+
+статитисика по FC порту
+
+> fcp stats 0d          
+Statistics for adapter 0d
+Read Ops:               46397902516
+Write Ops:              47627154547
+Other Ops:              32273229
+KBytes In:              1470664698938
+KBytes Out:             911690623633
+Adapter Resets:         0
+Frame Overruns:         0
+...
+...
+
+
+
+
+еще одна команда
+> aggr status -v
+

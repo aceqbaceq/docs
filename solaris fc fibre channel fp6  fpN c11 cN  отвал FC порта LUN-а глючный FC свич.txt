@@ -1,0 +1,277 @@
+| solaris
+| fc
+| fibre channel
+| fp6
+| fpN
+| c11
+| cN
+| отвал FC пути
+| глючный FC свич
+
+
+
+СИМПТОМ:
+в логах ядра видно что отваливаюся FC луны и указан непонтное название FC порта fp6
+на компе через который нет связи
+Apr 28 18:29:28 spider01 scsi: [ID 243001 kern.warning] WARNING: /scsi_vhci (scsi_vhci0):
+Apr 28 18:29:28 spider01        /scsi_vhci/disk@g60a9800044337746653f453438487135 (sd36): Command Timeout on path fp6/disk@w500a0982885f10aa,3
+
+
+ЗАДАЧА:
+найти нормальное название FC порта для  fp6 и вырубить этот порт
+
+
+
+ПОЕХАЛИ
+
+
+версия соляриса
+
+# cat /etc/*rel*
+                             Oracle Solaris 11.1 X86
+  Copyright (c) 1983, 2012, Oracle and/or its affiliates.  All rights reserved.
+                           Assembled 19 September 2012
+
+
+
+
+что за хуйня fp6 
+а это такая же хуйня как название дисков не в виде c0t0d0 или c0tWWNd0 а в виде sd50
+тжоже самое и для FC порта. вместо нормального названия c11 есть альтернативное fp6
+
+
+
+итак
+имеем ошибку в логах
+
+# dmesg -T
+
+Apr 28 18:29:28 spider01 scsi: [ID 243001 kern.warning] WARNING: /scsi_vhci (scsi_vhci0):
+Apr 28 18:29:28 spider01        /scsi_vhci/disk@g60a9800044337746653f453438487135 (sd36): Command Timeout on path fp6/disk@w500a0982885f10aa,3
+Apr 28 18:29:28 spider01 scsi: [ID 243001 kern.warning] WARNING: /scsi_vhci (scsi_vhci0):
+Apr 28 18:29:28 spider01        /scsi_vhci/disk@g60a9800044343357352445432d527332 (sd54): Command Timeout on path fp6/disk@w500a0982885f10aa,5
+Apr 28 18:33:06 spider01 scsi: [ID 243001 kern.warning] WARNING: /scsi_vhci (scsi_vhci0):
+Apr 28 18:33:06 spider01        /scsi_vhci/disk@g60a9800044343357352445432d527332 (sd54): Command Timeout on path fp6/disk@w500a0982985f10aa,5
+Apr 28 18:33:06 spider01 scsi: [ID 243001 kern.warning] WARNING: /scsi_vhci (scsi_vhci0):
+Apr 28 18:33:06 spider01        /scsi_vhci/disk@g60a9800044337746653f453438487135 (sd36): Command Timeout on path fp6/disk@w500a0982985f10aa,3
+Apr 28 18:33:06 spider01 scsi: [ID 243001 kern.warning] WARNING: /scsi_vhci (scsi_vhci0):
+Apr 28 18:33:06 spider01        /scsi_vhci/disk@g60a9800044343357352445432d527332 (sd54): Command Timeout on path fp6/disk@w500a0982885f10aa,5
+Apr 28 18:40:02 spider01 scsi: [ID 243001 kern.warning] WARNING: /scsi_vhci (scsi_vhci0):
+Apr 28 18:40:02 spider01        /scsi_vhci/disk@g60a9800044343357352445432d527336 (sd50): Command Timeout on path fp6/disk@w500a0982885f10aa,9
+
+
+значит тут видно что диски (sdN)  разные 
+и при этом fpN тоесть fp6  один и тот же (тоесть FC порт на компе один  и тот же ) участвует
+что наводит на мысль что либо на удаленном сторалдже проблемы с дисками вАААБЩЕ
+либо проблема на нашем компе с кокннетным FC портом (позже выяснилось что прблема в FC свиче куда
+воткнут наш комп). 
+
+так вот наша задача понять какой FC порт на компе обозначен в логах как fp6
+поехали
+
+смотрим названия FC портов 
+
+# fcinfo hba-port | grep "/dev/"
+        OS Device Name: /dev/cfg/c11
+        OS Device Name: /dev/cfg/c12
+
+
+теперь смотрим вот тут вот так
+
+# cat /etc/path_to_inst | grep "\"fp\""
+"/pci@0,0/pci8086,340e@7/pci1077,143@0/fp@0,0" 1 "fp"
+"/pci@0,0/pci8086,340e@7/pci1077,143@0/fp@1,0" 2 "fp"
+"/pci@0,0/pci8086,340e@7/pci1077,143@0,1/fp@0,0" 0 "fp"
+"/pci@0,0/pci8086,340e@7/pci1077,143@0,1/fp@1,0" 3 "fp"
+"/pci@0,0/pci8086,340e@7/pci103c,7041@0/fp@0,0" 6 "fp"
+"/pci@0,0/pci8086,340e@7/pci103c,7041@0/fp@1,0" 7 "fp"
+"/pci@0,0/pci8086,340e@7/pci103c,7041@0,1/fp@0,0" 4 "fp"
+"/pci@0,0/pci8086,340e@7/pci103c,7041@0,1/fp@1,0" 5 "fp"
+
+
+замечаем что 
+
+"/pci@0,0/pci8086,340e@7/pci103c,7041@0/fp@0,0" 6 "fp"
+
+это и есть fp6
+теперь ищем эту хрень  "/pci@0,0/pci8086,340e@7/pci103c,7041@0/fp@0,0"  среди c11 и c12
+
+
+	# ls -l  /dev/cfg/c11 | grep "/pci@0,0/pci8086,340e@7/pci103c,7041@0/fp@0,0"
+lrwxrwxrwx   1 root     root          61 Feb  5  2014 /dev/cfg/c11 -> ../../devices/pci@0,0/pci8086,340e@7/pci103c,7041@0/fp@0,0:fc
+
+
+	# ls -l  /dev/cfg/c12 | grep "/pci@0,0/pci8086,340e@7/pci103c,7041@0/fp@0,0"
+   пусто 
+
+это значит что fp6 это c11 порт
+тоесть я нашел соотвествие между fp6 и c11
+
+это значит что нам нужно потушить на компе порт c11
+потому что дело вот в чем вот эти ошибки
+
+Apr 28 18:29:28 spider01 scsi: [ID 243001 kern.warning] WARNING: /scsi_vhci (scsi_vhci0):
+Apr 28 18:29:28 spider01        /scsi_vhci/disk@g60a9800044337746653f453438487135 (sd36): Command Timeout on path fp6/disk@w500a0982885f10aa,3
+
+они показывают что диски через порт c11 к ним доступ мегамедленный в тоже время 
+через другой порт c12 таких ошибок нет, кстати посмотрим какой fpN отвечает за c12
+
+~# ls -l  /dev/cfg/c12 
+lrwxrwxrwx   1 root     root          63 Feb  5  2014 /dev/cfg/c12 -> ../../devices/pci@0,0/pci8086,340e@7/pci103c,7041@0,1/fp@0,0:fc
+
+ищем "pci@0,0/pci8086,340e@7/pci103c,7041@0,1/fp@0,0" в path_to_inst
+
+
+# cat /etc/path_to_inst | grep "\"fp\""
+"/pci@0,0/pci8086,340e@7/pci1077,143@0/fp@0,0" 1 "fp"
+"/pci@0,0/pci8086,340e@7/pci1077,143@0/fp@1,0" 2 "fp"
+"/pci@0,0/pci8086,340e@7/pci1077,143@0,1/fp@0,0" 0 "fp"
+"/pci@0,0/pci8086,340e@7/pci1077,143@0,1/fp@1,0" 3 "fp"
+"/pci@0,0/pci8086,340e@7/pci103c,7041@0/fp@0,0" 6 "fp"
+"/pci@0,0/pci8086,340e@7/pci103c,7041@0/fp@1,0" 7 "fp"
+"/pci@0,0/pci8086,340e@7/pci103c,7041@0,1/fp@0,0" 4 "fp"
+"/pci@0,0/pci8086,340e@7/pci103c,7041@0,1/fp@1,0" 5 "fp"
+
+
+тоесть это fp4
+а внаших логах никкаиких прблем с досутпаом к дискам через fp4 нет.
+вобщем в итоге нам надо поутшить c11 порт на компе и будет нам счастье.
+у нас каждый диск к нему досутп идет через два FC порта снашего компа
+но путей даже не два а целых четыре (ХА-ХА)
+
+
+# mpathadm list lu
+        /dev/rdsk/c0t60A9800044343357352445432D527332d0s2
+                Total Path Count: 4
+                Operational Path Count: 4
+
+
+
+
+~# luxadm display /dev/rdsk/c0t60A9800044343357352445432D527332d0s2
+DEVICE PROPERTIES for disk: /dev/rdsk/c0t60A9800044343357352445432D527332d0s2
+  Vendor:               NETAPP  
+  Product ID:           LUN             
+  Revision:             820a
+  Serial Num:           D43W5$EC-Rs2
+  Unformatted capacity: 1782677.000 MBytes
+  Read Cache:           Enabled
+    Minimum prefetch:   0x0
+    Maximum prefetch:   0x0
+  Device Type:          Disk device
+  Path(s):
+
+  /dev/rdsk/c0t60A9800044343357352445432D527332d0s2
+  /devices/scsi_vhci/disk@g60a9800044343357352445432d527332:c,raw
+   Controller           /dev/cfg/c11
+    Device Address              500a0982885f10aa,5
+    Host controller port WWN    500143800134074c
+    Class                       primary
+    State                       ONLINE
+   Controller           /dev/cfg/c11
+    Device Address              500a0982985f10aa,5
+    Host controller port WWN    500143800134074c
+    Class                       primary
+    State                       ONLINE
+   Controller           /dev/cfg/c12
+    Device Address              500a0981885f10aa,5
+    Host controller port WWN    500143800134074e
+    Class                       primary
+    State                       ONLINE
+   Controller           /dev/cfg/c12
+    Device Address              500a0981985f10aa,5
+    Host controller port WWN    500143800134074e
+    Class                       primary
+    State                       ONLINE
+
+
+тоесть четыре пути через два порта. почему путей четрые. 
+потому что нетфап сторадж имеет две головы. каждая имеет две карты FC поэтому
+до каждого LUN-а у нас четыре пути
+
+
+так вот так как выяснилось что FC свич который подключен к порту c11 заглючил
+то порт c11 нужно выбключить на сервере. потому что это работате так - мультипаф он 
+пооочереди исползует пути для луна и когда он юзает пути которые идут по c11 то идет дикая задержка
+поэтому нужно c11 выключить и исчезнут задержки доступа к луну
+
+
+
+   # cfgadm -f -c unconfigure c11
+
+тут команда может замереть на минуту но в итоге порт будет вырублен
+
+провекра через 
+
+ # cfgadm -al | grep  c11
+c11                            fc-fabric    connected    unconfigured unknown
+c11::210000e08b94e89e          unknown      connected    unconfigured unknown
+c11::210100e08bb41e9d          unknown      connected    unconfigured unknown
+c11::210100e08bb49fa1          unknown      connected    unconfigured unknown
+c11::500a0982885f10aa          disk         connected    unconfigured unknown
+c11::500a0982985f10aa          disk         connected    unconfigured unknown
+
+
+видно что все луны нахоядятся в состоянии  unconfigured
+то что нам надо
+
+и число путей до луна упадет в два раза
+
+
+# luxadm display /dev/rdsk/c0t60A9800044343357352445432D527332d0s2
+DEVICE PROPERTIES for disk: /dev/rdsk/c0t60A9800044343357352445432D527332d0s2
+  Vendor:               NETAPP  
+  Product ID:           LUN             
+  Revision:             820a
+  Serial Num:           D43W5$EC-Rs2
+  Unformatted capacity: 1782677.000 MBytes
+  Read Cache:           Enabled
+    Minimum prefetch:   0x0
+    Maximum prefetch:   0x0
+  Device Type:          Disk device
+  Path(s):
+
+  /dev/rdsk/c0t60A9800044343357352445432D527332d0s2
+  /devices/scsi_vhci/disk@g60a9800044343357352445432d527332:c,raw
+   Controller           /dev/cfg/c12
+    Device Address              500a0981885f10aa,5
+    Host controller port WWN    500143800134074e
+    Class                       primary
+    State                       ONLINE
+   Controller           /dev/cfg/c12
+    Device Address              500a0981985f10aa,5
+    Host controller port WWN    500143800134074e
+    Class                       primary
+    State                       ONLINE
+
+
+всего два пути и оба чеерз c12
+
+
+еще можно так проверить запускаем iostat 
+
+
+
+# iostat -xtc 1 5
+
+                 extended device statistics                     tty         cpu
+device     r/s    w/s   kr/s   kw/s wait actv  svc_t  %w  %b  tin tout  us sy wt id
+sd0        0.0   82.0    0.0 3278.8  0.0  1.0   12.1   0  26    0  943   3  4  0 93
+sd1        0.0    0.0    0.0    0.0  0.0  0.0    0.0   0   0 
+sd2        0.0   82.0    0.0 3274.8  0.0  1.0   11.9   0  19 
+sd33       3.0    1.0    5.0    0.5  0.0  0.0    0.4   0   0 
+sd36       1.0  112.0    4.0 11458.8  0.0  0.2    2.1   0  19 
+sd50       8.0    5.0  128.0   43.0  0.0  0.0    1.8   0   2 
+sd51       1.0    0.0   16.0    0.0  0.0  0.0    0.4   0   0 
+sd52       0.0    0.0    0.0    0.0  0.0  0.0    0.0   0   0 
+sd53       1.0    4.0    4.0   39.0  0.0  0.0    2.2   0   1 
+sd54       0.0  122.0    0.0 12563.1  0.0  0.3    2.5   0  21 
+sd56       0.0    1.0    0.0    4.0  0.0  0.0    0.1   0   0 
+nfs2778    0.0    0.0    0.0    0.0  0.0  0.0    0.0   0   0 
+^C
+
+
+и сидим смротрим. прикол в том что если все окей то у нас svc_t должен быть вменяемым
+типа 1-12 мс как видно но никак не 1000мс
+
+
