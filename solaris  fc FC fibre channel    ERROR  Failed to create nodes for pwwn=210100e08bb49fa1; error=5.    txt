@@ -1,0 +1,216 @@
+| solaris
+| fc
+| FC
+| fibre channel
+| Failed to create nodes for pwwn=210100e08bb49fa1; error=5
+
+
+
+
+вот у меня есть пути
+
+# cfgadm -al | grep c1
+c11                            fc-fabric    connected    configured   unknown
+c11::210000e08b94e89e          unknown      connected    unconfigured unknown
+c11::210100e08bb41e9d          unknown      connected    unconfigured unknown
+c11::210100e08bb49fa1          unknown      connected    unconfigured unknown
+c11::500a0982885f10aa          disk         connected    configured   unknown
+c11::500a0982985f10aa          disk         connected    configured   unknown
+
+
+при этом если я делаю unconfigure/configure для всего порта c11
+то вылезают ошибки
+# dmesg -T | grep Fail
+        Failed to create nodes for pwwn=210100e08bb49fa1; error=5
+        Failed to create nodes for pwwn=210000e08b94e89e; error=5
+        Failed to create nodes for pwwn=210100e08bb41e9d; error=5
+
+это происходит изза того что данные порты находяится на серверах которые работают в режиме
+инициатора
+
+
+так что ничего критичного нет.
+
+
+еще раз нааомню как узнаиь инфо о удаленным портах в каком реиме они работают.
+
+вначале нужно выянсмть WWWN порта нашего компа из котрого мы хотим получить инфо об удаленным плортах
+
+
+# fcinfo hba-port | ggrep -E "Port WWN|/dev"
+HBA Port WWN: 500143800134074c
+        OS Device Name: /dev/cfg/c11
+HBA Port WWN: 500143800134074e
+        OS Device Name: /dev/cfg/c12
+
+
+
+я хочу получить инфо для c11  поэтому беру 500143800134074c
+
+
+
+
+# fcinfo remote-port -sl -p   500143800134074c
+
+
+Remote Port WWN: 210100e08bb49fa1
+        Active FC4 Types: SCSI
+        SCSI Target: no
+        Port Symbolic Name: 
+        Node WWN: 200100e08bb49fa1
+        Link Error Statistics:
+                Link Failure Count: 0
+                Loss of Sync Count: 0
+                Loss of Signal Count: 0
+                Primitive Seq Protocol Error Count: 0
+                Invalid Tx Word Count: 0
+                Invalid CRC Count: 0
+
+
+
+Remote Port WWN: 210000e08b94e89e
+        Active FC4 Types: SCSI
+        SCSI Target: no
+        Port Symbolic Name: 
+        Node WWN: 200000e08b94e89e
+        Link Error Statistics:
+                Link Failure Count: 0
+                Loss of Sync Count: 0
+                Loss of Signal Count: 0
+                Primitive Seq Protocol Error Count: 0
+                Invalid Tx Word Count: 0
+                Invalid CRC Count: 0
+
+
+
+Remote Port WWN: 500a0982885f10aa
+        Active FC4 Types: SCSI
+        SCSI Target: yes
+        Port Symbolic Name: NetApp FC Target Adapter (2432) na02-cn03:0d
+        Node WWN: 500a0980885f10aa
+        Link Error Statistics:
+                Link Failure Count: 0
+                Loss of Sync Count: 0
+                Loss of Signal Count: 0
+                Primitive Seq Protocol Error Count: 0
+                Invalid Tx Word Count: 0
+                Invalid CRC Count: 0
+        LUN: 0
+          Vendor: NETAPP  
+          Product: LUN             
+          OS Device Name: /dev/rdsk/c0t60A9800044337746653F45343848707Ad0s2
+        LUN: 3
+          Vendor: NETAPP  
+          Product: LUN             
+          OS Device Name: /dev/rdsk/c0t60A9800044337746653F453438487135d0s2
+        LUN: 5
+          Vendor: NETAPP  
+          Product: LUN             
+          OS Device Name: /dev/rdsk/c0t60A9800044343357352445432D527332d0s2
+        LUN: 6
+          Vendor: NETAPP  
+          Product: LUN             
+          OS Device Name: /dev/rdsk/c0t60A9800044343357352445432D527334d0s2
+        LUN: 7
+          Vendor: NETAPP  
+          Product: LUN             
+          OS Device Name: /dev/rdsk/c0t60A9800044337746653F453438487139d0s2
+        LUN: 8
+          Vendor: NETAPP  
+          Product: LUN             
+          OS Device Name: /dev/rdsk/c0t60A9800044337746653F453438487141d0s2
+        LUN: 9
+          Vendor: NETAPP  
+          Product: LUN             
+          OS Device Name: /dev/rdsk/c0t60A9800044343357352445432D527336d0s2
+
+
+
+Remote Port WWN: 500a0982985f10aa
+        Active FC4 Types: SCSI
+        SCSI Target: yes
+        Port Symbolic Name: NetApp FC Target Adapter (2432) na01-cn03:0d
+        Node WWN: 500a0980885f10aa
+        Link Error Statistics:
+                Link Failure Count: 0
+                Loss of Sync Count: 0
+                Loss of Signal Count: 0
+                Primitive Seq Protocol Error Count: 0
+                Invalid Tx Word Count: 0
+                Invalid CRC Count: 0
+        LUN: 0
+          Vendor: NETAPP  
+          Product: LUN             
+          OS Device Name: /dev/rdsk/c0t60A9800044337746653F45343848707Ad0s2
+        LUN: 3
+          Vendor: NETAPP  
+          Product: LUN             
+          OS Device Name: /dev/rdsk/c0t60A9800044337746653F453438487135d0s2
+        LUN: 5
+          Vendor: NETAPP  
+          Product: LUN             
+          OS Device Name: /dev/rdsk/c0t60A9800044343357352445432D527332d0s2
+        LUN: 6
+          Vendor: NETAPP  
+          Product: LUN             
+          OS Device Name: /dev/rdsk/c0t60A9800044343357352445432D527334d0s2
+        LUN: 7
+          Vendor: NETAPP  
+          Product: LUN             
+          OS Device Name: /dev/rdsk/c0t60A9800044337746653F453438487139d0s2
+        LUN: 8
+          Vendor: NETAPP  
+          Product: LUN             
+          OS Device Name: /dev/rdsk/c0t60A9800044337746653F453438487141d0s2
+        LUN: 9
+          Vendor: NETAPP  
+          Product: LUN             
+          OS Device Name: /dev/rdsk/c0t60A9800044343357352445432D527336d0s2
+
+
+
+Remote Port WWN: 210100e08bb41e9d
+        Active FC4 Types: SCSI
+        SCSI Target: no
+        Port Symbolic Name: 
+        Node WWN: 200100e08bb41e9d
+        Link Error Statistics:
+                Link Failure Count: 0
+                Loss of Sync Count: 0
+                Loss of Signal Count: 0
+                Primitive Seq Protocol Error Count: 0
+                Invalid Tx Word Count: 0
+                Invalid CRC Count: 0
+
+
+ну вот мы получили те уадленные порты котоыре мы видим через наш порт c11
+и мы вилим порты и вкаком режиме ониработают тоесть
+
+
+
+тоесть
+
+# fcinfo remote-port -sl -p   500143800134074c | ggrep -E "Remote|Target"
+
+
+Remote Port WWN: 210100e08bb49fa1
+        SCSI Target: no
+
+
+Remote Port WWN: 210000e08b94e89e
+        SCSI Target: no
+
+
+Remote Port WWN: 500a0982885f10aa
+        SCSI Target: yes
+        Port Symbolic Name: NetApp FC Target Adapter (2432) na02-cn03:0d
+
+Remote Port WWN: 500a0982985f10aa
+        SCSI Target: yes
+        Port Symbolic Name: NetApp FC Target Adapter (2432) na01-cn03:0d
+
+Remote Port WWN: 210100e08bb41e9d
+        SCSI Target: no
+
+
+
