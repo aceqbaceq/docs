@@ -1,0 +1,843 @@
+| fc
+| FC 
+| fibre channel
+| solaris
+| netapp
+
+
+
+надо разобрться с Fibre Channel внутри соляриса
+
+
+
+итак провода вотнкнули в сервер в Fc порты.
+первая хрень с которой наичанем это cfgadm
+в этой штуке покзаываюьтся дисковые контроллеры локальные  и FC порты.
+начну со стороны с локалных дисковых контроллеров
+
+Ap_Id                          Type         Receptacle   Occupant     Condition
+c7                             scsi-sas     connected    configured   unknown
+c7::dsk/c7t0d0                 disk         connected    configured   unknown
+c7::dsk/c7t1d0                 disk         connected    configured   unknown
+c7::dsk/c7t3d0                 disk         connected    configured   unknown
+
+
+значит первая строка
+Ap_Id                          Type         Receptacle   Occupant     Condition
+c7                             scsi-sas     connected    configured   unknown
+
+
+c7 это имя локального scsi\sas контроллера 
+
+далее
+Ap_Id                          Type         Receptacle   Occupant     Condition
+c7::dsk/c7t0d0                 disk         connected    configured   unknown
+c7::dsk/c7t1d0                 disk         connected    configured   unknown
+c7::dsk/c7t3d0                 disk         connected    configured   unknown
+
+
+слева это локальные диски
+
+тоесть слева у нас рисуется либо голый контрлллер. лио дисик которые к нему 
+подключены
+
+слово connected означает что диск воткнут
+
+слово configured означает что этот диск доступен для работы из юзер спейса
+
+
+про проостые контроллеры и диски пока хватит.
+переходим теерь к FC портам
+
+
+
+# cfgadm -al
+
+c12                            fc-fabric    connected    configured   unknown
+c12::500a0981885f10aa          disk         connected    configured   unknown
+c12::500a0981985f10aa          disk         connected    configured   unknown
+
+
+смотрим на 
+Ap_Id                          Type         Receptacle   Occupant     Condition
+c12                            fc-fabric    connected    configured   unknown
+
+
+fc-fabric = означает что то что слева это порт FC тоесть даже не контроллер
+а просто порт
+
+итак c12 это порт FC
+
+
+
+смотрим дальше
+Ap_Id                          Type         Receptacle   Occupant     Condition
+c12::500a0981885f10aa          disk         connected    configured   unknown
+
+
+
+так вот это не удаленный lun нихуя. это вот что 
+c11 это номер порта нашего. а  500a0981885f10aa  это WWWN  FC порта на удаленном СХД
+а луны которые кроются за этим удаленным портом смотрятся дополниеной командой
+вот такой
+
+
+# cfgadm -al -o show_SCSI_LUN c12
+Ap_Id                          Type         Receptacle   Occupant     Condition
+c12                            fc-fabric    connected    configured   unknown
+c12::500a0981885f10aa,0        disk         connected    configured   unknown
+c12::500a0981885f10aa,3        disk         connected    configured   unknown
+c12::500a0981885f10aa,5        disk         connected    configured   unknown
+c12::500a0981885f10aa,6        disk         connected    configured   unknown
+c12::500a0981885f10aa,7        disk         connected    configured   unknown
+c12::500a0981885f10aa,8        disk         connected    configured   unknown
+c12::500a0981885f10aa,9        disk         connected    configured   unknown
+
+c12::500a0981985f10aa,0        disk         connected    configured   unknown
+c12::500a0981985f10aa,3        disk         connected    configured   unknown
+c12::500a0981985f10aa,5        disk         connected    configured   unknown
+c12::500a0981985f10aa,6        disk         connected    configured   unknown
+c12::500a0981985f10aa,7        disk         connected    configured   unknown
+c12::500a0981985f10aa,8        disk         connected    configured   unknown
+c12::500a0981985f10aa,9        disk         connected    configured   unknown
+
+
+вот это уже луны котоыре видны через этот c12 FC порт
+что значат загадочный цифры. их на сомм деле всего две
+
+500a0981885f10aa
+500a0981985f10aa
+
+кадая из них это тотже самый WWWN FC порта на удаленном СХД 
+а цифры
+
+,0
+,3
+..
+0,9
+
+это уже номер луна который из той дырки доступен
+
+таким образом у нас доступно семь лунов через порт 500a0981885f10aa на удаленном СХД
+и семь лунов доступно из порта  500a0981985f10aa  на удаленном схд
+а на нашем сервере это все входит через наш порт c12
+
+
+еще раз посмрим на наши пути к лунам 
+
+~# cfgadm -al -o show_SCSI_LUN c12
+Ap_Id                          Type         Receptacle   Occupant     Condition
+c12                            fc-fabric    connected    configured   unknown
+c12::210000e08b941e9d          unknown      connected    unconfigured unknown
+c12::210000e08b949fa1          unknown      connected    unconfigured unknown
+c12::210100e08bb4e89e          unknown      connected    unconfigured unknown
+c12::500a0981885f10aa,0        disk         connected    configured   unknown
+c12::500a0981885f10aa,3        disk         connected    configured   unknown
+c12::500a0981885f10aa,5        disk         connected    configured   unknown
+c12::500a0981885f10aa,6        disk         connected    configured   unknown
+c12::500a0981885f10aa,7        disk         connected    configured   unknown
+c12::500a0981885f10aa,8        disk         connected    configured   unknown
+c12::500a0981885f10aa,9        disk         connected    configured   unknown
+c12::500a0981985f10aa,0        disk         connected    configured   unknown
+c12::500a0981985f10aa,3        disk         connected    configured   unknown
+c12::500a0981985f10aa,5        disk         connected    configured   unknown
+c12::500a0981985f10aa,6        disk         connected    configured   unknown
+c12::500a0981985f10aa,7        disk         connected    configured   unknown
+c12::500a0981985f10aa,8        disk         connected    configured   unknown
+c12::500a0981985f10aa,9        disk         connected    configured   unknown
+
+
+
+есть те которые configured
+а есть которые unconfigured
+
+те которые конфигуред они должны быть видны как диски в выводе команды format
+(если все верно настроено)
+а те которые unconfigured  тут вот как
+
+
+c12::210000e08b941e9d          unknown      connected    unconfigured unknown
+c12::210000e08b949fa1          unknown      connected    unconfigured unknown
+c12::210100e08bb4e89e          unknown      connected    unconfigured unknown
+
+
+на конце нет ,N
+это значит что мой комп видит только удаленный порт FC (это его wwn указан ) и видит он его
+потому что на FC свиче связь между моим FC портом и тем удаленным она разрешена но
+на удаленном схд для нашего wwn нерасшарен никакой LUN 
+
+
+итак еще раз
+
+~# cfgadm -al
+Ap_Id                          Type         Receptacle   Occupant     Condition
+c12                            fc-fabric    connected    configured   unknown
+c12::210000e08b941e9d          unknown      connected    unconfigured unknown
+c12::210000e08b949fa1          unknown      connected    unconfigured unknown
+c12::210100e08bb4e89e          unknown      connected    unconfigured unknown
+c12::500a0981885f10aa          disk         connected    configured   unknown
+c12::500a0981985f10aa          disk         connected    configured   unknown
+
+
+
+мы видим с12 FC порт нашего компа.
+мы видим несколко FC портов удаленных схд с кторыми мы имеем связь через наш порт c12
+также мы видим что доступ к одним портам удаленным у нас "вллючен" а к другим он выключен
+самая частая причина (если мы сами не выключили через cfgadm unconfigure данный путь)
+сосотоит в том что данные FC порты они по своей сути являатся не таргетами а 
+инициаторами. соовтсвтенно наш порт иницаиторов стучит на те инициаторы а там никаких лунов нет
+поэтоу они и остаются в роли unconfigured так и есть в моем случае.
+четыре сервера на свиче и один схд сидят в одной зоне поэтому каждый порт видит другие порты
+. в целом это херово сделано . надо так зоны на страивать на свиче чтобы сервер иницатор
+видел только порты тагреты у схд а других инициаторов чтобы не видел. 
+как это проверить.
+нужно запросить детальную информацию обо всех видимых нам удаленым портах которые нам
+видны из нашего порта c12
+для этого нам нужно узнать wwn нашего c12
+для этого 
+
+
+
+# fcinfo hba-port
+HBA Port WWN: 500143800134074c   <<*****
+        Port Mode: Initiator     <<*****
+        Port ID: 150200
+        OS Device Name: /dev/cfg/c11   <<*****
+        Manufacturer: QLogic Corp.
+        Model: AE312-60001
+        Firmware Version: 5.6.4
+        FCode/BIOS Version:  BIOS: 1.26; fcode: 1.17; EFI: 1.09;
+        Serial Number: MY50814HN6
+        Driver Name: qlc
+        Driver Version: 20120717-4.01
+        Type: N-port
+        State: online
+        Supported Speeds: 1Gb 2Gb 4Gb 
+        Current Speed: 4Gb 
+        Node WWN: 500143800134074d  <<*****
+        Max NPIV Ports: 127
+        NPIV port list:
+
+HBA Port WWN: 500143800134074e   <<*****
+        Port Mode: Initiator
+        Port ID: 160e00
+        OS Device Name: /dev/cfg/c12   <<*****
+        Manufacturer: QLogic Corp.
+        Model: AE312-60001
+        Firmware Version: 5.6.4
+        FCode/BIOS Version:  BIOS: 1.26; fcode: 1.17; EFI: 1.09;
+        Serial Number: MY50814HN6
+        Driver Name: qlc
+        Driver Version: 20120717-4.01
+        Type: N-port
+        State: online
+        Supported Speeds: 1Gb 2Gb 4Gb 
+        Current Speed: 4Gb 
+        Node WWN: 500143800134074f   <<*****
+        Max NPIV Ports: 127
+        NPIV port list:
+
+
+
+
+так как унас порт c12 в cfgadm то нам нужен 
+
+  HBA Port WWN: 500143800134074e 
+
+именно  он используется при зонинге на свиче
+
+есть еще вот эта хуйня
+        Node WWN: 500143800134074f
+она либо неиспользется либо очень редко. считай что неисползуется.
+ранше я думал что она обоанчает карточку. но оказыается нет. на этом сервере
+одна картчока у нее два порта и у нее два как видно разных nodewwn как скзала нейронка
+это значит что на карте два независимых контрлллера. и nodewwn это идентификтор контрллера
+внутри карты
+итак wwwn порта мы узнали запускаем тдетальный анализ дсотупных удаленных FC портов
+
+
+
+# fcinfo remote-port -sl -p  500143800134074e
+
+
+
+Remote Port WWN: 210000e08b949fa1
+        Active FC4 Types: SCSI
+        SCSI Target: no
+        Port Symbolic Name: 
+        Node WWN: 200000e08b949fa1
+        Link Error Statistics:
+                Link Failure Count: 0
+                Loss of Sync Count: 0
+                Loss of Signal Count: 0
+                Primitive Seq Protocol Error Count: 0
+                Invalid Tx Word Count: 0
+                Invalid CRC Count: 0
+
+
+
+Remote Port WWN: 210100e08bb4e89e
+        Active FC4 Types: 
+        SCSI Target: no
+        Port Symbolic Name: qlc(1,0)
+        Node WWN: 200100e08bb4e89e
+        Link Error Statistics:
+                Link Failure Count: 0
+                Loss of Sync Count: 0
+                Loss of Signal Count: 0
+                Primitive Seq Protocol Error Count: 0
+                Invalid Tx Word Count: 0
+                Invalid CRC Count: 0
+
+
+
+Remote Port WWN: 210000e08b941e9d
+        Active FC4 Types: SCSI
+        SCSI Target: no
+        Port Symbolic Name: 
+        Node WWN: 200000e08b941e9d
+        Link Error Statistics:
+                Link Failure Count: 0
+                Loss of Sync Count: 0
+                Loss of Signal Count: 0
+                Primitive Seq Protocol Error Count: 0
+                Invalid Tx Word Count: 0
+                Invalid CRC Count: 0
+
+
+
+Remote Port WWN: 500a0981885f10aa
+        Active FC4 Types: SCSI
+        SCSI Target: yes
+        Port Symbolic Name: NetApp FC Target Adapter (2432) na02-cn03:0c
+        Node WWN: 500a0980885f10aa
+        Link Error Statistics:
+                Link Failure Count: 0
+                Loss of Sync Count: 0
+                Loss of Signal Count: 0
+                Primitive Seq Protocol Error Count: 0
+                Invalid Tx Word Count: 0
+                Invalid CRC Count: 0
+        LUN: 0
+          Vendor: NETAPP  
+          Product: LUN             
+          OS Device Name: /dev/rdsk/c0t60A9800044337746653F45343848707Ad0s2
+        LUN: 3
+          Vendor: NETAPP  
+          Product: LUN             
+          OS Device Name: /dev/rdsk/c0t60A9800044337746653F453438487135d0s2
+        LUN: 5
+          Vendor: NETAPP  
+          Product: LUN             
+          OS Device Name: /dev/rdsk/c0t60A9800044343357352445432D527332d0s2
+        LUN: 6
+          Vendor: NETAPP  
+          Product: LUN             
+          OS Device Name: /dev/rdsk/c0t60A9800044343357352445432D527334d0s2
+        LUN: 7
+          Vendor: NETAPP  
+          Product: LUN             
+          OS Device Name: /dev/rdsk/c0t60A9800044337746653F453438487139d0s2
+        LUN: 8
+          Vendor: NETAPP  
+          Product: LUN             
+          OS Device Name: /dev/rdsk/c0t60A9800044337746653F453438487141d0s2
+        LUN: 9
+          Vendor: NETAPP  
+          Product: LUN             
+          OS Device Name: /dev/rdsk/c0t60A9800044343357352445432D527336d0s2
+
+
+
+
+Remote Port WWN: 500a0981985f10aa
+        Active FC4 Types: SCSI
+        SCSI Target: yes
+        Port Symbolic Name: NetApp FC Target Adapter (2432) na01-cn03:0c
+        Node WWN: 500a0980885f10aa
+        Link Error Statistics:
+                Link Failure Count: 0
+                Loss of Sync Count: 0
+                Loss of Signal Count: 0
+                Primitive Seq Protocol Error Count: 0
+                Invalid Tx Word Count: 0
+                Invalid CRC Count: 0
+        LUN: 0
+          Vendor: NETAPP  
+          Product: LUN             
+          OS Device Name: /dev/rdsk/c0t60A9800044337746653F45343848707Ad0s2
+        LUN: 3
+          Vendor: NETAPP  
+          Product: LUN             
+          OS Device Name: /dev/rdsk/c0t60A9800044337746653F453438487135d0s2
+        LUN: 5
+          Vendor: NETAPP  
+          Product: LUN             
+          OS Device Name: /dev/rdsk/c0t60A9800044343357352445432D527332d0s2
+        LUN: 6
+          Vendor: NETAPP  
+          Product: LUN             
+          OS Device Name: /dev/rdsk/c0t60A9800044343357352445432D527334d0s2
+        LUN: 7
+          Vendor: NETAPP  
+          Product: LUN             
+          OS Device Name: /dev/rdsk/c0t60A9800044337746653F453438487139d0s2
+        LUN: 8
+          Vendor: NETAPP  
+          Product: LUN             
+          OS Device Name: /dev/rdsk/c0t60A9800044337746653F453438487141d0s2
+        LUN: 9
+          Vendor: NETAPP  
+          Product: LUN             
+          OS Device Name: /dev/rdsk/c0t60A9800044343357352445432D527336d0s2
+
+
+
+так вот здесь видно то что 
+все порты которые имеют wwn  2100* они все инициаторы
+        SCSI Target: no
+это и обьясняет почему они в стсотянии unconfigured потому что наш порт он тоже
+иницаитор и на тех портах никаих лунов он не виидит
+
+
+
+
+порты 5000*
+как видно это таргеты тоесть это порту удаленной схд
+
+Remote Port WWN: 500a0981885f10aa
+        Active FC4 Types: SCSI
+        SCSI Target: yes
+
+
+
+и видно какие луны доступны через тот или ной порт 5000 удаленнйы
+например 
+
+
+        LUN: 0
+          Vendor: NETAPP  
+          Product: LUN             
+          OS Device Name: /dev/rdsk/c0t60A9800044337746653F45343848707Ad0s2
+        LUN: 3
+          Vendor: NETAPP  
+          Product: LUN             
+          OS Device Name: /dev/rdsk/c0t60A9800044337746653F453438487135d0s2
+        LUN: 5
+          Vendor: NETAPP  
+          Product: LUN             
+          OS Device Name: /dev/rdsk/c0t60A9800044343357352445432D527332d0s2
+        LUN: 6
+          Vendor: NETAPP  
+          Product: LUN             
+          OS Device Name: /dev/rdsk/c0t60A9800044343357352445432D527334d0s2
+        LUN: 7
+          Vendor: NETAPP  
+          Product: LUN             
+          OS Device Name: /dev/rdsk/c0t60A9800044337746653F453438487139d0s2
+        LUN: 8
+          Vendor: NETAPP  
+          Product: LUN             
+          OS Device Name: /dev/rdsk/c0t60A9800044337746653F453438487141d0s2
+        LUN: 9
+          Vendor: NETAPP  
+          Product: LUN             
+          OS Device Name: /dev/rdsk/c0t60A9800044343357352445432D527336d0s2
+
+
+
+мы видим lun id
+и мы видим автоматом созданный у нас ядром спецустрофство для доступа к этому
+луну
+
+
+          OS Device Name: /dev/rdsk/c0t60A9800044343357352445432D527336d0s2
+
+
+мы получили дохрена полчезной инфо.
+
+
+
+можно получить похожую инфо по ругому
+
+# luxadm probe
+
+Found Fibre Channel device(s):
+  Node WWN:500a0980885f10aa  Device Type:Disk device
+    Logical Path:/dev/rdsk/c0t60A9800044343357352445432D527336d0s2
+  Node WWN:500a0980885f10aa  Device Type:Disk device
+    Logical Path:/dev/rdsk/c0t60A9800044337746653F453438487141d0s2
+  Node WWN:500a0980885f10aa  Device Type:Disk device
+    Logical Path:/dev/rdsk/c0t60A9800044337746653F453438487139d0s2
+  Node WWN:500a0980885f10aa  Device Type:Disk device
+    Logical Path:/dev/rdsk/c0t60A9800044343357352445432D527334d0s2
+  Node WWN:500a0980885f10aa  Device Type:Disk device
+    Logical Path:/dev/rdsk/c0t60A9800044343357352445432D527332d0s2
+  Node WWN:500a0980885f10aa  Device Type:Disk device
+    Logical Path:/dev/rdsk/c0t60A9800044337746653F453438487135d0s2
+  Node WWN:500a0980885f10aa  Device Type:Disk device
+    Logical Path:/dev/rdsk/c0t60A9800044337746653F45343848707Ad0s2
+
+
+мы получаем теже самые rdsk
+но проблма в том что здесь укзаан не portWWN а nodeWWWn удаленного схд
+  Node WWN:500a0980885f10aa
+и хуйле сним делать? ведь cfgadm нам покзывает portwwn удленного Fc порта
+
+# cfgadm -al | grep c12
+c12                            fc-fabric    connected    configured   unknown
+c12::210000e08b941e9d          unknown      connected    unconfigured unknown
+c12::210000e08b949fa1          unknown      connected    unconfigured unknown
+c12::210100e08bb4e89e          unknown      connected    unconfigured unknown
+c12::500a0981885f10aa          disk         connected    configured   unknown
+c12::500a0981985f10aa          disk         connected    configured   unknown
+
+
+но можно узать portwwwn удаенного порта для rdsk через 
+
+
+
+# luxadm display /dev/rdsk/c0t60A9800044337746653F45343848707Ad0s2
+...
+...
+  Device Type:          Disk device
+  Path(s):
+
+  /dev/rdsk/c0t60A9800044337746653F45343848707Ad0s2
+  /devices/scsi_vhci/disk@g60a9800044337746653f45343848707a:c,raw
+   Controller           /dev/cfg/c12
+    Device Address              500a0981885f10aa,0    (<<< это portwwn удаленного схд)
+    Host controller port WWN    500143800134074e      (<<< это portwwn нашего компа)
+    Class                       primary
+    State                       ONLINE
+   Controller           /dev/cfg/c12
+    Device Address              500a0981985f10aa,0    (<<< это portwwn удаленного схд)
+    Host controller port WWN    500143800134074e      (<<< это portwwn нашего компа)
+    Class                       primary
+    State                       ONLINE
+
+
+
+вот пруфы
+
+# fcinfo hba-port | grep 500143800134074e
+HBA Port WWN: 500143800134074e               (<<это wwn нашего локального порта)
+
+
+# cfgadm -al | grep 500a0981885f10aa
+c12::500a0981885f10aa          disk         connected    configured   unknown  (<< это portwwn удаленного схд)
+
+
+# cfgadm -al | grep 500a0981985f10aa
+c12::500a0981985f10aa          disk         connected    configured   unknown
+
+
+
+также мы видим какойэто номер луна
+500a0981885f10aa,0
+
+тоесть лун=0
+
+
+еще раз напомню еще сопособ как увидеть все достуныые пути которые 
+мы видим  с нашего компа
+
+
+# cfgadm -al -o show_SCSI_LUN c12
+Ap_Id                          Type         Receptacle   Occupant     Condition
+c12                            fc-fabric    connected    configured   unknown
+c12::210000e08b941e9d          unknown      connected    unconfigured unknown
+c12::210000e08b949fa1          unknown      connected    unconfigured unknown
+c12::210100e08bb4e89e          unknown      connected    unconfigured unknown
+c12::500a0981885f10aa,0        disk         connected    configured   unknown
+c12::500a0981885f10aa,3        disk         connected    configured   unknown
+c12::500a0981885f10aa,5        disk         connected    configured   unknown
+c12::500a0981885f10aa,6        disk         connected    configured   unknown
+c12::500a0981885f10aa,7        disk         connected    configured   unknown
+c12::500a0981885f10aa,8        disk         connected    configured   unknown
+c12::500a0981885f10aa,9        disk         connected    configured   unknown
+c12::500a0981985f10aa,0        disk         connected    configured   unknown
+c12::500a0981985f10aa,3        disk         connected    configured   unknown
+c12::500a0981985f10aa,5        disk         connected    configured   unknown
+c12::500a0981985f10aa,6        disk         connected    configured   unknown
+c12::500a0981985f10aa,7        disk         connected    configured   unknown
+c12::500a0981985f10aa,8        disk         connected    configured   unknown
+c12::500a0981985f10aa,9        disk         connected    configured   unknown
+
+
+
+в чем разница между путями и луном
+к одному луну может вести несколько путей. 
+путь это  наш fc порт ------- удаленный fc порт --- лун
+
+если у нас на компе один порт. а на удаленной схд два порта. то через наш порт
+и два тех порта можно полуить  к одному луну два пути. 
+солярис коогда путь получает то он опрашиыает тот порт какие там ест луны. и получает
+guid этих лунов. и если он совпдает через несколко путей то солярис создает устройство
+через мультипаф которые прозрачно обединвет все эти пути в одно устройство
+
+
+# mpathadm list  lu 
+        /dev/rdsk/c0t60A9800044343357352445432D527336d0s2
+                Total Path Count: 2
+                Operational Path Count: 2
+        /dev/rdsk/c0t60A9800044337746653F453438487141d0s2
+                Total Path Count: 2
+                Operational Path Count: 2
+        /dev/rdsk/c0t60A9800044337746653F453438487139d0s2
+                Total Path Count: 2
+                Operational Path Count: 2
+        /dev/rdsk/c0t60A9800044343357352445432D527334d0s2
+                Total Path Count: 2
+                Operational Path Count: 2
+        /dev/rdsk/c0t60A9800044343357352445432D527332d0s2
+                Total Path Count: 2
+                Operational Path Count: 2
+        /dev/rdsk/c0t60A9800044337746653F453438487135d0s2
+                Total Path Count: 2
+                Operational Path Count: 2
+        /dev/rdsk/c0t60A9800044337746653F45343848707Ad0s2
+                Total Path Count: 2
+                Operational Path Count: 2
+
+
+
+
+сосвтенно подробности про пути к одному луну
+# luxadm display /dev/rdsk/c0t60A9800044337746653F45343848707Ad0s2
+...
+...
+
+  /dev/rdsk/c0t60A9800044337746653F45343848707Ad0s2
+  /devices/scsi_vhci/disk@g60a9800044337746653f45343848707a:c,raw
+   Controller           /dev/cfg/c12
+    Device Address              500a0981885f10aa,0
+    Host controller port WWN    500143800134074e
+    Class                       primary
+    State                       ONLINE
+   Controller           /dev/cfg/c12
+    Device Address              500a0981985f10aa,0
+    Host controller port WWN    500143800134074e
+    Class                       primary
+    State                       ONLINE
+
+
+
+а вот еще способ
+
+
+~# mpathadm show lu /dev/rdsk/c0t60A9800044337746653F45343848707Ad0s2
+Logical Unit:  /dev/rdsk/c0t60A9800044337746653F45343848707Ad0s2
+        mpath-support:  libmpscsi_vhci.so
+        Vendor:  NETAPP  
+        Product:  LUN             
+        Revision:  820a
+        Name Type:  unknown type
+        Name:  60a9800044337746653f45343848707a
+        Asymmetric:  no
+        Current Load Balance:  round-robin
+        Logical Unit Group ID:  NA
+        Auto Failback:  on
+        Auto Probing:  NA
+
+        Paths:  
+                Initiator Port Name:  500143800134074e
+                Target Port Name:  500a0981885f10aa
+                Override Path:  NA
+                Path State:  OK
+                Disabled:  no
+
+                Initiator Port Name:  500143800134074e
+                Target Port Name:  500a0981985f10aa
+                Override Path:  NA
+                Path State:  OK
+                Disabled:  no
+
+        Target Ports:
+                Name:  500a0981885f10aa
+                Relative ID:  0
+
+                Name:  500a0982885f10aa
+                Relative ID:  0
+
+                Name:  500a0981985f10aa
+                Relative ID:  0
+
+                Name:  500a0982985f10aa
+                Relative ID:  0
+
+
+
+фишфка в том что в этом споособе виден GUID луна
+        Name:  60a9800044337746653f45343848707a
+
+
+
+вторая фишка в том что 
+тут нарисовано через какие порты удаленного схд я щас подключен к луну
+     Paths:  
+                Initiator Port Name:  500143800134074e
+                Target Port Name:  500a0981885f10aa  <<<<
+                Override Path:  NA
+                Path State:  OK
+                Disabled:  no
+
+                Initiator Port Name:  500143800134074e
+                Target Port Name:  500a0981985f10aa  <<<<
+                Override Path:  NA
+                Path State:  OK
+                Disabled:  no
+
+
+тоесть через два порта схд
+
+
+
+а ниже нарсинова сколько вобще портов есть на схд через которые можно 
+досутчаться до этого луна если все верно настроть
+
+        Target Ports:
+                Name:  500a0981885f10aa   (порты схд)
+                Relative ID:  0
+
+                Name:  500a0982885f10aa   (порты схд)
+                Relative ID:  0 
+
+                Name:  500a0981985f10aa    (порты схд)
+                Relative ID:  0
+
+                Name:  500a0982985f10aa     (порты схд)
+                Relative ID:  0
+
+
+
+тоесть четрые порта есть на схд
+
+
+кстати также показан политика барансироваки по путям
+        Current Load Balance:  round-robin
+
+тоесть раунд робин
+
+
+
+тоест когда мы пишем на вот этот диск
+/dev/rdsk/c0t60A9800044337746653F45343848707Ad0s2
+
+то на самом деле сигнал летит по двумя путям  ( с нашей стороны через один порт а 
+на той стороне на два порта попеременно)
+
+
+более менее для начал все.
+
+у меня на сервере на самом деле два FC порта.
+а на схд у меня две головы и на каждй тоже по 2 порта.
+
+как приавльно настрить зонинг?
+нейронка говорит вот как. 
+нужно один порт сервера связать с одним портом на каждой голове. тоесть
+
+порт1 серера
+  порт1 голова1
+  порта1 голова2
+
+порт2 серера
+  порт2 голова1
+  порта2 голова2
+
+
+это дает вот что.
+если сгорит одна голова то обе карты все равно рабоают.
+если сгорит порт на компе то второй порт видит обе головы.
+макс профит.
+
+
+там здесь и сделано
+
+     Paths:  
+                Initiator Port Name:  500143800134074e
+                Target Port Name:  500a0981885f10aa  <<<<
+                Override Path:  NA
+                Path State:  OK
+                Disabled:  no
+
+                Initiator Port Name:  500143800134074e
+                Target Port Name:  500a0981985f10aa  <<<<
+                Override Path:  NA
+                Path State:  OK
+                Disabled:  no
+
+
+один порт с компа имеет два пути - один на порт одной голвы
+второй путь на порт второй головы
+точто это порты разных голов это пуотому что один порт это 885 а вторй 985
+
+
+
+
+далее через iostat можно смотреть саттистику как ходит сигнал 
+по кадому пути.
+если ввдем просто комдау
+
+
+#  iostat -xtcn   c0t60A9800044343357352445432D527332d0 1 2
+   tty         cpu
+ tin tout  us sy wt id
+   0  299   4  4  0 92
+                    extended device statistics              
+    r/s    w/s   kr/s   kw/s wait actv wsvc_t asvc_t  %w  %b device
+    1.0    5.0    8.0   40.0  0.0  0.0    0.0    5.3   0   3 c0t60A9800044343357352445432D527332d0
+
+
+
+а можно увидеть отклик по каждому пути к этому луну в отделнрсти
+например узнать тормозит ли каокойто путь или нет
+
+
+
+
+
+и не принимася 
+
+посмтреть svc_t для каждого пути который идет к луну
+
+
+#  iostat -Y   c0t60A9800044343357352445432D527332d0 1 2
+                   extended device statistics                    
+device         r/s    w/s   kr/s   kw/s wait actv  svc_t  %w  %b 
+sd54           0.0   97.3    0.0  826.3  0.0  0.1    0.7   0   6 
+sd54.t1        0.0    0.0    0.0    0.0  0.0  0.0    0.0   0   0 
+sd54.t1.fp6    0.0    0.0    0.0    0.0  0.0  0.0    0.0   0   0 
+sd54.t4        0.0    0.0    0.0    0.0  0.0  0.0    0.0   0   0 
+sd54.t4.fp6    0.0    0.0    0.0    0.0  0.0  0.0    0.0   0   0 
+
+
+видим что диск sd54 тотже самый (убрал ключ -n а то имя очено длинное у луна)
+но при этом у нас два пути
+сотсветвенно мы видим svc_t (время отлика через каждый путь)
+
+
+fp6 этодругой способ именования порта FC нашего компа вместо c12
+сооосвтвтерие можно найти вот так
+
+# cat /etc/path_to_inst | grep "\"fp\"" | grep " 6 "
+"/pci@0,0/pci8086,340e@7/pci103c,7041@0/fp@0,0" 6 "fp"
+
+
+
+# ls -1al /dev/cfg/c11 | grep "/pci@0,0/pci8086,340e@7/pci103c,7041@0/fp@0,0"
+lrwxrwxrwx   1 root     root          61 Feb  5  2014 /dev/cfg/c11 -> ../../devices/pci@0,0/pci8086,340e@7/pci103c,7041@0/fp@0,0:fc
+
+# ls -1al /dev/cfg/c12 | grep "/pci@0,0/pci8086,340e@7/pci103c,7041@0/fp@0,0"
+пусто
+
+из чего идет вывод что fp6 и c12 это одно и тоже
+
+(это такая же ухуйня как один и тотже диск имеет названия sd54 и c0t0d0)
+
+
+вот такой пиздпц. сплошная бюрократия с этим FC
+
+
+
+
