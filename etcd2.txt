@@ -2,6 +2,7 @@
 
 опишу как его ставить и что значат его ебанутые ключи
 
+(О ТОМ КАК РАБОТАЕТ И КАК ВСЕ УСТРОЕНО У ETCD СМОТРИ В САМОМ КОНЦЕ)
 
 идем на гитхаб и качаем бинарники
 
@@ -1122,5 +1123,53 @@ e76182116c6204fd, started, infra2, https://172.16.10.27:2380, https://172.16.10.
 влезть  в него и добавить руками +1 ноду в кластер
 
 
+=========================
+КАК ВСЕ РАБОТАЕТ У ETCD
 
+значит на самом верхнем уровне прога юзает grpc 
+это такой формат передачи бинарных данных
+
+куско инфо в формате этго grpc вкладывается внутрь http/2 протокола в тело его POST 
+запроса.
+
+
+тоесть одна нода с другой говорит общается конектится через http/2
+http то у нас l7 высокорвновеный протокол. тоест его поток непосредсвенно вливается 
+в stdin процесса.
+и он состоит из запросов.
+типа того 
+
+
+POST /api/v1/users HTTP/1.1
+Host: example.com
+Content-Type: application/json; charset=utf-8
+Content-Length: 62
+Connection: keep-alive
+User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36
+Accept: application/json, text/plain, */*
+Accept-Encoding: gzip, deflate, br
+Accept-Language: ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7
+Authorization: Bearer your_token_here
+Origin: https://example.com
+Referer: https://example.com/register
+Cookie: session_id=abc123xyz; theme=dark
+Cache-Control: no-cache
+Pragma: no-cache
+Sec-Fetch-Dest: empty
+Sec-Fetch-Mode: cors
+Sec-Fetch-Site: same-site
+
+{
+  "name": "Ivan",
+  "email": "ivan@example.com",
+  "age": 25
+}
+
+
+тока этот запрос в формате http/1.1 
+в http/2 весь этот текст идет в бинарном формате
+но суть такаяже самая
+так вот узапроса как у сетевого пакета есть тело заголовков а есть уже полезней пейлоад
+он лежит в теле POST
+ПРОДЛЛЖЕНИЕ СЛЕДУЕТ.....
 
