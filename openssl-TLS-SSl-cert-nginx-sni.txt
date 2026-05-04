@@ -601,3 +601,9 @@ Certificate chain
 
 
 
+как это ебаный SNI поймат по сети tshark
+
+
+# tshark -i wlp2s0 -l -T fields -e tls.handshake.extensions_server_name -Y "tls.handshake.type == 1"
+
+
