@@ -1,0 +1,18 @@
+| sni
+| tls
+
+
+как посмтерть TLS SNI по сети отловить
+
+# tshark -i wlp2s0 -T fields -e ssl.handshake.extensions_server_name -Y "ssl.handshake.type == 1"
+
+
+
+vasya.ru
+vasya.ru
+
+
+
+
+
+
