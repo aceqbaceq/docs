@@ -1,0 +1,533 @@
+| solaris
+| omnios
+| fc
+| target
+
+
+
+root@omnios:~# fcinfo hba-port
+HBA Port WWN: 21000024ff1de334
+        Port Mode: Initiator
+        Port ID: 0
+        OS Device Name: /dev/cfg/c4
+        Manufacturer: QLogic Corp.
+        Model: 00Y5629
+        Firmware Version: 08.02.00
+        FCode/BIOS Version:  BIOS: 3.27; EFI: 6.12;
+        Serial Number: UFD1743V27048
+        Driver Name: qlc
+        Driver Version: 151216-3.07
+        Type: unknown
+        State: offline
+        Supported Speeds: 2Gb 4Gb 8Gb 
+        Current Speed: not established 
+        Node WWN: 20000024ff1de334
+        Max NPIV Ports: 253
+        NPIV port list:
+HBA Port WWN: 21000024ff1de335
+        Port Mode: Initiator
+        Port ID: 0
+        OS Device Name: /dev/cfg/c5
+        Manufacturer: QLogic Corp.
+        Model: 00Y5629
+        Firmware Version: 08.02.00
+        FCode/BIOS Version:  BIOS: 3.27; EFI: 6.12;
+        Serial Number: UFD1743V27048
+        Driver Name: qlc
+        Driver Version: 151216-3.07
+        Type: unknown
+        State: offline
+        Supported Speeds: 2Gb 4Gb 8Gb 
+        Current Speed: not established 
+        Node WWN: 20000024ff1de335
+        Max NPIV Ports: 253
+        NPIV port list:
+root@omnios:~# 
+root@omnios:~# 
+root@omnios:~# stmfadm offline-target 21000024ff1de334
+stmfadm offline-target 21000024ff1de335
+stmfadm: 21000024ff1de334: unrecognized device id
+stmfadm: 21000024ff1de335: unrecognized device id
+
+
+root@omnios:~# mdb -k
+Loading modules: [ unix genunix specfs dtrace mac cpu.generic uppc apix scsi_vhci zfs sd sata mpt_sas ip hook neti sockfs arp usba xhci stmf stmf_sbd mm lofs random cpc ufs logindmux ptm klmmod nfs ]
+> ::devbindings -q qlc
+fffffe0b5d8cc5f8 pciex1077,2532, instance #0 (driver name: qlc)
+fffffe0b5d8cc328 pciex1077,2532, instance #1 (driver name: qlc)
+> $q
+
+
+root@omnios:~# 
+root@omnios:~# 
+root@omnios:~# update_drv -d -i 'pciex1077,2532' qlc
+Cannot unload module: qlc
+Will be unloaded upon reboot.
+root@omnios:~# 
+root@omnios:~# update_drv -a -i 'pciex1077,2532' qlt
+devfsadm: driver failed to attach: qlt
+Warning: Driver (qlt) successfully added to system but failed to attach
+root@omnios:~# reboot
+
+
+
+
+
+
+
+
+root@omnios:~# mdb -k
+Loading modules: [ unix genunix specfs dtrace mac cpu.generic uppc apix scsi_vhci zfs mpt_sas sata sd ip hook neti sockfs arp usba xhci stmf stmf_sbd mm lofs cpc ufs logindmux ptm klmmod nfs ]
+> ::devbindings -q qlt
+fffffe0b5d8cc5f8 pciex1077,2532, instance #0 (driver name: qlt)
+fffffe0b5d8cc328 pciex1077,2532, instance #1 (driver name: qlt)
+> $q
+
+root@omnios:~# 
+root@omnios:~# 
+root@omnios:~# 
+root@omnios:~# stmfadm list-target -v
+Target: wwn.21000024FF1DE335
+    Operational Status: Offline
+    Provider Name     : qlt
+    Alias             : qlt1,0
+    Protocol          : Fibre Channel
+    Sessions          : 0
+Target: wwn.21000024FF1DE334
+    Operational Status: Offline
+    Provider Name     : qlt
+    Alias             : qlt0,0
+    Protocol          : Fibre Channel
+    Sessions          : 0
+root@omnios:~# 
+root@omnios:~# 
+root@omnios:~# stmfadm online-target 21000024ff1de334
+stmfadm online-target 21000024ff1de335
+stmfadm: STMF service is offline
+stmfadm: STMF service is offline
+root@omnios:~# 
+root@omnios:~# 
+root@omnios:~# 
+root@omnios:~# zfs create -V 10g rpool/export/fc_lun0
+root@omnios:~# stmfadm create-lu /dev/zvol/rdsk/rpool/export/fc_lun0
+Logical unit created: 600144F05B4D9445000069F9D55E0001
+root@omnios:~# stmfadm list-lu
+LU Name: 600144F05B4D9445000069F9D55E0001
+root@omnios:~# stmfadm add-view  600144F05B4D9445000069F9D55E0001
+root@omnios:~# 
+root@omnios:~# 
+root@omnios:~# 
+root@omnios:~# 
+root@omnios:~# fcinfo hba-port
+HBA Port WWN: 21000024ff1de334
+        Port Mode: Target
+        Port ID: 0
+        OS Device Name: Not Applicable
+        Manufacturer: QLogic Corp.
+        Model: QLE2562
+        Firmware Version: 0.0.0
+        FCode/BIOS Version:  BIOS: 3.27; EFI: 6.12;
+        Serial Number: UFD1743V27048
+        Driver Name: COMSTAR QLT
+        Driver Version: 20160222-1.06
+        Type: unknown
+        State: offline
+        Supported Speeds: 2Gb 4Gb 8Gb 
+        Current Speed: not established 
+        Node WWN: 20000024ff1de334
+HBA Port WWN: 21000024ff1de335
+        Port Mode: Target
+        Port ID: 0
+        OS Device Name: Not Applicable
+        Manufacturer: QLogic Corp.
+        Model: QLE2562
+        Firmware Version: 0.0.0
+        FCode/BIOS Version:  BIOS: 3.27; EFI: 6.12;
+        Serial Number: UFD1743V27048
+        Driver Name: COMSTAR QLT
+        Driver Version: 20160222-1.06
+        Type: unknown
+        State: offline
+        Supported Speeds: 2Gb 4Gb 8Gb 
+        Current Speed: not established 
+        Node WWN: 20000024ff1de335
+root@omnios:~# 
+root@omnios:~# 
+root@omnios:~# 
+root@omnios:~# stmfadm online-target 21000024ff1de334
+stmfadm online-target 21000024ff1de335
+stmfadm: STMF service is offline
+stmfadm: STMF service is offline
+root@omnios:~# 
+root@omnios:~# 
+root@omnios:~# 
+root@omnios:~# 
+root@omnios:~# fcinfo hba-port
+HBA Port WWN: 21000024ff1de334
+        Port Mode: Target
+        Port ID: 0
+        OS Device Name: Not Applicable
+        Manufacturer: QLogic Corp.
+        Model: QLE2562
+        Firmware Version: 0.0.0
+        FCode/BIOS Version:  BIOS: 3.27; EFI: 6.12;
+        Serial Number: UFD1743V27048
+        Driver Name: COMSTAR QLT
+        Driver Version: 20160222-1.06
+        Type: unknown
+        State: offline
+        Supported Speeds: 2Gb 4Gb 8Gb 
+        Current Speed: not established 
+        Node WWN: 20000024ff1de334
+HBA Port WWN: 21000024ff1de335
+        Port Mode: Target
+        Port ID: 0
+        OS Device Name: Not Applicable
+        Manufacturer: QLogic Corp.
+        Model: QLE2562
+        Firmware Version: 0.0.0
+        FCode/BIOS Version:  BIOS: 3.27; EFI: 6.12;
+        Serial Number: UFD1743V27048
+        Driver Name: COMSTAR QLT
+        Driver Version: 20160222-1.06
+        Type: unknown
+        State: offline
+        Supported Speeds: 2Gb 4Gb 8Gb 
+        Current Speed: not established 
+        Node WWN: 20000024ff1de335
+root@omnios:~# 
+root@omnios:~# 
+root@omnios:~# 
+root@omnios:~# stmfadm online-target 21000024ff1de334
+stmfadm online-target 21000024ff1de335
+stmfadm: STMF service is offline
+stmfadm: STMF service is offline
+root@omnios:~# 
+root@omnios:~# 
+root@omnios:~# 
+
+вот это суперважная команда
+именно после нее лампаочки на карте должны загореться
+порт должен ожить
+root@omnios:~# svcadm enable stmf
+root@omnios:~# 
+root@omnios:~# 
+root@omnios:~# 
+root@omnios:~# fcinfo hba-port
+HBA Port WWN: 21000024ff1de334
+        Port Mode: Target
+        Port ID: 20600
+        OS Device Name: Not Applicable
+        Manufacturer: QLogic Corp.
+        Model: QLE2562
+        Firmware Version: 8.2.0
+        FCode/BIOS Version:  BIOS: 3.27; EFI: 6.12;
+        Serial Number: UFD1743V27048
+        Driver Name: COMSTAR QLT
+        Driver Version: 20160222-1.06
+        Type: F-port
+        State: online
+        Supported Speeds: 2Gb 4Gb 8Gb 
+        Current Speed: 8Gb 
+        Node WWN: 20000024ff1de334
+HBA Port WWN: 21000024ff1de335
+        Port Mode: Target
+        Port ID: 0
+        OS Device Name: Not Applicable
+        Manufacturer: QLogic Corp.
+        Model: QLE2562
+        Firmware Version: 8.2.0
+        FCode/BIOS Version:  BIOS: 3.27; EFI: 6.12;
+        Serial Number: UFD1743V27048
+        Driver Name: COMSTAR QLT
+        Driver Version: 20160222-1.06
+        Type: unknown
+        State: offline
+        Supported Speeds: 2Gb 4Gb 8Gb 
+        Current Speed: not established 
+        Node WWN: 20000024ff1de335
+root@omnios:~# 
+
+
+
+
+более детальная инфо про наш LUN
+
+
+root@omnios:~# 
+root@omnios:~# stmfadm list-lu
+LU Name: 600144F05B4D9445000069F9D55E0001
+root@omnios:~# 
+
+
+root@omnios:~# stmfadm list-lu -v 600144F05B4D9445000069F9D55E0001
+LU Name: 600144F05B4D9445000069F9D55E0001
+    Operational Status: Online
+    Provider Name     : sbd
+    Alias             : /dev/zvol/rdsk/rpool/export/fc_lun0
+    View Entry Count  : 1
+    Data File         : /dev/zvol/rdsk/rpool/export/fc_lun0
+    Meta File         : not set
+    Size              : 10737418240
+    Block Size        : 512
+    Management URL    : not set
+    Vendor ID         : SUN     
+    Product ID        : COMSTAR         
+    Serial Num        : not set
+    Write Protect     : Disabled
+    Writeback Cache   : Disabled
+    Access State      : Active
+root@omnios:~# 
+root@omnios:~# 
+
+
+root@omnios:~# zfs list 
+NAME                        USED  AVAIL     REFER  MOUNTPOINT
+rpool                       176G   362G      104K  /rpool
+rpool/ROOT                  851M   362G       96K  legacy
+rpool/ROOT/omnios-r151056   851M   362G      851M  legacy
+rpool/dump                 80.0G   362G     80.0G  -
+rpool/export               10.3G   362G       96K  /export
+rpool/export/fc_lun0       10.3G   373G      211M  -           ****<<<<<<<
+rpool/export/home            96K   362G       96K  /export/home
+rpool/swap                 85.0G   447G       56K  -
+
+
+все порт на таргете заработал!!!
+
+
+
+
+
+
+
+
+
+
+ТЕПЕРЬ НАСТРОЙКА ИНИЦИАТОРА
+втыкаем провод в порт 
+он должен сразу начать светиться
+без всяких настроек
+
+
+root@omnios-r710:~# # fcinfo hba-port
+root@omnios-r710:~#  fcinfo hba-port
+HBA Port WWN: 21000024ff1de1be
+        Port Mode: Initiator
+        Port ID: 20300
+        OS Device Name: /dev/cfg/c4
+        Manufacturer: QLogic Corp.
+        Model: 00Y5629
+        Firmware Version: 08.02.00
+        FCode/BIOS Version:  BIOS: 3.27; EFI: 6.12;
+        Serial Number: UFD1743V30373
+        Driver Name: qlc
+        Driver Version: 151216-3.07
+        Type: N-port
+        State: online
+        Supported Speeds: 2Gb 4Gb 8Gb 
+        Current Speed: 8Gb 
+        Node WWN: 20000024ff1de1be
+        Max NPIV Ports: 253
+        NPIV port list:
+HBA Port WWN: 21000024ff1de1bf
+        Port Mode: Initiator
+        Port ID: 0
+        OS Device Name: /dev/cfg/c5
+        Manufacturer: QLogic Corp.
+        Model: 00Y5629
+        Firmware Version: 08.02.00
+        FCode/BIOS Version:  BIOS: 3.27; EFI: 6.12;
+        Serial Number: UFD1743V30373
+        Driver Name: qlc
+        Driver Version: 151216-3.07
+        Type: unknown
+        State: offline
+        Supported Speeds: 2Gb 4Gb 8Gb 
+        Current Speed: not established 
+        Node WWN: 20000024ff1de1bf
+        Max NPIV Ports: 253
+        NPIV port list:
+
+
+
+
+
+root@omnios-r710:~# fcinfo remote-port -p 21000024ff1de1be
+Remote Port WWN: 21000024ff1de334
+        Active FC4 Types: SCSI
+        SCSI Target: yes
+        Port Symbolic Name: qlt0,0
+        Node WWN: 20000024ff1de334
+root@omnios-r710:~# 
+root@omnios-r710:~# 
+root@omnios-r710:~# devfsadm -i sd
+root@omnios-r710:~# 
+root@omnios-r710:~# 
+root@omnios-r710:~# 
+root@omnios-r710:~# cfgadm -al
+Ap_Id                          Type         Receptacle   Occupant     Condition
+c1                             scsi-sas     connected    configured   unknown
+c1::dsk/c1t7d0                 disk         connected    configured   unknown
+c3                             scsi-sas     connected    unconfigured unknown
+c4                             fc-fabric    connected    configured   unknown
+c4::21000024ff1de334           disk         connected    configured   unknown
+c5                             fc           connected    unconfigured unknown
+usb1/1                         usb-device   connected    configured   ok
+usb1/2                         unknown      empty        unconfigured ok
+usb2/1                         unknown      empty        unconfigured ok
+usb2/2                         unknown      empty        unconfigured ok
+usb3/1                         unknown      empty        unconfigured ok
+usb3/2                         unknown      empty        unconfigured ok
+usb3/3                         usb-hub      connected    configured   ok
+usb3/3.1                       unknown      empty        unconfigured ok
+usb3/3.2                       unknown      empty        unconfigured ok
+usb3/3.3                       unknown      empty        unconfigured ok
+usb3/4                         unknown      empty        unconfigured ok
+usb4/1                         unknown      empty        unconfigured ok
+usb4/2                         unknown      empty        unconfigured ok
+usb5/1                         unknown      empty        unconfigured ok
+usb5/2                         unknown      empty        unconfigured ok
+usb6/1                         unknown      empty        unconfigured ok
+usb6/2                         unknown      empty        unconfigured ok
+usb6/3                         unknown      empty        unconfigured ok
+usb6/4                         unknown      empty        unconfigured ok
+root@omnios-r710:~# 
+root@omnios-r710:~# 
+root@omnios-r710:~# echo | format
+Searching for disks...done
+
+
+AVAILABLE DISK SELECTIONS:
+       0. c0t600144F05B4D9445000069F9D55E0001d0 <SUN-COMSTAR-1.0 cyl 1303 alt 2 hd 255 sec 63>
+          /scsi_vhci/disk@g600144f05b4d9445000069f9d55e0001
+       1. c1t7d0 <SEAGATE-ST32500NSSUN250G 0829B82FV2-    3AZQ-232.88GB>
+          /pci@0,0/pci8086,340c@5/pci1028,1f35@0/iport@80/disk@p7,0
+Specify disk (enter its number): Specify disk (enter its number): 
+root@omnios-r710:~# 
+root@omnios-r710:~# 
+root@omnios-r710:~# 
+
+
+
+
+все готово
+вот это наш FC диск
+
+       0. c0t600144F05B4D9445000069F9D55E0001d0 <SUN-COMSTAR-1.0 cyl 1303 alt 2 hd 255 sec 63>
+          /scsi_vhci/disk@g600144f05b4d9445000069f9d55e0001
+
+
+
+
+
+
+
+
+
+
+
+НАСТРОЙКА ИНЦИАТОРА НА FREEBSD
+
+
+ # cat /boot/loader.conf
+
+
+
+ispfw_load="YES"
+isp_load="YES"
+
+
+
+# reboot
+
+# pciconf -lv  | grep -i fibre
+    device     = 'ISP2432-based 4Gb Fibre Channel to PCI Express HBA'
+    subclass   = Fibre Channel
+
+
+
+втыкаем провода. 
+порт должен начать светиться
+
+
+
+
+
+[root@fr-init ~]# sysctl -a | grep dev.isp.0
+dev.isp.0.fw_version_run: 8.7.0
+dev.isp.0.fw_version_ispfw: 8.7.0
+dev.isp.0.fw_version_flash: not loaded
+dev.isp.0.use_gff_id: 1
+dev.isp.0.use_gft_id: 1
+dev.isp.0.topo: 3
+dev.isp.0.loopstate: 10
+dev.isp.0.fwstate: 3
+dev.isp.0.linkstate: 1
+dev.isp.0.speed: 4
+dev.isp.0.role: 2
+dev.isp.0.gone_device_time: 30
+dev.isp.0.loop_down_limit: 60
+dev.isp.0.wwpn: 4683743614596022272
+dev.isp.0.wwnn: 4611686020558094336
+dev.isp.0.%iommu: rid=0x500
+dev.isp.0.%parent: pci5
+dev.isp.0.%pnpinfo: vendor=0x1077 device=0x2432 subvendor=0x1077 subdevice=0x0142 class=0x0c0400
+dev.isp.0.%location: slot=0 function=0 dbsf=pci0:5:0:0
+dev.isp.0.%driver: isp
+dev.isp.0.%desc: Qlogic ISP 2432 PCI FC-AL Adapter
+
+
+
+[root@fr-init ~]# camcontrol rescan all
+Re-scan of bus 0 was successful
+Re-scan of bus 1 was successful
+Re-scan of bus 2 was successful
+Re-scan of bus 3 was successful
+Re-scan of bus 4 was successful
+
+[root@fr-init ~]# 
+[root@fr-init ~]# 
+[root@fr-init ~]# camcontrol  devlist
+<TEAC DW-224SL-R 1.0A>             at scbus0 target 0 lun 0 (pass0,cd0)
+<SUN COMSTAR 1.0>                  at scbus2 target 0 lun 0 (da1,pass2)
+<SEAGATE ST300MP0026 0002>         at scbus3 target 2 lun 0 (pass1,da0)
+
+
+все диск FC появился
+
+
+[root@fr-init ~]# diskinfo -v da1
+da1
+	512         	# sectorsize
+	10737418240 	# mediasize in bytes (10G)
+	20971520    	# mediasize in sectors
+	0           	# stripesize
+	0           	# stripeoffset
+	1305        	# Cylinders according to firmware.
+	255         	# Heads according to firmware.
+	63          	# Sectors according to firmware.
+	SUN COMSTAR 	# Disk descr.
+	            	# Disk ident.
+	isp0        	# Attachment
+	Yes         	# TRIM/UNMAP support
+	Unknown     	# Rotation rate in RPM
+	Not_Zoned   	# Zone Mode
+
+[root@fr-init ~]# 
+[root@fr-init ~]# 
+[root@fr-init ~]# 
+
+
+тестируем
+
+[root@fr-init ~]# dd if=/dev/da1 of=/dev/null bs=1M status=progress
+  10698620928 bytes (11 GB, 10 GiB) transferred 31.000s, 345 MB/s   
+10240+0 records in
+10240+0 records out
+10737418240 bytes transferred in 31.114429 secs (345094501 bytes/sec)
+
+
+
+готово
+

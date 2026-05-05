@@ -1,0 +1,64 @@
+| proxmox
+| cli
+
+статус кластера
+
+
+
+# pvecm status
+Cluster information
+-------------------
+Name:             VDST
+Config Version:   8
+Transport:        knet
+Secure auth:      on
+
+Quorum information
+------------------
+Date:             Tue May  5 14:40:16 2026
+Quorum provider:  corosync_votequorum
+Nodes:            8
+Node ID:          0x00000001
+Ring ID:          1.1481
+Quorate:          Yes
+
+Votequorum information
+----------------------
+Expected votes:   8
+Highest expected: 8
+Total votes:      8
+Quorum:           5  
+Flags:            Quorate 
+
+Membership information
+----------------------
+    Nodeid      Votes Name
+0x00000001          1 10.0.0.151 (local)
+0x00000002          1 10.0.0.152
+0x00000003          1 10.0.0.153
+0x00000004          1 10.0.0.154
+0x00000005          1 10.0.0.156
+0x00000006          1 10.0.0.155
+0x00000007          1 10.0.0.157
+0x00000008          1 10.0.0.158
+
+
+
+
+
+
+# pvecm nodes
+
+Membership information
+----------------------
+    Nodeid      Votes Name
+         1          1 hst1 (local)
+         2          1 hst2
+         3          1 hst3
+         4          1 hst4
+         5          1 hst6
+         6          1 hst5
+         7          1 hst7
+         8          1 hst8
+
+

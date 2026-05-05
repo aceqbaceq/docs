@@ -1,0 +1,47 @@
+| omnios
+| ip
+| ssh
+
+omnios 
+
+дать ip 
+активирвать ssh
+
+настроить интернет
+
+
+
+dladm show-phys
+
+
+ipadm create-addr -T static -a  192.168.0.11/24   bnx0/v4
+
+route -p add default  192.168.0.225
+
+
+на этой стадии если провод физ вотункту то уже пинги должны рабоатть
+
+
+
+vi /etc/ssh/sshd_config
+PermitRootLoginYes
+
+
+svcadm enable ssh
+
+svcs ssh
+
+
+теперь дожлно пускать по ssh
+
+
+активация dns клиента
+
+vi /etc/nsswitch.conf
+hosts:      files dns
+
+
+ping -s ya.ru
+
+
+
