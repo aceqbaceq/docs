@@ -1,0 +1,36 @@
+запуск
+$ export INST_D1=$(mktemp -d -p ~) && echo -e "\e[31mINSTALLATION FOLDER=$INST_D1\e[0m" && cd $INST_D1 && wget -O file.zip "https://github.com/aceqbaceq/docs/raw/refs/heads/master/docker-compose-test/archive.zip" && unzip file.zip && rm file.zip && chmod -R 755 $INST_D1/src && sudo docker compose up -d && sleep 1 && curl http://localhost:80 
+
+АУТПУТ
+
+INSTALLATION FOLDER=/home/noroot/tmp.UuZK9Yh84M
+--2026-05-10 20:34:07--  https://github.com/aceqbaceq/docs/raw/refs/heads/master/docker-compose-test/archive.zip
+Loaded CA certificate '/etc/ssl/certs/ca-certificates.crt'
+Resolving github.com (github.com)... 140.82.121.3
+Connecting to github.com (github.com)|140.82.121.3|:443... connected.
+HTTP request sent, awaiting response... 302 Found
+Location: https://raw.githubusercontent.com/aceqbaceq/docs/refs/heads/master/docker-compose-test/archive.zip [following]
+--2026-05-10 20:34:07--  https://raw.githubusercontent.com/aceqbaceq/docs/refs/heads/master/docker-compose-test/archive.zip
+Resolving raw.githubusercontent.com (raw.githubusercontent.com)... 185.199.110.133, 185.199.109.133, 185.199.111.133, ...
+Connecting to raw.githubusercontent.com (raw.githubusercontent.com)|185.199.110.133|:443... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 1030 (1,0K) [application/zip]
+Saving to: ‘file.zip’
+
+file.zip                                100%[=============================================================================>]   1,01K  --.-KB/s    in 0s      
+
+2026-05-10 20:34:07 (47,5 MB/s) - ‘file.zip’ saved [1030/1030]
+
+Archive:  file.zip
+  inflating: docker-compose.yml      
+  inflating: default.conf            
+   creating: src/
+ extracting: src/index.php           
+[+] Running 3/3
+ ✔ Network tmpuuzk9yh84m_default    Created                                                                                                              0.1s 
+ ✔ Container tmpuuzk9yh84m-php-1    Started                                                                                                              0.4s 
+ ✔ Container tmpuuzk9yh84m-nginx-1  Started                                                                                                              0.6s 
+
+Hello from Effective Mobile!  <<<< полезный результат
+
+
