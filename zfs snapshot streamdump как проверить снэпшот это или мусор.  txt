@@ -1,0 +1,35 @@
+| zfs
+| snapshot
+| проверка
+
+
+если есть зфс снэпшот в виде файла можно проерить это снэпшот или мусор
+
+
+
+тут у меня файл еще и сжат гзипом
+
+	  # gunzip -c ./dns02-cn03-solaris11.2-poolversion34.zfs | zstreamdump
+
+  BEGIN record
+        hdrtype = 2
+        features = 24
+        magic = 2f5bacbac
+        creation_time = 0
+        type = 0
+        flags = 0x0
+        toguid = 0
+        fromguid = 0
+        toname = rpool@2026-04-30v2
+nvlist version: 0
+        tosnap = 2026-04-30v2
+        fss = (embedded nvlist)
+        nvlist version: 0
+...
+...
+...
+
+
+если же там мусор то он выдаст чтото типа  пошел нахер
+
+

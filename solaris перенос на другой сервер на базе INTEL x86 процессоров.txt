@@ -22,12 +22,54 @@
 
 записать снэпшот в файл 
 
-   # zfs send -R  rpool@2026-04-30v2 >  ~/dns-solaris11.2-poolversion34.zfs
+   # zfs send -R rpool@2026-04-30v2 | gzip > ~/dns-solaris11.2-poolversion34.zfs.gz
+
+
+как проверить что снэпшот небитый
+
+  'zfs snapshot streamdump как проверить снэпшот это или мусор.  txt'
+
+
+
+далее нужно записать на диск этот снэпшот 
+для этого нужно создать пул руками . снэпшот нам этого несделает
+
+далее нужно разбить новый диск
+делаю разбивку ихсодя из того что диск будет GPT иметь лейбел
+и что на серере нет UEFI  а есьт только BIOS
+ 
+  # format
+
+
+Part      Tag    Flag     First Sector          Size          Last Sector
+  0  BIOS_boot    wm               256       256.00MB           524543    
+  1        usr    wm            524544         1.82TB           3907012750    
+  2 unassigned    wm                 0            0                0    
+  3 unassigned    wm                 0            0                0    
+  4 unassigned    wm                 0            0                0    
+  5 unassigned    wm                 0            0                0    
+  6 unassigned    wm                 0            0                0    
+  8   reserved    wm        3907012751         8.00MB           3907029134    
+
+
+
+
+
+  # zpool create -o version=34 -O mountpoint=none rpool3  c2t1d0s0
+  # gunzip -c ./dns02-cn03-solaris11.2-poolversion34.zfs | zfs receive -Fvu -d rpool3
+
+
+если же у нас на серере есть сразу и рабочий диск и новый диск то 
+
+   # zfs send -R rpool@2026-04-30v2 | zfs receive -Fvu -d rpool3
+
+
 
 
 
 итак первый этап нужно чтобы на сервере был CD-ROM если нет встроенного
 то USB привод. без него никак ничего не получится.
+
 
 итак берем CD-ROM вставляем в него загрузочный диск с soalaris 10
 (потому что солярис 11 имеет установочный usb флеш а 
@@ -132,7 +174,20 @@ rpool/ROOT/solaris-1               4.92G   409G  3.60G  /
 (3) # mv  /tmp/my_os/etc/path_to_inst   /tmp/my_os/etc/path_to_inst.old
 
 
+на исходном пуле надо было выяснить какой датасет загрузочный
+
+$ zpool get bootfs rpool
+NAME   PROPERTY  VALUE                 SOURCE
+rpool  bootfs    rpool/ROOT/solaris-2  local
+
+
+теперь на этом пуле этот штук выставляем
+
+
+
 теперь все. отмонтируем пул
+
+
 
  # zpool export rpool
 
