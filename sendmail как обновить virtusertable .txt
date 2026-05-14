@@ -1,0 +1,13 @@
+| sendmail
+| virtusertable
+
+
+когда обнвили текстовый файл как из него созщдать бинарник 
+
+
+  # cd /etc/mail 
+  # makemap hash virtusertable < virtusertable
+
+причем нестоит переэживать обновлен в итоге будет именно virtusertable.db
+
+
