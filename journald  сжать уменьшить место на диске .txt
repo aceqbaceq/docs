@@ -1,0 +1,12 @@
+| journald
+| место на диске
+
+
+/var/log/journal
+
+может занимать гигабайты
+как его почистить уменьшить
+
+
+  # journalctl --vacuum-time=2d
+
