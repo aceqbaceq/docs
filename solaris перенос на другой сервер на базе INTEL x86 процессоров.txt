@@ -229,7 +229,12 @@ rpool  bootfs    rpool/ROOT/solaris-2  local
 
   # zfs mount -a
 
-и тлоько теперь можно устаналивыват grub2
+перед установкой grub очень важно смонтировать все даатасеты в папку иначе граб 
+нормально неустановися и при загрузке я получу на экране надпись 
+   
+     Bad PBR sig
+
+тлоько теперь можно устаналивыват grub2
  
  # bootadm install-bootloader -v -m grub2 -R /tmp/my_os c2t2d0s0
 
