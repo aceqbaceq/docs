@@ -34,6 +34,7 @@
 далее нужно записать на диск этот снэпшот 
 для этого нужно создать пул руками . снэпшот нам этого несделает
 
+
 далее нужно разбить новый диск
 делаю разбивку ихсодя из того что диск будет GPT иметь лейбел
 и что на серере нет UEFI  а есьт только BIOS
@@ -55,11 +56,41 @@ Part      Tag    Flag     First Sector          Size          Last Sector
 
 
 
-  # zpool create -o version=34 -O mountpoint=none rpool3  c2t1d0s0
+  # zpool create -o version=34 -O mountpoint=none rpool3  c2t1d0s1
+(тут важно заметить что выбрал именно s1 это важно. если выбрат c2t1d0 то зфс поставить себя на 
+слайс 0 тоесть на s0 но при этом зфс сотрет разметку которая уже есть и создаст ее сама вот таким образом
+Part      Tag    Flag     First Sector          Size          Last Sector
+  0        usr    wm               256       1.82TB           3907012750    
+  1 unassigned    wm                 0            0                0    
+  2 unassigned    wm                 0            0                0    
+  3 unassigned    wm                 0            0                0    
+  4 unassigned    wm                 0            0                0    
+  5 unassigned    wm                 0            0                0    
+  6 unassigned    wm                 0            0                0    
+  8   reserved    wm        3907012751         8.00MB           3907029134    
+
+
+тоесть зфс себя поствит на s0 но при этом убьет всю имеющуются разметку и выделить весь диск под s0
+прэтому если я хочу чтобы зфс не убиваоа разметку то надо делат вот так
+
+zpool create -o version=34 -O mountpoint=none rpool3  c2t1d0s0
+zpool create -o version=34 -O mountpoint=none rpool3  c2t1d0s1
+
+тогда зфс нетрогает разметку а ставит себя четко в тот слайс что ей выдали
+)
+
+
+теперь подготовим источник.
+если это файл снэпшота то все просто. он уже готов
+и поехали
   # gunzip -c ./dns02-cn03-solaris11.2-poolversion34.zfs | zfs receive -Fvu -d rpool3
 
 
-если же у нас на серере есть сразу и рабочий диск и новый диск то 
+если у нас нет файла но есть живая фс на которой есть снэпшот то нужно импортировать этот пул
+   # mkdir /tmp/dist_pool
+   # zpool import -f -N -R /tmp/dist_pool dist_pool  (если солярис 11)
+
+теперь можно копировать с исходного на новый
 
    # zfs send -R rpool@2026-04-30v2 | zfs receive -Fvu -d rpool3
 
@@ -182,16 +213,31 @@ rpool  bootfs    rpool/ROOT/solaris-2  local
 
 
 теперь на этом пуле этот штук выставляем
+    # zpool set bootfs="rpool/ROOT/solaris-2" rpool
 
 
+теперь нужно сделать диск загрузочным
+во первым заходим в format
+и там в fdisk и делаем первый раздел активным
 
-теперь все. отмонтируем пул
+далее нужно чтобы пул был смонтирован со всеми датасетами
+вначале монитируем корень 
 
+  # zfs mount rpool/ROOT/solaris-2
 
+а потом все остальное
 
+  # zfs mount -a
+
+и тлоько теперь можно устаналивыват grub2
+ 
+ # bootadm install-bootloader -v -m grub2 -R /tmp/my_os c2t2d0s0
+
+теперь все  отмонтируем пул
  # zpool export rpool
+ # reboot -p
 
- # reboot
+
 
 
 загружаемся с жесктого диска.
