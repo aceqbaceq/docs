@@ -296,6 +296,62 @@ rpool/swap                 85.0G   447G       56K  -
 все порт на таргете заработал!!!
 
 
+что еще можно тут добавить.
+если зайти на qlogic свич то в свойствах порта на свиче будет написан тип как Unknown
+хотя связь будет работать. это потмоу что  наша ОС должна в явном виде скзать свичу что 
+ее порт это ТАРГЕТ. для этого надо отредактироваь файл
+
+#  cat  /kernel/drv/qlt.conf | grep fc
+fc-fcp-register-target=1;
+
+
+дальше нужно передернуть порты на нашем таргете
+
+# stmfadm list-target
+Target: wwn.21000024FF1DE335
+Target: wwn.21000024FF1DE334
+
+
+# stmfadm offline-target wwn.21000024FF1DE334
+# stmfadm online-target wwn.21000024FF1DE334
+
+после этого в свойствах порта на свиче будет написано что это target
+
+
+еще вот полезная комнада
+видно какие удаленныые FC порты подключены к нашему таргет порту
+
+# stmfadm list-target -v
+Target: wwn.21000024FF1DE335
+    Operational Status: Online
+    Provider Name     : qlt
+    Alias             : qlt1,0
+    Protocol          : Fibre Channel
+    Sessions          : 0
+Target: wwn.21000024FF1DE334
+    Operational Status: Online
+    Provider Name     : qlt
+    Alias             : qlt0,0
+    Protocol          : Fibre Channel
+    Sessions          : 4
+        Initiator: wwn.210000E08B94189E
+            Alias: omnios-P
+            Logged in since: Fri May 15 01:50:54 2026
+        Initiator: wwn.210100E08BB4189E
+            Alias: omnios-P
+            Logged in since: Fri May 15 01:50:54 2026
+        Initiator: wwn.21000024FF1DE1BF
+            Alias: omnios-r71
+            Logged in since: Fri May 15 01:50:54 2026
+        Initiator: wwn.21000024FF1DE1BE
+            Alias: omnios-r71
+            Logged in since: Fri May 15 01:50:54 2026
+
+
+
+
+
+
 
 
 

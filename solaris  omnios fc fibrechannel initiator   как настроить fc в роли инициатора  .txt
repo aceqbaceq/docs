@@ -1,0 +1,201 @@
+| solaris
+| omnios
+| fc
+| FC
+| fibre channel
+| fibrechannel
+| initiator
+
+
+как настроить на солярис/омниос FC порт и по нему подключить удаленный диск LUN
+
+
+
+
+
+поставили солярис/омниос
+он по деолфту активирует FC порты в режиме инициатора и для этого ненужно никаких 
+ручных движеий
+визуаьная индикация порт или порты должны мигать
+
+далее втыкаем провод от порта в FC свич
+при этом опять же без каких либо ручных двтжений со стороны операционки
+индикатор на порту должен  перестать мигать и загореться рядом с той меткой где
+указана скорость подключения. скажем рядом с  "4"
+
+
+далее вводим команду
+
+
+root@omnios-P6:~# fcinfo hba-port
+HBA Port WWN: 210000e08b94189e  <<<<
+        Port Mode: Initiator
+        Port ID: f0300
+        OS Device Name: /dev/cfg/c4
+        Manufacturer: QLogic Corp.
+        Model: 375-3356-01
+        Firmware Version: 08.02.00
+        FCode/BIOS Version:  BIOS: 1.04; fcode: 1.11; EFI: 1.00;
+        Serial Number: 0402R00-0709354770
+        Driver Name: qlc
+        Driver Version: 151216-3.07
+        Type: N-port
+        State: online  <<<<
+        Supported Speeds: 1Gb 2Gb 4Gb 
+        Current Speed: 4Gb  <<<<
+        Node WWN: 200000e08b94189e
+        Max NPIV Ports: 126
+        NPIV port list:
+HBA Port WWN: 210100e08bb4189e
+        Port Mode: Initiator
+        Port ID: 0
+        OS Device Name: /dev/cfg/c5
+        Manufacturer: QLogic Corp.
+        Model: 375-3356-01
+        Firmware Version: 08.02.00
+        FCode/BIOS Version:  BIOS: 1.04; fcode: 1.11; EFI: 1.00;
+        Serial Number: 0402R00-0709354770
+        Driver Name: qlc
+        Driver Version: 151216-3.07
+        Type: unknown
+        State: offline
+        Supported Speeds: 1Gb 2Gb 4Gb 
+        Current Speed: not established 
+        Node WWN: 200100e08bb4189e
+        Max NPIV Ports: 126
+        NPIV port list:
+
+
+далее скангируем все доступные для нашей ос луны через этот FC порт 
+
+
+
+		# fcinfo remote-port -p  210100e08bb4189e   -s
+
+
+проверяем увидели ли мы хоть какойто удаленный диск
+
+root@omnios-P6:~# echo | format
+Searching for disks...done
+
+
+AVAILABLE DISK SELECTIONS:
+       0. c0t600144F05B4D9445000069F9D55E0001d0 <SUN-COMSTAR-1.0 cyl 1303 alt 2 hd 255 sec 63>
+          /scsi_vhci/disk@g600144f05b4d9445000069f9d55e0001
+       1. c1t0d0 <HP-LOGICAL VOLUME-5.70-136.70GB>
+          /pci@0,0/pci8086,3408@1/pci103c,3245@0/iport@v0/disk@0,0
+Specify disk (enter its number): Specify disk (enter its number): 
+
+
+
+ага есть контакт
+
+       0. c0t600144F05B4D9445000069F9D55E0001d0 <SUN-COMSTAR-1.0 cyl 1303 alt 2 hd 255 sec 63>
+
+
+
+
+
+
+
+
+
+а теперь посмтрим через утилиту более родную для FC среды
+
+
+root@omnios-P6:~# luxadm probe
+
+Found Fibre Channel device(s):
+  Node WWN:20000024ff1de334  Device Type:Disk device
+    Logical Path:/dev/rdsk/c0t600144F05B4D9445000069F9D55E0001d0s2
+
+
+
+
+
+
+root@omnios-P6:~# luxadm display /dev/rdsk/c0t600144F05B4D9445000069F9D55E0001d0s2
+DEVICE PROPERTIES for disk: /dev/rdsk/c0t600144F05B4D9445000069F9D55E0001d0s2
+  Vendor:               SUN     
+  Product ID:           COMSTAR         
+  Revision:             1.0 
+  Serial Num:               
+  Unformatted capacity: 10240.000 MBytes
+  Read Cache:           Enabled
+    Minimum prefetch:   0x0
+    Maximum prefetch:   0x0
+  Device Type:          Disk device
+  Path(s):
+
+  /dev/rdsk/c0t600144F05B4D9445000069F9D55E0001d0s2
+  /devices/scsi_vhci/disk@g600144f05b4d9445000069f9d55e0001:c,raw
+   Controller           /dev/cfg/c4
+    Device Address              21000024ff1de334,0
+    Host controller port WWN    210000e08b94189e
+    Class                       primary
+    State                       ONLINE
+
+
+
+
+
+прикол в том что у омниос по дефолту актвиван мульттпаф и даже дедать ничего еннужнро руками
+я просто воткнул во второй порт провод
+на свиче в зону добавил этот порт и вуаля
+
+# luxadm display /dev/rdsk/c0t600144F05B4D9445000069F9D55E0001d0s2
+DEVICE PROPERTIES for disk: /dev/rdsk/c0t600144F05B4D9445000069F9D55E0001d0s2
+  Vendor:               SUN     
+  Product ID:           COMSTAR         
+  Revision:             1.0 
+  Serial Num:               
+  Unformatted capacity: 10240.000 MBytes
+  Read Cache:           Enabled
+    Minimum prefetch:   0x0
+    Maximum prefetch:   0x0
+  Device Type:          Disk device
+  Path(s):
+
+  /dev/rdsk/c0t600144F05B4D9445000069F9D55E0001d0s2
+  /devices/scsi_vhci/disk@g600144f05b4d9445000069f9d55e0001:c,raw
+   Controller           /dev/cfg/c4
+    Device Address              21000024ff1de334,0
+    Host controller port WWN    210000e08b94189e
+    Class                       primary
+    State                       ONLINE
+   Controller           /dev/cfg/c5
+    Device Address              21000024ff1de334,0
+    Host controller port WWN    210100e08bb4189e
+    Class                       primary
+    State                       ONLINE
+
+
+
+виднро что лун имеет два пути
+
+вот политиика
+
+# grep load-balance /kernel/drv/scsi_vhci.conf
+# Load balancing global configuration: setting load-balance="none" will cause
+# path.  Setting load-balance="round-robin" will cause each path to the device
+load-balance="round-robin";
+
+
+
+а вот как посмтреть на счет как быстро работает сигнал по кадому из двух путей
+
+
+~# iostat -Y 2
+                   extended device statistics                   
+device        r/s    w/s   kr/s   kw/s wait actv  svc_t  %w  %b 
+rpool         1.8    1.3   36.8   17.6  0.1  0.0   37.9   1   1 
+sd0           1.9    1.3   37.2   17.5  0.0  0.0    6.7   0   1 
+sd1           0.4    0.1    5.1    0.0  0.0  0.0    1.2   0   0 
+sd1.t1        0.7    0.0    8.9    0.0  0.0  0.0    0.0   0   0 
+sd1.t1.fp0    0.4    0.0    5.1    0.0  0.0  0.0    0.0   0   0   <<<<
+sd1.t1.fp2    0.0    0.0    0.0    0.0  0.0  0.0    0.0   0   0   <<<<
+
+
+
+
+
