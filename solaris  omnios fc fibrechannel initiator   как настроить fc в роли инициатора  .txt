@@ -198,4 +198,101 @@ sd1.t1.fp2    0.0    0.0    0.0    0.0  0.0  0.0    0.0   0   0   <<<<
 
 
 
+когда я на сервере активировал второй Fc порт то  меня в итоге через мои две карты 
+получислось 4 пути
+
+
+# luxadm display /dev/rdsk/c0t600144F05B4D9445000069F9D55E0001d0s2
+DEVICE PROPERTIES for disk: /dev/rdsk/c0t600144F05B4D9445000069F9D55E0001d0s2
+  Vendor:               SUN     
+  Product ID:           COMSTAR         
+  Revision:             1.0 
+  Serial Num:               
+  Unformatted capacity: 10240.000 MBytes
+  Read Cache:           Enabled
+    Minimum prefetch:   0x0
+    Maximum prefetch:   0x0
+  Device Type:          Disk device
+  Path(s):
+
+  /dev/rdsk/c0t600144F05B4D9445000069F9D55E0001d0s2
+  /devices/scsi_vhci/disk@g600144f05b4d9445000069f9d55e0001:c,raw
+   Controller           /dev/cfg/c4
+    Device Address              21000024ff1de334,0
+    Host controller port WWN    210000e08b94189e
+    Class                       primary
+    State                       ONLINE
+   Controller           /dev/cfg/c4
+    Device Address              21000024ff1de335,0
+    Host controller port WWN    210000e08b94189e
+    Class                       primary
+    State                       ONLINE
+   Controller           /dev/cfg/c5
+    Device Address              21000024ff1de334,0
+    Host controller port WWN    210100e08bb4189e
+    Class                       primary
+    State                       ONLINE
+   Controller           /dev/cfg/c5
+    Device Address              21000024ff1de335,0
+    Host controller port WWN    210100e08bb4189e
+    Class                       primary
+    State                       ONLINE
+
+
+
+
+
+а потом мне неронка скзаал что самое важное правило такое:
+в зоне должен быть только один порт инициатор. вообще тлько один. не от одного хоста один 
+а вобще один.  а вот портов схд может быть несколько. тоесть 
+зона длолжна выглядет ьтак
+
+  зона1:
+    порт1 клиента  (иниатор)
+    порт1 схд      (таргет)
+    порт2 схд      (таргет)
+
+
+я сделал так и в итоге вижу
+
+
+
+root@omnios-P6:~# 
+root@omnios-P6:~# luxadm display /dev/rdsk/c0t600144F05B4D9445000069F9D55E0001d0s2
+DEVICE PROPERTIES for disk: /dev/rdsk/c0t600144F05B4D9445000069F9D55E0001d0s2
+  Vendor:               SUN     
+  Product ID:           COMSTAR         
+  Revision:             1.0 
+  Serial Num:               
+  Unformatted capacity: 10240.000 MBytes
+  Read Cache:           Enabled
+    Minimum prefetch:   0x0
+    Maximum prefetch:   0x0
+  Device Type:          Disk device
+  Path(s):
+
+  /dev/rdsk/c0t600144F05B4D9445000069F9D55E0001d0s2
+  /devices/scsi_vhci/disk@g600144f05b4d9445000069f9d55e0001:c,raw
+   Controller           /dev/cfg/c4
+    Device Address              21000024ff1de334,0
+    Host controller port WWN    210000e08b94189e
+    Class                       primary
+    State                       ONLINE
+   Controller           /dev/cfg/c4
+    Device Address              21000024ff1de335,0
+    Host controller port WWN    210000e08b94189e
+    Class                       primary
+    State                       ONLINE
+   Controller           /dev/cfg/c5
+    Device Address              21000024ff1de334,0
+    Host controller port WWN    210100e08bb4189e
+    Class                       primary
+    State                       ONLINE
+   Controller           /dev/cfg/c5
+    Device Address              21000024ff1de335,0
+    Host controller port WWN    210100e08bb4189e
+    Class                       primary
+    State                       ONLINE
+
+
 

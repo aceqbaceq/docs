@@ -352,9 +352,102 @@ Target: wwn.21000024FF1DE334
 
 
 
+воткнул прровода на сервере на второй Fc порт в итоге имею
+
+root@omnios:~# stmfadm list-target -v
+Target: wwn.21000024FF1DE335
+    Operational Status: Online
+    Provider Name     : qlt
+    Alias             : qlt1,0
+    Protocol          : Fibre Channel
+    Sessions          : 4
+        Initiator: wwn.210100E08BB4189E
+            Alias: omnios-P
+            Logged in since: Fri May 15 02:11:30 2026
+        Initiator: wwn.210000E08B94189E
+            Alias: omnios-P
+            Logged in since: Fri May 15 02:11:30 2026
+        Initiator: wwn.21000024FF1DE1BF
+            Alias: omnios-r71
+            Logged in since: Fri May 15 02:11:30 2026
+        Initiator: wwn.21000024FF1DE1BE
+            Alias: omnios-r71
+            Logged in since: Fri May 15 02:11:30 2026
+Target: wwn.21000024FF1DE334
+    Operational Status: Online
+    Provider Name     : qlt
+    Alias             : qlt0,0
+    Protocol          : Fibre Channel
+    Sessions          : 4
+        Initiator: wwn.210100E08BB4189E
+            Alias: omnios-P
+            Logged in since: Fri May 15 02:11:30 2026
+        Initiator: wwn.210000E08B94189E
+            Alias: omnios-P
+            Logged in since: Fri May 15 02:11:30 2026
+        Initiator: wwn.21000024FF1DE1BF
+            Alias: omnios-r71
+            Logged in since: Fri May 15 02:11:30 2026
+        Initiator: wwn.21000024FF1DE1BE
+            Alias: omnios-r71
+            Logged in since: Fri May 15 02:11:30 2026
 
 
 
+а потом мне неронка скзаал что самое важное правило такое:
+в зоне должен быть только один порт инициатор. вообще тлько один. не от одного хоста один 
+а вобще один.  а вот портов схд может быть несколько. тоесть 
+зона длолжна выглядет ьтак
+
+  зона1:
+    порт1 клиента  (иниатор)
+    порт1 схд      (таргет)
+    порт2 схд      (таргет)
+
+
+я сделал так и в итоге вижу
+
+root@omnios:~# 
+root@omnios:~# stmfadm list-target -v
+Target: wwn.21000024FF1DE335
+    Operational Status: Online
+    Provider Name     : qlt
+    Alias             : qlt1,0
+    Protocol          : Fibre Channel
+    Sessions          : 4
+        Initiator: wwn.21000024FF1DE1BF
+            Alias: omnios-r71
+            Logged in since: Fri May 15 02:30:03 2026
+        Initiator: wwn.210100E08BB4189E
+            Alias: omnios-P
+            Logged in since: Fri May 15 02:30:03 2026
+        Initiator: wwn.210000E08B94189E
+            Alias: omnios-P
+            Logged in since: Fri May 15 02:30:03 2026
+        Initiator: wwn.21000024FF1DE1BE
+            Alias: omnios-r71
+            Logged in since: Fri May 15 02:30:03 2026
+Target: wwn.21000024FF1DE334
+    Operational Status: Online
+    Provider Name     : qlt
+    Alias             : qlt0,0
+    Protocol          : Fibre Channel
+    Sessions          : 4
+        Initiator: wwn.210100E08BB4189E
+            Alias: omnios-P
+            Logged in since: Fri May 15 02:30:03 2026
+        Initiator: wwn.21000024FF1DE1BE
+            Alias: omnios-r71
+            Logged in since: Fri May 15 02:30:03 2026
+        Initiator: wwn.21000024FF1DE1BF
+            Alias: omnios-r71
+            Logged in since: Fri May 15 02:30:03 2026
+        Initiator: wwn.210000E08B94189E
+            Alias: omnios-P
+            Logged in since: Fri May 15 02:30:03 2026
+
+
+            
 
 
 
