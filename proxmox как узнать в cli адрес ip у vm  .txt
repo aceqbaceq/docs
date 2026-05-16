@@ -1,0 +1,8 @@
+| proxmox
+| qm
+
+
+как узнать в cli адрес ip у виртулки при условии что на ней запущен qemu agent
+
+  # qm guest cmd 134  network-get-interfaces | grep "\"ip-address\""
+

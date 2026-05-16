@@ -23,3 +23,8 @@ set hostname="mail.ru"
 тоесть 
 # echo "test $(date)"  | mutt -e 'set from="k@c.ru"; set smtp_url="smtp://mail.ru/";set ssl_starttls=no; set ssl_force_tls=no; set hostname="moy-comp.ru"' -s "test $(date)" -- k2@c.ru
 
+
+если нужно отправить сразу кучей людей письмо
+
+
+cat letter0.txt | mutt -e 'set from="k@o.ru"; set smtp_url="smtp://10.2.2.5:25/"; set ssl_starttls=no; set ssl_force_tls=no' -s "master" -c mail1@r.ru -c mail2@r.ru -c mail3@r.ru -- r@r.ru

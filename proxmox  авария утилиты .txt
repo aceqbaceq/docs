@@ -1,0 +1,300 @@
+| proxmox
+| утилиты
+| авария
+
+
+
+
+
+тут будет рассмотрена авария на прокскс когда в него влили 
+кучу броадкаст трафика и кластер развалился
+
+полезные утилиты
+
+
+# corosync-cfgtool -s
+Local node ID 3, transport knet
+LINK ID 0 udp
+        addr    = 10.0.0.153
+        status:
+                nodeid:          1:     connected
+                nodeid:          2:     connected
+                nodeid:          3:     localhost
+                nodeid:          4:     connected
+                nodeid:          5:     connected
+                nodeid:          6:     connected
+                nodeid:          7:     connected
+                nodeid:          8:     connected
+
+
+
+
+
+# pvecm status 
+Cluster information
+-------------------
+Name:             VDST
+Config Version:   8
+Transport:        knet
+Secure auth:      on
+
+Quorum information
+------------------
+Date:             Sat May 16 16:24:52 2026
+Quorum provider:  corosync_votequorum
+Nodes:            8
+Node ID:          0x00000003
+Ring ID:          1.1d66
+Quorate:          Yes
+
+Votequorum information
+----------------------
+Expected votes:   8
+Highest expected: 8
+Total votes:      8
+Quorum:           5  
+Flags:            Quorate 
+
+Membership information
+----------------------
+    Nodeid      Votes Name
+0x00000001          1 10.0.0.151
+0x00000002          1 10.0.0.152
+0x00000003          1 10.0.0.153 (local)
+0x00000004          1 10.0.0.154
+0x00000005          1 10.0.0.156
+0x00000006          1 10.0.0.155
+0x00000007          1 10.0.0.157
+0x00000008          1 10.0.0.158
+
+
+
+
+# pvecm nodes
+
+Membership information
+----------------------
+    Nodeid      Votes Name
+         1          1 hst1
+         2          1 hst2
+         3          1 hst3 (local)
+         4          1 hst4
+         5          1 hst6
+         6          1 hst5
+         7          1 hst7
+         8          1 hst8
+
+
+
+
+
+# iftop -P -i eth0
+(-P это покаызать порты)
+
+
+
+
+
+
+#systemctl stop pve-ha-lrm
+#systemctl stop pve-ha-crm
+
+
+crm заупущена на каждом хосте но реально  раобтает только одна.
+она заведует HA тоесть следит какая нода сдохла и тогда начинает 
+раздавать команды что делать . шлет она их на lrm службу каждого хоста и говорит ей
+мол запусти такую то виртуалку у себя
+итак lrm это выполнялка а crm это командир ha
+
+
+
+важный хрень на прокскс это точное время
+	#apt install chrony
+	# chronyc sources -v
+
+  .-- Source mode  '^' = server, '=' = peer, '#' = local clock.
+ / .- Source state '*' = current best, '+' = combined, '-' = not combined,
+| /             'x' = may be in error, '~' = too variable, '?' = unusable.
+||                                                 .- xxxx [ yyyy ] +/- zzzz
+||      Reachability register (octal) -.           |  xxxx = adjusted offset,
+||      Log2(Polling interval) --.      |          |  yyyy = measured offset,
+||                                \     |          |  zzzz = estimated error.
+||                                 |    |           \
+MS Name/IP address         Stratum Poll Reach LastRx Last sample               
+===============================================================================
+^- tms04.deltatelesystems.ru     1  10   377   454   +610us[ +571us] +/-   19ms
+^- 89-179-240-219.static.co>     2  10   377   258   -301us[ -301us] +/-   11ms
+^* mail.redway.ru                2  10   377   326   -121us[ -160us] +/- 3450us
+^- 79.111.119.96                 2  10   377   300    +93us[  +93us] +/-   18ms
+
+
+звездой указан текущий севрер
+а то насколько у моего время отличается от эталонного это последняя колонка
+тоесть 3450 микросекунд тоест 0.003450 тоест 3.4 милисекунды
+
+
+
+
+или
+
+# chronyc tracking
+Reference ID    : 5D5F6468 (mail.redway.ru)
+Stratum         : 3
+Ref time (UTC)  : Sat May 16 14:07:35 2026
+System time     : 0.000021193 seconds slow of NTP time
+Last offset     : -0.000039283 seconds                   <<<<<<<<<<
+RMS offset      : 0.000048837 seconds
+Frequency       : 75.718 ppm slow
+Residual freq   : -0.001 ppm
+Skew            : 0.023 ppm
+Root delay      : 0.004726939 seconds
+Root dispersion : 0.001724002 seconds
+Update interval : 1042.3 seconds
+Leap status     : Normal
+
+
+
+
+удалить вм из управения ha
+   #  ha-manager remove vm:112
+
+
+
+
+
+# ha-manager status
+quorum OK
+master hst5 (active, Sat May 16 17:20:55 2026)
+lrm hst1 (active, Sat May 16 17:20:58 2026)
+lrm hst2 (active, Sat May 16 17:21:00 2026)
+lrm hst3 (active, Sat May 16 17:21:00 2026)
+lrm hst4 (active, Sat May 16 17:21:00 2026)
+lrm hst5 (active, Sat May 16 17:21:04 2026)
+lrm hst6 (active, Sat May 16 17:21:00 2026)
+lrm hst7 (active, Sat May 16 17:21:00 2026)
+lrm hst8 (active, Sat May 16 17:21:03 2026)
+
+
+
+здесь лежат локи службы crm 
+# ls -1 /etc/pve/priv/lock
+ha_agent_hst1_lock
+ha_agent_hst2_lock
+ha_agent_hst3_lock
+ha_agent_hst4_lock
+ha_agent_hst5_lock
+ha_agent_hst6_lock
+ha_agent_hst7_lock
+ha_agent_hst8_lock
+ha_manager_lock
+
+
+если я удалю руками файл  ha_manager_lock то мастером ha станет crm служба на 
+другом хосте
+
+
+
+
+# ha-manager set-lrm-status --node hst1 --mode maintenance
+# ... повторите для всех нод: hst2, hst3, hst4, hst5, hst6, hst7, hst8
+хуй знает что делает  ????
+
+
+
+# ha-manager crm-command node-maintenance enable hst1
+????
+
+
+
+есть такая хрень на срвере как watchdog
+если в него не прилетает сигнал то сервер себя ресетит
+
+# lsmod | grep dog
+softdog                16384  2
+
+
+как его октчюить
+#echo "options ipmi_si watchdog=0" > /etc/modprobe.d/ipmi-no-wdt.conf
+#echo "blacklist softdog" >> /etc/modprobe.d/blacklist-ha.conf
+#echo "blacklist iTCO_wdt" >> /etc/modprobe.d/blacklist-ha.conf
+#update-initramfs -u
+
+
+есть сервис
+watchdog-mux.service
+
+# lsmod | grep -E "wdt|iTCO|ipmi"
+ipmi_ssif              40960  0
+acpi_ipmi              20480  0
+ipmi_si                73728  1
+ipmi_devintf           20480  0
+ipmi_msghandler       122880  4 ipmi_devintf,ipmi_si,acpi_ipmi,ipmi_ssif
+
+
+
+#systemctl disable pve-ha-lrm pve-ha-crm watchdog-mux
+??
+
+
+как отключить вочдог прям щас 
+#ipmitool mc watchdog off
+
+
+обновть initramfs и граб на прокскскс
+#proxmox-boot-tool refresh
+
+
+обнвоить initramfs и граб по старинке 
+#update-initramfs -u -k all
+#update-grub
+
+
+
+
+
+root@hst3 /etc# corosync-quorumtool -i
+Quorum information
+------------------
+Date:             Sat May 16 17:30:34 2026
+Quorum provider:  corosync_votequorum
+Nodes:            8
+Node ID:          3
+Ring ID:          1.1d66
+Quorate:          Yes
+
+Votequorum information
+----------------------
+Expected votes:   8
+Highest expected: 8
+Total votes:      8
+Quorum:           5  
+Flags:            Quorate 
+
+Membership information
+----------------------
+    Nodeid      Votes Name
+         1          1 10.0.0.151
+         2          1 10.0.0.152
+         3          1 10.0.0.153 (local)
+         4          1 10.0.0.154
+         5          1 10.0.0.156
+         6          1 10.0.0.155
+         7          1 10.0.0.157
+         8          1 10.0.0.158
+
+
+
+
+старт вм на прокскс через кли
+при условии что машина не в ha
+# qm start 112
+
+
+
+#systemctl restart pve-cluster
+
+
+изменить число машин для кворума
+#pvecm expected 7
+
+
