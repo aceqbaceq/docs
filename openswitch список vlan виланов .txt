@@ -1,0 +1,33 @@
+| openswitch
+| openvswitch
+
+список виланов
+
+# ovs-vsctl show
+dacaaa8f-053c-45d2-944d-ee7e8c3578d8
+    Bridge vmbr0
+        Port fwln333o2
+            tag: 3338
+            Interface fwln333o2
+                type: internal
+        Port fwln303o0
+            tag: 4044
+            Interface fwln303o0
+                type: internal
+        Port fwln269o1
+            tag: 1252
+            Interface fwln269o1
+                type: internal
+        Port fwln134o0
+            tag: 66
+            Interface fwln134o0
+                type: internal
+        Port bond0
+            Interface enp4s0f1
+            Interface enp4s0f0
+        Port fwln303o2
+            tag: 3896
+            Interface fwln303o2
+                type: internal
+
+                
