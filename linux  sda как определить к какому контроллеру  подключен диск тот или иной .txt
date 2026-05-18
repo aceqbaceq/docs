@@ -1,0 +1,50 @@
+| linux
+| disk 
+
+есть такой практичский вопрос. 
+вот у меня есть диск на линуксе
+как узнать к какому контроллеру  подключен диск
+
+
+ПРИМЕР1
+	# ls -l /sys/block/sda
+lrwxrwxrwx 1 root root 0 May 18 05:45 /sys/block/sda -> ../devices/pci0000:00/0000:00:03.0/0000:04:00.0/host0/target0:2:0/0:2:0:0/block/sda
+
+в этой строке уже виден контроллер это 04:00.0
+
+
+	# lspci | grep "04:00.0"
+04:00.0 RAID bus controller: Broadcom / LSI MegaRAID SAS 2108 [Liberator] (rev 05)
+
+
+
+
+
+
+ПРИМЕР2
+	# ls -l /sys/block/nvme0n1
+lrwxrwxrwx 1 root root 0 мая 18 04:34 /sys/block/nvme0n1 -> ../devices/pci0000:00/0000:00:1d.4/0000:04:00.0/nvme/nvme0/nvme0n1
+
+
+
+	# lspci | grep "04:00.0"
+04:00.0 Non-Volatile memory controller: Sandisk Corp PC SN520 x2 M.2 2242 NVMe SSD (rev 01)
+
+
+
+
+
+ПРИМЕР3
+	$ lsscsi 
+[0:0:0:0]    disk    ATA      Samsung SSD 870  1B6Q  /dev/sda 
+[4:0:0:0]    disk    ATA      HGST HUS724020AL A8B0  /dev/sdb 
+
+	$ ls -l /sys/block/sda
+lrwxrwxrwx 1 root root 0 мая 18 04:21 /sys/block/sda -> ../devices/pci0000:00/0000:00:01.2/0000:01:00.1/ata1/host0/target0:0:0/0:0:0:0/block/sda
+
+	$ lspci | grep "01:00.1"
+01:00.1 SATA controller: Advanced Micro Devices, Inc. [AMD] A320 Chipset SATA Controller [AHCI mode] (rev 02)
+
+
+
+

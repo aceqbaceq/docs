@@ -1,0 +1,19 @@
+| storcli
+| storcli64
+| полезные команды
+
+
+полезные команды
+
+
+
+	/opt/MegaRAID/storcli/storcli64 /c0 /v0 set wrcache=wt
+  	/opt/MegaRAID/storcli/storcli64 /c0 /v0 set iopolicy=Direct
+  	/opt/MegaRAID/storcli/storcli64 /c0 /v0 set set pdcache=on
+  	/opt/MegaRAID/storcli/storcli64 /c0 /v0  set pdcache=on
+
+
+а вот еще pdf manual
+
+	https://docs.broadcom.com/doc/12352476
+

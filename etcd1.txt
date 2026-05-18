@@ -1,17 +1,101 @@
 | etcd 
 | ssd
+| performance
 
- Samsung SSD 870
 
-на нем perf test  для etcd дает вот такой результат
 
-# /usr/local/bin/etcdctl --endpoints='127.0.0.1:2379,172.16.10.26:2379'  check perf
+тест перфоманса etcd 
 
-100.00% 1 p/s
-PASS: Throughput is 150 writes/s
-PASS: Slowest request took 0.257412s
-PASS: Stddev is 0.011669s
+# /usr/local/bin/etcdctl --endpoints='127.0.0.1:2379,127.0.0.2:2379' check perf -w table
+
+
+
+
+
+******ПРИМЕР
+
+контроллер ServeRAID M5015 SAS/SATA Controller
+массив raid10 из 4-ех дисков
+
+	Micron_5300_MTFDDAK960TDS
+	INTEL SSDSC2KB960G7
+	INTEL SSDSC2KB960G7
+	INTEL SSDSC2KB960G7
+
+--------------------------------------------------------------
+DG/VD TYPE   State Access Consist Cache Cac sCC     Size Name 
+--------------------------------------------------------------
+0/0   RAID10 Optl  RW     No      NRWTD -   ON  1.744 TB      
+--------------------------------------------------------------
+
+
+# /usr/local/bin/etcdctl --endpoints='127.0.0.1:2379,127.0.0.2:2379' check perf -w table
+60 / 60 [--------------------------------------------------------------------------------------------------------------------------------------] 100.00% 1 p/s
+PASS: Throughput is 151 writes/s
+PASS: Slowest request took 0.014477s  **<<< (самая медленная транзакция)
+PASS: Stddev is 0.000294s
 PASS
+
+тут узкое место это контроллер при класных дисках
+
+
+
+
+
+
+
+******ПРИМЕР
+виртуалка на базе того железа которое указано в предыдущем примере
+
+# /usr/local/bin/etcdctl --endpoints='127.0.0.1:2379,127.0.0.2:2379' check perf -w table
+60 / 60 [--------------------------------------------------------------------------------------------------------------------------------------] 100.00% 1 p/s
+PASS: Throughput is 150 writes/s
+PASS: Slowest request took 0.015500s    **<<< (самая медленная транзакция)
+PASS: Stddev is 0.000663s
+PASS
+
+видно что скорость у вм вобщем такая же самая как и на голом железе!
+потеря скорсти минимальная
+
+
+
+
+
+
+
+******ПРИМЕР
+
+диск 		WDC PC SN520 SDAPMUW-512G-1101
+контроллер  04:00.0 Non-Volatile memory controller: Sandisk Corp PC SN520 x2 M.2 2242 NVMe SSD (rev 01)
+
+
+ /usr/local/bin/etcdctl --endpoints='127.0.0.1:2379,127.0.0.2:2379' check perf -w table
+60 / 60 [--------------------------------------------------------------------------------------------------------------------------------------] 100.00% 1 p/s
+PASS: Throughput is 151 writes/s
+PASS: Slowest request took 0.060098s   **<<< (самая медленная транзакция)
+PASS: Stddev is 0.001489s
+PASS
+
+
+тут диск с одной стороны класный но не для fsync операций
+потому что у диска DDR памяти  и нет PLP конденсаторов
+
+
+
+
+******ПРИМЕР
+
+вм на базе кластера прокскса на базе хранилища на базе NFS на базе фринас на базе шпинделей
+
+# /usr/local/bin/etcdctl --endpoints='127.0.0.1:2379,127.0.0.2:2379'  check perf -w  table
+60 / 60 [--------------------------------------------------------------------------------------------------------------------------------------] 100.00% 1 p/s
+FAIL: Throughput too low: 129 writes/s
+Slowest request took too long: 1.794348s     **<<< (самая медленная транзакция)
+Stddev too high: 0.280900s
+FAIL
+
+
+видно что пиздец. полный 
 
 
 

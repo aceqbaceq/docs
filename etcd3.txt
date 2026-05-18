@@ -1,0 +1,152 @@
+| etcd
+
+очереная попаытка разобртьс с этой базой
+
+делаю инсаляцию
+
+
+
+
+
+	infra0
+deb11 # cat /root/ETCD/infra0/start.bash 
+#!/bin/bash
+
+etcd \
+  --name infra0 \
+  --initial-advertise-peer-urls http://127.0.0.1:2380 \
+\
+\
+  --initial-cluster infra0=http://127.0.0.1:2380,infra1=http://127.0.0.2:2380  \
+\
+\
+  --initial-cluster-token etcd-cluster-1 \
+  --initial-cluster-state new \
+\
+\
+\
+  --listen-peer-urls http://127.0.0.1:2380 \
+  --listen-client-urls http://127.0.0.1:2379 \
+\
+  --advertise-client-urls http://127.0.0.1:2379 \
+\
+\
+  --data-dir  /root/ETCD/infra0 \
+
+
+
+
+  infra1
+deb11 # cat /root/ETCD/infra1/start.bash 
+#!/bin/bash
+
+etcd \
+  --name infra1 \
+  --initial-advertise-peer-urls http://127.0.0.2:2380 \
+\
+\
+  --initial-cluster infra0=http://127.0.0.1:2380,infra1=http://127.0.0.2:2380  \
+\
+\
+  --initial-cluster-token etcd-cluster-1 \
+  --initial-cluster-state new \
+\
+\
+\
+  --listen-peer-urls http://127.0.0.2:2380 \
+  --listen-client-urls http://127.0.0.2:2379 \
+\
+  --advertise-client-urls http://127.0.0.2:2379 \
+\
+\
+  --data-dir  /root/ETCD/infra1 \
+
+
+
+
+запустил.
+оно запустилось.
+
+
+
+
+deb11 # /usr/local/bin/etcdctl --endpoints='127.0.0.1:2379,127.0.0.2:2379'  member list  -w table
++------------------+---------+--------+---------------------+---------------------+------------+
+|        ID        | STATUS  |  NAME  |     PEER ADDRS      |    CLIENT ADDRS     | IS LEARNER |
++------------------+---------+--------+---------------------+---------------------+------------+
+|  3ce0cc254559557 | started | infra1 | http://2.2.2.2:2380 | http://2.2.2.2:2379 |      false |
+| a19202a30ffa8431 | started | infra0 | http://1.1.1.1:2380 | http://1.1.1.1:2379 |      false |
++------------------+---------+--------+---------------------+---------------------+------------+
+
+
+
+
+
+
+
+
+deb11 # /usr/local/bin/etcdctl --endpoints='127.0.0.1:2379,127.0.0.2:2379'  endpoint status  -w json | jq
+[
+  {
+    "Endpoint": "127.0.0.1:2379",
+    "Status": {
+      "header": {
+        "cluster_id": 15995447966715853000,
+        "member_id": 11642370886077155000,
+        "revision": 7685,
+        "raft_term": 2
+      },
+      "version": "3.6.11",
+      "dbSize": 18800640,
+      "leader": 11642370886077155000,
+      "raftIndex": 7692,
+      "raftTerm": 2,
+      "raftAppliedIndex": 7692,
+      "dbSizeInUse": 18800640,
+      "storageVersion": "3.6.0",
+      "dbSizeQuota": 2147483648,
+      "downgradeInfo": {}
+    }
+  },
+  {
+    "Endpoint": "127.0.0.2:2379",
+    "Status": {
+      "header": {
+        "cluster_id": 15995447966715853000,
+        "member_id": 274170656094262620,
+        "revision": 7685,
+        "raft_term": 2
+      },
+      "version": "3.6.11",
+      "dbSize": 18804736,
+      "leader": 11642370886077155000,
+      "raftIndex": 7692,
+      "raftTerm": 2,
+      "raftAppliedIndex": 7692,
+      "dbSizeInUse": 18804736,
+      "storageVersion": "3.6.0",
+      "dbSizeQuota": 2147483648,
+      "downgradeInfo": {}
+    }
+  }
+]
+deb11 # 
+
+
+
+
+
+# /usr/local/bin/etcdctl --endpoints='127.0.0.1:2379,127.0.0.2:2379' check perf -w table
+60 / 60 [--------------------------------------------------------------------------------------------------------------------------------------] 100.00% 1 p/s
+FAIL: Throughput too low: 128 writes/s
+Slowest request took too long: 1.676372s
+Stddev too high: 0.285803s
+FAIL
+
+
+
+я собрал сводку этого перфоманс теста на разном железе тут 
+
+			'etcd1.txt'
+
+
