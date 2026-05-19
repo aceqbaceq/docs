@@ -1,0 +1,22 @@
+| solaris 
+| память
+| mem
+
+
+как посмтреть на что щас потрачена оперативка на хосте
+
+
+# echo "::memstat" | mdb -k
+Page Summary                 Pages             Bytes  %Tot
+----------------- ----------------  ----------------  ----
+Kernel                      112673            880.2M   21%
+ZFS Metadata                 24081            188.1M    5%
+ZFS File Data               260283              1.9G   50%
+Anon                         79422            620.4M   15%
+Exec and libs                 3904             30.5M    1%
+Page cache                    6591             51.4M    1%
+Free (cachelist)              1061              8.2M    0%
+Free (freelist)              15485            120.9M    3%
+Total                       524288                4G
+
+

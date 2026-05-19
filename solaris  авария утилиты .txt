@@ -1,0 +1,166 @@
+| solaris
+| авария
+
+
+хост имеет большой лоад аверадж
+программа веб тормозит
+
+смотрю в логи
+
+
+May 18 14:01:21 master tmpfs: [ID 518458 kern.warning] WARNING: /system/volatile: File system full, swap space limit exceeded
+May 18 14:06:21 master last message repeated 1 time
+May 18 14:08:11 master tmpfs: [ID 518458 kern.warning] WARNING: /tmp: File system full, swap space limit exceeded
+May 18 14:11:06 master last message repeated 1 time
+
+
+
+папка /system/volatile  это tmpfs хотя мунт пишет что это swap
+
+# mount | grep -i volatile
+/system/volatile on swap read/write/setuid/devices/rstchown/xattr/dev=9040001 on Tue May 19 10:36:12 2026
+
+
+еще df -h
+
+# df -h
+Filesystem             Size   Used  Available Capacity  Mounted on
+swap                   8.0G   2.7M       8.0G     1%    /system/volatile
+
+
+size 8.0G складыветя из рамера оперативки и размера свап файла на диске
+
+
+тоесть суть в том что просто на хосте акончилась оперативная память и все фс которые
+лежат в опративке написали что на них места нет
+
+кстаии а что лежит на /system/volaile
+
+
+# du -sh /system/volatile/
+ 3.2M   /system/volatile
+
+
+# ls -1  /system/volatile/ | head -n5
+apache2
+application-cups-scheduler:default.log
+application-database-mysql:version_55.log
+application-desktop-cache-desktop-mime-cache:default.log
+application-desktop-cache-gconf-cache:default.log
+
+
+
+
+
+далее полезные утилиты траблшутинга солриса
+
+   # prstat -Z 5
+
+
+  PID USERNAME  SIZE   RSS STATE   PRI NICE      TIME  CPU PROCESS/NLWP      
+     5 root        0K    0K sleep    99  -20   0:03:54 0.0% zpool-rpool/161
+  4664 root       11M 8280K cpu8     59    0   0:00:00 0.0% prstat/1
+  1261 mysql     406M  386M sleep    59    0   6:09:26 0.0% mysqld/16
+  1313 root     2896K 1688K sleep    59    0   0:00:00 0.0% ttymon/1
+  4346 webservd   77M   36M sleep    59    0   0:00:00 0.0% httpd/1
+   485 root     9064K 1000K sleep    59    0   0:00:00 0.0% iscsid/2
+   823 root       10M 5984K sleep    59    0   0:00:00 0.0% automountd/2
+   218 root       10M 1632K sleep    59    0   0:00:00 0.0% syseventd/17
+   131 root       18M 9408K sleep    59    0   0:00:00 0.0% rad/4
+    80 root       10M 1456K sleep    59    0   0:00:01 0.0% in.mpathd/1
+   967 root     6936K 4688K sleep    59    0   0:00:05 0.0% ntpd/1
+    72 daemon   9944K 6376K sleep    60  -20   0:00:00 0.0% kcfd/3
+    63 netadm   6032K 4408K sleep    59    0   0:00:00 0.0% ipmgmtd/7
+    50 root     5040K 3328K sleep    59    0   0:00:00 0.0% dlmgmtd/9
+   175 root       18M 9376K sleep    59    0   0:00:00 0.0% rad/4
+    39 netcfg   4360K 3000K sleep    59    0   0:00:00 0.0% netcfgd/5
+
+
+
+# vmstat 5
+ kthr      memory            page            disk          faults      cpu
+ r b w   swap  free  re  mf pi po fr de sr vc vc -- --   in   sy   cs us sy id
+ 0 0 0 8381224 543648 19 23  0  0  0  0  2  0 26  0  0  755  634  725  5  0 94
+ 0 0 0 8364272 134848 1   6  0  0  0  0  0  0 20  0  0  488   99  275  0  0 100
+ 1 0 0 8364272 134840 0   0  0  0  0  0  0  0 11  0  0  465   82  234  0  0 100
+ 1 0 0 8364272 134840 0   0  0  0  0  0  0  0 10  0  0  463   90  232  0  0 100
+
+
+
+
+
+
+
+# mpstat 5
+ CPU minf mjf xcal  intr ithr  csw icsw migr smtx  srw syscl  usr sys  st idl
+   0    0   0   25   232    2   46    1    9    8    0    30    7   0   0  93
+   1    0   0   54    62    2   74    1    8    5    0    90    9   0   0  91
+   2    1   0   45    52    4   55    0   10    6    0    26    1   0   0  99
+   3    0   0  206    46    3   56    0    9    6    0    54    1   0   0  98
+   4    0   0   31    49   23   35    0    6    2    0    29    5   0   0  95
+   5    0   0   13    36    2   39    0    6    3    0    32    1   0   0  98
+   6    0   0   15    35    5   32    0    6    4    0    14    1   0   0  99
+   7    0   0    9    26    2   27    0    6    2    0    22    5   0   0  95
+   8    0   0   39    48    7   53    3    4    0    0   131   45   0   0  55
+   9    1   0   38    25    1   24    0    7    6    0    34    0   0   0 100
+
+
+
+
+
+# iostat -xtc 5 
+                 extended device statistics                    tty         cpu
+device    r/s    w/s   kr/s   kw/s wait actv  svc_t  %w  %b  tin tout  us sy st id
+vdc0      0.0    0.0    0.0    0.0  0.0  0.0    0.0   0   0    0   62  10  0  0 90
+vdc1      0.0   10.6    0.0  278.5  0.0  0.1   11.0   0   3 
+
+
+# swap -l
+swapfile             dev    swaplo   blocks     free
+/dev/zvol/dsk/rpool/swap 303,1        16  2097136  2097136
+/dev/zvol/dsk/rpool/swap 303,1   2097168 14680048 14680048
+
+
+блок это вирутуалная хрень 512байт
+
+
+
+# netstat -s
+
+RAWIP	rawipInDatagrams    =     0	rawipInErrors       =     0
+	rawipInCksumErrs    =     0	rawipOutDatagrams   =     3
+	rawipOutErrors      =     0
+
+UDP	udpInDatagrams      =208018	udpInErrors         =     0
+	udpOutDatagrams     =  3206	udpOutErrors        =     0
+
+TCP	tcpRtoAlgorithm     =     4	tcpRtoMin           =   200
+	tcpRtoMax           = 60000	tcpMaxConn          =    -1
+	tcpActiveOpens      =  3716	tcpPassiveOpens     =   830
+	tcpAttemptFails     =     5	tcpEstabResets      =    10
+	tcpCurrEstab        =     3	tcpOutSegs          = 17953
+	tcpOutDataSegs      =250736	tcpOutDataBytes     =87868715
+	tcpRetransSegs      =   722	tcpRetransBytes     =1009042
+	tcpOutAck           =219241	tcpOutAckDelayed    =135102
+	tcpOutUrg           =     0	tcpOutWinUpdate     =     0
+	tcpOutWinProbe      =     0	tcpOutControl       =  9221
+	tcpOutRsts          =   142	tcpOutFastRetrans   =     0
+	tcpInSegs           = 27817
+	tcpInAckSegs        =     0	tcpInAckBytes       =83030300
+	tcpInDupAck         =  3626	tcpInAckUnsent      =     0
+	tcpInInorderSegs    =351433	tcpInInorderBytes   =207890132
+	tcpInUnorderSegs    =  4935	tcpInUnorderBytes   =6975860
+	tcpInDupSegs        =    42	tcpInDupBytes       = 17042
+	tcpInPartDupSegs    =     0	tcpInPartDupBytes   =     0
+	tcpInPastWinSegs    =     0	tcpInPastWinBytes   =     0
+	tcpInWinProbe       =     0	tcpInWinUpdate      =     0
+	tcpInClosed         =    45	tcpRttNoUpdate      =  8586
+	tcpRttUpdate        =235336	tcpTimRetrans       =    37
+	tcpTimRetransDrop   =     0	tcpTimKeepalive     =    45
+	tcpTimKeepaliveProbe=     0	tcpTimKeepaliveDrop =     0
+	tcpListenDrop       =     0	tcpListenDropQ0     =     0
+	tcpHalfOpenDrop     =     0	tcpOutSackRetrans   =   410
+
+
+
+	

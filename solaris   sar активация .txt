@@ -1,0 +1,43 @@
+| solaris
+| sar
+
+
+solaris 11
+
+актвируем sar
+
+
+# crontab -l sys
+0 * * * 0-6 /usr/lib/sa/sa1
+20,40 8-17 * * 1-5 /usr/lib/sa/sa1
+5 18 * * 1-5 /usr/lib/sa/sa2 -s 8:00 -e 18:01 -i 1200 -A
+
+
+если нужно чтоото раскометивоать что 
+
+# crontab -e sys
+
+
+
+# sar -q -f /var/adm/sa/sa20
+SunOS master 5.11 11.3 sun4v    05/20/2026
+
+00:00:00 runq-sz %runocc swpq-sz %swpocc
+01:00:01     1.0      71     0.0       0
+01:19:11     1.0      71     0.0       0
+
+Average      1.0      71     0.0       0
+
+
+
+постметь сар в режиме "прям щас"
+
+# sar -a 2 5
+
+SunOS master 5.11 11.3 sun4v    05/20/2026
+
+01:24:55  iget/s namei/s dirbk/s
+01:24:57       0       4       0
+01:24:59       0       2       0
+01:25:01       0     527       0
+

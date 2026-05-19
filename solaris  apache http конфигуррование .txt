@@ -1,0 +1,38 @@
+| solaris
+| apache
+| http
+
+
+# /usr/apache2/2.2/bin/apachectl -l
+Compiled in modules:
+  core.c
+  prefork.c
+  http_core.c
+  mod_so.c
+
+
+
+
+cp /etc/apache2/2.2/samples-conf.d/mpm.conf /etc/apache2/2.2/conf.d/mpm.conf
+
+
+и там корерктриуерм число разрещаннех форков данного модуля
+
+
+<IfModule mpm_prefork_module>
+    StartServers          5
+    MinSpareServers       5
+    MaxSpareServers      10
+    ServerLimit          25
+    MaxClients           25     <<<<***<<<
+    MaxRequestsPerChild   2000
+</IfModule>
+
+
+
+
+# apachectl configtest
+
+# svcadm restart network/http:apache22
+
+
