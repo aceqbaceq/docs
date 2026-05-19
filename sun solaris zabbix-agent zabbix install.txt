@@ -18,7 +18,7 @@
 -bash-3.00#  curl -k -O https://cdn.zabbix.com/zabbix/binaries/stable/6.0/6.0.5/zabbix_agent-6.0.5-solaris-11-sparc-openssl.p5p
 
 
-pkg install --no-refresh -g /root/down/zabbix_agent-6.0.5-solaris-11-sparc-openssl.p5p zabbix-agent
+pkg install --no-refresh -g /root/Downloads/zabbix_agent-6.0.5-solaris-11-sparc-openssl.p5p zabbix-agent
 
 у нас появяатся файлы
 
