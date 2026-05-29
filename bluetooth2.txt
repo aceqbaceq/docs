@@ -1,0 +1,128 @@
+| manajro
+| bluetooth
+
+
+
+
+
+  $ bluetoothctl
+[NEW] Media /org/bluez/hci0 
+	SupportedUUIDs: 0000110a-0000-1000-8000-00805f9b34fb
+	SupportedUUIDs: 0000110b-0000-1000-8000-00805f9b34fb
+Agent registered
+
+
+
+
+
+
+
+[bluetoothctl]> power on
+Changing power on succeeded
+
+
+
+
+
+
+
+[bluetoothctl]> power off
+[CHG] Controller 80:30:49:B2:85:D0 PowerState: on-disabling
+hci0 class of device changed: 0x000000
+hci0 new_settings: bondable ssp br/edr le secure-conn wide-band-speech 
+Changing power off succeeded
+[CHG] Controller 80:30:49:B2:85:D0 PowerState: off
+[CHG] Controller 80:30:49:B2:85:D0 Powered: no
+[CHG] Controller 80:30:49:B2:85:D0 Discovering: no
+[CHG] Controller 80:30:49:B2:85:D0 Class: 0x00000000 (0)
+
+
+
+
+
+
+
+[bluetoothctl]> power on
+[CHG] Controller 80:30:49:B2:85:D0 PowerState: off-enabling
+hci0 class of device changed: 0x7c010c
+[CHG] Controller 80:30:49:B2:85:D0 Class: 0x007c010c (8126732)
+hci0 new_settings: powered bondable ssp br/edr le secure-conn wide-band-speech 
+Changing power on succeeded
+[CHG] Controller 80:30:49:B2:85:D0 PowerState: on
+[CHG] Controller 80:30:49:B2:85:D0 Powered: yes
+
+
+
+
+
+тыкаем на блютуф колнке конопку поиска новых устройств
+
+
+[bluetoothctl]> scan on
+SetDiscoveryFilter success
+Discovery started
+[CHG] Controller 80:30:49:B2:85:D0 Discovering: yes
+[NEW] Device D8:37:3B:36:7B:D8 JBL Xtreme 3
+[NEW] Device 28:F5:2B:53:8B:70 28-F5-2B-53-8B-70
+[NEW] Device 59:82:00:65:65:D8 59-82-00-65-65-D8
+[NEW] Device D4:8F:A2:8A:E4:03 D4-8F-A2-8A-E4-03
+[CHG] Device D8:37:3B:36:7B:D8 AddressType: public
+[NEW] Device 7B:5B:46:DF:BD:C7 7B-5B-46-DF-BD-C7
+[NEW] Device 55:A0:01:AA:15:70 55-A0-01-AA-15-70
+[NEW] Device 68:16:FE:E2:BF:70 68-16-FE-E2-BF-70
+[NEW] Device 6B:2F:0C:D5:EE:22 6B-2F-0C-D5-EE-22
+[CHG] Device D4:8F:A2:8A:E4:03 Name: HUAWEI nova 9
+
+
+
+
+
+
+
+[bluetoothctl]> pair D8:37:3B:36:7B:D8
+[DEL] Device 28:F5:2B:53:8B:70 28-F5-2B-53-8B-70
+[CHG] Device 56:47:B1:72:E2:C5 RSSI: 0xffffffbc (-68)
+
+
+
+
+
+[bluetoothctl]> trust D8:37:3B:36:7B:D8
+[CHG] Device D8:37:3B:36:7B:D8 Trusted: yes
+Changing D8:37:3B:36:7B:D8 trust succeeded
+[CHG] Device 56:47:B1:72:E2:C5 RSSI: 0xffffffb3 (-77)
+
+
+
+
+
+
+
+
+[bluetoothctl]> connect D8:37:3B:36:7B:D8
+Attempting to connect to D8:37:3B:36:7B:D8
+[CHG] Device D8:37:3B:36:7B:D8 Connected: yes
+[CHG] Device D8:37:3B:36:7B:D8 UUIDs: 00001101-0000-1000-8000-00805f9b34fb
+[CHG] Device D8:37:3B:36:7B:D8 UUIDs: 00001108-0000-1000-8000-00805f9b34fb
+[CHG] Device D8:37:3B:36:7B:D8 UUIDs: 0000110b-0000-1000-8000-00805f9b34fb
+[CHG] Device D8:37:3B:36:7B:D8 UUIDs: 0000110c-0000-1000-8000-00805f9b34fb
+[CHG] Device D8:37:3B:36:7B:D8 UUIDs: 0000110d-0000-1000-8000-00805f9b34fb
+[CHG] Device D8:37:3B:36:7B:D8 UUIDs: 0000110e-0000-1000-8000-00805f9b34fb
+[CHG] Device D4:8F:A2:8A:E4:03 UUIDs: 0000fe35-0000-1000-8000-00805f9b34fb
+[CHG] Device D4:8F:A2:8A:E4:03 UUIDs: 9664aa26-d76c-43ad-9775-d310f253a408
+[CHG] Device D4:8F:A2:8A:E4:03 UUIDs: 8ce255c0-200a-11e0-ac64-0800200c9a66
+[CHG] Device 6A:55:F8:EF:61:3A ManufacturerData.Key: 0x004c (76)
+[CHG] Device 6A:55:F8:EF:61:3A ManufacturerData.Value:
+  10 05 3b 18 05 53 32                             ..;..S2         
+[JBL Xtreme 3]> 
+
+
+
+идем в циннамон 
+
+         start - "sound&video" - "PulseAudio Volume Control" - Playback
+
+и там выбираем устройство на которое делать вывод звука. готово!
+
+
+
