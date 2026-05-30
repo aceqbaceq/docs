@@ -126,3 +126,5 @@ Attempting to connect to D8:37:3B:36:7B:D8
 
 
 
+едиснвтенное что после перезагрузки компа нужно зайти в виджет bluetoothmanager выбрать колонку и нажать connect
+
