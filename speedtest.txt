@@ -1,0 +1,10 @@
+| internet
+| speed
+
+
+померять скоорсть интеренеста
+
+sudo apt install speedtest-cli
+speedtest-cli --secure
+
+
