@@ -1,0 +1,10 @@
+| twitch
+| kick
+
+
+
+как запустиьт чтобы он DNS реквесты делал через TCP
+
+   $ RES_OPTIONS="use-vc" flatpak run com.obsproject.Studio
+
+
