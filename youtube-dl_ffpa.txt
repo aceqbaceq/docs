@@ -2,6 +2,113 @@
 | youtube-dl
 | ffpa 
 | vlc
+| yt-dlp
+ОБНОВИЛ ИНТРСТРУКУЦИЮ в 06.2026
+
+
+
+качаем питон3 прогу yt-dlp
+(здесь я сразу указвыаю вариант если интернет на компе через прокси)
+
+  $   proxychains4   wget https://github.com/yt-dlp/yt-dlp/releases/download/2026.03.17/yt-dlp.tar.gz
+
+
+
+
+
+далее нужнр узнать в каком формате у ютуба хранится ролик в аудиоформате(тоесть там только аудио без видео)
+
+  $ proxychains4 ./yt-dlp -F  https://www.youtube.com/watch?v=Hhag41dnNZA 
+
+[youtube] Extracting URL: https://www.youtube.com/watch?v=Hhag41dnNZA
+[youtube] Hhag41dnNZA: Downloading webpage
+[youtube] Hhag41dnNZA: Downloading android vr player API JSON
+[info] Available formats for Hhag41dnNZA:
+ID  EXT   RESOLUTION FPS CH │   FILESIZE  TBR PROTO │ VCODEC         VBR ACODEC      ABR ASR MORE INFO
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────
+sb3 mhtml 48x27        0    │                 mhtml │ images                                 storyboard
+sb2 mhtml 80x45        0    │                 mhtml │ images                                 storyboard
+sb1 mhtml 160x90       0    │                 mhtml │ images                                 storyboard
+sb0 mhtml 320x180      0    │                 mhtml │ images                                 storyboard
+139 m4a   audio only      2 │   32.05MiB  49k https │ audio only         mp4a.40.5   49k 22k low, m4a_dash
+249 webm  audio only      2 │   31.27MiB  48k https │ audio only         opus        48k 48k low, webm_dash
+140 m4a   audio only      2 │   85.07MiB 129k https │ audio only         mp4a.40.2  129k 44k medium, m4a_dash
+251 webm  audio only      2 │   79.97MiB 122k https │ audio only         opus       122k 48k medium, webm_dash
+160 mp4   256x144     30    │    7.77MiB  12k https │ avc1.4d400c    12k video only          144p, mp4_dash
+278 webm  256x144     30    │   10.91MiB  17k https │ vp9            17k video only          144p, webm_dash
+394 mp4   256x144     30    │   12.34MiB  19k https │ av01.0.00M.08  19k video only          144p, mp4_dash
+133 mp4   426x240     30    │   12.39MiB  19k https │ avc1.4d4015    19k video only          240p, mp4_dash
+242 webm  426x240     30    │   33.18MiB  50k https │ vp9            50k video only          240p, webm_dash
+395 mp4   426x240     30    │   19.32MiB  29k https │ av01.0.00M.08  29k video only          240p, mp4_dash
+134 mp4   640x360     30    │   18.70MiB  28k https │ avc1.4d401e    28k video only          360p, mp4_dash
+18  mp4   640x360     30  2 │ ≈103.42MiB 157k https │ avc1.42001E        mp4a.40.2       44k 360p
+243 webm  640x360     30    │   61.35MiB  93k https │ vp9            93k video only          360p, webm_dash
+396 mp4   640x360     30    │   32.14MiB  49k https │ av01.0.01M.08  49k video only          360p, mp4_dash
+135 mp4   854x480     30    │   25.32MiB  39k https │ avc1.4d401f    39k video only          480p, mp4_dash
+244 webm  854x480     30    │   82.95MiB 126k https │ vp9           126k video only          480p, webm_dash
+397 mp4   854x480     30    │   42.98MiB  65k https │ av01.0.04M.08  65k video only          480p, mp4_dash
+136 mp4   1280x720    30    │   34.91MiB  53k https │ avc1.4d401f    53k video only          720p, mp4_dash
+247 webm  1280x720    30    │  123.87MiB 189k https │ vp9           189k video only          720p, webm_dash
+398 mp4   1280x720    30    │   64.88MiB  99k https │ av01.0.05M.08  99k video only          720p, mp4_dash
+137 mp4   1920x1080   30    │   91.02MiB 139k https │ avc1.640028   139k video only          1080p, mp4_dash
+248 webm  1920x1080   30    │  195.13MiB 297k https │ vp9           297k video only          1080p, webm_dash
+399 mp4   1920x1080   30    │  113.13MiB 172k https │ av01.0.08M.08 172k video only          1080p, mp4_dash
+
+
+
+из списка мне нарпимер подходит 
+
+ID  EXT   RESOLUTION FPS CH │   FILESIZE  TBR PROTO │ VCODEC         VBR ACODEC      ABR ASR MORE INFO
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────
+140 m4a   audio only      2 │   85.07MiB 129k https │ audio only         mp4a.40.2  129k 44k medium, m4a_dash
+
+тоесть "140"
+
+
+
+
+
+выкачиваем его  указав этот "140"
+
+
+   $  proxychains4 ./yt-dlp -f 140 https://www.youtube.com/watch?v=Hhag41dnNZA -o  ~/Music/OmarHound-01.m4a
+
+[youtube] Extracting URL: https://www.youtube.com/watch?v=Hhag41dnNZA
+[youtube] Hhag41dnNZA: Downloading webpage
+[download] Destination: ~/Music/OmarHound-01.m4a
+[download]  22.9% of   85.07MiB at    2.26MiB/s ETA 00:29[proxychains] Strict chain  ...  172.16.10.11:2080  ...  rr3---sn-oj5hn5-5v.googlevideo.com:443  ...  OK
+[download]  34.1% of   85.07MiB at    1.68MiB/s ETA 00:33[proxychains] Strict chain  ...  172.16.10.11:2080  ...  rr1---sn-aj5go5-5i.googlevideo.com:443  ...  OK
+[download]  45.6% of   85.07MiB at  950.55KiB/s ETA 00:49[proxychains] Strict chain  ...  172.16.10.11:2080  ...  rr1---sn-aj5go5-5i.googlevideo.com:443  ...  OK
+[download]  57.1% of   85.07MiB at    1.40MiB/s ETA 00:25[proxychains] Strict chain  ...  172.16.10.11:2080  ...  rr1---sn-aj5go5-5i.googlevideo.com:443  ...  OK
+[download]  68.8% of   85.07MiB at    1.49MiB/s ETA 00:17[proxychains] Strict chain  ...  172.16.10.11:2080  ...  rr1---sn-aj5go5-5i.googlevideo.com:443  ...  OK
+[download]  80.0% of   85.07MiB at    1.79MiB/s ETA 00:09[proxychains] Strict chain  ...  172.16.10.11:2080  ...  rr1---sn-aj5go5-5i.googlevideo.com:443  ...  OK
+[download]  91.7% of   85.07MiB at    1.08MiB/s ETA 00:06[proxychains] Strict chain  ...  172.16.10.11:2080  ...  rr1---sn-aj5go5-5i.googlevideo.com:443  ...  OK
+[download] 100% of   85.07MiB in 00:01:11 at 1.20MiB/s
+[FixupM4a] Correcting container of "/home/noroot/Music/OmarHound-01.m4a"
+
+
+
+
+все, можно слушать
+
+
+    $ ffplay -i ~/Music/OmarHound-01.m4a  -nodisp -autoexit
+
+
+
+если сохранять ненужно то можно слушать сразу
+
+
+    $ proxychains4 ./yt-dlp -f 140 https://www.youtube.com/watch?v=Hhag41dnNZA -o - | ffplay -i - -nodisp -autoexit
+
+
+
+КОНЕЦ
+
+==================================================================
+НИЖЕ БОЛЕЕ СТАРАЯ ИНСТРУКЦИЯ 
+инфо тут устаревшая и прога другая юзается она уже хуево работает или неработает
+
 
 значит заебало открывать ютуб в броузере только для того чтобы послушать
 чтото в режиме аудио без видео. слишком жирная сука этот хром и ютуб.
