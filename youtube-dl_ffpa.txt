@@ -90,9 +90,10 @@ ID  EXT   RESOLUTION FPS CH │   FILESIZE  TBR PROTO │ VCODEC         VBR ACO
 
 
 все, можно слушать
-
+(ключ -nodisp убирает граф интерфейс весьма убогий)
 
     $ ffplay -i ~/Music/OmarHound-01.m4a  -nodisp -autoexit
+
 
 
 
